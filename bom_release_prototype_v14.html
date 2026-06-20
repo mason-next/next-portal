@@ -1,0 +1,617 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>BOM Release Prototype v14</title>
+<style>
+:root{
+  --page-a:#d8f4ff;
+  --page-b:#e5ecff;
+  --shell:#ffffff;
+  --canvas:#fafbfc;
+  --text:#111827;
+  --sub:#697386;
+  --faint:#f6f8fb;
+  --line:#e9edf2;
+  --line-soft:#f1f3f6;
+  --blue:#3aa8ff;
+  --blue-dark:#238fe7;
+  --green:#11a16f;
+  --yellow:#b77900;
+  --red:#c73535;
+  --purple:#6047d6;
+  --shadow:0 28px 72px rgba(55,99,140,.14);
+}
+*{box-sizing:border-box}
+html,body{height:100%}
+body{
+  margin:0;
+  font-family:Inter,ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif;
+  color:var(--text);
+  background:radial-gradient(circle at 70% 8%, rgba(255,255,255,.42), transparent 28%), linear-gradient(135deg,var(--page-b) 0%,var(--page-a) 100%);
+  font-size:13px;
+  line-height:1.35;
+}
+.stage{min-height:100%;padding:10px 12px 18px}
+.app{
+  width:100%;
+  margin:0 auto;
+  background:var(--shell);
+  border:1px solid rgba(255,255,255,.85);
+  border-radius:16px;
+  box-shadow:var(--shadow);
+  overflow:hidden;
+  outline:4px solid rgba(255,255,255,.32);
+}
+.header{
+  height:62px;
+  padding:0 44px;
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  border-bottom:1px solid var(--line);
+  background:#fff;
+}
+.brand{display:flex;align-items:center;gap:10px;font-weight:650;font-size:14px;color:#171717}
+.logo{
+  width:22px;height:22px;border-radius:8px;
+  background:linear-gradient(180deg,#c7eaff,#f7fbff 72%);
+  border:1px solid #edf3f7;
+  position:relative;
+}
+.logo:after{content:"";position:absolute;left:4px;right:4px;bottom:5px;height:3px;border-radius:8px;background:#51b6e9;box-shadow:0 -4px 0 rgba(81,182,233,.28)}
+.nav{display:flex;align-items:center;gap:16px;margin-left:30px;flex:1}
+.nav a{display:inline-flex;align-items:center;gap:7px;text-decoration:none;color:#626b7a;font-size:12px;padding:8px 10px;border-radius:8px;font-weight:500}
+.nav a.active{color:#151a23;background:#fff;border:1px solid #edf0f4;box-shadow:0 3px 12px rgba(15,23,42,.04)}
+.nav svg,.icon svg{width:13px;height:13px;stroke-width:1.8}
+.header-right{display:flex;align-items:center;gap:12px}
+.icon{width:32px;height:32px;border:1px solid var(--line);border-radius:8px;display:grid;place-items:center;background:white;color:#1f2937}
+.avatar{width:30px;height:30px;border-radius:50%;background:linear-gradient(135deg,#cfd9e6,#0f172a);box-shadow:inset 0 0 0 2px #fff}
+.username{font-size:12px;font-weight:600}
+.content{background:#fafbfc;padding:18px 20px 28px;min-height:calc(100vh - 82px)}
+.title-row{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:28px}
+.kicker h1{margin:0 0 8px;font-size:20px;letter-spacing:-.025em;font-weight:700}
+.kicker p{margin:0;color:#4d5563;font-size:14px}
+.actions{display:flex;gap:12px;align-items:center}
+.btn{
+  height:32px;display:inline-flex;align-items:center;gap:7px;padding:0 14px;
+  border-radius:7px;border:1px solid var(--line);background:#fff;color:#1f2937;
+  font:600 12px/1 Inter,ui-sans-serif,system-ui;cursor:pointer;
+  box-shadow:0 2px 5px rgba(16,24,40,.025);
+}
+.btn.primary{background:linear-gradient(180deg,#56b9ff,#2f9df0);border-color:#2394e9;color:#fff;box-shadow:0 5px 12px rgba(47,157,240,.24)}
+.btn.soft{background:#fff;color:#293241}.btn:active{transform:translateY(1px)}
+.drop-zone{
+  min-height:292px;
+  border:1px dashed #b8dff8;
+  border-radius:13px;
+  background:linear-gradient(180deg,#ffffff 0%,#fbfdff 100%);
+  box-shadow:0 1px 2px rgba(15,23,42,.025);
+  display:grid;place-items:center;text-align:center;margin-bottom:24px;padding:34px;
+}
+.drop-zone.drag{border-color:#3aa8ff;background:#f0f9ff}
+.drop-inner{max-width:500px}
+.upload-mark{width:62px;height:62px;margin:0 auto 18px;border-radius:15px;border:1px solid #eaf0f6;background:#f7fbff;display:grid;place-items:center;color:#38a6f4;box-shadow:0 10px 25px rgba(63,148,205,.08)}
+.drop-zone h2{font-size:21px;line-height:1.2;letter-spacing:-.03em;margin:0 0 9px}.drop-zone p{font-size:13px;color:#697386;margin:0 0 18px}.upload-actions{display:flex;justify-content:center;gap:10px}.hidden{display:none!important}
+.tabs{display:flex;align-items:center;gap:34px;margin-bottom:16px}.tab{padding-bottom:8px;color:#697386;font-size:12px;font-weight:500}.tab.active{color:#111827;border-bottom:2px solid #5bbbd3;font-weight:700}
+.tools{display:flex;justify-content:space-between;align-items:center;margin-bottom:16px}.search{width:182px;height:30px;background:#fff;border:1px solid var(--line);border-radius:7px;padding:0 12px;color:#697386;outline:none}.tools-right{display:flex;gap:9px;align-items:center}.mini{width:30px;height:30px;border:1px solid var(--line);border-radius:7px;background:#fff;display:grid;place-items:center;color:#596274}.project-card{background:#fff;border:1px solid var(--line);border-radius:12px;padding:18px 20px;margin-bottom:22px;display:flex;align-items:center;justify-content:space-between;box-shadow:0 1px 2px rgba(15,23,42,.02)}
+.meta{display:grid;grid-template-columns:1.1fr .75fr .95fr .7fr;gap:30px;min-width:0;flex:1}.label{font-size:11px;color:#8991a0;margin-bottom:5px}.value{font-size:13px;font-weight:700;color:#111827;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.badge{display:inline-flex;align-items:center;gap:5px;border-radius:6px;padding:4px 8px;font-size:11px;font-weight:700;border:1px solid #c7f0df;background:#ecfbf4;color:#0a8159}.badge:before{content:"";width:6px;height:6px;border-radius:50%;background:#0aa36e;box-shadow:0 0 0 2px rgba(10,163,110,.12)}
+.table-card{background:#fff;border:1px solid var(--line);border-radius:12px;overflow:hidden;box-shadow:0 1px 2px rgba(15,23,42,.025);max-height:calc(100vh - 316px);overflow:auto}table{width:100%;border-collapse:separate;border-spacing:0;font-size:12px;color:#596274}thead th{position:sticky;top:0;z-index:2;resize:horizontal;overflow:auto;min-width:54px;position:sticky}.resize-handle{position:absolute;top:0;right:0;width:7px;height:100%;cursor:col-resize;user-select:none}.resize-handle:hover{background:rgba(58,168,255,.18)} th{height:38px;text-align:left;background:#fbfcfd;color:#3f4652;font-weight:600;border-bottom:1px solid var(--line-soft);padding:0 14px;white-space:nowrap}td{height:34px;padding:0 14px;border-bottom:1px solid var(--line-soft);vertical-align:middle}tr:last-child td{border-bottom:0}.check{width:15px;height:15px;border:1px solid #e5e9ef;border-radius:4px;background:#fff}.part{font-weight:600;color:#374151}.desc{max-width:360px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.qty-input{width:58px;height:26px;text-align:center;border:1px solid transparent;border-radius:6px;background:transparent;color:#111827;font-weight:650;outline:0}.qty-input:focus{border-color:#dbe3ee;background:#fff}.money-input{width:88px;height:26px;text-align:right;border:1px solid transparent;border-radius:6px;background:transparent;color:#111827;font-weight:650;outline:0;padding:0 7px}.money-input:focus{border-color:#dbe3ee;background:#fff}.total-cell{font-weight:750;color:#111827;text-align:right;white-space:nowrap}.editable{width:100%;height:26px;border:1px solid transparent;border-radius:6px;background:transparent;padding:0 7px;color:#374151;outline:0;font:600 12px Inter,system-ui}.editable:focus{border-color:#dbe3ee;background:#fff}.seq-input{width:64px}.mfr-input{width:120px}.part-input{width:150px}.desc-input{min-width:260px;font-weight:500;color:#596274}.audit-dot{display:inline-flex;align-items:center;gap:5px;color:#238fe7;font-weight:700;font-size:11px}.audit-dot:before{content:"";width:6px;height:6px;border-radius:50%;background:#3aa8ff}.status{appearance:none;border:0;outline:0;border-radius:6px;padding:4px 9px;font-size:11px;font-weight:700}.pending{background:#f3f5f7;color:#5f6875}.approved{background:#ecfbf4;color:#0a8159}.update{background:#fff6e6;color:#946200}.noorder{background:#ffeeee;color:#bb3434}.hold{background:#f1efff;color:#6047d6}.released{background:#eaf5ff;color:#1377c9}.notes{width:100%;height:27px;border:1px solid transparent;border-radius:6px;background:transparent;padding:0 8px;color:#596274;outline:0}.notes:focus{border-color:#dbe3ee;background:#fff}.release-tag{color:#1582d2;font-weight:700}.pager{height:40px;display:flex;align-items:center;justify-content:space-between;margin-top:16px;color:#697386;font-size:12px}.pages{display:flex;align-items:center;gap:15px}.page-btn{width:30px;height:30px;border:1px solid var(--line);background:#fff;border-radius:7px;display:grid;place-items:center;color:#596274}.page-number.active{width:28px;height:28px;border-radius:7px;background:#3da8f5;color:#fff;display:grid;place-items:center}
+.selectbox{width:15px;height:15px;border:1px solid #dfe5ec;border-radius:4px;background:#fff;display:grid;place-items:center;cursor:pointer}
+.selectbox input{width:15px;height:15px;margin:0;accent-color:#3aa8ff;cursor:pointer}
+.seq-static{font-weight:700;color:#3f4652}
+.bulkbar{display:none;align-items:center;justify-content:space-between;background:#eff8ff;border:1px solid #cdeafe;border-radius:10px;padding:10px 12px;margin-bottom:12px;color:#1f4e79}
+.bulkbar.show{display:flex}.cost-summary{display:grid;grid-template-columns:repeat(4,minmax(160px,1fr));gap:12px;margin-bottom:14px}.cost-card{background:#fff;border:1px solid var(--line);border-radius:10px;padding:13px 14px;box-shadow:0 1px 2px rgba(15,23,42,.02)}.cost-card .label{margin-bottom:6px}.cost-value{font-size:18px;font-weight:800;letter-spacing:-.02em;color:#111827}.cost-value.good{color:#0a8159}.cost-value.warn{color:#b77900}@media(max-width:900px){.cost-summary{grid-template-columns:1fr 1fr}}
+.bulk-left{font-weight:700;font-size:12px}.bulk-actions{display:flex;gap:8px;align-items:center}
+.subtabs{display:flex;align-items:center;gap:8px;margin:-12px 0 18px}.subtab{height:30px;padding:0 12px;border:1px solid transparent;border-radius:8px;display:inline-flex;align-items:center;color:#697386;font-weight:650}.subtab.active{background:#fff;border-color:var(--line);color:#111827;box-shadow:0 1px 2px rgba(15,23,42,.025)}
+.release-select{height:28px;border:1px solid var(--line);border-radius:7px;background:#fff;padding:0 8px;font:650 12px Inter,system-ui;color:#374151;outline:0}.release-select:focus{border-color:#9dd5ff;box-shadow:0 0 0 3px rgba(58,168,255,.12)}
+.modal-bg{position:fixed;inset:0;background:rgba(17,24,39,.34);display:none;align-items:center;justify-content:center;padding:24px;z-index:20}.modal{width:min(560px,94vw);background:#fff;border-radius:14px;border:1px solid #eef1f5;box-shadow:0 28px 80px rgba(16,24,40,.22);padding:22px}.modal h2{font-size:19px;letter-spacing:-.02em;margin:0 0 8px}.modal p{margin:0 0 18px;color:#697386}.choice{display:grid;grid-template-columns:1fr 1fr;gap:12px}.choice button{text-align:left;border:1px solid var(--line);background:#fff;border-radius:11px;padding:18px;cursor:pointer}.choice b{display:block;margin-bottom:5px}.choice span{color:#697386;font-size:12px}.form{display:grid;gap:12px;margin-top:16px}.row{display:grid;grid-template-columns:1fr 1fr;gap:12px}.field label{display:block;margin-bottom:6px;color:#697386;font-size:11px;font-weight:700}.field input,.field textarea,.field select{width:100%;height:36px;border:1px solid var(--line);border-radius:8px;padding:0 11px;font:500 13px Inter,system-ui;background:#fff;color:#111827;outline:0}.field textarea{height:88px;padding-top:10px;resize:vertical}.modal-actions{display:flex;justify-content:flex-end;gap:10px;margin-top:18px}.email-preview{background:#fbfcfd;border:1px solid var(--line);border-radius:10px;padding:14px;white-space:pre-wrap;font-family:Consolas,"SFMono-Regular",monospace;font-size:12px;max-height:330px;overflow:auto;color:#374151}.view-options{display:grid;grid-template-columns:1fr 1fr;gap:10px 18px;margin-top:12px}.view-check{display:flex;align-items:center;gap:9px;font-size:13px;color:#374151}.view-check input{width:15px;height:15px}.filter-group{border:1px solid var(--line);border-radius:10px;padding:13px;margin-top:12px}.filter-group-title{font-weight:800;margin-bottom:8px}.col-hidden{display:none!important}.toast{position:fixed;right:24px;bottom:24px;background:#111827;color:white;border-radius:9px;padding:11px 14px;box-shadow:0 18px 50px rgba(0,0,0,.22);display:none;z-index:30}.sr-only{position:absolute;opacity:0;pointer-events:none}
+@media(max-width:900px){.stage{padding:30px 16px}.content{padding:20px}.header{padding:0 20px}.nav{display:none}.title-row,.project-card{flex-direction:column;gap:16px}.meta{grid-template-columns:1fr 1fr;width:100%}.table-card{overflow:auto}table{min-width:980px}.choice,.row{grid-template-columns:1fr}}
+
+.drag-handle{
+  display:inline-flex;align-items:center;justify-content:center;
+  width:22px;height:22px;border-radius:7px;color:#9aa5b1;
+  cursor:grab;user-select:none;font-size:16px;line-height:1;
+}
+.drag-handle:hover{background:#f1f5f9;color:#536173}
+tr.dragging{opacity:.45}
+tr.drag-over{outline:2px solid rgba(58,168,255,.45);outline-offset:-2px;background:#f8fcff}
+.drag-cell{width:34px;text-align:center}
+
+.changed-cell{position:relative;background:linear-gradient(180deg,#fffdf7,#fffaf0)}
+.changed-cell:before{content:"";position:absolute;top:0;left:0;width:0;height:0;border-top:8px solid #f4b63f;border-right:8px solid transparent}
+.changed-cell input,.changed-cell select{background:rgba(255,255,255,.72)}
+.email-modal{width:min(900px,96vw)}
+.email-preview.html{white-space:normal;font-family:Inter,ui-sans-serif,system-ui;font-size:13px;max-height:520px;background:#fff;padding:0}
+.email-document{border:1px solid #e6ebf1;border-radius:10px;overflow:hidden;background:#fff}
+.email-banner{background:linear-gradient(135deg,#0f172a,#1e3a5f);color:#fff;padding:18px 22px;text-align:center;font-weight:800;letter-spacing:.18em;font-size:22px}
+.email-sub{display:block;letter-spacing:.16em;font-size:10px;color:#93d5ff;margin-top:3px}
+.email-body{padding:20px 22px;color:#243041}
+.email-body p{margin:0 0 12px;color:#243041}
+.email-info{width:100%;border-collapse:collapse;margin:12px 0 18px;font-size:12px}
+.email-info td{border:1px solid #e8edf3;padding:8px 10px;height:auto}
+.email-info td:first-child{background:#f8fafc;font-weight:800;width:150px;color:#374151}
+.email-items{width:100%;border-collapse:collapse;font-size:12px;margin:12px 0 14px}
+.email-items th{position:static;background:#f8fafc;border:1px solid #e1e7ef;height:auto;padding:8px 9px;color:#334155}
+.email-items td{border:1px solid #e1e7ef;height:auto;padding:8px 9px;color:#334155;vertical-align:top}
+.email-items tfoot td{font-weight:800;background:#f8fafc}
+.preview-meta{display:grid;grid-template-columns:70px 1fr;gap:6px 12px;margin-bottom:12px;color:#374151;font-size:12px}
+.preview-meta b{color:#111827}
+
+</style>
+</head>
+<body>
+<div class="stage">
+  <div class="app" id="app">
+    <header class="header">
+      <div style="display:flex;align-items:center;flex:1;min-width:0">
+        <div class="brand"><span class="logo"></span><span>NEXT Operations Portal</span></div>
+        <nav class="nav">
+          <a href="#"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>Dashboard</a>
+          <a href="#"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M4 7h16M4 12h16M4 17h10"/></svg>Projects</a>
+          <a href="#"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M8 6h13M8 12h13M8 18h13"/><path d="M3 6h.01M3 12h.01M3 18h.01"/></svg>Reports</a>
+          <a href="#"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7H14a3.5 3.5 0 0 1 0 7H6"/></svg>Admin</a>
+        </nav>
+      </div>
+      <div class="header-right"><button class="icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 7h18s-3 0-3-7"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg></button><button class="icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M12 15.5A3.5 3.5 0 1 0 12 8a3.5 3.5 0 0 0 0 7.5z"/><path d="M19.4 15a1.7 1.7 0 0 0 .34 1.88l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.7 1.7 0 0 0-1.88-.34 1.7 1.7 0 0 0-1 1.55V21a2 2 0 1 1-4 0v-.08a1.7 1.7 0 0 0-1-1.55 1.7 1.7 0 0 0-1.88.34l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.7 1.7 0 0 0 4.6 15a1.7 1.7 0 0 0-1.55-1H3a2 2 0 1 1 0-4h.08a1.7 1.7 0 0 0 1.55-1 1.7 1.7 0 0 0-.34-1.88l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.7 1.7 0 0 0 9 4.6a1.7 1.7 0 0 0 1-1.55V3a2 2 0 1 1 4 0v.08a1.7 1.7 0 0 0 1 1.55 1.7 1.7 0 0 0 1.88-.34l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.7 1.7 0 0 0 19.4 9c.24.6.82 1 1.47 1H21a2 2 0 1 1 0 4h-.08a1.7 1.7 0 0 0-1.52 1z"/></svg></button><span class="avatar"></span><span class="username">Juan Lazo</span></div>
+    </header>
+    <main class="content">
+      <div class="title-row">
+        <div class="kicker"><h1>Projects / IAT Anaheim / BOM Releases</h1><p>Upload, review, approve, and release project equipment from inside the project record.</p></div>
+        <div class="actions"><button class="btn soft">Export <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="M7 10l5 5 5-5"/><path d="M12 15V3"/></svg></button><button class="btn soft">Import <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="M7 10l5-5 5 5"/><path d="M12 5v12"/></svg></button><button class="btn primary" onclick="openRelease()">Create Release</button></div>
+      </div>
+      <section class="drop-zone" id="drop">
+        <div class="drop-inner">
+          <div class="upload-mark"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="M17 8l-5-5-5 5"/><path d="M12 3v12"/></svg></div>
+          <h2>Drop BOM CSV anywhere</h2>
+          <p>or click to upload. The first upload will ask you to create a project or update an existing project.</p>
+          <div class="upload-actions"><button class="btn primary" onclick="event.stopPropagation();file.click()">Upload CSV</button><button class="btn" onclick="event.stopPropagation();startSampleImport()">Use Sample BOM</button></div>
+          <input id="fileInput" type="file" accept=".csv" class="sr-only" />
+        </div>
+      </section>
+      <section class="project-card hidden" id="projectCard">
+        <div class="meta">
+          <div><div class="label">Project</div><div class="value" id="pName">IAT Anaheim</div></div>
+          <div><div class="label">Project #</div><div class="value" id="pNum">26-1054</div></div>
+          <div><div class="label">Customer</div><div class="value" id="pClient">IAT Insurance</div></div>
+          <div><div class="label">State</div><div class="value"><span class="badge">BOM Review</span></div></div>
+        </div>
+        <div class="actions"><button class="btn">Welcome Letter</button><button class="btn primary" onclick="openRelease()">Create Release</button></div>
+      </section>
+      <div class="hidden" id="workarea">
+        <div class="tabs"><div class="tab active">All Equipment</div><div class="tab">Approved</div><div class="tab">Needs Review</div><div class="tab">Released</div></div>
+        <div class="bulkbar" id="bulkbar"><div class="bulk-left"><span id="selectedCount">0</span> item(s) selected</div><div class="bulk-actions"><select class="release-select" id="bulkRelease"><option value="">Set Release #</option></select><button class="btn" onclick="bulkSetRelease()">Apply Release</button><button class="btn" onclick="bulkStatus('Approved')">Approve</button><button class="btn" onclick="bulkStatus('Update Needed')">Update Needed</button><button class="btn" onclick="bulkStatus('Do Not Order')">Do Not Order</button><button class="btn" onclick="clearSelection()">Clear</button></div></div>
+        <div class="cost-summary">
+          <div class="cost-card"><div class="label">Full BOM Cost</div><div class="cost-value" id="fullBomCost">$0.00</div></div>
+          <div class="cost-card"><div class="label">Approved Cost</div><div class="cost-value good" id="approvedCost">$0.00</div></div>
+          <div class="cost-card"><div class="label">Released Cost</div><div class="cost-value" id="releasedCost">$0.00</div></div>
+          <div class="cost-card"><div class="label">Budget Variance</div><div class="cost-value" id="budgetVariance">$0.00</div></div>
+        </div>
+        <div class="tools"><div><button class="btn primary" onclick="addRow()">+ Add Row</button></div><div class="tools-right"><input class="search" placeholder="Search" /><button class="btn" onclick="openViewOptions()">View Options</button><button class="btn">Filter</button><button class="btn">Sort</button><button class="mini"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M8 6h13M8 12h13M8 18h13"/><path d="M3 6h.01M3 12h.01M3 18h.01"/></svg></button><button class="mini"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg></button></div></div>
+        <section class="table-card"><table id="bomTable"><thead><tr><th data-col="drag" style="width:34px"></th><th data-col="select" style="width:36px"><label class="selectbox"><input type="checkbox" id="selectAll" onchange="toggleAll(this.checked)"></label></th><th data-col="seq" style="width:78px">Seq</th><th data-col="mfr" style="width:140px">Manufacturer</th><th data-col="part" style="width:160px">Part #</th><th data-col="desc" style="width:360px">Description</th><th data-col="qty" style="width:74px">Qty</th><th data-col="unitCost" style="width:108px">Unit Cost</th><th data-col="totalCost" style="width:112px">Total Cost</th><th data-col="status" style="width:142px">Status</th><th data-col="release" style="width:118px">Release</th><th data-col="releasedAt" style="width:150px">Released At</th><th data-col="notes" style="width:180px">Notes</th><th data-col="audit" style="width:110px">Audit</th><th data-col="more" style="width:54px">More</th></tr></thead><tbody id="bomBody"></tbody></table></section>
+        <div class="pager"><span>Showing 50 rows per page · drag rows to reorder</span><div class="pages"><button class="page-btn">‹</button><span>1</span><span>2</span><span class="page-number active">3</span><span>4</span><span>...</span><span>99</span><button class="page-btn">›</button></div></div>
+      </div>
+    </main>
+  </div>
+</div>
+<div class="modal-bg" id="projectModal"><div class="modal"><h2>Import BOM</h2><p>Create a new project or update an existing project with this CSV.</p><div class="choice"><button onclick="showProjectForm()"><b>Create New Project</b><span>Start a new project record and load this BOM.</span></button><button onclick="showProjectForm()"><b>Update Existing Project</b><span>Match by sequence and confirm product ID.</span></button></div><div class="form hidden" id="projectForm"><div class="row"><div class="field"><label>Project Name</label><input id="projectName" value="IAT Anaheim" /></div><div class="field"><label>Project Number</label><input id="projectNum" value="26-1054" /></div></div><div class="row"><div class="field"><label>Customer</label><input id="projectClient" value="IAT Insurance" /></div><div class="field"><label>Coordinator Group</label><select><option>Project Coordination Team</option><option>Procurement Team</option><option>NEXT Operations</option></select></div></div><div class="modal-actions"><button class="btn" onclick="closeModal('projectModal')">Cancel</button><button class="btn primary" onclick="loadProject()">Load BOM</button></div></div></div></div>
+<div class="modal-bg" id="releaseModal"><div class="modal"><h2>Create Equipment Release</h2><p>Only rows marked <b>Approved</b> and assigned to the selected release number will be included.</p><div class="form"><div class="field"><label>Release Number</label><select id="releaseNum" class="release-select"></select></div><div class="row"><div class="field"><label>Shipping Type</label><select id="shippingType"><option>Ground</option><option>2-Day</option><option selected>Next Day</option><option>Freight</option><option>Will Call / Pickup</option></select></div><div class="field"><label>Ship To</label><select id="shipTo"><option selected>NY Warehouse</option><option>Miami Warehouse</option><option>Site Address</option></select></div></div><div class="row"><div class="field"><label>Recipients</label><select id="releaseRecipients"><option>Project Coordination Team</option><option>Procurement Team</option><option>Project Coordination + Procurement</option><option>Custom Group</option></select></div><div class="field"><label>Release Method</label><select><option selected>Email Preview / Mailto</option><option>Future: Outlook Draft</option></select></div></div><div class="field"><label>Release Notes</label><textarea id="releaseNotes">Please release all approved products for procurement.</textarea></div><div class="modal-actions"><button class="btn" onclick="closeModal('releaseModal')">Cancel</button><button class="btn primary" onclick="generateRelease()">Generate Release Email</button></div></div></div></div>
+<div class="modal-bg" id="emailModal"><div class="modal email-modal"><h2>Release Email Preview</h2><p>Formatted HTML preview. Copy formatted email and paste into Outlook, or use mailto for a plain-text draft.</p><div class="preview-meta"><b>To</b><span id="emailTo">Project Coordination Team</span><b>Subject</b><span id="emailSubject">Equipment Release</span></div><div class="email-preview html" id="emailText"></div><div class="modal-actions"><button class="btn" onclick="closeModal('emailModal')">Close</button><button class="btn" onclick="copyEmail()">Copy Plain Text</button><button class="btn" onclick="copyFormattedEmail()">Copy Formatted Email</button><button class="btn primary" onclick="openMailto()">Open Outlook Draft</button></div></div></div>
+<div class="modal-bg" id="auditModal"><div class="modal"><h2>Row Audit Trail</h2><p>Every edit is logged by field, value, user, and timestamp.</p><div class="email-preview" id="auditText"></div><div class="modal-actions"><button class="btn primary" onclick="closeModal('auditModal')">Done</button></div></div></div>
+
+<div class="modal-bg" id="viewModal"><div class="modal"><h2>View Options</h2><p>Hide columns or temporarily hide rows from the BOM grid. This does not delete or change the BOM.</p><div class="filter-group"><div class="filter-group-title">Columns</div><div class="view-options" id="columnOptions"></div></div><div class="filter-group"><div class="filter-group-title">Rows</div><label class="view-check"><input type="checkbox" id="hideReleased" onchange="setRowFilter('hideReleased',this.checked)">Hide Released rows</label><label class="view-check"><input type="checkbox" id="hideDoNotOrder" onchange="setRowFilter('hideDoNotOrder',this.checked)">Hide Do Not Order rows</label><label class="view-check"><input type="checkbox" id="hideZeroQty" onchange="setRowFilter('hideZeroQty',this.checked)">Hide rows with Qty 0</label></div><div class="modal-actions"><button class="btn" onclick="resetViewOptions()">Reset View</button><button class="btn primary" onclick="closeModal('viewModal')">Done</button></div></div></div>
+<div class="toast" id="toast">Copied email to clipboard</div>
+<script>
+const manufacturers=['Cisco','QSC','Shure','LG','Chief','Netgear','Crestron','Biamp','Samsung','Extron','Legrand','Middle Atlantic'];
+const parts=['CS-KITPRO-K9','CORE-110F-V2','MXA920W-S','75UH5N-E','XTM1U','M4250-26G4F','HD-TX-4KZ-101','TESIRAFORTE','QM65B','DTP-T-HWP','C2G-54427','BGR-4527'];
+const descriptions=['Room codec bundle','DSP processor','Ceiling array microphone','Commercial display','Tilt wall mount','Managed PoE+ network switch','4K transmitter','Audio DSP with Dante','65 inch commercial display','HDBaseT wallplate transmitter','USB-C adapter cable','Equipment rack enclosure'];
+let selected=new Set();
+let hiddenColumns=new Set();
+let rowFilters={hideReleased:false,hideDoNotOrder:false,hideZeroQty:false};
+const columnConfig=[['drag','Move'],['seq','Seq'],['mfr','Manufacturer'],['part','Part #'],['desc','Description'],['qty','Qty'],['unitCost','Unit Cost'],['totalCost','Total Cost'],['status','Status'],['release','Release'],['releasedAt','Released At'],['notes','Notes'],['audit','Audit']];
+let pendingImportRows=null;
+let rows=Array.from({length:50},(_,i)=>({
+ seq:String(i+1).padStart(3,'0'),
+ mfr:manufacturers[i%manufacturers.length],
+ part:parts[i%parts.length],
+ desc:descriptions[i%descriptions.length],
+ qty:(i%4)+1,
+ status:'Pending Review',
+ release:'',
+ notes:'',
+ unitCost:((i%6)+1)*125,
+ audit:[]
+}));
+let lastEmail='';
+let lastEmailHtml='';
+let lastEmailSubject='';
+let originalRows=[];
+const currentUser='Juan Lazo';
+function snapshotRows(sourceRows){ return sourceRows.map(r=>({seq:formatSeq(r.seq),mfr:String(r.mfr||''),part:String(r.part||''),desc:String(r.desc||''),qty:String(r.qty??''),unitCost:String(parseMoney(r.unitCost)),status:String(r.status||''),release:String(r.release||''),notes:String(r.notes||'')})); }
+function isChanged(i,field){ const base=originalRows[i]; if(!base) return false; const cur=rows[i]||{}; const a=(field==='unitCost')?String(parseMoney(cur[field])):String(cur[field]??''); const b=(field==='unitCost')?String(parseMoney(base[field])):String(base[field]??''); return a!==b; }
+function changedClass(i,field){ return isChanged(i,field)?'changed-cell':''; }
+originalRows=snapshotRows(rows);
+const drop=document.getElementById('drop'), file=document.getElementById('fileInput');
+
+drop.onclick=()=>file.click();
+file.onchange=()=>handleUpload(file.files && file.files[0]);
+['dragenter','dragover'].forEach(e=>document.addEventListener(e,ev=>{ev.preventDefault();drop.classList.add('drag')}));
+['dragleave','drop'].forEach(e=>document.addEventListener(e,ev=>{ev.preventDefault();drop.classList.remove('drag')}));
+document.addEventListener('drop',ev=>{ ev.preventDefault(); if(ev.dataTransfer.files.length) handleUpload(ev.dataTransfer.files[0]); });
+
+function showBomWorkspace(){
+ drop.classList.add('hidden');
+ document.getElementById('projectCard').classList.remove('hidden');
+ document.getElementById('workarea').classList.remove('hidden');
+ document.getElementById('projectTabs').classList.remove('hidden');
+}
+
+function resetProjectImportModal(){
+ document.getElementById('projectForm').classList.add('hidden');
+ document.getElementById('projectModal').style.display='flex';
+}
+
+function handleUpload(uploadedFile){
+ if(!uploadedFile){ return; }
+ const reader=new FileReader();
+ reader.onload=e=>{
+  const parsed=parseCSVToRows(String(e.target.result||''));
+  pendingImportRows=parsed.length ? parsed : [];
+  // Preserve the intended workflow: upload first, then ask whether this is a new project or an update.
+  // The table is not shown until the user confirms by clicking Load BOM.
+  resetProjectImportModal();
+ };
+ reader.readAsText(uploadedFile);
+}
+
+function startSampleImport(){
+ pendingImportRows=rows.map(r=>({ ...r, audit:[] }));
+ resetProjectImportModal();
+}
+
+function detectDelimiter(line){
+ const candidates=[',','\t',';','|'];
+ let best=',', bestCount=-1;
+ candidates.forEach(d=>{
+  const count=(line.match(new RegExp(d==='\t'?'\\t':'\\'+d,'g'))||[]).length;
+  if(count>bestCount){best=d;bestCount=count;}
+ });
+ return best;
+}
+function parseDelimited(text){
+ text=String(text||'').replace(/^\uFEFF/,'');
+ const first=(text.split(/\r?\n/).find(l=>l.trim())||'');
+ const delimiter=detectDelimiter(first);
+ const out=[]; let row=[], cur='', inQuotes=false;
+ for(let i=0;i<text.length;i++){
+  const c=text[i], n=text[i+1];
+  if(c==='"'){
+   if(inQuotes && n==='"'){ cur+='"'; i++; }
+   else inQuotes=!inQuotes;
+  } else if(c===delimiter && !inQuotes){ row.push(cur.trim()); cur=''; }
+  else if((c==='\n' || c==='\r') && !inQuotes){
+   if(c==='\r' && n==='\n') i++;
+   row.push(cur.trim()); cur='';
+   if(row.some(v=>String(v).trim()!=='')) out.push(row);
+   row=[];
+  } else cur+=c;
+ }
+ row.push(cur.trim());
+ if(row.some(v=>String(v).trim()!=='')) out.push(row);
+ return out;
+}
+function cleanKey(v){return String(v||'').toLowerCase().replace(/[^a-z0-9]/g,'')}
+function findVal(obj, keys){
+ const objKeys=Object.keys(obj);
+ for(const k of keys){
+  const target=cleanKey(k);
+  const exact=objKeys.find(x=>cleanKey(x)===target);
+  if(exact) return obj[exact];
+ }
+ for(const k of keys){
+  const target=cleanKey(k);
+  const hit=objKeys.find(x=>cleanKey(x).includes(target) || target.includes(cleanKey(x)));
+  if(hit) return obj[hit];
+ }
+ return '';
+}
+function firstNonEmpty(values){
+ for(const v of values){ if(String(v??'').trim()!=='') return v; }
+ return '';
+}
+function parseCSVToRows(text){
+ const data=parseDelimited(text);
+ if(!data.length) return [];
+ let headers=data[0].map(h=>String(h||'').trim());
+ let body=data.slice(1);
+ // If the first row does not look like headers, treat the file as headerless.
+ const headerScore=headers.filter(h=>/(seq|sequence|manufacturer|mfr|part|product|description|qty|quantity|model|item)/i.test(h)).length;
+ if(headerScore===0){
+  body=data;
+  headers=['Sequence','Manufacturer','Product ID','Description','Qty','Notes'];
+ }
+ return body.map((r,idx)=>{
+  const obj={}; headers.forEach((h,i)=>obj[h||('Column '+(i+1))]=r[i]??'');
+  const seq=firstNonEmpty([findVal(obj,['Sequence','Seq','Line','LineNumber','Line Number','Item','Item Number','No','Number']), r[0] || '']);
+  const mfr=firstNonEmpty([findVal(obj,['Manufacturer','Mfr','MFG','Manufacture','Vendor','Brand','Make']), r[1] || '']);
+  const part=firstNonEmpty([findVal(obj,['Product ID','ProductID','Part #','Part Number','PartNumber','Model','SKU','Catalog Number','Catalog','Item ID','Product']), r[2] || '']);
+  const desc=firstNonEmpty([findVal(obj,['Description','Product Description','Item Description','Name','Product Name','Long Description']), r[3] || '']);
+  const qty=firstNonEmpty([findVal(obj,['Qty','Quantity','QTY','Count']), r[4] || 1]);
+  const notes=findVal(obj,['Notes','Note','Comments','Comment']);
+  const unitCost=firstNonEmpty([findVal(obj,['Unit Cost','UnitCost','Cost','Price','Sell Price','Unit Price','Net Cost']), r[5] || 0]);
+  return {seq:formatSeq(seq),mfr,part,desc,qty,unitCost:parseMoney(unitCost),status:'Pending Review',release:'',releasedAt:'',notes,audit:[]};
+ }).filter((row,idx)=>{
+  // Keep the row if anything meaningful exists. This avoids silently dropping rows due to unexpected CSV headers.
+  return [row.seq,row.mfr,row.part,row.desc,row.qty,row.notes].some(v=>String(v??'').trim()!=='');
+ });
+}
+
+function openProjectModal(){ resetProjectImportModal(); }
+function closeModal(id){document.getElementById(id).style.display='none'}
+function showProjectForm(){document.getElementById('projectForm').classList.remove('hidden')}
+function loadProject(){
+ document.getElementById('pName').textContent=document.getElementById('projectName').value || 'Untitled Project';
+ document.getElementById('pNum').textContent=document.getElementById('projectNum').value || 'No Project #';
+ document.getElementById('pClient').textContent=document.getElementById('projectClient').value || 'No Customer';
+
+ // Commit the uploaded CSV rows first. This is the important part:
+ // do not wait for Add Row or any other user action to trigger the render.
+ if(Array.isArray(pendingImportRows)){
+  rows=[...pendingImportRows];
+  originalRows=snapshotRows(rows);
+  pendingImportRows=null;
+ }
+
+ selected.clear();
+ closeModal('projectModal');
+ showBomWorkspace();
+
+ // Render after the workspace is visible so the table body is populated immediately.
+ // requestAnimationFrame avoids the previous issue where the workspace appeared
+ // but the tbody stayed empty until another action forced a re-render.
+ requestAnimationFrame(()=>{
+  renderRows();
+  const body=document.getElementById('bomBody');
+  if(body && !body.children.length && rows.length){
+   setTimeout(renderRows,0);
+  }
+ });
+}
+function cls(s){return s==='Approved'?'approved':s==='Update Needed'?'update':s==='Do Not Order'?'noorder':s==='On Hold'?'hold':s==='Released'?'released':'pending'}
+function escapeHtml(v){return String(v ?? '').replace(/[&<>'"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[c]))}
+
+function parseMoney(v){
+ const n=Number(String(v??'').replace(/[^0-9.-]/g,''));
+ return Number.isFinite(n)?n:0;
+}
+function money(n){
+ const value=parseMoney(n);
+ return value.toLocaleString(undefined,{style:'currency',currency:'USD'});
+}
+function formatSeq(v){ if(v===''||v===null||v===undefined) return ''; const n=Number(v); return Number.isFinite(n)?n.toFixed(2):String(v); }
+function rowTotal(r){ return parseMoney(r.qty)*parseMoney(r.unitCost); }
+function updateCostSummary(){
+ const full=rows.reduce((sum,r)=>sum+rowTotal(r),0);
+ const approved=rows.filter(r=>r.status==='Approved'||r.status==='Released').reduce((sum,r)=>sum+rowTotal(r),0);
+ const released=rows.filter(r=>r.status==='Released').reduce((sum,r)=>sum+rowTotal(r),0);
+ const budget=full; // Prototype placeholder. Later this can pull from the project budget table.
+ const variance=budget-approved;
+ const set=(id,val)=>{const el=document.getElementById(id); if(el) el.textContent=money(val);};
+ set('fullBomCost',full); set('approvedCost',approved); set('releasedCost',released); set('budgetVariance',variance);
+ const varianceEl=document.getElementById('budgetVariance');
+ if(varianceEl){ varianceEl.classList.toggle('warn', variance<0); varianceEl.classList.toggle('good', variance>=0); }
+}
+function initResizableColumns(){
+ const table=document.getElementById('bomTable'); if(!table || table.dataset.resizable==='1') return;
+ table.dataset.resizable='1';
+ table.querySelectorAll('th').forEach(th=>{
+  const handle=document.createElement('span'); handle.className='resize-handle'; th.appendChild(handle);
+  let startX=0,startW=0;
+  handle.addEventListener('mousedown',e=>{
+   e.preventDefault(); startX=e.pageX; startW=th.offsetWidth;
+   const move=ev=>{ th.style.width=Math.max(48,startW+(ev.pageX-startX))+'px'; };
+   const up=()=>{ document.removeEventListener('mousemove',move); document.removeEventListener('mouseup',up); };
+   document.addEventListener('mousemove',move); document.addEventListener('mouseup',up);
+  });
+ });
+}
+
+function trackChange(i,field,oldValue,newValue){
+ if(String(oldValue)===String(newValue)) return;
+ rows[i][field]=newValue;
+ rows[i].audit=rows[i].audit||[];
+ rows[i].audit.unshift({field,oldValue,newValue,user:currentUser,time:new Date().toLocaleString()});
+ renderRows();
+}
+function editInput(i,field,value,type){ const oldValue=rows[i][field]; const newValue=(type==='number'||type==='money')?parseMoney(value):value; trackChange(i,field,oldValue,newValue); }
+function updateBulkBar(){
+ const bar=document.getElementById('bulkbar'); if(!bar) return;
+ document.getElementById('selectedCount').textContent=selected.size;
+ bar.classList.toggle('show', selected.size>0);
+ const all=document.getElementById('selectAll'); if(all) all.checked=rows.length>0 && selected.size===rows.length;
+}
+function toggleRow(i,checked){ if(checked) selected.add(i); else selected.delete(i); updateBulkBar(); }
+function toggleAll(checked){ selected=new Set(); if(checked){ rows.forEach((_,i)=>selected.add(i)); } renderRows(); }
+function clearSelection(){ selected.clear(); renderRows(); }
+function bulkStatus(status){
+ const now=new Date().toLocaleString();
+ Array.from(selected).forEach(i=>{ const old=rows[i].status; if(old!==status){ rows[i].status=status; rows[i].audit.unshift({field:'status',oldValue:old,newValue:status,user:currentUser,time:now}); } });
+ selected.clear(); renderRows();
+}
+function bulkSetRelease(){
+ const rel=document.getElementById('bulkRelease').value; if(!rel) return;
+ const now=new Date().toLocaleString();
+ Array.from(selected).forEach(i=>{ const old=rows[i].release||''; if(old!==rel){ rows[i].release=rel; rows[i].audit.unshift({field:'release',oldValue:old,newValue:rel,user:currentUser,time:now}); } });
+ selected.clear(); renderRows();
+}
+function addRow(){
+ const newRow={seq:'',mfr:'',part:'',desc:'',qty:'',unitCost:'',status:'Pending Review',release:'',releasedAt:'',notes:'',audit:[{field:'row',oldValue:'',newValue:'Added manually',user:currentUser,time:new Date().toLocaleString()}]};
+ rows.unshift(newRow);
+ originalRows.unshift({seq:'',mfr:'',part:'',desc:'',qty:'',unitCost:'0',status:'Pending Review',release:'',notes:''});
+ selected.clear(); renderRows();
+}
+
+function highestContinuousRelease(){
+ const nums=[...new Set(rows.map(r=>String(r.release||'').match(/Release\s+(\d+)/)).filter(Boolean).map(m=>Number(m[1])))].sort((a,b)=>a-b);
+ let n=0; for(const x of nums){ if(x===n+1) n=x; }
+ return n;
+}
+function releaseNumberOptions(current=''){
+ const nums=[...new Set(rows.map(r=>String(r.release||'').match(/Release\s+(\d+)/)).filter(Boolean).map(m=>Number(m[1])))];
+ const max=highestContinuousRelease()+1;
+ const currentNum=(String(current||'').match(/Release\s+(\d+)/)||[])[1];
+ const limit=Math.max(max, currentNum?Number(currentNum):1);
+ return Array.from({length:limit},(_,idx)=>`Release ${idx+1}`);
+}
+function releaseOptionsHtml(current='', includeBlank=true){
+ const opts=releaseNumberOptions(current);
+ return `${includeBlank?`<option value="" ${!current?'selected':''}>Select</option>`:''}` + opts.map(o=>`<option ${current===o?'selected':''}>${o}</option>`).join('');
+}
+function refreshReleaseControls(){
+ const bulk=document.getElementById('bulkRelease');
+ if(bulk){ bulk.innerHTML='<option value="">Set Release #</option>'+releaseNumberOptions('').map(o=>`<option>${o}</option>`).join(''); }
+ const modal=document.getElementById('releaseNum');
+ if(modal){
+   const assigned=[...new Set(rows.map(r=>r.release).filter(Boolean))];
+   const releasable=assigned.filter(rel=>rows.some(r=>r.release===rel && r.status==='Approved'));
+   const list=releasable.length?releasable:releaseNumberOptions('').slice(0,1);
+   modal.innerHTML=list.map(o=>`<option>${o}</option>`).join('');
+ }
+}
+
+
+let dragFromIndex=null;
+function handleDragStart(e){
+ dragFromIndex=Number(this.dataset.index);
+ this.classList.add('dragging');
+ e.dataTransfer.effectAllowed='move';
+ e.dataTransfer.setData('text/plain', String(dragFromIndex));
+}
+function handleDragOver(e){
+ e.preventDefault();
+ this.classList.add('drag-over');
+ e.dataTransfer.dropEffect='move';
+}
+function handleDragLeave(){ this.classList.remove('drag-over'); }
+function handleDragEnd(){
+ document.querySelectorAll('tr.dragging,tr.drag-over').forEach(el=>el.classList.remove('dragging','drag-over'));
+ dragFromIndex=null;
+}
+function handleDrop(e){
+ e.preventDefault();
+ this.classList.remove('drag-over');
+ const from=dragFromIndex ?? Number(e.dataTransfer.getData('text/plain'));
+ const to=Number(this.dataset.index);
+ if(Number.isNaN(from)||Number.isNaN(to)||from===to) return;
+ const moved=rows.splice(from,1)[0];
+ const movedOriginal=originalRows.splice(from,1)[0];
+ rows.splice(to,0,moved);
+ originalRows.splice(to,0,movedOriginal||snapshotRows([moved])[0]);
+ moved.audit=moved.audit||[];
+ moved.audit.unshift({field:'row order',oldValue:`Position ${from+1}`,newValue:`Position ${to+1}`,user:currentUser,time:new Date().toLocaleString()});
+ selected.clear();
+ renderRows();
+}
+
+function renderRows(){
+ const body=document.getElementById('bomBody');
+ const frag=document.createDocumentFragment();
+ rows.forEach((r,i)=>{
+  if(rowFilters.hideReleased && r.status==='Released') return;
+  if(rowFilters.hideDoNotOrder && r.status==='Do Not Order') return;
+  if(rowFilters.hideZeroQty && parseMoney(r.qty)===0) return;
+  const tr=document.createElement('tr');
+  tr.draggable=true;
+  tr.dataset.index=i;
+  tr.addEventListener('dragstart',handleDragStart);
+  tr.addEventListener('dragover',handleDragOver);
+  tr.addEventListener('dragleave',handleDragLeave);
+  tr.addEventListener('drop',handleDrop);
+  tr.addEventListener('dragend',handleDragEnd);
+  const auditCount=(r.audit||[]).length;
+  tr.innerHTML=`
+   <td data-col="drag" class="drag-cell"><span class="drag-handle" title="Drag to move row">⋮⋮</span></td>
+   <td data-col="select"><label class="selectbox"><input type="checkbox" ${selected.has(i)?'checked':''} onchange="toggleRow(${i},this.checked)"></label></td>
+   <td data-col="seq"><span class="seq-static">${escapeHtml(formatSeq(r.seq))}</span></td>
+   <td data-col="mfr" class="${changedClass(i,'mfr')}"><input class="editable mfr-input" value="${escapeHtml(r.mfr)}" onchange="editInput(${i},'mfr',this.value)"></td>
+   <td data-col="part" class="${changedClass(i,'part')}"><input class="editable part-input" value="${escapeHtml(r.part)}" onchange="editInput(${i},'part',this.value)"></td>
+   <td data-col="desc" class="desc ${changedClass(i,'desc')}"><input class="editable desc-input" value="${escapeHtml(r.desc)}" onchange="editInput(${i},'desc',this.value)"></td>
+   <td data-col="qty" class="${changedClass(i,'qty')}"><input class="qty-input" type="number" min="0" value="${escapeHtml(r.qty)}" onchange="editInput(${i},'qty',this.value,'number')"></td>
+   <td data-col="unitCost" class="${changedClass(i,'unitCost')}"><input class="money-input" value="${escapeHtml(parseMoney(r.unitCost).toFixed(2))}" onchange="editInput(${i},'unitCost',this.value,'money')"></td>
+   <td data-col="totalCost" class="total-cell">${money(rowTotal(r))}</td>
+   <td data-col="status" class="${changedClass(i,'status')}"><select class="status ${cls(r.status)}" onchange="trackChange(${i},'status',rows[${i}].status,this.value)"><option ${r.status==='Pending Review'?'selected':''}>Pending Review</option><option ${r.status==='Approved'?'selected':''}>Approved</option><option ${r.status==='Update Needed'?'selected':''}>Update Needed</option><option ${r.status==='Do Not Order'?'selected':''}>Do Not Order</option><option ${r.status==='On Hold'?'selected':''}>On Hold</option><option ${r.status==='Released'?'selected':''}>Released</option></select></td>
+   <td data-col="release" class="${changedClass(i,'release')}"><select class="release-select" onchange="trackChange(${i},'release',rows[${i}].release||'',this.value)">${releaseOptionsHtml(r.release,true)}</select></td>
+   <td data-col="releasedAt">${escapeHtml(r.releasedAt||'')}</td>
+   <td data-col="notes" class="${changedClass(i,'notes')}"><input class="notes" placeholder="Add note" value="${escapeHtml(r.notes||'')}" onchange="editInput(${i},'notes',this.value)"></td>
+   <td data-col="audit">${auditCount?`<button class="btn" onclick="openAudit(${i})">${auditCount} change${auditCount>1?'s':''}</button>`:'<span class="audit-dot">Clean</span>'}</td>
+   <td data-col="more"><button class="mini" onclick="openAudit(${i})">···</button></td>`;
+  frag.appendChild(tr);
+ });
+ body.replaceChildren(frag);
+ updateBulkBar();
+ refreshReleaseControls();
+ updateCostSummary();
+ initResizableColumns();
+ applyViewPrefs();
+}
+
+function renderColumnOptions(){
+ const wrap=document.getElementById('columnOptions'); if(!wrap) return;
+ wrap.innerHTML=columnConfig.map(([key,label])=>`<label class="view-check"><input type="checkbox" ${hiddenColumns.has(key)?'':'checked'} onchange="toggleColumn('${key}',this.checked)">${label}</label>`).join('');
+ document.getElementById('hideReleased').checked=!!rowFilters.hideReleased;
+ document.getElementById('hideDoNotOrder').checked=!!rowFilters.hideDoNotOrder;
+ document.getElementById('hideZeroQty').checked=!!rowFilters.hideZeroQty;
+}
+function openViewOptions(){ renderColumnOptions(); document.getElementById('viewModal').style.display='flex'; }
+function toggleColumn(key,show){ if(show) hiddenColumns.delete(key); else hiddenColumns.add(key); applyViewPrefs(); }
+function setRowFilter(key,val){ rowFilters[key]=val; renderRows(); }
+function resetViewOptions(){ hiddenColumns.clear(); rowFilters={hideReleased:false,hideDoNotOrder:false,hideZeroQty:false}; renderColumnOptions(); renderRows(); }
+function applyViewPrefs(){
+ document.querySelectorAll('[data-col]').forEach(el=>{ el.classList.toggle('col-hidden', hiddenColumns.has(el.dataset.col)); });
+}
+
+function openAudit(i){
+ const r=rows[i];
+ const list=(r.audit||[]).map(a=>`<div style="padding:10px 0;border-bottom:1px solid var(--line-soft)"><b>${escapeHtml(a.field)}</b><br><span style="color:#697386">${escapeHtml(a.oldValue)} → ${escapeHtml(a.newValue)}</span><br><small>${escapeHtml(a.user)} · ${escapeHtml(a.time)}</small></div>`).join('') || '<div style="color:#697386">No changes have been made to this row.</div>';
+ document.getElementById('auditText').innerHTML=`<b>${escapeHtml(r.seq)} · ${escapeHtml(r.part)}</b>${list}`;
+ document.getElementById('auditModal').style.display='flex';
+}
+function openRelease(){ if(document.getElementById('workarea').classList.contains('hidden')){openProjectModal();return} refreshReleaseControls(); document.getElementById('releaseModal').style.display='flex'}
+function buildEmailHtml(subject,details,items,notes){
+ const rowsHtml=items.map(r=>`<tr><td>${escapeHtml(formatSeq(r.seq))}</td><td>${escapeHtml(r.qty)}</td><td>${escapeHtml(r.mfr)}</td><td>${escapeHtml(r.part)}</td><td>${escapeHtml(r.desc)}</td><td style="text-align:right">${money(rowTotal(r))}</td></tr>`).join('');
+ const total=items.reduce((sum,r)=>sum+rowTotal(r),0);
+ return `<div class="email-document"><div class="email-banner">NEXT<span class="email-sub">OPERATIONS PORTAL</span></div><div class="email-body"><p>Hello Team,</p><p><b>${escapeHtml(details.rel)}</b> has been created and is ready for procurement.</p><table class="email-info"><tr><td>Project</td><td>${escapeHtml(details.projectNum)} - ${escapeHtml(details.projectName)}</td></tr><tr><td>Release</td><td>${escapeHtml(details.rel)}</td></tr><tr><td>Shipping Type</td><td>${escapeHtml(details.shipType)}</td></tr><tr><td>Ship To</td><td>${escapeHtml(details.shipTo)}</td></tr><tr><td>Release Date</td><td>${escapeHtml(details.now)}</td></tr><tr><td>Requested By</td><td>${escapeHtml(currentUser)}</td></tr></table><p>The following items are included in this release:</p><table class="email-items"><thead><tr><th>Seq</th><th>Qty</th><th>Manufacturer</th><th>Part #</th><th>Description</th><th>Total Cost</th></tr></thead><tbody>${rowsHtml}</tbody><tfoot><tr><td colspan="5">Release Total</td><td style="text-align:right">${money(total)}</td></tr></tfoot></table>${notes?`<p><b>Notes:</b> ${escapeHtml(notes)}</p>`:''}<p>Please review and proceed with ordering these items.</p><p><b>Thank you,</b><br>NEXT Operations Portal</p></div></div>`;
+}
+function generateRelease(){
+ const rel=document.getElementById('releaseNum').value,ship=document.getElementById('shipTo').value,shipType=document.getElementById('shippingType').value,recips=document.getElementById('releaseRecipients').value,now=new Date().toLocaleString(),approved=rows.filter(r=>r.status==='Approved' && r.release===rel);
+ if(!approved.length){ alert('No approved items are assigned to '+rel+'. Select a release number in the table and approve the rows first.'); return; }
+ approved.forEach(r=>{ r.audit.unshift({field:'release generated',oldValue:'Approved',newValue:'Released',user:currentUser,time:now}); r.audit.unshift({field:'shipping',oldValue:'',newValue:shipType+' to '+ship,user:currentUser,time:now}); r.status='Released'; r.releasedAt=now; r.shippingType=shipType; r.shipTo=ship; });
+ renderRows(); closeModal('releaseModal');
+ const p=document.getElementById('pName').textContent,n=document.getElementById('pNum').textContent,notes=document.getElementById('releaseNotes').value;
+ const lines=approved.map(r=>`${formatSeq(r.seq)} | ${r.qty} | ${r.mfr} | ${r.part} | ${r.desc} | ${money(rowTotal(r))}`).join('\n');
+ lastEmailSubject=`Equipment ${rel} - Project ${n} - ${p}`;
+ lastEmail=`Subject: ${lastEmailSubject}\n\nHello Team,\n\nPlease proceed with Equipment ${rel} for Project ${n} - ${p}.\n\nShipping Type: ${shipType}\nShip To: ${ship}\nRecipients: ${recips}\n\nThe following items have been approved for procurement:\n\nSeq | Qty | Manufacturer | Part Number | Description | Total Cost\n${lines}\n\nRelease Date: ${now}\nRequested By: ${currentUser}\n\nNotes: ${notes}\n\nThank you.`;
+ lastEmailHtml=buildEmailHtml(lastEmailSubject,{rel,shipType,shipTo:ship,now,projectName:p,projectNum:n},approved,notes);
+ document.getElementById('emailSubject').textContent=lastEmailSubject;
+ document.getElementById('emailTo').textContent=recips;
+ document.getElementById('emailText').innerHTML=lastEmailHtml;
+ document.getElementById('emailModal').style.display='flex';
+}
+function showToast(msg='Copied email to clipboard'){const t=document.getElementById('toast');t.textContent=msg;t.style.display='block';setTimeout(()=>t.style.display='none',1800)}
+function copyEmail(){navigator.clipboard.writeText(lastEmail);showToast('Copied plain-text email')}
+async function copyFormattedEmail(){
+ try{
+  const htmlBlob=new Blob([lastEmailHtml],{type:'text/html'});
+  const textBlob=new Blob([lastEmail],{type:'text/plain'});
+  await navigator.clipboard.write([new ClipboardItem({'text/html':htmlBlob,'text/plain':textBlob})]);
+  showToast('Copied formatted email');
+ }catch(e){
+  navigator.clipboard.writeText(lastEmail);
+  showToast('Formatted copy unavailable — copied plain text');
+ }
+}
+function openMailto(){const subject=lastEmailSubject || lastEmail.split('\n')[0].replace('Subject: ','');const body=lastEmail.split('\n\n').slice(1).join('\n\n');window.location.href=`mailto:?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`}
+</script>
+</body>
+</html>
