@@ -4,6 +4,7 @@ interface ProjectHeaderCardProps {
   name: string;
   projectNumber: string;
   customerName: string;
+  siteAddress: string;
   stateBadge?: ReactNode;
   actions?: ReactNode;
 }
@@ -12,15 +13,17 @@ export function ProjectHeaderCard({
   name,
   projectNumber,
   customerName,
+  siteAddress,
   stateBadge,
   actions,
 }: ProjectHeaderCardProps) {
   return (
     <div className="flex items-center justify-between rounded-xl border bg-card p-5 shadow-sm">
-      <div className="grid grid-cols-4 gap-8">
+      <div className="grid grid-cols-5 gap-6">
         <Field label="Project" value={name} />
         <Field label="Project #" value={projectNumber} />
         <Field label="Customer" value={customerName} />
+        <Field label="Site Address" value={siteAddress || "—"} />
         <div>
           <div className="mb-1 text-xs text-muted-foreground">State</div>
           {stateBadge}

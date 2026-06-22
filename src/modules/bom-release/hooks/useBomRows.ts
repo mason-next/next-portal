@@ -107,6 +107,33 @@ export function useBomRows(projectId: string) {
     saveBomRows(projectId, nextRows);
   }
 
+  // Assigns many rows to the same release in one pass — same stale-closure reason as
+  // bulkUpdateStatus above.
+  function bulkAssignRelease(rowIds: string[], releaseId: string | null, releaseLabel: string | null) {
+    if (!loaded) return;
+    const idSet = new Set(rowIds);
+    const now = new Date().toISOString();
+    const newLabel = releaseLabel ?? "";
+    let changed = false;
+
+    const nextRows = loaded.rows.map((row) => {
+      if (!idSet.has(row.id) || (row.release ?? "") === newLabel) return row;
+      changed = true;
+      const auditEntry: AuditEntry = {
+        field: "release",
+        oldValue: row.release ?? "",
+        newValue: newLabel,
+        user: CURRENT_USER,
+        time: now,
+      };
+      return { ...row, releaseId, release: releaseLabel, updatedAt: now, audit: [auditEntry, ...row.audit] };
+    });
+
+    if (!changed) return;
+    setLoaded({ ...loaded, rows: nextRows });
+    saveBomRows(projectId, nextRows);
+  }
+
   // Transitions the given rows to Released + stamps releasedAt/shipping, in one pass.
   // Returns the updated rows so the caller can build a release snapshot from them.
   function markRowsReleased(rowIds: string[], shippingType: string, shipTo: string): BomRow[] | null {
@@ -149,6 +176,32 @@ export function useBomRows(projectId: string) {
     return nextRows;
   }
 
+  function addRow() {
+    if (!loaded) return;
+    const now = new Date().toISOString();
+
+    const newRow: BomRow = {
+      id: crypto.randomUUID(),
+      seq: "",
+      mfr: "",
+      part: "",
+      desc: "",
+      qty: 1,
+      unitCost: 0,
+      status: "Pending Review",
+      releaseId: null,
+      release: null,
+      releasedAt: null,
+      notes: "",
+      audit: [],
+      updatedAt: now,
+    };
+
+    const nextRows = [...loaded.rows, newRow];
+    setLoaded({ ...loaded, rows: nextRows });
+    saveBomRows(projectId, nextRows);
+  }
+
   function reorderRows(fromIndex: number, toIndex: number) {
     if (!loaded || fromIndex === toIndex) return;
     const rows = [...loaded.rows];
@@ -176,7 +229,9 @@ export function useBomRows(projectId: string) {
     updateField,
     bulkUpdateStatus,
     assignRelease,
+    bulkAssignRelease,
     markRowsReleased,
+    addRow,
     reorderRows,
     refetch: () => setReloadToken((token) => token + 1),
   };

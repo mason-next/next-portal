@@ -95,6 +95,16 @@ function firstNonEmpty(values: Array<string | undefined>): string {
   return "";
 }
 
+// Spreadsheet exports sometimes carry seq numbers as floats with long tails (e.g.
+// "1.4999999999999998"). Round those down to 2 decimal places; leave non-decimal seq
+// values (including zero-padded labels like "001") untouched.
+function normalizeSeq(raw: string): string {
+  const trimmed = raw.trim();
+  if (!trimmed.includes(".")) return trimmed;
+  const num = Number(trimmed);
+  return Number.isFinite(num) ? num.toFixed(2) : trimmed;
+}
+
 export function parseCsvToImportRows(text: string): ParsedBomRow[] {
   const data = parseDelimited(text);
   if (!data.length) return [];
@@ -115,7 +125,7 @@ export function parseCsvToImportRows(text: string): ParsedBomRow[] {
         record[h || `Column ${i + 1}`] = cols[i] ?? "";
       });
 
-      const seq = firstNonEmpty([findVal(record, FIELD_ALIASES.seq), cols[0]]);
+      const seq = normalizeSeq(firstNonEmpty([findVal(record, FIELD_ALIASES.seq), cols[0]]));
       const mfr = firstNonEmpty([findVal(record, FIELD_ALIASES.mfr), cols[1]]);
       const part = firstNonEmpty([findVal(record, FIELD_ALIASES.part), cols[2]]);
       const desc = firstNonEmpty([findVal(record, FIELD_ALIASES.desc), cols[3]]);

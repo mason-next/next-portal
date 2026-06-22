@@ -4,12 +4,12 @@ import { useState, type ReactNode } from "react";
 import { cn } from "@/lib/utils";
 
 interface DraggableRowProps {
-  index: number;
-  onReorder: (fromIndex: number, toIndex: number) => void;
+  rowId: string;
+  onReorder: (fromId: string, toId: string) => void;
   children: ReactNode;
 }
 
-export function DraggableRow({ index, onReorder, children }: DraggableRowProps) {
+export function DraggableRow({ rowId, onReorder, children }: DraggableRowProps) {
   const [dragOver, setDragOver] = useState(false);
 
   return (
@@ -18,7 +18,7 @@ export function DraggableRow({ index, onReorder, children }: DraggableRowProps) 
       className={cn(dragOver && "outline outline-2 -outline-offset-2 outline-primary/40")}
       onDragStart={(e) => {
         e.dataTransfer.effectAllowed = "move";
-        e.dataTransfer.setData("text/plain", String(index));
+        e.dataTransfer.setData("text/plain", rowId);
       }}
       onDragOver={(e) => {
         e.preventDefault();
@@ -28,8 +28,8 @@ export function DraggableRow({ index, onReorder, children }: DraggableRowProps) 
       onDrop={(e) => {
         e.preventDefault();
         setDragOver(false);
-        const from = Number(e.dataTransfer.getData("text/plain"));
-        if (!Number.isNaN(from) && from !== index) onReorder(from, index);
+        const fromId = e.dataTransfer.getData("text/plain");
+        if (fromId && fromId !== rowId) onReorder(fromId, rowId);
       }}
     >
       {children}

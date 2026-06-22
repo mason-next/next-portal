@@ -11,3 +11,10 @@ export function nextReleaseNumber(releases: Release[]): string {
 export function isDraftRelease(release: Release): boolean {
   return !release.generatedAt;
 }
+
+// Releases are created in strictly increasing order (see nextReleaseNumber above), so the
+// most recently created draft is simply the last one in the array.
+export function latestDraftRelease(releases: Release[]): Release | undefined {
+  const drafts = releases.filter(isDraftRelease);
+  return drafts[drafts.length - 1];
+}

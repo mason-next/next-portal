@@ -2,6 +2,7 @@
 
 import { useState, type ReactNode } from "react";
 import { Button } from "@/components/ui/button";
+import { Modal } from "@/components/shared/Modal";
 import type { Release } from "@/types/release";
 
 const FIELD_INPUT_CLASS =
@@ -35,14 +36,13 @@ export function ReleaseModal({ releasableDraftReleases, onClose, onGenerate }: R
   }
 
   return (
-    <div className="fixed inset-0 z-20 flex items-center justify-center bg-black/40 p-6">
-      <div className="w-full max-w-lg rounded-xl border bg-card p-6 shadow-lg">
-        <h2 className="mb-1 text-lg font-semibold">Create Equipment Release</h2>
-        <p className="mb-4 text-sm text-muted-foreground">
-          Only rows marked Approved and assigned to the selected release number will be included.
-        </p>
+    <Modal open onClose={onClose}>
+      <h2 className="mb-1 text-lg font-semibold">Create Equipment Release</h2>
+      <p className="mb-4 text-sm text-muted-foreground">
+        Only rows marked Approved and assigned to the selected release number will be included.
+      </p>
 
-        {releasableDraftReleases.length === 0 ? (
+      {releasableDraftReleases.length === 0 ? (
           <p className="text-sm text-muted-foreground">
             No release has any Approved rows assigned yet. Assign rows to a release number in the table
             first.
@@ -115,8 +115,7 @@ export function ReleaseModal({ releasableDraftReleases, onClose, onGenerate }: R
             </Button>
           ) : null}
         </div>
-      </div>
-    </div>
+    </Modal>
   );
 }
 

@@ -5,16 +5,22 @@ import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { getProject } from "@/lib/data/projects";
 import { updateRelease } from "@/lib/data/releases";
-import { useBomRows } from "@/modules/bom-release/hooks/useBomRows";
+import { useBomRowsContext } from "@/modules/bom-release/hooks/BomRowsContext";
 import { useBomImport } from "@/modules/bom-release/hooks/useBomImport";
 import { useCostSummary } from "@/modules/bom-release/hooks/useCostSummary";
 import { useReleases } from "@/modules/bom-release/hooks/useReleases";
 import { useViewOptions } from "@/modules/bom-release/hooks/useViewOptions";
-import { isDraftRelease } from "@/modules/bom-release/lib/release-numbering";
+import { isDraftRelease, latestDraftRelease } from "@/modules/bom-release/lib/release-numbering";
 import { snapshotRow } from "@/modules/bom-release/lib/change-tracking";
-import { applyRowFilters } from "@/modules/bom-release/lib/view-filters";
+import {
+  applyColumnFilters,
+  applyQuickFilter,
+  applyRowFilters,
+  type QuickFilter,
+} from "@/modules/bom-release/lib/view-filters";
 import { CURRENT_USER } from "@/lib/current-user";
 import { CostSummaryCards } from "@/modules/bom-release/components/CostSummaryCards";
+import { QuickFilterTabs } from "@/modules/bom-release/components/QuickFilterTabs";
 import { BomTable } from "@/modules/bom-release/components/BomTable";
 import { BomBulkActionBar } from "@/modules/bom-release/components/BomBulkActionBar";
 import { BomImportDropzone } from "@/modules/bom-release/components/BomImportDropzone";
@@ -23,8 +29,10 @@ import { ReleaseModal, type ReleaseDetails } from "@/modules/bom-release/compone
 import { EmailPreviewModal } from "@/modules/bom-release/components/EmailPreviewModal";
 import { ViewOptionsModal } from "@/modules/bom-release/components/ViewOptionsModal";
 import { buildEmailHtml, buildEmailPlainText, buildEmailSubject } from "@/modules/bom-release/lib/email-builder";
+import { buildReleasePdf, releasePdfFilename } from "@/modules/bom-release/lib/release-pdf";
 import type { Project } from "@/types/project";
 import type { BomStatus } from "@/types/bom";
+import type { jsPDF } from "jspdf";
 
 export default function BomReleasesPage({
   params,
@@ -33,14 +41,36 @@ export default function BomReleasesPage({
 }) {
   const { projectId } = use(params);
   const router = useRouter();
-  const { rows, snapshot, isLoading, updateField, bulkUpdateStatus, assignRelease, markRowsReleased, reorderRows, refetch } =
-    useBomRows(projectId);
+  const {
+    rows,
+    snapshot,
+    isLoading,
+    updateField,
+    bulkUpdateStatus,
+    assignRelease,
+    bulkAssignRelease,
+    markRowsReleased,
+    addRow,
+    reorderRows,
+    refetch,
+  } = useBomRowsContext();
   const { releases, createDraftRelease, refetch: refetchReleases } = useReleases(projectId);
   const summary = useCostSummary(rows ?? []);
   const { pendingRows, isParsing, importFile, importSample, clearPending } = useBomImport();
-  const { hiddenColumns, rowFilters, toggleColumn, setRowFilter, reset: resetViewOptions } = useViewOptions();
+  const {
+    hiddenColumns,
+    columnOrder,
+    rowFilters,
+    columnFilters,
+    toggleColumn,
+    moveColumn,
+    setRowFilter,
+    setColumnFilter,
+    reset: resetViewOptions,
+  } = useViewOptions();
   const [project, setProject] = useState<Project | null>(null);
   const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [quickFilter, setQuickFilter] = useState<QuickFilter>("all");
   const [showReleaseModal, setShowReleaseModal] = useState(false);
   const [showViewOptions, setShowViewOptions] = useState(false);
   const [emailPreview, setEmailPreview] = useState<{
@@ -48,6 +78,8 @@ export default function BomReleasesPage({
     recipients: string;
     html: string;
     plainText: string;
+    pdf: jsPDF;
+    pdfFilename: string;
   } | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -60,7 +92,10 @@ export default function BomReleasesPage({
   }, [draftReleases, rows]);
 
   // Display-only — cost summary always reflects the full row set, never the filtered view.
-  const visibleRows = useMemo(() => applyRowFilters(rows ?? [], rowFilters), [rows, rowFilters]);
+  const visibleRows = useMemo(
+    () => applyColumnFilters(applyRowFilters(applyQuickFilter(rows ?? [], quickFilter), rowFilters), columnFilters),
+    [rows, rowFilters, quickFilter, columnFilters]
+  );
 
   useEffect(() => {
     getProject(projectId).then(setProject);
@@ -81,19 +116,26 @@ export default function BomReleasesPage({
     });
   }
 
+  function handleToggleRowRange(rowIds: string[], checked: boolean) {
+    setSelected((prev) => {
+      const next = new Set(prev);
+      for (const rowId of rowIds) {
+        if (checked) next.add(rowId);
+        else next.delete(rowId);
+      }
+      return next;
+    });
+  }
+
   function handleToggleAll(checked: boolean) {
     setSelected(checked ? new Set(rows?.map((row) => row.id)) : new Set());
   }
 
-  // reorderRows() splices the full underlying row array by index, but DataTable reports
-  // positions within whatever it's rendering — visibleRows, a filtered subset when row
-  // filters are active. Map those positions back to real rows by id before reordering,
-  // otherwise a drag while filtered would silently move the wrong rows.
-  function handleRowsReorder(fromVisibleIndex: number, toVisibleIndex: number) {
+  // reorderRows() splices the full underlying row array by index, but DataTable only
+  // knows row ids (it may be rendering a filtered and/or sorted view). Map ids back to
+  // real indices in the canonical `rows` array before reordering.
+  function handleRowsReorder(fromId: string, toId: string) {
     if (!rows) return;
-    const fromId = visibleRows[fromVisibleIndex]?.id;
-    const toId = visibleRows[toVisibleIndex]?.id;
-    if (!fromId || !toId) return;
     const fromIndex = rows.findIndex((row) => row.id === fromId);
     const toIndex = rows.findIndex((row) => row.id === toId);
     if (fromIndex === -1 || toIndex === -1) return;
@@ -102,6 +144,13 @@ export default function BomReleasesPage({
 
   function handleBulkSetStatus(status: BomStatus) {
     bulkUpdateStatus([...selected], status);
+    setSelected(new Set());
+  }
+
+  async function handleBulkAddToLatestRelease() {
+    const release = latestDraftRelease(releases) ?? (await createDraftRelease());
+    bulkAssignRelease([...selected], release.id, release.releaseNumber);
+    refetchReleases();
     setSelected(new Set());
   }
 
@@ -136,6 +185,7 @@ export default function BomReleasesPage({
       releaseNumber: release.releaseNumber,
       projectName: project.name,
       projectNumber: project.projectNumber,
+      siteAddress: project.siteAddress,
       shippingType: details.shippingType,
       shipTo: details.shipTo,
       recipients: details.recipients,
@@ -146,6 +196,8 @@ export default function BomReleasesPage({
     const emailSubject = buildEmailSubject(emailDetails);
     const emailPlainText = buildEmailPlainText(emailDetails, rowSnapshot);
     const emailHtml = buildEmailHtml(emailDetails, rowSnapshot);
+    const pdf = buildReleasePdf(emailDetails, rowSnapshot);
+    const pdfFilename = releasePdfFilename(emailDetails);
 
     await updateRelease(projectId, releaseId, {
       ...details,
@@ -161,7 +213,14 @@ export default function BomReleasesPage({
 
     refetchReleases();
     setShowReleaseModal(false);
-    setEmailPreview({ subject: emailSubject, recipients: details.recipients, html: emailHtml, plainText: emailPlainText });
+    setEmailPreview({
+      subject: emailSubject,
+      recipients: details.recipients,
+      html: emailHtml,
+      plainText: emailPlainText,
+      pdf,
+      pdfFilename,
+    });
   }
 
   if (isLoading) {
@@ -174,31 +233,38 @@ export default function BomReleasesPage({
     <div className="space-y-4">
       {hasRows ? (
         <>
-          <div className="flex justify-end gap-2">
-            <Button variant="outline" onClick={() => fileInputRef.current?.click()} disabled={isParsing}>
-              {isParsing ? "Parsing…" : "Import / Merge CSV"}
+          <div className="flex justify-between gap-2">
+            <Button variant="outline" onClick={addRow}>
+              + Add Row
             </Button>
-            <input
-              ref={fileInputRef}
-              type="file"
-              accept=".csv"
-              className="hidden"
-              onChange={(e) => {
-                const file = e.target.files?.[0];
-                if (file) importFile(file);
-                e.target.value = "";
-              }}
-            />
-            <Button variant="outline" onClick={() => setShowViewOptions(true)}>
-              View Options
-            </Button>
-            <Button onClick={() => setShowReleaseModal(true)}>Create Release</Button>
+            <div className="flex gap-2">
+              <Button variant="outline" onClick={() => fileInputRef.current?.click()} disabled={isParsing}>
+                {isParsing ? "Parsing…" : "Import / Merge CSV"}
+              </Button>
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept=".csv"
+                className="hidden"
+                onChange={(e) => {
+                  const file = e.target.files?.[0];
+                  if (file) importFile(file);
+                  e.target.value = "";
+                }}
+              />
+              <Button variant="outline" onClick={() => setShowViewOptions(true)}>
+                View Options
+              </Button>
+              <Button onClick={() => setShowReleaseModal(true)}>Create Release</Button>
+            </div>
           </div>
           <CostSummaryCards summary={summary} />
+          <QuickFilterTabs value={quickFilter} onChange={setQuickFilter} />
           <BomBulkActionBar
             selectedCount={selected.size}
             onClear={() => setSelected(new Set())}
             onSetStatus={handleBulkSetStatus}
+            onAddToLatestRelease={handleBulkAddToLatestRelease}
           />
           <BomTable
             rows={visibleRows}
@@ -206,7 +272,11 @@ export default function BomReleasesPage({
             draftReleases={draftReleases}
             selected={selected}
             hiddenColumns={hiddenColumns}
+            columnOrder={columnOrder}
+            columnFilters={columnFilters}
+            onColumnFilterChange={setColumnFilter}
             onToggleRow={handleToggleRow}
+            onToggleRowRange={handleToggleRowRange}
             onToggleAll={handleToggleAll}
             onUpdateField={updateField}
             onAssignRelease={handleAssignRelease}
@@ -241,6 +311,8 @@ export default function BomReleasesPage({
           recipients={emailPreview.recipients}
           html={emailPreview.html}
           plainText={emailPreview.plainText}
+          pdf={emailPreview.pdf}
+          pdfFilename={emailPreview.pdfFilename}
           onClose={() => setEmailPreview(null)}
         />
       ) : null}
@@ -248,8 +320,10 @@ export default function BomReleasesPage({
       {showViewOptions ? (
         <ViewOptionsModal
           hiddenColumns={hiddenColumns}
+          columnOrder={columnOrder}
           rowFilters={rowFilters}
           onToggleColumn={toggleColumn}
+          onMoveColumn={moveColumn}
           onSetRowFilter={setRowFilter}
           onReset={resetViewOptions}
           onClose={() => setShowViewOptions(false)}

@@ -1,6 +1,6 @@
 import type { NewProjectInput, Project } from "@/types/project";
 import { SAMPLE_PROJECT } from "@/lib/mock/projects.mock";
-import { readGlobal, writeGlobal } from "@/lib/storage/local-store";
+import { readGlobal, removeProjectScoped, writeGlobal } from "@/lib/storage/local-store";
 
 const PROJECTS_KEY = "projects";
 
@@ -28,6 +28,7 @@ export async function createProject(input: NewProjectInput): Promise<Project> {
     name: input.name,
     projectNumber: input.projectNumber,
     customerName: input.customerName,
+    siteAddress: input.siteAddress,
     coordinatorGroup: input.coordinatorGroup,
     state: "BOM Review",
     createdAt: now,
@@ -46,4 +47,11 @@ export async function updateProject(id: string, patch: Partial<Project>): Promis
   next[index] = updated;
   writeGlobal(PROJECTS_KEY, next);
   return updated;
+}
+
+export async function deleteProject(id: string): Promise<void> {
+  const all = loadAll();
+  writeGlobal(PROJECTS_KEY, all.filter((p) => p.id !== id));
+  removeProjectScoped(id, "bom-rows");
+  removeProjectScoped(id, "releases");
 }

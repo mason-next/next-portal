@@ -34,9 +34,7 @@ export function BomImportDropzone({ onFileSelected, onUseSample, isParsing }: Bo
       )}
     >
       <div className="text-lg font-semibold">Drop BOM CSV anywhere</div>
-      <p className="max-w-md text-sm text-muted-foreground">
-        or click to upload. We&apos;ll ask you to confirm project details before loading the BOM.
-      </p>
+      <p className="max-w-md text-sm text-muted-foreground">or click to upload.</p>
       <div className="flex gap-2" onClick={(e) => e.stopPropagation()}>
         <Button onClick={() => inputRef.current?.click()} disabled={isParsing}>
           {isParsing ? "Parsing…" : "Upload CSV"}

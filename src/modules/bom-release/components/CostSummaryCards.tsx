@@ -20,7 +20,7 @@ export function CostSummaryCards({ summary }: CostSummaryCardsProps) {
   return (
     <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
       {cards.map((card) => (
-        <div key={card.label} className="rounded-lg border bg-card p-4 shadow-sm">
+        <div key={card.label} className="rounded-lg border bg-card p-5 shadow-sm">
           <div className="mb-1.5 text-xs text-muted-foreground">{card.label}</div>
           <div
             className={cn(

@@ -35,3 +35,8 @@ export function readProjectScoped<T>(projectId: string, key: string): T | null {
 export function writeProjectScoped<T>(projectId: string, key: string, value: T): void {
   writeJson(`${PREFIX}:project:${projectId}:${key}`, value);
 }
+
+export function removeProjectScoped(projectId: string, key: string): void {
+  if (!isBrowser()) return;
+  window.localStorage.removeItem(`${PREFIX}:project:${projectId}:${key}`);
+}

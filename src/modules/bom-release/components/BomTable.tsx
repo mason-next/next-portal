@@ -5,7 +5,9 @@ import { BOM_STATUSES, type BomRow, type BomRowSnapshot, type BomStatus } from "
 import { DataTable, type ColumnDef } from "@/components/shared/data-table/DataTable";
 import { EditableCell } from "@/components/shared/data-table/EditableCell";
 import { SelectableRowCheckbox } from "@/components/shared/data-table/SelectableRowCheckbox";
+import { useSortableRows } from "@/components/shared/data-table/useSortableRows";
 import { AuditTrailModal } from "@/components/shared/AuditTrailModal";
+import { StatusBadge } from "@/components/shared/StatusBadge";
 import { formatDate, formatMoney } from "@/lib/utils";
 import { rowTotal } from "@/modules/bom-release/lib/bom-calculations";
 import { isFieldChanged } from "@/modules/bom-release/lib/change-tracking";
@@ -14,17 +16,30 @@ import type { Release } from "@/types/release";
 const UNASSIGNED_RELEASE_OPTION = "Unassigned";
 const NEW_RELEASE_OPTION = "+ New Release";
 
+const STATUS_SELECT_TONE: Record<BomStatus, string> = {
+  "Pending Review": "bg-muted text-muted-foreground",
+  Approved: "bg-emerald-50 text-emerald-700",
+  "Update Needed": "bg-amber-50 text-amber-700",
+  "Do Not Order": "bg-red-50 text-red-700",
+  "On Hold": "bg-purple-50 text-purple-700",
+  Released: "bg-sky-50 text-sky-700",
+};
+
 interface BomTableProps {
   rows: BomRow[];
   snapshot: Record<string, BomRowSnapshot>;
   draftReleases: Release[];
   selected: Set<string>;
   hiddenColumns: Set<string>;
+  columnOrder: string[];
+  columnFilters: Record<string, string>;
+  onColumnFilterChange: (key: string, value: string) => void;
   onToggleRow: (rowId: string, checked: boolean) => void;
+  onToggleRowRange: (rowIds: string[], checked: boolean) => void;
   onToggleAll: (checked: boolean) => void;
   onUpdateField: <K extends keyof BomRow>(rowId: string, field: K, value: BomRow[K]) => void;
   onAssignRelease: (rowId: string, releaseLabel: string) => void;
-  onRowsReorder: (fromIndex: number, toIndex: number) => void;
+  onRowsReorder: (fromId: string, toId: string) => void;
 }
 
 export function BomTable({
@@ -33,7 +48,11 @@ export function BomTable({
   draftReleases,
   selected,
   hiddenColumns,
+  columnOrder,
+  columnFilters,
+  onColumnFilterChange,
   onToggleRow,
+  onToggleRowRange,
   onToggleAll,
   onUpdateField,
   onAssignRelease,
@@ -41,12 +60,14 @@ export function BomTable({
 }: BomTableProps) {
   const [auditRowId, setAuditRowId] = useState<string | null>(null);
   const auditRow = rows.find((row) => row.id === auditRowId) ?? null;
+  const [lastClickedIndex, setLastClickedIndex] = useState<number | null>(null);
 
   const columns: ColumnDef<BomRow>[] = [
     {
       key: "drag",
       header: "",
-      width: 32,
+      width: 28,
+      sticky: true,
       cell: () => <span className="block cursor-grab select-none text-center text-muted-foreground">⋮⋮</span>,
     },
     {
@@ -58,20 +79,46 @@ export function BomTable({
           ariaLabel="Select all rows"
         />
       ),
-      width: 36,
-      cell: (row) => (
+      width: 32,
+      sticky: true,
+      cell: (row, rowIndex) => (
         <SelectableRowCheckbox
           checked={selected.has(row.id)}
-          onChange={(checked) => onToggleRow(row.id, checked)}
+          onChange={(checked, shiftKey) => {
+            if (shiftKey && lastClickedIndex !== null) {
+              const [start, end] =
+                lastClickedIndex < rowIndex ? [lastClickedIndex, rowIndex] : [rowIndex, lastClickedIndex];
+              onToggleRowRange(sortedRows.slice(start, end + 1).map((r) => r.id), checked);
+            } else {
+              onToggleRow(row.id, checked);
+            }
+            setLastClickedIndex(rowIndex);
+          }}
           ariaLabel={`Select row ${row.seq}`}
         />
       ),
     },
-    { key: "seq", header: "Seq", width: 64, cell: (row) => row.seq },
+    {
+      key: "seq",
+      header: "Seq",
+      width: 56,
+      sticky: true,
+      className: "border-r",
+      sortValue: (row) => row.seq,
+      cell: (row) => (
+        <EditableCell
+          value={row.seq}
+          isChanged={isFieldChanged(snapshot[row.id], "seq", row.seq)}
+          onCommit={(value) => onUpdateField(row.id, "seq", String(value))}
+        />
+      ),
+    },
     {
       key: "mfr",
       header: "Manufacturer",
-      width: 140,
+      width: 125,
+      sortValue: (row) => row.mfr,
+      filterable: true,
       cell: (row) => (
         <EditableCell
           value={row.mfr}
@@ -83,7 +130,9 @@ export function BomTable({
     {
       key: "part",
       header: "Part #",
-      width: 150,
+      width: 140,
+      sortValue: (row) => row.part,
+      filterable: true,
       cell: (row) => (
         <EditableCell
           value={row.part}
@@ -95,7 +144,9 @@ export function BomTable({
     {
       key: "desc",
       header: "Description",
-      width: 280,
+      width: 200,
+      sortValue: (row) => row.desc,
+      filterable: true,
       cell: (row) => (
         <EditableCell
           value={row.desc}
@@ -107,8 +158,9 @@ export function BomTable({
     {
       key: "qty",
       header: "Qty",
-      width: 70,
+      width: 56,
       align: "right",
+      sortValue: (row) => row.qty,
       cell: (row) => (
         <EditableCell
           value={row.qty}
@@ -125,8 +177,9 @@ export function BomTable({
     {
       key: "unitCost",
       header: "Unit Cost",
-      width: 112,
+      width: 96,
       align: "right",
+      sortValue: (row) => row.unitCost,
       cell: (row) => (
         <EditableCell
           value={row.unitCost}
@@ -143,22 +196,28 @@ export function BomTable({
     {
       key: "totalCost",
       header: "Total Cost",
-      width: 112,
+      width: 100,
       align: "right",
+      sortValue: (row) => rowTotal(row),
       cell: (row) => formatMoney(rowTotal(row)),
     },
     {
       key: "status",
       header: "Status",
-      width: 160,
+      width: 130,
+      sortValue: (row) => row.status,
+      filterable: true,
       cell: (row) =>
         row.status === "Released" ? (
-          <span className="block px-2 text-sm text-muted-foreground">{row.status}</span>
+          <div className="px-2">
+            <StatusBadge label="Released" tone="info" />
+          </div>
         ) : (
           <EditableCell
             value={row.status}
             type="select"
             options={[...BOM_STATUSES]}
+            className={STATUS_SELECT_TONE[row.status]}
             isChanged={isFieldChanged(snapshot[row.id], "status", row.status)}
             onCommit={(value) => onUpdateField(row.id, "status", value as BomStatus)}
           />
@@ -167,7 +226,9 @@ export function BomTable({
     {
       key: "release",
       header: "Release",
-      width: 150,
+      width: 120,
+      sortValue: (row) => row.release ?? "",
+      filterable: true,
       cell: (row) =>
         row.status === "Released" ? (
           <span className="block px-2 text-sm text-muted-foreground">{row.release ?? "—"}</span>
@@ -187,13 +248,16 @@ export function BomTable({
     {
       key: "releasedAt",
       header: "Released At",
-      width: 160,
+      width: 150,
+      sortValue: (row) => row.releasedAt ?? "",
       cell: (row) => formatDate(row.releasedAt),
     },
     {
       key: "notes",
       header: "Notes",
-      width: 180,
+      width: 140,
+      sortValue: (row) => row.notes,
+      filterable: true,
       cell: (row) => (
         <EditableCell
           value={row.notes}
@@ -205,7 +269,7 @@ export function BomTable({
     {
       key: "audit",
       header: "Audit",
-      width: 100,
+      width: 90,
       cell: (row) => (
         <button
           type="button"
@@ -219,14 +283,30 @@ export function BomTable({
     },
   ];
 
+  // Sticky columns stay anchored at the left in their original order; everything else
+  // follows the user's chosen columnOrder (from View Options).
+  const stickyColumns = columns.filter((col) => col.sticky);
+  const reorderableColumns = columns.filter((col) => !col.sticky);
+  const reorderableByKey = new Map(reorderableColumns.map((col) => [col.key, col]));
+  const orderedColumns = [
+    ...stickyColumns,
+    ...columnOrder.map((key) => reorderableByKey.get(key)).filter((col): col is ColumnDef<BomRow> => !!col),
+  ];
+
+  const { sort, sortedRows, handleSortChange } = useSortableRows(rows, orderedColumns);
+
   return (
     <>
       <DataTable
-        columns={columns}
-        rows={rows}
+        columns={orderedColumns}
+        rows={sortedRows}
+        sort={sort}
+        onSortChange={handleSortChange}
         getRowId={(row) => row.id}
         hiddenColumns={hiddenColumns}
         onRowsReorder={onRowsReorder}
+        filters={columnFilters}
+        onFilterChange={onColumnFilterChange}
       />
       <AuditTrailModal
         open={auditRow !== null}
