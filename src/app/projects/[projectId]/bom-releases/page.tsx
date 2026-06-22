@@ -51,6 +51,7 @@ export default function BomReleasesPage({
     bulkAssignRelease,
     markRowsReleased,
     addRow,
+    deleteRows,
     reorderRows,
     refetch,
   } = useBomRowsContext();
@@ -151,6 +152,25 @@ export default function BomReleasesPage({
     const release = latestDraftRelease(releases) ?? (await createDraftRelease());
     bulkAssignRelease([...selected], release.id, release.releaseNumber);
     refetchReleases();
+    setSelected(new Set());
+  }
+
+  function handleDeleteRow(rowId: string) {
+    deleteRows([rowId]);
+    setSelected((prev) => {
+      if (!prev.has(rowId)) return prev;
+      const next = new Set(prev);
+      next.delete(rowId);
+      return next;
+    });
+  }
+
+  function handleBulkDelete() {
+    if (selected.size === 0) return;
+    if (!window.confirm(`Delete ${selected.size} selected row${selected.size === 1 ? "" : "s"}? This cannot be undone.`)) {
+      return;
+    }
+    deleteRows([...selected]);
     setSelected(new Set());
   }
 
@@ -265,6 +285,7 @@ export default function BomReleasesPage({
             onClear={() => setSelected(new Set())}
             onSetStatus={handleBulkSetStatus}
             onAddToLatestRelease={handleBulkAddToLatestRelease}
+            onDeleteSelected={handleBulkDelete}
           />
           <BomTable
             rows={visibleRows}
@@ -281,6 +302,7 @@ export default function BomReleasesPage({
             onUpdateField={updateField}
             onAssignRelease={handleAssignRelease}
             onRowsReorder={handleRowsReorder}
+            onDeleteRow={handleDeleteRow}
           />
         </>
       ) : (

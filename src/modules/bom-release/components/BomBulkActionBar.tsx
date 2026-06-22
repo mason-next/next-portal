@@ -7,6 +7,7 @@ interface BomBulkActionBarProps {
   onClear: () => void;
   onSetStatus: (status: BomStatus) => void;
   onAddToLatestRelease: () => void;
+  onDeleteSelected: () => void;
 }
 
 export function BomBulkActionBar({
@@ -14,6 +15,7 @@ export function BomBulkActionBar({
   onClear,
   onSetStatus,
   onAddToLatestRelease,
+  onDeleteSelected,
 }: BomBulkActionBarProps) {
   return (
     <BulkActionBar selectedCount={selectedCount} onClear={onClear}>
@@ -28,6 +30,9 @@ export function BomBulkActionBar({
       </Button>
       <Button size="sm" variant="outline" onClick={onAddToLatestRelease}>
         Add to Latest Release
+      </Button>
+      <Button size="sm" variant="destructive" onClick={onDeleteSelected}>
+        Delete
       </Button>
     </BulkActionBar>
   );

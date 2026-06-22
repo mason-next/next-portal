@@ -17,6 +17,7 @@ const COLUMN_LABELS: Record<string, string> = {
   releasedAt: "Released At",
   notes: "Notes",
   audit: "Audit",
+  delete: "Delete",
 };
 
 interface ViewOptionsModalProps {

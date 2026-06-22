@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { Trash2 } from "lucide-react";
 import { BOM_STATUSES, type BomRow, type BomRowSnapshot, type BomStatus } from "@/types/bom";
 import { DataTable, type ColumnDef } from "@/components/shared/data-table/DataTable";
 import { EditableCell } from "@/components/shared/data-table/EditableCell";
@@ -40,6 +41,7 @@ interface BomTableProps {
   onUpdateField: <K extends keyof BomRow>(rowId: string, field: K, value: BomRow[K]) => void;
   onAssignRelease: (rowId: string, releaseLabel: string) => void;
   onRowsReorder: (fromId: string, toId: string) => void;
+  onDeleteRow: (rowId: string) => void;
 }
 
 export function BomTable({
@@ -57,6 +59,7 @@ export function BomTable({
   onUpdateField,
   onAssignRelease,
   onRowsReorder,
+  onDeleteRow,
 }: BomTableProps) {
   const [auditRowId, setAuditRowId] = useState<string | null>(null);
   const auditRow = rows.find((row) => row.id === auditRowId) ?? null;
@@ -278,6 +281,26 @@ export function BomTable({
           className="text-xs font-semibold text-primary underline-offset-2 hover:underline disabled:cursor-default disabled:text-muted-foreground disabled:no-underline"
         >
           {row.audit.length > 0 ? `${row.audit.length} change${row.audit.length > 1 ? "s" : ""}` : "Clean"}
+        </button>
+      ),
+    },
+    {
+      key: "delete",
+      header: "",
+      width: 40,
+      align: "center",
+      cell: (row) => (
+        <button
+          type="button"
+          onClick={() => {
+            if (window.confirm(`Delete row ${row.seq || row.part || "this item"}? This cannot be undone.`)) {
+              onDeleteRow(row.id);
+            }
+          }}
+          aria-label={`Delete row ${row.seq}`}
+          className="flex size-6 items-center justify-center rounded text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
+        >
+          <Trash2 className="size-4" />
         </button>
       ),
     },

@@ -24,6 +24,7 @@ export const DEFAULT_COLUMN_ORDER = [
   "releasedAt",
   "notes",
   "audit",
+  "delete",
 ];
 
 const VIEW_OPTIONS_KEY = "view-options";
@@ -48,7 +49,10 @@ export function useViewOptions() {
       const stored = readGlobal<StoredViewOptions>(VIEW_OPTIONS_KEY);
       if (stored) {
         setHiddenColumns(new Set(stored.hiddenColumns));
-        setColumnOrder(stored.columnOrder);
+        // Append any column keys added since this config was saved (e.g. a new column
+        // shipped later) instead of letting them silently disappear from the table.
+        const missing = DEFAULT_COLUMN_ORDER.filter((key) => !stored.columnOrder.includes(key));
+        setColumnOrder([...stored.columnOrder, ...missing]);
         setRowFilters(stored.rowFilters);
       }
       setHydrated(true);

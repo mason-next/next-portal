@@ -176,6 +176,16 @@ export function useBomRows(projectId: string) {
     return nextRows;
   }
 
+  function deleteRows(rowIds: string[]) {
+    if (!loaded) return;
+    const idSet = new Set(rowIds);
+    const nextRows = loaded.rows.filter((row) => !idSet.has(row.id));
+    if (nextRows.length === loaded.rows.length) return;
+
+    setLoaded({ ...loaded, rows: nextRows });
+    saveBomRows(projectId, nextRows);
+  }
+
   function addRow() {
     if (!loaded) return;
     const now = new Date().toISOString();
@@ -232,6 +242,7 @@ export function useBomRows(projectId: string) {
     bulkAssignRelease,
     markRowsReleased,
     addRow,
+    deleteRows,
     reorderRows,
     refetch: () => setReloadToken((token) => token + 1),
   };

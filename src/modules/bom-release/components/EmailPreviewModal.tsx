@@ -55,21 +55,19 @@ export function EmailPreviewModal({
 
   // mailto: bodies are plain text only — the protocol has no way to carry HTML, so the
   // same header + table from the preview can't be injected into the draft automatically.
-  // Best effort: put the formatted HTML on the clipboard (same as Copy Formatted Email) so
-  // pasting into the open draft reproduces the preview exactly, and download the PDF since
-  // mailto also has no attachment mechanism.
+  // Best effort: put the formatted HTML on the clipboard (same as Copy Formatted Email) and
+  // leave the draft body blank, so pasting once reproduces the preview exactly with nothing
+  // to clear out first. Also download the PDF since mailto has no attachment mechanism.
   async function openMailto() {
     try {
       const htmlBlob = new Blob([html], { type: "text/html" });
       const textBlob = new Blob([plainText], { type: "text/plain" });
       await navigator.clipboard.write([new ClipboardItem({ "text/html": htmlBlob, "text/plain": textBlob })]);
     } catch {
-      // Clipboard access denied — the plain-text fallback already in the mailto body below
-      // still gives the draft useful content.
+      // Clipboard access denied — the draft will just open blank with nothing to paste.
     }
     pdf.save(pdfFilename);
-    const body = plainText.split("\n\n").slice(1).join("\n\n");
-    window.location.href = `mailto:?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+    window.location.href = `mailto:?subject=${encodeURIComponent(subject)}`;
     showToast(`Draft opened — paste (Ctrl+V) into the body for the formatted email, and attach ${pdfFilename}`);
   }
 
@@ -80,8 +78,8 @@ export function EmailPreviewModal({
         <p className="mb-4 text-sm text-muted-foreground">
           Formatted HTML preview. The mailto draft can&apos;t carry HTML or attachments
           automatically — opening it also copies this formatted email to your clipboard and
-          downloads the release PDF, so paste (Ctrl+V) into the draft body for the same header
-          and table shown here, then attach the PDF.
+          downloads the release PDF, so the draft opens with a blank body: just paste
+          (Ctrl+V) for the same header and table shown here, then attach the PDF.
         </p>
         <div className="mb-4 grid grid-cols-[70px_1fr] gap-1.5 text-sm">
           <b>To</b>
