@@ -26,7 +26,7 @@ function escapeHtml(value: string): string {
 }
 
 export function buildEmailSubject(details: EmailDetails): string {
-  return `Equipment ${details.releaseNumber} - Project ${details.projectNumber} - ${details.projectName}`;
+  return `Equipment ${details.releaseNumber} | ${details.projectNumber} - ${details.projectName}`;
 }
 
 export function buildEmailPlainText(details: EmailDetails, rows: BomRowSnapshot[]): string {
@@ -59,11 +59,10 @@ export function buildEmailHtml(details: EmailDetails, rows: BomRowSnapshot[]): s
   const total = rows.reduce((sum, row) => sum + rowSnapshotTotal(row), 0);
 
   return `<div style="border:1px solid #e6ebf1;border-radius:10px;overflow:hidden;background:#fff;font-family:Inter,ui-sans-serif,system-ui">
-<div style="background:linear-gradient(135deg,#0f172a,#1e3a5f);color:#fff;padding:18px 22px;text-align:center;font-weight:800;letter-spacing:.18em;font-size:22px">NEXT PORTAL</div>
 <div style="padding:20px 22px;color:#243041">
 <p>Hello Team,</p>
-<p><b>${escapeHtml(details.releaseNumber)}</b> has been created and is ready for procurement.</p>
-<table style="width:100%;border-collapse:collapse;margin:12px 0 18px;font-size:12px">
+<br/><p><b>${escapeHtml(details.releaseNumber)}</b> has been created and is ready for procurement.</p>
+<br/><table style="width:100%;border-collapse:collapse;margin:12px 0 18px;font-size:12px">
 <tr><td style="${labelCell};width:150px">Project</td><td style="${cell}">${escapeHtml(details.projectNumber)} - ${escapeHtml(details.projectName)}</td></tr>
 <tr><td style="${labelCell}">Site Address</td><td style="${cell}">${escapeHtml(details.siteAddress || "—")}</td></tr>
 <tr><td style="${labelCell}">Release</td><td style="${cell}">${escapeHtml(details.releaseNumber)}</td></tr>
@@ -72,10 +71,9 @@ export function buildEmailHtml(details: EmailDetails, rows: BomRowSnapshot[]): s
 <tr><td style="${labelCell}">Release Date</td><td style="${cell}">${escapeHtml(formatDate(details.generatedAt))}</td></tr>
 <tr><td style="${labelCell}">Requested By</td><td style="${cell}">${escapeHtml(details.generatedBy)}</td></tr>
 </table>
-<p>This release includes <b>${rows.length}</b> item(s) totaling <b>${formatMoney(total)}</b>. See the attached release PDF for the full itemized list and record-keeping copy.</p>
-${details.notes ? `<p><b>Notes:</b> ${escapeHtml(details.notes)}</p>` : ""}
-<p>Please review and proceed with ordering these items.</p>
-<p><b>Thank you,</b><br>NEXT Portal</p>
+<br/><p>This release includes <b>${rows.length}</b> item(s) totaling <b>${formatMoney(total)}</b>. See the attached release PDF for the full itemized list and record-keeping copy.</p>
+<br/>${details.notes ? `<p><b>Notes:</b> ${escapeHtml(details.notes)}</p>` : ""} Please review and proceed with ordering these items.</p>
+<br/><p><b>Thank you,</b></p>
 </div>
 </div>`;
 }
