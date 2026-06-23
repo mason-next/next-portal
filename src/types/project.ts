@@ -1,11 +1,8 @@
-export const PROJECT_STATES = [
-  "BOM Review",
-  "In Procurement",
-  "Released",
-  "Closed",
-] as const;
+// Status is no longer stored — it's derived from workflow step progress, see
+// modules/project-command-center/engine/workflow-engine.ts.
+export const PROJECT_HEALTH = ["Ahead", "On Track", "At Risk", "Off Track"] as const;
 
-export type ProjectState = (typeof PROJECT_STATES)[number];
+export type ProjectHealth = (typeof PROJECT_HEALTH)[number];
 
 export interface Project {
   id: string;
@@ -14,7 +11,14 @@ export interface Project {
   customerName: string;
   siteAddress: string;
   coordinatorGroup: string;
-  state: ProjectState;
+  contractValue: number;
+  grossMarginPercent: number;
+  solutionsExecutiveId: string | null;
+  solutionsEngineerId: string | null;
+  leadTechnicianId: string | null;
+  fieldProjectManagerId: string | null;
+  kickoffDate: string | null;
+  targetCompletionDate: string | null;
   createdAt: string;
   updatedAt: string;
 }

@@ -1,27 +1,19 @@
 "use client";
 
-import { use, useEffect, useState } from "react";
+import { use, useState } from "react";
 import Link from "next/link";
 import { notFound, useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { ProjectHeaderCard } from "@/components/shared/AppShell/ProjectHeaderCard";
+import { ProjectTabNav } from "@/components/shared/AppShell/ProjectTabNav";
 import { EditProjectModal } from "@/components/shared/AppShell/EditProjectModal";
 import { DeleteProjectModal } from "@/components/shared/AppShell/DeleteProjectModal";
-import { getProject } from "@/lib/data/projects";
-import { BomRowsProvider, useBomRowsContext } from "@/modules/bom-release/hooks/BomRowsContext";
-import { bomCompletionPercent } from "@/modules/bom-release/lib/bom-progress";
-import type { Project } from "@/types/project";
-
-function ProjectStateBadge({ state }: { state: Project["state"] }) {
-  const { rows, isLoading } = useBomRowsContext();
-  const percent = !isLoading && rows && rows.length > 0 ? bomCompletionPercent(rows) : null;
-  return (
-    <span className="inline-flex rounded-full bg-secondary px-2 py-0.5 text-xs font-medium">
-      {state}
-      {percent !== null ? ` · ${percent}%` : ""}
-    </span>
-  );
-}
+import { StatusBadge } from "@/components/shared/StatusBadge";
+import { ProjectActivityDrawer } from "@/modules/project-command-center/components/ProjectActivityDrawer";
+import { HEALTH_TONE } from "@/modules/project-command-center/lib/project-health";
+import { deriveProjectStatus, getProjectHealthSummary } from "@/modules/project-command-center/engine/workflow-engine";
+import { WorkflowStepsProvider, useWorkflowStepsContext } from "@/modules/project-command-center/hooks/WorkflowStepsContext";
+import { ProjectProvider, useProjectContext } from "@/modules/project-command-center/hooks/ProjectContext";
 
 export default function ProjectLayout({
   children,
@@ -31,22 +23,20 @@ export default function ProjectLayout({
   params: Promise<{ projectId: string }>;
 }) {
   const { projectId } = use(params);
-  const router = useRouter();
-  const [project, setProject] = useState<Project | null | undefined>(undefined);
-  const [showEdit, setShowEdit] = useState(false);
-  const [showDelete, setShowDelete] = useState(false);
 
-  useEffect(() => {
-    let active = true;
-    getProject(projectId).then((found) => {
-      if (active) setProject(found);
-    });
-    return () => {
-      active = false;
-    };
-  }, [projectId]);
+  return (
+    <ProjectProvider projectId={projectId}>
+      <WorkflowStepsProvider projectId={projectId}>
+        <ProjectLayoutGate projectId={projectId}>{children}</ProjectLayoutGate>
+      </WorkflowStepsProvider>
+    </ProjectProvider>
+  );
+}
 
-  if (project === undefined) {
+function ProjectLayoutGate({ projectId, children }: { projectId: string; children: React.ReactNode }) {
+  const { project, isLoading } = useProjectContext();
+
+  if (isLoading) {
     return <div className="p-8 text-sm text-muted-foreground">Loading project…</div>;
   }
 
@@ -55,55 +45,85 @@ export default function ProjectLayout({
   }
 
   return (
-    <BomRowsProvider projectId={projectId}>
-      <div className="space-y-6 p-8">
-        <nav className="flex items-center gap-1.5 text-sm text-muted-foreground">
-          <Link href="/projects" className="hover:text-foreground">
-            Projects
-          </Link>
-          <span>/</span>
-          <span className="text-foreground">{project.name}</span>
-          <span>/</span>
-          <span className="text-foreground">BOM Releases</span>
-        </nav>
-        <ProjectHeaderCard
-          name={project.name}
-          projectNumber={project.projectNumber}
-          customerName={project.customerName}
-          siteAddress={project.siteAddress}
-          stateBadge={<ProjectStateBadge state={project.state} />}
-          actions={
-            <>
-              <Button variant="outline" onClick={() => setShowEdit(true)}>
-                Edit
-              </Button>
-              <Button variant="destructive" onClick={() => setShowDelete(true)}>
-                Delete
-              </Button>
-            </>
-          }
+    <ProjectLayoutBody projectId={projectId}>
+      {children}
+    </ProjectLayoutBody>
+  );
+}
+
+function ProjectLayoutBody({
+  projectId,
+  children,
+}: {
+  projectId: string;
+  children: React.ReactNode;
+}) {
+  const router = useRouter();
+  const { project, setProject } = useProjectContext();
+  const { steps } = useWorkflowStepsContext();
+  const [showEdit, setShowEdit] = useState(false);
+  const [showDelete, setShowDelete] = useState(false);
+
+  if (!project) return null;
+
+  const status = deriveProjectStatus(steps);
+  const { health } = getProjectHealthSummary({
+    steps,
+    startDate: project.kickoffDate,
+    targetCompletionDate: project.targetCompletionDate,
+    now: new Date(),
+  });
+
+  return (
+    <div className="space-y-6 p-8">
+      <nav className="flex items-center gap-1.5 text-sm text-muted-foreground">
+        <Link href="/projects" className="hover:text-foreground">
+          Projects
+        </Link>
+        <span>/</span>
+        <span className="text-foreground">{project.name}</span>
+      </nav>
+      <ProjectHeaderCard
+        name={project.name}
+        projectNumber={project.projectNumber}
+        customerName={project.customerName}
+        siteAddress={project.siteAddress}
+        stateBadge={<StatusBadge label={status.label} tone={status.isComplete ? "success" : "neutral"} />}
+        healthBadge={<StatusBadge label={health} tone={HEALTH_TONE[health]} />}
+        actions={
+          <>
+            <Button variant="outline" onClick={() => setShowEdit(true)}>
+              Edit
+            </Button>
+            <Button variant="destructive" onClick={() => setShowDelete(true)}>
+              Delete
+            </Button>
+          </>
+        }
+      />
+      <ProjectTabNav projectId={projectId} />
+      <div className="space-y-6">{children}</div>
+
+      <ProjectActivityDrawer projectId={projectId} />
+
+      {showEdit ? (
+        <EditProjectModal
+          project={project}
+          onClose={() => setShowEdit(false)}
+          onSaved={(updated) => {
+            setProject(updated);
+            setShowEdit(false);
+          }}
         />
-        {children}
+      ) : null}
 
-        {showEdit ? (
-          <EditProjectModal
-            project={project}
-            onClose={() => setShowEdit(false)}
-            onSaved={(updated) => {
-              setProject(updated);
-              setShowEdit(false);
-            }}
-          />
-        ) : null}
-
-        {showDelete ? (
-          <DeleteProjectModal
-            project={project}
-            onClose={() => setShowDelete(false)}
-            onDeleted={() => router.push("/projects")}
-          />
-        ) : null}
-      </div>
-    </BomRowsProvider>
+      {showDelete ? (
+        <DeleteProjectModal
+          project={project}
+          onClose={() => setShowDelete(false)}
+          onDeleted={() => router.push("/projects")}
+        />
+      ) : null}
+    </div>
   );
 }

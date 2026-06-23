@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Geist_Mono, Google_Sans_Flex } from "next/font/google";
 import { Header } from "@/components/shared/AppShell/Header";
+import { UsersProvider } from "@/components/shared/AppShell/UsersProvider";
 import "./globals.css";
 
 const googleSansFlex = Google_Sans_Flex({
@@ -32,8 +33,10 @@ export default function RootLayout({
       className={`${googleSansFlex.variable} ${geistMono.variable} h-full antialiased`}
     >
       <body className="min-h-full flex flex-col">
-        <Header />
-        <main className="flex-1 bg-muted/30">{children}</main>
+        <UsersProvider>
+          <Header />
+          <main className="flex-1 bg-muted/30">{children}</main>
+        </UsersProvider>
       </body>
     </html>
   );

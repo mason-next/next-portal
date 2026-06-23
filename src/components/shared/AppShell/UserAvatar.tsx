@@ -1,25 +1,21 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
-import { readGlobal, writeGlobal } from "@/lib/storage/local-store";
-
-const AVATAR_KEY = "current-user-avatar";
+import { useRef, useState } from "react";
+import { CURRENT_USER } from "@/lib/current-user";
+import { CURRENT_USER_AVATAR_KEY, useCurrentUserAvatar } from "@/lib/hooks/useCurrentUserAvatar";
+import { writeGlobal } from "@/lib/storage/local-store";
+import { UserAvatarImage } from "./UserAvatarImage";
 
 export function UserAvatar() {
+  const initialAvatar = useCurrentUserAvatar();
   const [avatar, setAvatar] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
-
-  useEffect(() => {
-    // Deferred to a microtask so this reads as an async load (matching how every other
-    // data source in this app is loaded post-mount) rather than a synchronous setState.
-    queueMicrotask(() => setAvatar(readGlobal<string>(AVATAR_KEY)));
-  }, []);
 
   function handleFile(file: File) {
     const reader = new FileReader();
     reader.onload = () => {
       const dataUrl = String(reader.result);
-      writeGlobal(AVATAR_KEY, dataUrl);
+      writeGlobal(CURRENT_USER_AVATAR_KEY, dataUrl);
       setAvatar(dataUrl);
     };
     reader.readAsDataURL(file);
@@ -31,14 +27,9 @@ export function UserAvatar() {
         type="button"
         onClick={() => fileInputRef.current?.click()}
         title="Click to change profile photo"
-        className="size-8 shrink-0 overflow-hidden rounded-full"
+        className="overflow-hidden rounded-full"
       >
-        {avatar ? (
-          // eslint-disable-next-line @next/next/no-img-element -- locally stored data URL, not an optimizable remote asset
-          <img src={avatar} alt="" className="size-8 rounded-full object-cover" />
-        ) : (
-          <span className="block size-8 rounded-full bg-gradient-to-br from-slate-300 to-slate-700" />
-        )}
+        <UserAvatarImage name={CURRENT_USER} avatarUrl={avatar ?? initialAvatar} size={32} />
       </button>
       <input
         ref={fileInputRef}

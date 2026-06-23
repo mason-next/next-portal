@@ -3,22 +3,30 @@ import { cn, formatMoney } from "@/lib/utils";
 
 interface CostSummaryCardsProps {
   summary: CostSummary;
+  reviewedPercent?: number;
 }
 
-export function CostSummaryCards({ summary }: CostSummaryCardsProps) {
-  const cards = [
-    { label: "Full BOM Cost", value: summary.fullBomCost },
-    { label: "Approved Cost", value: summary.approvedCost, tone: "good" as const },
-    { label: "Released Cost", value: summary.releasedCost },
+type CardTone = "good" | "warn";
+
+export function CostSummaryCards({ summary, reviewedPercent }: CostSummaryCardsProps) {
+  const moneyCards: { label: string; display: string; tone?: CardTone }[] = [
+    { label: "Full BOM Cost", display: formatMoney(summary.fullBomCost) },
+    { label: "Approved Cost", display: formatMoney(summary.approvedCost), tone: "good" },
+    { label: "Released Cost", display: formatMoney(summary.releasedCost) },
     {
       label: "Budget Variance",
-      value: summary.budgetVariance,
-      tone: summary.budgetVariance < 0 ? "warn" : ("good" as const),
+      display: formatMoney(summary.budgetVariance),
+      tone: summary.budgetVariance < 0 ? "warn" : "good",
     },
   ];
 
+  const cards =
+    reviewedPercent !== undefined
+      ? [...moneyCards, { label: "Reviewed", display: `${reviewedPercent}%` }]
+      : moneyCards;
+
   return (
-    <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+    <div className="grid grid-cols-2 gap-3 sm:grid-cols-5">
       {cards.map((card) => (
         <div key={card.label} className="rounded-lg border bg-card p-5 shadow-sm">
           <div className="mb-1.5 text-xs text-muted-foreground">{card.label}</div>
@@ -29,7 +37,7 @@ export function CostSummaryCards({ summary }: CostSummaryCardsProps) {
               card.tone === "warn" && "text-amber-600"
             )}
           >
-            {formatMoney(card.value)}
+            {card.display}
           </div>
         </div>
       ))}

@@ -1,11 +1,12 @@
 "use client";
 
-import { use, useEffect, useMemo, useRef, useState } from "react";
+import { use, useMemo, useRef, useState } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
-import { getProject } from "@/lib/data/projects";
 import { updateRelease } from "@/lib/data/releases";
 import { useBomRowsContext } from "@/modules/bom-release/hooks/BomRowsContext";
+import { useProjectContext } from "@/modules/project-command-center/hooks/ProjectContext";
 import { useBomImport } from "@/modules/bom-release/hooks/useBomImport";
 import { useCostSummary } from "@/modules/bom-release/hooks/useCostSummary";
 import { useReleases } from "@/modules/bom-release/hooks/useReleases";
@@ -20,6 +21,7 @@ import {
 } from "@/modules/bom-release/lib/view-filters";
 import { CURRENT_USER } from "@/lib/current-user";
 import { CostSummaryCards } from "@/modules/bom-release/components/CostSummaryCards";
+import { bomCompletionPercent } from "@/modules/bom-release/lib/bom-progress";
 import { QuickFilterTabs } from "@/modules/bom-release/components/QuickFilterTabs";
 import { BomTable } from "@/modules/bom-release/components/BomTable";
 import { BomBulkActionBar } from "@/modules/bom-release/components/BomBulkActionBar";
@@ -30,11 +32,10 @@ import { EmailPreviewModal } from "@/modules/bom-release/components/EmailPreview
 import { ViewOptionsModal } from "@/modules/bom-release/components/ViewOptionsModal";
 import { buildEmailHtml, buildEmailPlainText, buildEmailSubject } from "@/modules/bom-release/lib/email-builder";
 import { buildReleasePdf, releasePdfFilename } from "@/modules/bom-release/lib/release-pdf";
-import type { Project } from "@/types/project";
 import type { BomStatus } from "@/types/bom";
 import type { jsPDF } from "jspdf";
 
-export default function BomReleasesPage({
+export default function BomReviewPage({
   params,
 }: {
   params: Promise<{ projectId: string }>;
@@ -69,7 +70,7 @@ export default function BomReleasesPage({
     setColumnFilter,
     reset: resetViewOptions,
   } = useViewOptions();
-  const [project, setProject] = useState<Project | null>(null);
+  const { project } = useProjectContext();
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [quickFilter, setQuickFilter] = useState<QuickFilter>("all");
   const [showReleaseModal, setShowReleaseModal] = useState(false);
@@ -97,10 +98,6 @@ export default function BomReleasesPage({
     () => applyColumnFilters(applyRowFilters(applyQuickFilter(rows ?? [], quickFilter), rowFilters), columnFilters),
     [rows, rowFilters, quickFilter, columnFilters]
   );
-
-  useEffect(() => {
-    getProject(projectId).then(setProject);
-  }, [projectId]);
 
   function handleImported() {
     clearPending();
@@ -251,6 +248,12 @@ export default function BomReleasesPage({
 
   return (
     <div className="space-y-4">
+      <Link
+        href={`/projects/${projectId}/engineering`}
+        className="inline-flex items-center text-sm text-muted-foreground hover:text-foreground"
+      >
+        ← Back to Engineering
+      </Link>
       {hasRows ? (
         <>
           <div className="flex justify-between gap-2">
@@ -278,7 +281,7 @@ export default function BomReleasesPage({
               <Button onClick={() => setShowReleaseModal(true)}>Create Release</Button>
             </div>
           </div>
-          <CostSummaryCards summary={summary} />
+          <CostSummaryCards summary={summary} reviewedPercent={bomCompletionPercent(rows ?? [])} />
           <QuickFilterTabs value={quickFilter} onChange={setQuickFilter} />
           <BomBulkActionBar
             selectedCount={selected.size}
