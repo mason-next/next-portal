@@ -12,6 +12,7 @@ interface QuoteTableProps {
 }
 
 type SortKey = "projectName" | "customer" | "revenue" | "margin" | "commission" | "importedAt" | "status";
+type SortState = { key: SortKey; dir: "asc" | "desc" };
 
 const STATUS_TONE: Record<string, string> = {
   Pending:  "bg-amber-100 text-amber-800",
@@ -19,9 +20,23 @@ const STATUS_TONE: Record<string, string> = {
   Rejected: "bg-red-100 text-red-800",
 };
 
+function SortBtn({ k, label, sort, onToggle }: { k: SortKey; label: string; sort: SortState; onToggle: (k: SortKey) => void }) {
+  const active = sort.key === k;
+  return (
+    <button
+      type="button"
+      onClick={() => onToggle(k)}
+      className={cn("flex items-center gap-1 text-xs font-medium whitespace-nowrap", active ? "text-foreground" : "text-muted-foreground hover:text-foreground")}
+    >
+      {label}
+      {active && <span>{sort.dir === "asc" ? "↑" : "↓"}</span>}
+    </button>
+  );
+}
+
 export function QuoteTable({ quotes, onDelete }: QuoteTableProps) {
   const [query, setQuery] = useState("");
-  const [sort, setSort] = useState<{ key: SortKey; dir: "asc" | "desc" }>({ key: "importedAt", dir: "desc" });
+  const [sort, setSort] = useState<SortState>({ key: "importedAt", dir: "desc" });
 
   const filtered = quotes
     .filter((q) => {
@@ -59,20 +74,6 @@ export function QuoteTable({ quotes, onDelete }: QuoteTableProps) {
     setSort((prev) => ({ key, dir: prev.key === key && prev.dir === "asc" ? "desc" : "asc" }));
   }
 
-  function SortBtn({ k, label }: { k: SortKey; label: string }) {
-    const active = sort.key === k;
-    return (
-      <button
-        type="button"
-        onClick={() => toggleSort(k)}
-        className={cn("flex items-center gap-1 text-xs font-medium whitespace-nowrap", active ? "text-foreground" : "text-muted-foreground hover:text-foreground")}
-      >
-        {label}
-        {active && <span>{sort.dir === "asc" ? "↑" : "↓"}</span>}
-      </button>
-    );
-  }
-
   return (
     <div className="space-y-3">
       <input
@@ -90,15 +91,15 @@ export function QuoteTable({ quotes, onDelete }: QuoteTableProps) {
           <table className="w-full text-sm">
             <thead className="border-b bg-muted/40">
               <tr>
-                <th className="px-4 py-3 text-left"><SortBtn k="projectName" label="Project" /></th>
-                <th className="px-4 py-3 text-left"><SortBtn k="customer" label="Customer" /></th>
+                <th className="px-4 py-3 text-left"><SortBtn k="projectName" label="Project" sort={sort} onToggle={toggleSort} /></th>
+                <th className="px-4 py-3 text-left"><SortBtn k="customer" label="Customer" sort={sort} onToggle={toggleSort} /></th>
                 <th className="px-4 py-3 text-left text-xs font-medium text-muted-foreground">Quote</th>
                 <th className="px-4 py-3 text-left text-xs font-medium text-muted-foreground">Type</th>
-                <th className="px-4 py-3 text-right"><SortBtn k="revenue" label="Revenue" /></th>
-                <th className="px-4 py-3 text-right"><SortBtn k="margin" label="Margin" /></th>
-                <th className="px-4 py-3 text-right"><SortBtn k="commission" label="Commission Pool" /></th>
-                <th className="px-4 py-3 text-left"><SortBtn k="status" label="Status" /></th>
-                <th className="px-4 py-3 text-left"><SortBtn k="importedAt" label="Imported" /></th>
+                <th className="px-4 py-3 text-right"><SortBtn k="revenue" label="Revenue" sort={sort} onToggle={toggleSort} /></th>
+                <th className="px-4 py-3 text-right"><SortBtn k="margin" label="Margin" sort={sort} onToggle={toggleSort} /></th>
+                <th className="px-4 py-3 text-right"><SortBtn k="commission" label="Commission Pool" sort={sort} onToggle={toggleSort} /></th>
+                <th className="px-4 py-3 text-left"><SortBtn k="status" label="Status" sort={sort} onToggle={toggleSort} /></th>
+                <th className="px-4 py-3 text-left"><SortBtn k="importedAt" label="Imported" sort={sort} onToggle={toggleSort} /></th>
                 <th className="px-4 py-3" />
               </tr>
             </thead>

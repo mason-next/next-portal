@@ -1,4 +1,4 @@
-import type { DealDeskQuote, TeamMember } from "@/types/deal-desk";
+import type { DealDeskQuote } from "@/types/deal-desk";
 import { calcFinancials, fmtPct } from "./financial-calc";
 import { memberPayoutCents, memberRateBps } from "./commission-engine";
 import { DEFAULT_COMMISSION_MATRIX } from "./commission-engine";
@@ -23,7 +23,6 @@ export function generateSankeyText(quote: DealDeskQuote): string {
   const cogsPct = fmtPct(100 - f.grossMarginPct, 0).replace("%", "");
   const commPct = pctLabel(f.band.totalBps);
   const masonPct = revPct(f.masonShareCents, rev);
-  const ovhdPct = pctLabel(f.band.directorBps + f.band.bdBps + f.band.deBps); // overhead as labeled
   const masonProfitPct = revPct(f.masonProfitCents, rev);
   const lbPct = revPct(f.leadershipBonusCents, rev);
   const retainedPct = revPct(f.masonRetainedProfitCents, rev);

@@ -1,4 +1,4 @@
-import type { CommissionBand, DealCategory, TeamMember } from "@/types/deal-desk";
+import type { CommissionBand, TeamMember } from "@/types/deal-desk";
 
 export const DEFAULT_COMMISSION_MATRIX: CommissionBand[] = [
   { label: "65% or higher",    minPct: 65,   maxPct: 100,   totalBps: 800, directorBps: 200, bdBps: 500, deBps: 100 },

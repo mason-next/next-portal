@@ -28,9 +28,11 @@ export default function QuoteDetailPage({ params }: { params: Promise<{ quoteId:
   const [tab, setTab] = useState<Tab>("report");
 
   useEffect(() => {
-    const q = getDealDeskQuote(quoteId);
-    if (!q) { router.replace("/deal-desk"); return; }
-    setQuote(q);
+    queueMicrotask(() => {
+      const q = getDealDeskQuote(quoteId);
+      if (!q) { router.replace("/deal-desk"); return; }
+      setQuote(q);
+    });
   }, [quoteId, router]);
 
   function persist(updated: DealDeskQuote) {
