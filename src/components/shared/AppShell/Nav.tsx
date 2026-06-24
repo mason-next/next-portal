@@ -2,14 +2,15 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { FileBarChart2, FolderKanban, LayoutDashboard, ShieldCheck } from "lucide-react";
+import { FileBarChart2, FolderKanban, LayoutDashboard, ShieldCheck, TrendingUp } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const NAV_ITEMS = [
-  { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
-  { href: "/projects", label: "Projects", icon: FolderKanban },
-  { href: "/reports", label: "Reports", icon: FileBarChart2 },
-  { href: "/admin", label: "Admin", icon: ShieldCheck },
+  { href: "/dashboard",  label: "Dashboard",  icon: LayoutDashboard },
+  { href: "/projects",   label: "Projects",   icon: FolderKanban },
+  { href: "/deal-desk",  label: "Deal Desk",  icon: TrendingUp },
+  { href: "/reports",    label: "Reports",    icon: FileBarChart2 },
+  { href: "/admin",      label: "Admin",      icon: ShieldCheck },
 ];
 
 export function Nav() {
