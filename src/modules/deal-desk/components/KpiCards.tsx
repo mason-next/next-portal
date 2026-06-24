@@ -1,5 +1,4 @@
 import { calcFinancials, fmtUSD, fmtPct } from "@/modules/deal-desk/lib/financial-calc";
-import { memberPayoutCents } from "@/modules/deal-desk/lib/commission-engine";
 import type { DealDeskQuote } from "@/types/deal-desk";
 
 interface KpiCardsProps {

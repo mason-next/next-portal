@@ -1,5 +1,4 @@
 import { calcFinancials, fmtUSD, fmtPct } from "@/modules/deal-desk/lib/financial-calc";
-import { memberPayoutCents, memberRateBps } from "@/modules/deal-desk/lib/commission-engine";
 import type { DealDeskQuote } from "@/types/deal-desk";
 import { cn } from "@/lib/utils";
 
