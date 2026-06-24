@@ -22,7 +22,7 @@ export const WORKFLOW_STEP_KEYS = [
   "scheduleTechnicalKickoff",
   "cadReview",
   "bomReview",
-  "procurement",
+  "equipmentTracking",
   "installation",
   "programming",
   "commissioning",

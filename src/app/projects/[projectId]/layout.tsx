@@ -69,7 +69,7 @@ function ProjectLayoutBody({
   const status = deriveProjectStatus(steps);
   const { health } = getProjectHealthSummary({
     steps,
-    startDate: project.kickoffDate,
+    startDate: project.createdAt,
     targetCompletionDate: project.targetCompletionDate,
     now: new Date(),
   });

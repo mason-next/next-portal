@@ -22,9 +22,60 @@ function withStepDefaults(step: WorkflowStep): WorkflowStep {
   };
 }
 
+function buildMissingStep(projectId: string, key: string, now: string): WorkflowStep | null {
+  const template = WORKFLOW_STEP_TEMPLATE.find((entry) => entry.key === key);
+  if (!template) return null;
+  return {
+    id: `${projectId}:${key}`,
+    projectId,
+    key,
+    name: template.name,
+    section: template.section,
+    weight: 0,
+    sortOrder: template.sortOrder,
+    status: "Not Started",
+    ownerId: null,
+    dueDate: null,
+    completedDate: null,
+    updatedAt: now,
+    statusOverridden: false,
+    weightOverridden: false,
+    isCustom: false,
+  };
+}
+
+// Catches up an already-seeded project with built-in steps added to or removed from
+// WORKFLOW_STEP_TEMPLATE after that project was first created — without this,
+// getWorkflowSteps would only ever return exactly what was seeded at creation time, so a
+// new template entry (like equipmentTracking) would never appear, and a removed one (like
+// the generic "procurement" step) would never go away, for a project seeded before the
+// template changed. Custom (user-added) steps are never touched here.
+function reconcileTemplateSteps(projectId: string, steps: WorkflowStep[]): WorkflowStep[] {
+  const templateKeys = new Set<string>(WORKFLOW_STEP_TEMPLATE.map((entry) => entry.key));
+  const pruned = steps.filter((s) => s.isCustom || templateKeys.has(s.key));
+
+  const existingKeys = new Set(pruned.map((s) => s.key));
+  const missingTemplates = WORKFLOW_STEP_TEMPLATE.filter((entry) => !existingKeys.has(entry.key));
+
+  if (missingTemplates.length === 0 && pruned.length === steps.length) return steps;
+
+  const now = new Date().toISOString();
+  const missingSteps = missingTemplates
+    .map((entry) => buildMissingStep(projectId, entry.key, now))
+    .filter((step): step is WorkflowStep => step !== null);
+
+  const removedSections = steps.filter((s) => !pruned.includes(s)).map((s) => s.section);
+  const affectedSections = new Set([...removedSections, ...missingSteps.map((s) => s.section)]);
+  let next = [...pruned, ...missingSteps];
+  for (const section of affectedSections) next = redistributeWeights(next, section);
+
+  writeProjectScoped(projectId, WORKFLOW_STEPS_KEY, next);
+  return next;
+}
+
 export async function getWorkflowSteps(projectId: string): Promise<WorkflowStep[]> {
   const stored = readProjectScoped<WorkflowStep[]>(projectId, WORKFLOW_STEPS_KEY);
-  if (stored) return stored.map(withStepDefaults);
+  if (stored) return reconcileTemplateSteps(projectId, stored.map(withStepDefaults));
   const seeded =
     projectId === SAMPLE_PROJECT.id
       ? SAMPLE_WORKFLOW_STEPS

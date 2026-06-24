@@ -6,6 +6,7 @@ import { Button, buttonVariants } from "@/components/ui/button";
 import { StatusBadge } from "@/components/shared/StatusBadge";
 import { UserInlineLabel } from "@/components/shared/UserInlineLabel";
 import { useUsersContext } from "@/components/shared/AppShell/UsersProvider";
+import { UserSelect } from "@/components/shared/UserSelect";
 import { EditProjectOverviewModal } from "@/components/shared/AppShell/EditProjectOverviewModal";
 import { useProjectContext } from "@/modules/project-command-center/hooks/ProjectContext";
 import { useWorkflowStepsContext } from "@/modules/project-command-center/hooks/WorkflowStepsContext";
@@ -19,7 +20,7 @@ import {
   stepHasAction,
   stepPhaseLabel,
 } from "@/modules/project-command-center/lib/workflow-steps";
-import { WORKFLOW_STEP_STATUSES, type ProjectSectionKey, type WorkflowStep } from "@/types/workflow";
+import { PROJECT_SECTION_KEYS, WORKFLOW_STEP_STATUSES, type ProjectSectionKey, type WorkflowStep } from "@/types/workflow";
 
 const SHOW_WEIGHT_KEY = "workflow-checklist:show-weight";
 
@@ -53,12 +54,20 @@ export function WorkflowChecklist({
   const [editingDueDateKey, setEditingDueDateKey] = useState<string | null>(null);
   const [draftDueDate, setDraftDueDate] = useState("");
   const [editingStatusKey, setEditingStatusKey] = useState<string | null>(null);
+  const [editingOwnerKey, setEditingOwnerKey] = useState<string | null>(null);
   const [editingWeightKey, setEditingWeightKey] = useState<string | null>(null);
   const [draftWeight, setDraftWeight] = useState("");
   const [isAddingStep, setIsAddingStep] = useState(false);
   const [newStepName, setNewStepName] = useState("");
   const [newStepDueDate, setNewStepDueDate] = useState("");
-  const orderedSteps = [...steps].sort((a, b) => a.sortOrder - b.sortOrder);
+  // Group by phase first (Setup, Engineering, Procurement, Implementation, Closeout), then
+  // by sortOrder within the phase — sortOrder alone isn't reliable across phases, since
+  // custom steps are appended with a global max+1 value regardless of which section they
+  // belong to (see addWorkflowStep), which could otherwise sort a Setup step after Closeout.
+  const orderedSteps = [...steps].sort((a, b) => {
+    const phaseDiff = PROJECT_SECTION_KEYS.indexOf(a.section) - PROJECT_SECTION_KEYS.indexOf(b.section);
+    return phaseDiff !== 0 ? phaseDiff : a.sortOrder - b.sortOrder;
+  });
   const activeStep = activeKey ? orderedSteps.find((s) => s.key === activeKey) ?? null : null;
 
   useEffect(() => {
@@ -97,6 +106,17 @@ export function WorkflowChecklist({
       ...(isModuleManagedStep(step.key) ? { statusOverridden: true } : {}),
     });
     setEditingStatusKey(null);
+  }
+
+  function startEditingOwner(e: SyntheticEvent, step: WorkflowStep) {
+    e.preventDefault();
+    e.stopPropagation();
+    setEditingOwnerKey(step.key);
+  }
+
+  function commitOwner(step: WorkflowStep, ownerId: string | null) {
+    onUpdateStep(step.key, { ownerId });
+    setEditingOwnerKey(null);
   }
 
   function startEditingWeight(e: SyntheticEvent, step: WorkflowStep) {
@@ -232,7 +252,24 @@ export function WorkflowChecklist({
                   ) : null}
                   <td className="h-11 px-3 text-muted-foreground">{stepPhaseLabel(step.section)}</td>
                   <td className="h-11 px-3 text-muted-foreground">
-                    <UserInlineLabel user={users.find((u) => u.id === step.ownerId) ?? null} />
+                    {editingOwnerKey === step.key ? (
+                      <div className="w-48" onClick={(e) => e.stopPropagation()}>
+                        <UserSelect
+                          users={users}
+                          value={step.ownerId}
+                          onChange={(ownerId) => commitOwner(step, ownerId)}
+                        />
+                      </div>
+                    ) : (
+                      <span
+                        className="inline-flex items-center gap-1.5 rounded px-1 -mx-1 hover:bg-muted"
+                        onClick={(e) => startEditingOwner(e, step)}
+                        onContextMenu={(e) => startEditingOwner(e, step)}
+                        title="Click to quickly change the owner"
+                      >
+                        <UserInlineLabel user={users.find((u) => u.id === step.ownerId) ?? null} />
+                      </span>
+                    )}
                   </td>
                   <td className="h-11 px-3 text-muted-foreground">
                     {isEditingDueDate ? (

@@ -67,7 +67,7 @@ export const SAMPLE_WORKFLOW_STEPS: WorkflowStep[] = withSeededWeights([
   step(SAMPLE_PROJECT.id, "scheduleTechnicalKickoff", "Complete", "user-priya-subramaniam", "2026-01-15T00:00:00.000Z", "2026-01-15T00:00:00.000Z", "2026-01-15T00:00:00.000Z"),
   step(SAMPLE_PROJECT.id, "cadReview", "Not Started", null, null, null, "2026-01-01T00:00:00.000Z"),
   step(SAMPLE_PROJECT.id, "bomReview", "In Progress", "user-priya-subramaniam", "2026-02-01T00:00:00.000Z", null, "2026-01-20T00:00:00.000Z"),
-  step(SAMPLE_PROJECT.id, "procurement", "Not Started", null, null, null, "2026-01-01T00:00:00.000Z"),
+  step(SAMPLE_PROJECT.id, "equipmentTracking", "Not Started", null, null, null, "2026-01-01T00:00:00.000Z"),
   step(SAMPLE_PROJECT.id, "installation", "Not Started", null, null, null, "2026-01-01T00:00:00.000Z"),
   step(SAMPLE_PROJECT.id, "programming", "Not Started", null, null, null, "2026-01-01T00:00:00.000Z"),
   step(SAMPLE_PROJECT.id, "commissioning", "Not Started", null, null, null, "2026-01-01T00:00:00.000Z"),

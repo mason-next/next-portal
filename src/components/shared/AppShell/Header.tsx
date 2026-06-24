@@ -1,6 +1,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import { CURRENT_USER } from "@/lib/current-user";
+import { NotificationBell } from "@/modules/notifications/components/NotificationBell";
 import { Nav } from "./Nav";
 import { UserAvatar } from "./UserAvatar";
 
@@ -14,6 +15,7 @@ export function Header() {
         <Nav />
       </div>
       <div className="flex items-center gap-3">
+        <NotificationBell />
         <UserAvatar />
         <span className="text-sm font-medium">{CURRENT_USER}</span>
       </div>

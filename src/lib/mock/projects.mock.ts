@@ -13,7 +13,6 @@ export const SAMPLE_PROJECT: Project = {
   solutionsEngineerId: "user-priya-subramaniam",
   leadTechnicianId: "user-carlos-ibarra",
   fieldProjectManagerId: "user-dana-whitfield",
-  kickoffDate: "2026-01-15T00:00:00.000Z",
   targetCompletionDate: "2026-06-30T00:00:00.000Z",
   createdAt: "2026-01-01T00:00:00.000Z",
   updatedAt: "2026-01-01T00:00:00.000Z",
