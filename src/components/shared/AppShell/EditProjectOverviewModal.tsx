@@ -25,7 +25,6 @@ export function EditProjectOverviewModal({ project, onClose, onSaved }: EditProj
   const [solutionsEngineerId, setSolutionsEngineerId] = useState(project.solutionsEngineerId);
   const [solutionsExecutiveId, setSolutionsExecutiveId] = useState(project.solutionsExecutiveId);
   const [leadTechnicianId, setLeadTechnicianId] = useState(project.leadTechnicianId);
-  const [kickoffDate, setKickoffDate] = useState(project.kickoffDate ? project.kickoffDate.slice(0, 10) : "");
   const [targetCompletionDate, setTargetCompletionDate] = useState(
     project.targetCompletionDate ? project.targetCompletionDate.slice(0, 10) : ""
   );
@@ -40,7 +39,6 @@ export function EditProjectOverviewModal({ project, onClose, onSaved }: EditProj
       solutionsEngineerId,
       solutionsExecutiveId,
       leadTechnicianId,
-      kickoffDate: kickoffDate || null,
       targetCompletionDate: targetCompletionDate || null,
     });
     onSaved(updated);
@@ -82,14 +80,6 @@ export function EditProjectOverviewModal({ project, onClose, onSaved }: EditProj
         </Field>
         <Field label="Lead Technician">
           <UserSelect users={users} value={leadTechnicianId} onChange={setLeadTechnicianId} allowNotNeeded />
-        </Field>
-        <Field label="Kickoff Date">
-          <input
-            type="date"
-            className={FIELD_INPUT_CLASS}
-            value={kickoffDate}
-            onChange={(e) => setKickoffDate(e.target.value)}
-          />
         </Field>
         <Field label="Target Completion">
           <input

@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Geist_Mono, Google_Sans_Flex } from "next/font/google";
 import { Header } from "@/components/shared/AppShell/Header";
 import { UsersProvider } from "@/components/shared/AppShell/UsersProvider";
+import { NotificationsProvider } from "@/modules/notifications/hooks/NotificationsContext";
 import "./globals.css";
 
 const googleSansFlex = Google_Sans_Flex({
@@ -34,8 +35,10 @@ export default function RootLayout({
     >
       <body className="min-h-full flex flex-col">
         <UsersProvider>
-          <Header />
-          <main className="flex-1 bg-muted/30">{children}</main>
+          <NotificationsProvider>
+            <Header />
+            <main className="flex-1 bg-muted/30">{children}</main>
+          </NotificationsProvider>
         </UsersProvider>
       </body>
     </html>

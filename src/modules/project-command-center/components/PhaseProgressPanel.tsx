@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { CollapsibleCard } from "@/components/shared/CollapsibleCard";
 import { ProgressBar } from "@/components/shared/ProgressBar";
 import { PROJECT_SECTION_KEYS, SECTION_LABEL } from "@/modules/project-command-center/lib/workflow-steps";
 import { calculatePhaseProgress } from "@/modules/project-command-center/engine/workflow-engine";
@@ -11,8 +12,7 @@ interface PhaseProgressPanelProps {
 
 export function PhaseProgressPanel({ projectId, steps }: PhaseProgressPanelProps) {
   return (
-    <div className="rounded-xl border bg-card p-5 shadow-sm">
-      <div className="mb-4 text-sm font-semibold">Phase Progress</div>
+    <CollapsibleCard title="Phase Progress" storageKey="phase-progress">
       <div className="space-y-3">
         {PROJECT_SECTION_KEYS.map((section) => {
           const percent = calculatePhaseProgress(steps, section);
@@ -32,6 +32,6 @@ export function PhaseProgressPanel({ projectId, steps }: PhaseProgressPanelProps
           );
         })}
       </div>
-    </div>
+    </CollapsibleCard>
   );
 }

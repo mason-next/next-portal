@@ -1,10 +1,13 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { Activity, CheckCircle2, MessageSquare, RefreshCw, Settings2, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { UserAvatarImage } from "@/components/shared/AppShell/UserAvatarImage";
-import { Linkify } from "@/components/shared/Linkify";
+import { useUsersContext } from "@/components/shared/AppShell/UsersProvider";
+import { MentionTextarea } from "@/components/shared/MentionTextarea";
+import { MentionText } from "@/components/shared/MentionText";
 import {
   addProjectComment,
   deleteProjectActivity,
@@ -12,9 +15,11 @@ import {
   getProjectActivity,
   markActivityViewed,
 } from "@/lib/data/activity";
-import { CURRENT_USER } from "@/lib/current-user";
+import { CURRENT_USER, CURRENT_USER_ID } from "@/lib/current-user";
 import { useCurrentUserAvatar } from "@/lib/hooks/useCurrentUserAvatar";
+import { getMentionableUsers } from "@/lib/mentions/mentionable-users";
 import { cn } from "@/lib/utils";
+import { useProjectContext } from "@/modules/project-command-center/hooks/ProjectContext";
 import type { ActivityCategory, ProjectActivity } from "@/types/activity";
 
 // Local-storage-backed, single-user prototype — there's no push channel, so a light poll
@@ -65,11 +70,17 @@ function groupByDate(activity: ProjectActivity[]): { label: string; items: Proje
 
 export function ProjectActivityDrawer({ projectId }: { projectId: string }) {
   const currentUserAvatar = useCurrentUserAvatar();
+  const { project } = useProjectContext();
+  const { users } = useUsersContext();
+  const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
   const [open, setOpen] = useState(false);
   const [activity, setActivity] = useState<ProjectActivity[] | null>(null);
   const [lastViewed, setLastViewed] = useState<string | null>(() => getActivityLastViewed(projectId));
   const [draft, setDraft] = useState("");
   const [submitting, setSubmitting] = useState(false);
+  const [highlightedId, setHighlightedId] = useState<string | null>(null);
 
   // Drawer persists across project navigations (layout isn't remounted on param change), so
   // the lazy useState initializer above only fires once — re-derive lastViewed during render
@@ -100,6 +111,29 @@ export function ProjectActivityDrawer({ projectId }: { projectId: string }) {
     };
   }, [projectId]);
 
+  // Deep link from a notification: "?activity=<commentId>" forces the drawer open, scrolls to
+  // and briefly highlights the matching comment, then strips the param so a later refresh
+  // doesn't redundantly reopen/rescroll. Fails soft (opens with no scroll) if the id is stale.
+  useEffect(() => {
+    const targetId = searchParams.get("activity");
+    if (!targetId || activity === null) return;
+
+    let timeout: ReturnType<typeof setTimeout> | undefined;
+    queueMicrotask(() => {
+      setOpen(true);
+      if (activity.some((a) => a.id === targetId)) {
+        document.getElementById(`activity-${targetId}`)?.scrollIntoView({ behavior: "smooth", block: "center" });
+        setHighlightedId(targetId);
+        timeout = setTimeout(() => setHighlightedId(null), 2500);
+      }
+      router.replace(pathname, { scroll: false });
+    });
+
+    return () => {
+      if (timeout) clearTimeout(timeout);
+    };
+  }, [searchParams, activity, pathname, router]);
+
   function handleOpen() {
     setOpen(true);
     markActivityViewed(projectId);
@@ -110,7 +144,7 @@ export function ProjectActivityDrawer({ projectId }: { projectId: string }) {
     const body = draft.trim();
     if (!body) return;
     setSubmitting(true);
-    await addProjectComment(projectId, CURRENT_USER, body);
+    await addProjectComment(projectId, CURRENT_USER, body, CURRENT_USER_ID);
     setDraft("");
     setSubmitting(false);
     refresh();
@@ -173,12 +207,13 @@ export function ProjectActivityDrawer({ projectId }: { projectId: string }) {
           <div className="flex gap-2.5">
             <UserAvatarImage name={CURRENT_USER} avatarUrl={currentUserAvatar} size={28} />
             <div className="min-w-0 flex-1">
-              <textarea
+              <MentionTextarea
                 className="w-full rounded-md border border-input bg-background p-2 text-sm outline-none focus:border-primary"
                 rows={2}
-                placeholder="Write an update or note…"
+                placeholder="Write an update or note… (type @ to mention someone)"
                 value={draft}
-                onChange={(e) => setDraft(e.target.value)}
+                onChange={setDraft}
+                users={project ? getMentionableUsers(project, users) : []}
                 onKeyDown={(e) => {
                   if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) handlePost();
                 }}
@@ -211,6 +246,7 @@ export function ProjectActivityDrawer({ projectId }: { projectId: string }) {
                         item={item}
                         currentUserAvatar={currentUserAvatar}
                         onDelete={handleDelete}
+                        highlighted={item.id === highlightedId}
                       />
                     ))}
                   </div>
@@ -228,28 +264,35 @@ function ActivityRow({
   item,
   currentUserAvatar,
   onDelete,
+  highlighted,
 }: {
   item: ProjectActivity;
   currentUserAvatar: string | null;
   onDelete: (activityId: string) => void;
+  highlighted: boolean;
 }) {
   const time = new Date(item.createdAt).toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" });
 
   if (item.category === "comment") {
     return (
-      <div className="flex gap-2.5">
+      <div id={`activity-${item.id}`} className="flex gap-2.5">
         <UserAvatarImage
           name={item.userName}
           avatarUrl={item.userName === CURRENT_USER ? currentUserAvatar : null}
           size={28}
         />
-        <div className="min-w-0 flex-1 rounded-lg bg-muted/50 p-2.5">
+        <div
+          className={cn(
+            "min-w-0 flex-1 rounded-lg bg-muted/50 p-2.5 transition-colors",
+            highlighted && "ring-2 ring-primary"
+          )}
+        >
           <div className="flex items-center justify-between gap-2">
             <span className="text-sm font-semibold">{item.userName}</span>
             <span className="text-xs text-muted-foreground">{time}</span>
           </div>
           <p className="mt-1 whitespace-pre-wrap text-sm">
-            <Linkify text={item.message} />
+            <MentionText text={item.message} />
           </p>
           {item.userName === CURRENT_USER ? (
             <button
@@ -267,7 +310,7 @@ function ActivityRow({
 
   const Icon = CATEGORY_ICON[item.category];
   return (
-    <div className="flex gap-2.5">
+    <div id={`activity-${item.id}`} className="flex gap-2.5">
       <div className={cn("flex h-7 w-7 shrink-0 items-center justify-center rounded-full", CATEGORY_TONE[item.category])}>
         <Icon className="h-3.5 w-3.5" />
       </div>

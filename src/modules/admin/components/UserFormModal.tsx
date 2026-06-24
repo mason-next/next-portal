@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Modal } from "@/components/shared/Modal";
 import { UserAvatarImage } from "@/components/shared/AppShell/UserAvatarImage";
 import { createUser, deleteUser, updateUser } from "@/lib/data/users";
-import type { AppUser } from "@/types/user";
+import { USER_ROLES, type AppUser } from "@/types/user";
 
 const FIELD_INPUT_CLASS =
   "h-9 w-full rounded-md border border-input bg-background px-3 text-sm outline-none focus:border-primary";
@@ -22,6 +22,8 @@ export function UserFormModal({ user, onClose, onSaved, onDeleted }: UserFormMod
   const [title, setTitle] = useState(user?.title ?? "");
   const [email, setEmail] = useState(user?.email ?? "");
   const [avatarUrl, setAvatarUrl] = useState<string | null>(user?.avatarUrl ?? null);
+  const [role, setRole] = useState(user?.role ?? "Member");
+  const [isActive, setIsActive] = useState(user?.isActive ?? true);
   const [submitting, setSubmitting] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -34,8 +36,8 @@ export function UserFormModal({ user, onClose, onSaved, onDeleted }: UserFormMod
   async function handleSave() {
     setSubmitting(true);
     const saved = user
-      ? await updateUser(user.id, { name, title, email, avatarUrl })
-      : await createUser({ name, title, email, avatarUrl });
+      ? await updateUser(user.id, { name, title, email, avatarUrl, role, isActive })
+      : await createUser({ name, title, email, avatarUrl, role, isActive });
     onSaved(saved);
   }
 
@@ -86,6 +88,28 @@ export function UserFormModal({ user, onClose, onSaved, onDeleted }: UserFormMod
             onChange={(e) => setEmail(e.target.value)}
           />
         </Field>
+        <Field label="Role">
+          <select
+            className={FIELD_INPUT_CLASS}
+            value={role}
+            onChange={(e) => setRole(e.target.value as AppUser["role"])}
+          >
+            {USER_ROLES.map((r) => (
+              <option key={r} value={r}>
+                {r}
+              </option>
+            ))}
+          </select>
+        </Field>
+        <label className="flex items-center gap-2 text-sm">
+          <input
+            type="checkbox"
+            className="h-4 w-4"
+            checked={isActive}
+            onChange={(e) => setIsActive(e.target.checked)}
+          />
+          Active
+        </label>
       </div>
 
       <div className="mt-6 flex justify-end gap-2">

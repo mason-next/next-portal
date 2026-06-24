@@ -4,9 +4,20 @@ import { readGlobal, writeGlobal } from "@/lib/storage/local-store";
 
 const USERS_KEY = "users";
 
+// Backfills fields added after a user may have already been saved to localStorage under the
+// old shape — without this, older stored users would have `undefined` role/isActive and break
+// the @-mention eligibility filter (lib/mentions/mentionable-users.ts).
+function withUserDefaults(user: AppUser): AppUser {
+  return {
+    ...user,
+    role: user.role ?? "Member",
+    isActive: user.isActive ?? true,
+  };
+}
+
 function loadAll(): AppUser[] {
   const stored = readGlobal<AppUser[]>(USERS_KEY);
-  if (stored) return stored;
+  if (stored) return stored.map(withUserDefaults);
   writeGlobal(USERS_KEY, SAMPLE_USERS);
   return SAMPLE_USERS;
 }
@@ -28,6 +39,8 @@ export async function createUser(input: NewUserInput): Promise<AppUser> {
     title: input.title,
     email: input.email,
     avatarUrl: input.avatarUrl,
+    role: input.role,
+    isActive: input.isActive,
     createdAt: now,
     updatedAt: now,
   };

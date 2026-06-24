@@ -1,5 +1,6 @@
 import type { NewProjectInput, Project } from "@/types/project";
 import { logProjectActivity } from "@/lib/data/activity";
+import { deleteNotificationsForProject } from "@/lib/data/notifications";
 import { getUser } from "@/lib/data/users";
 import { CURRENT_USER } from "@/lib/current-user";
 import { SAMPLE_PROJECT } from "@/lib/mock/projects.mock";
@@ -19,7 +20,6 @@ const FIELD_LABELS: Partial<Record<keyof Project, string>> = {
   solutionsEngineerId: "Solutions Engineer",
   leadTechnicianId: "Lead Technician",
   fieldProjectManagerId: "Field Project Manager",
-  kickoffDate: "Kickoff Date",
   targetCompletionDate: "Target Completion",
 };
 
@@ -51,7 +51,6 @@ function withProjectDefaults(project: Project): Project {
     solutionsEngineerId: project.solutionsEngineerId ?? null,
     leadTechnicianId: project.leadTechnicianId ?? null,
     fieldProjectManagerId: project.fieldProjectManagerId ?? null,
-    kickoffDate: project.kickoffDate ?? null,
     targetCompletionDate: project.targetCompletionDate ?? null,
   };
 }
@@ -88,7 +87,6 @@ export async function createProject(input: NewProjectInput): Promise<Project> {
     solutionsEngineerId: null,
     leadTechnicianId: null,
     fieldProjectManagerId: null,
-    kickoffDate: null,
     targetCompletionDate: null,
     createdAt: now,
     updatedAt: now,
@@ -135,4 +133,11 @@ export async function deleteProject(id: string): Promise<void> {
   removeProjectScoped(id, "welcome-letter");
   removeProjectScoped(id, "audit-trail");
   removeProjectScoped(id, "comments");
+  removeProjectScoped(id, "equipment-rows");
+  removeProjectScoped(id, "equipment-uploads");
+  removeProjectScoped(id, "internal-kickoff");
+  removeProjectScoped(id, "activity");
+  removeProjectScoped(id, "activity-last-viewed");
+  removeProjectScoped(id, "comment-mentions");
+  await deleteNotificationsForProject(id);
 }

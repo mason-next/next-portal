@@ -24,7 +24,7 @@ export default function ProjectDashboardPage({
 
   const healthSummary = getProjectHealthSummary({
     steps,
-    startDate: project.kickoffDate,
+    startDate: project.createdAt,
     targetCompletionDate: project.targetCompletionDate,
     now: new Date(),
   });

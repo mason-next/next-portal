@@ -17,7 +17,6 @@ export interface Project {
   solutionsEngineerId: string | null;
   leadTechnicianId: string | null;
   fieldProjectManagerId: string | null;
-  kickoffDate: string | null;
   targetCompletionDate: string | null;
   createdAt: string;
   updatedAt: string;

@@ -9,6 +9,10 @@ export function formatMoney(value: number): string {
   return value.toLocaleString(undefined, { style: "currency", currency: "USD" })
 }
 
+export function truncate(value: string, maxLength: number): string {
+  return value.length > maxLength ? `${value.slice(0, maxLength).trimEnd()}…` : value
+}
+
 export function formatDate(value: string | null | undefined): string {
   if (!value) return "—"
   const date = new Date(value)

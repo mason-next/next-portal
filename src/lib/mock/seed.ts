@@ -1,4 +1,6 @@
 import type { BomRow } from "@/types/bom";
+import type { EquipmentRow } from "@/types/equipment";
+import { computeEquipmentStatus } from "@/modules/equipment-tracking/lib/status";
 
 const MANUFACTURERS = [
   "Cisco", "QSC", "Shure", "LG", "Chief", "Netgear",
@@ -33,4 +35,74 @@ export function generateSampleBomRows(count = 50): BomRow[] {
     audit: [],
     updatedAt: now,
   }));
+}
+
+// Cycles through every status (plus partially-received/partially-shipped exception cases)
+// across a 10-row pattern so the sample project exercises the full Equipment Tracking UI.
+export function generateSampleEquipmentRows(count = 50): EquipmentRow[] {
+  const now = new Date().toISOString();
+  return Array.from({ length: count }, (_, i) => {
+    const qty = (i % 4) + 1;
+    const bucket = i % 10;
+
+    let stockAllocation = "";
+    let specialOrder = "";
+    let pickedQty = 0;
+    let shippedQty = 0;
+    let cancelled = "";
+
+    switch (bucket) {
+      case 1: // Allocated
+        stockAllocation = "NY-WH-A12";
+        break;
+      case 2: // Ordered
+        specialOrder = "2026-01-15";
+        break;
+      case 3: // Ordered, partially received
+        specialOrder = "2026-01-18";
+        pickedQty = Math.max(1, qty - 1) < qty ? Math.max(1, qty - 1) : 0;
+        break;
+      case 4: // Received
+        specialOrder = "2026-01-10";
+        pickedQty = qty;
+        break;
+      case 5: // Received, partially shipped
+        specialOrder = "2026-01-08";
+        pickedQty = qty;
+        shippedQty = Math.max(1, qty - 1) < qty ? Math.max(1, qty - 1) : 0;
+        break;
+      case 6: // Shipped
+      case 7:
+        specialOrder = "2026-01-05";
+        pickedQty = qty;
+        shippedQty = qty;
+        break;
+      case 8: // Cancelled
+        specialOrder = "2026-01-12";
+        cancelled = "2026-02-01";
+        break;
+      default: // Not Ordered
+        break;
+    }
+
+    const status = computeEquipmentStatus({ qty, stockAllocation, specialOrder, pickedQty, shippedQty, cancelled });
+
+    return {
+      id: crypto.randomUUID(),
+      seq: String(i + 1).padStart(3, "0"),
+      mfr: MANUFACTURERS[i % MANUFACTURERS.length],
+      product: PARTS[i % PARTS.length],
+      desc: DESCRIPTIONS[i % DESCRIPTIONS.length],
+      qty,
+      stockAllocation,
+      specialOrder,
+      pickedQty,
+      shippedQty,
+      cancelled,
+      status,
+      source: "csv",
+      audit: [],
+      updatedAt: now,
+    };
+  });
 }

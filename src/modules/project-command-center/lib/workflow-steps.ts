@@ -26,7 +26,7 @@ export const WORKFLOW_STEP_TEMPLATE: WorkflowStepTemplateEntry[] = [
   { key: "scheduleTechnicalKickoff", name: "Schedule Technical Kickoff", sortOrder: 6, section: "setup" },
   { key: "cadReview", name: "CAD Review", sortOrder: 7, section: "engineering" },
   { key: "bomReview", name: "BOM Review", sortOrder: 8, section: "engineering" },
-  { key: "procurement", name: "Procurement", sortOrder: 9, section: "procurement" },
+  { key: "equipmentTracking", name: "Equipment Tracking", sortOrder: 9, section: "procurement" },
   { key: "installation", name: "Installation", sortOrder: 10, section: "implementation" },
   { key: "programming", name: "Programming", sortOrder: 11, section: "implementation" },
   { key: "commissioning", name: "Commissioning", sortOrder: 12, section: "implementation" },
@@ -92,6 +92,8 @@ const STEP_ACTION_OVERRIDES: Partial<Record<string, string>> = {
   bomReview: "/engineering/bom-review",
   assignTeam: "", // Project Overview (where the team is assigned) lives on the Dashboard itself
   sendWelcomeLetter: "/setup/welcome-letter",
+  scheduleInternalKickoff: "/setup/internal-kickoff",
+  equipmentTracking: "/procurement/equipment-tracking",
 };
 
 export function stepActionHref(projectId: string, step: WorkflowStep): string {
@@ -119,7 +121,13 @@ export const WORKFLOW_STATUS_TONE: Record<WorkflowStepStatus, StatusTone> = {
 // set directly by a user — see engine/module-progress.ts. Editing their status manually
 // requires an explicit override (statusOverridden) or it'd just get recalculated away on
 // the next reconciled read.
-const MODULE_MANAGED_STEPS = new Set<string>(["bomReview", "assignTeam", "sendWelcomeLetter"]);
+const MODULE_MANAGED_STEPS = new Set<string>([
+  "bomReview",
+  "assignTeam",
+  "sendWelcomeLetter",
+  "scheduleInternalKickoff",
+  "equipmentTracking",
+]);
 
 export function isModuleManagedStep(key: string): boolean {
   return MODULE_MANAGED_STEPS.has(key);

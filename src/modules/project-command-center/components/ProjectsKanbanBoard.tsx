@@ -60,7 +60,7 @@ export function ProjectsKanbanBoard({ projects, stepsByProject, users }: Project
                 const progress = calculateActualProgress(steps);
                 const { health } = getProjectHealthSummary({
                   steps,
-                  startDate: project.kickoffDate,
+                  startDate: project.createdAt,
                   targetCompletionDate: project.targetCompletionDate,
                   now: new Date(),
                 });

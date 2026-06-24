@@ -2,6 +2,7 @@
 
 import { useState, type ReactNode } from "react";
 import { Button } from "@/components/ui/button";
+import { CollapsibleCard } from "@/components/shared/CollapsibleCard";
 import { EditProjectOverviewModal } from "@/components/shared/AppShell/EditProjectOverviewModal";
 import { UserInlineLabel } from "@/components/shared/UserInlineLabel";
 import { useUsersContext } from "@/components/shared/AppShell/UsersProvider";
@@ -22,13 +23,15 @@ export function ProjectOverviewCard() {
   if (!project) return null;
 
   return (
-    <div className="rounded-xl border bg-card p-5 shadow-sm">
-      <div className="mb-4 flex items-center justify-between">
-        <div className="text-sm font-semibold">Project Overview</div>
+    <CollapsibleCard
+      title="Project Overview"
+      storageKey="project-overview"
+      headerExtra={
         <Button variant="outline" size="sm" onClick={() => setShowEdit(true)}>
           Edit
         </Button>
-      </div>
+      }
+    >
       <div className="grid grid-cols-4 gap-6">
         <Field label="Contract Value" value={formatMoney(project.contractValue)} />
         <Field label="Gross Margin" value={`${project.grossMarginPercent}%`} />
@@ -39,7 +42,7 @@ export function ProjectOverviewCard() {
         <Field label="Solutions Engineer" value={roleLabel(project.solutionsEngineerId)} />
         <Field label="Solutions Executive" value={<UserInlineLabel user={userById(project.solutionsExecutiveId)} />} />
         <Field label="Lead Technician" value={roleLabel(project.leadTechnicianId)} />
-        <Field label="Kickoff Date" value={formatCalendarDate(project.kickoffDate)} />
+        <Field label="Start Date" value={formatCalendarDate(project.createdAt)} />
         <Field label="Target Completion" value={formatCalendarDate(project.targetCompletionDate)} />
       </div>
 
@@ -54,7 +57,7 @@ export function ProjectOverviewCard() {
           }}
         />
       ) : null}
-    </div>
+    </CollapsibleCard>
   );
 }
 

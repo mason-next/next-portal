@@ -1,6 +1,6 @@
 import { cn } from "@/lib/utils";
 
-export type StatusTone = "neutral" | "success" | "warning" | "danger" | "info";
+export type StatusTone = "neutral" | "success" | "warning" | "danger" | "info" | "orange";
 
 interface StatusBadgeProps {
   label: string;
@@ -13,6 +13,7 @@ const TONE_CLASSES: Record<StatusTone, string> = {
   warning: "bg-amber-100 text-amber-700",
   danger: "bg-red-100 text-red-700",
   info: "bg-sky-100 text-sky-700",
+  orange: "bg-orange-100 text-orange-700",
 };
 
 export function StatusBadge({ label, tone }: StatusBadgeProps) {

@@ -1,7 +1,10 @@
 import { getWorkflowSteps, updateWorkflowStep } from "@/lib/data/workflow";
 import { getBomRows } from "@/lib/data/bom-rows";
+import { getEquipmentRows } from "@/lib/data/equipment";
 import { getProject } from "@/lib/data/projects";
 import { bomCompletionPercent, bomReviewStepStatus } from "@/modules/bom-release/lib/bom-progress";
+import { computeEquipmentSummary, equipmentTrackingStepStatus } from "@/modules/equipment-tracking/lib/equipment-summary";
+import { getInternalKickoffRecord } from "@/modules/internal-kickoff/lib/store";
 import { getWelcomeLetterRecord } from "@/modules/welcome-letter/lib/store";
 import type { WorkflowStep, WorkflowStepStatus } from "@/types/workflow";
 
@@ -34,6 +37,17 @@ export const MODULE_PROGRESS_PROVIDERS: Partial<Record<string, ModuleProgressPro
   sendWelcomeLetter: async (projectId) => {
     const record = await getWelcomeLetterRecord(projectId);
     return record ? { status: "Complete", percent: 100 } : { status: "Not Started", percent: 0 };
+  },
+  scheduleInternalKickoff: async (projectId) => {
+    const record = await getInternalKickoffRecord(projectId);
+    return record ? { status: "Complete", percent: 100 } : { status: "Not Started", percent: 0 };
+  },
+  equipmentTracking: async (projectId) => {
+    const rows = await getEquipmentRows(projectId);
+    return {
+      status: equipmentTrackingStepStatus(rows),
+      percent: rows.length ? computeEquipmentSummary(rows).procurementProgressPercent : 0,
+    };
   },
 };
 
