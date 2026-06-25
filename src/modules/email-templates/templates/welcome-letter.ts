@@ -35,6 +35,9 @@ export interface WelcomeLetterInput {
   solutionsEngineerAvatarUrl?: string | null;
   solutionsExecutiveName: string | null;
   solutionsExecutiveAvatarUrl?: string | null;
+  srInsideProjectManagerAvatarUrl?: string | null;
+  insideProjectManagerAvatarUrl?: string | null;
+  managingDirectorAvatarUrl?: string | null;
 }
 
 export interface WelcomeLetterOverrides {
@@ -69,11 +72,13 @@ export function buildWelcomeLetterEmail(
     {
       role: "Sr. Inside Project Manager",
       name: SR_INSIDE_PROJECT_MANAGER_NAME,
+      avatarUrl: input.srInsideProjectManagerAvatarUrl,
       blurb: `${firstNameOf(SR_INSIDE_PROJECT_MANAGER_NAME)} will be your primary point of contact and will oversee all coordination, scheduling, and day-to-day communication.`,
     },
     {
       role: "Inside Project Manager",
       name: INSIDE_PROJECT_MANAGER_NAME,
+      avatarUrl: input.insideProjectManagerAvatarUrl,
       blurb: `${firstNameOf(INSIDE_PROJECT_MANAGER_NAME)} will be supporting ${firstNameOf(SR_INSIDE_PROJECT_MANAGER_NAME)} and helping drive timelines, logistics, and overall project flow.`,
     }
   );
@@ -91,7 +96,7 @@ export function buildWelcomeLetterEmail(
   const accountContacts: EmailContact[] = [];
   if (input.solutionsExecutiveName) {
     accountContacts.push({
-      role: "Senior Technical Sales Engineer",
+      role: "Solutions Executive",
       name: input.solutionsExecutiveName,
       avatarUrl: input.solutionsExecutiveAvatarUrl,
       blurb: `${firstNameOf(input.solutionsExecutiveName)} will remain closely involved to ensure alignment from both a technical and account perspective throughout the project.`,
@@ -108,6 +113,7 @@ export function buildWelcomeLetterEmail(
         {
           role: "Managing Director",
           name: MANAGING_DIRECTOR_NAME,
+          avatarUrl: input.managingDirectorAvatarUrl,
           blurb:
             "I’ll be supporting overall execution and alignment across our teams. If anything requires escalation or additional attention at any point, please don’t hesitate to reach out directly.",
         },

@@ -28,11 +28,13 @@ export function useEquipmentImport() {
         product: row.product,
         desc: row.desc,
         qty: row.qty,
+        unitCost: row.unitCost,
         stockAllocation: row.stockAllocation,
         specialOrder: row.specialOrder,
         pickedQty: row.pickedQty,
         shippedQty: row.shippedQty,
         cancelled: row.cancelled,
+        poInfo: row.poInfo,
       }))
     );
     setPendingFileName("Sample Equipment List.csv");

@@ -1,6 +1,14 @@
 import type { AuditEntry } from "./audit";
 
-export const EQUIPMENT_STATUSES = ["Not Ordered", "Allocated", "Ordered", "Received", "Shipped", "Cancelled"] as const;
+export const EQUIPMENT_STATUSES = [
+  "Not Ordered",
+  "Allocated",
+  "Ordered",
+  "Received",
+  "Shipped",
+  "Delivered",
+  "Cancelled",
+] as const;
 
 export type EquipmentStatus = (typeof EQUIPMENT_STATUSES)[number];
 
@@ -18,6 +26,7 @@ export interface EquipmentRow {
   product: string;
   desc: string;
   qty: number;
+  unitCost: number;
   // Stock Allocation / Special Order / Cancelled are kept as raw strings rather than
   // booleans — the CSV's "populated or true" rule treats any non-empty, non-falsy cell
   // (a date, a warehouse code, "Yes", etc.) as true. See lib/status.ts isPopulated().
@@ -26,8 +35,14 @@ export interface EquipmentRow {
   pickedQty: number;
   shippedQty: number;
   cancelled: string;
+  // Free-text PO/shipment notes from the distributor. Checked for "Product Status: Received"
+  // (case-insensitive substring) to detect the Delivered status — see lib/status.ts.
+  poInfo: string;
   // Always derived via computeEquipmentStatus — never hand-picked, unlike BomRow.status.
   status: EquipmentStatus;
+  // Set when an RMA request is generated for this row (see RmaRequestModal) — re-stamped on
+  // every subsequent request rather than appended, so it always reflects the most recent one.
+  rmaRequestedAt: string | null;
   source: EquipmentSource;
   audit: AuditEntry[];
   updatedAt: string; // ISO 8601
@@ -40,11 +55,23 @@ export interface EquipmentRowSnapshot {
   product: string;
   desc: string;
   qty: string;
+  unitCost: string;
   stockAllocation: string;
   specialOrder: string;
   pickedQty: string;
   shippedQty: string;
   cancelled: string;
+  poInfo: string;
+}
+
+export interface EquipmentViewOptionsState {
+  hiddenColumns: Set<string>;
+  rowFilters: {
+    hideCancelled: boolean;
+    hideDelivered: boolean;
+    hideZeroQty: boolean;
+    hideZeroCost: boolean;
+  };
 }
 
 export interface EquipmentUploadRecord {

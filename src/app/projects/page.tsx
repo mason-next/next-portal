@@ -20,11 +20,16 @@ import { HEALTH_TONE } from "@/modules/project-command-center/lib/project-health
 import { formatCalendarDate, cn } from "@/lib/utils";
 import { readGlobal, writeGlobal } from "@/lib/storage/local-store";
 import { ProjectsKanbanBoard } from "@/modules/project-command-center/components/ProjectsKanbanBoard";
+import { PROJECT_HEALTH } from "@/types/project";
 import type { Project } from "@/types/project";
 import type { WorkflowStep } from "@/types/workflow";
 
 const VIEW_MODE_KEY = "projects-page:view-mode";
 type ViewMode = "list" | "kanban";
+
+const UNASSIGNED_PM = "unassigned";
+const FILTER_SELECT_CLASS =
+  "h-9 rounded-md border border-input bg-background px-3 text-sm outline-none focus:border-primary";
 
 export default function ProjectsPage() {
   const router = useRouter();
@@ -33,6 +38,9 @@ export default function ProjectsPage() {
   const [stepsByProject, setStepsByProject] = useState<Record<string, WorkflowStep[]>>({});
   const [showNewProject, setShowNewProject] = useState(false);
   const [viewMode, setViewMode] = useState<ViewMode>("list");
+  const [pmFilter, setPmFilter] = useState("all");
+  const [statusFilter, setStatusFilter] = useState("all");
+  const [healthFilter, setHealthFilter] = useState("all");
 
   useEffect(() => {
     queueMicrotask(() => setViewMode(readGlobal<ViewMode>(VIEW_MODE_KEY) ?? "list"));
@@ -52,6 +60,42 @@ export default function ProjectsPage() {
       setStepsByProject(Object.fromEntries(entries));
     });
   }, []);
+
+  const enriched = (projects ?? []).map((project) => {
+    const steps = stepsByProject[project.id] ?? [];
+    const status = deriveProjectStatus(steps);
+    const { health } = getProjectHealthSummary({
+      steps,
+      startDate: project.createdAt,
+      targetCompletionDate: project.targetCompletionDate,
+      now: new Date(),
+    });
+    const progress = calculateActualProgress(steps);
+    const pm = users.find((u) => u.id === project.fieldProjectManagerId) ?? null;
+    return { project, status, health, progress, pm };
+  });
+
+  const pmOptions = [...new Map(enriched.filter((e) => e.pm).map((e) => [e.pm!.id, e.pm!.name])).entries()].sort(
+    (a, b) => a[1].localeCompare(b[1])
+  );
+  const hasUnassignedPm = enriched.some((e) => !e.pm);
+  const statusOptions = [...new Set(enriched.map((e) => e.status.label))].sort((a, b) => a.localeCompare(b));
+
+  const filtered = enriched.filter(({ status, health, pm }) => {
+    if (pmFilter === UNASSIGNED_PM && pm) return false;
+    if (pmFilter !== "all" && pmFilter !== UNASSIGNED_PM && pm?.id !== pmFilter) return false;
+    if (statusFilter !== "all" && status.label !== statusFilter) return false;
+    if (healthFilter !== "all" && health !== healthFilter) return false;
+    return true;
+  });
+
+  const filtersActive = pmFilter !== "all" || statusFilter !== "all" || healthFilter !== "all";
+
+  function clearFilters() {
+    setPmFilter("all");
+    setStatusFilter("all");
+    setHealthFilter("all");
+  }
 
   return (
     <div className={cn("p-8", viewMode === "kanban" ? "w-full" : "mx-auto max-w-5xl")}>
@@ -84,25 +128,68 @@ export default function ProjectsPage() {
         </div>
       </div>
 
+      {projects !== null && projects.length > 0 ? (
+        <div className="mb-4 flex flex-wrap items-center gap-2">
+          <select className={FILTER_SELECT_CLASS} value={pmFilter} onChange={(e) => setPmFilter(e.target.value)}>
+            <option value="all">All Project Managers</option>
+            {hasUnassignedPm ? <option value={UNASSIGNED_PM}>Unassigned</option> : null}
+            {pmOptions.map(([id, name]) => (
+              <option key={id} value={id}>
+                {name}
+              </option>
+            ))}
+          </select>
+          <select
+            className={FILTER_SELECT_CLASS}
+            value={statusFilter}
+            onChange={(e) => setStatusFilter(e.target.value)}
+          >
+            <option value="all">All Statuses</option>
+            {statusOptions.map((label) => (
+              <option key={label} value={label}>
+                {label}
+              </option>
+            ))}
+          </select>
+          <select
+            className={FILTER_SELECT_CLASS}
+            value={healthFilter}
+            onChange={(e) => setHealthFilter(e.target.value)}
+          >
+            <option value="all">All Health</option>
+            {PROJECT_HEALTH.map((health) => (
+              <option key={health} value={health}>
+                {health}
+              </option>
+            ))}
+          </select>
+          {filtersActive ? (
+            <button
+              type="button"
+              onClick={clearFilters}
+              className="text-sm text-muted-foreground underline-offset-2 hover:text-foreground hover:underline"
+            >
+              Clear filters
+            </button>
+          ) : null}
+        </div>
+      ) : null}
+
       {projects === null ? (
         <p className="text-sm text-muted-foreground">Loading projects…</p>
       ) : projects.length === 0 ? (
         <p className="text-sm text-muted-foreground">No projects yet.</p>
+      ) : filtered.length === 0 ? (
+        <p className="text-sm text-muted-foreground">No projects match the selected filters.</p>
       ) : viewMode === "kanban" ? (
-        <ProjectsKanbanBoard projects={projects} stepsByProject={stepsByProject} users={users} />
+        <ProjectsKanbanBoard
+          projects={filtered.map((e) => e.project)}
+          stepsByProject={stepsByProject}
+          users={users}
+        />
       ) : (
         <ul className="grid gap-3">
-          {projects.map((project) => {
-            const steps = stepsByProject[project.id] ?? [];
-            const status = deriveProjectStatus(steps);
-            const { health } = getProjectHealthSummary({
-              steps,
-              startDate: project.createdAt,
-              targetCompletionDate: project.targetCompletionDate,
-              now: new Date(),
-            });
-            const progress = calculateActualProgress(steps);
-            const pm = users.find((u) => u.id === project.fieldProjectManagerId) ?? null;
+          {filtered.map(({ project, status, health, progress, pm }) => {
             return (
               <li key={project.id}>
                 <Link

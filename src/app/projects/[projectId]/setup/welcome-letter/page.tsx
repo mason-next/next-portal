@@ -18,6 +18,11 @@ import { EditWelcomeLetterModal } from "@/modules/welcome-letter/components/Edit
 import { WelcomeLetterPreviewModal } from "@/modules/welcome-letter/components/WelcomeLetterPreviewModal";
 import { logProjectActivity } from "@/lib/data/activity";
 import { CURRENT_USER } from "@/lib/current-user";
+import {
+  INSIDE_PROJECT_MANAGER_NAME,
+  MANAGING_DIRECTOR_NAME,
+  SR_INSIDE_PROJECT_MANAGER_NAME,
+} from "@/lib/org-roles";
 import { formatDate } from "@/lib/utils";
 
 export default function WelcomeLetterPage({
@@ -57,10 +62,16 @@ export default function WelcomeLetterPage({
   }
 
   const userById = (id: string | null) => users.find((u) => u.id === id) ?? null;
+  const userByName = (name: string) => users.find((u) => u.name === name) ?? null;
 
   const fieldProjectManager = userById(project.fieldProjectManagerId);
   const solutionsEngineer = userById(project.solutionsEngineerId);
   const solutionsExecutive = userById(project.solutionsExecutiveId);
+  // Standing org-wide roles (lib/org-roles.ts) aren't tied to a project field — resolved by
+  // name against the user roster instead, same as their seeded AppUser records.
+  const srInsideProjectManager = userByName(SR_INSIDE_PROJECT_MANAGER_NAME);
+  const insideProjectManager = userByName(INSIDE_PROJECT_MANAGER_NAME);
+  const managingDirector = userByName(MANAGING_DIRECTOR_NAME);
 
   const email = buildWelcomeLetterEmail(
     {
@@ -73,6 +84,9 @@ export default function WelcomeLetterPage({
       solutionsEngineerAvatarUrl: solutionsEngineer?.avatarUrl,
       solutionsExecutiveName: solutionsExecutive?.name ?? null,
       solutionsExecutiveAvatarUrl: solutionsExecutive?.avatarUrl,
+      srInsideProjectManagerAvatarUrl: srInsideProjectManager?.avatarUrl,
+      insideProjectManagerAvatarUrl: insideProjectManager?.avatarUrl,
+      managingDirectorAvatarUrl: managingDirector?.avatarUrl,
     },
     overrides
   );

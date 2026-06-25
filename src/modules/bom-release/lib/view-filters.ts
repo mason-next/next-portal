@@ -7,6 +7,7 @@ export function applyRowFilters(rows: BomRow[], filters: ViewOptionsState["rowFi
     if (filters.hideReleased && row.status === "Released") return false;
     if (filters.hideDoNotOrder && row.status === "Do Not Order") return false;
     if (filters.hideZeroQty && row.qty === 0) return false;
+    if (filters.hideBlankMfr && row.mfr.trim() === "") return false;
     return true;
   });
 }

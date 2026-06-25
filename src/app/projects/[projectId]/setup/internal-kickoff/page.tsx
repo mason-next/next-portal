@@ -11,12 +11,9 @@ import {
   saveInternalKickoffRecord,
   type InternalKickoffRecord,
 } from "@/modules/internal-kickoff/lib/store";
-import {
-  buildTeamsMeetingUrl,
-  DEFAULT_KICKOFF_AGENDA,
-  STANDING_ATTENDEE_EMAILS,
-} from "@/modules/internal-kickoff/lib/teams-invite";
+import { buildTeamsMeetingUrl, DEFAULT_KICKOFF_AGENDA } from "@/modules/internal-kickoff/lib/teams-invite";
 import { logProjectActivity } from "@/lib/data/activity";
+import { getDefaultKickoffAttendeeIds } from "@/lib/data/kickoff-settings";
 import { CURRENT_USER } from "@/lib/current-user";
 import { formatDate } from "@/lib/utils";
 
@@ -36,6 +33,7 @@ export default function InternalKickoffPage({
   const { refetch: refetchWorkflowSteps } = useWorkflowStepsContext();
 
   const [record, setRecord] = useState<InternalKickoffRecord | null | undefined>(undefined);
+  const [defaultAttendeeIds, setDefaultAttendeeIds] = useState<string[]>([]);
   const [subject, setSubject] = useState("");
   const [date, setDate] = useState("");
   const [time, setTime] = useState("10:00");
@@ -53,6 +51,16 @@ export default function InternalKickoffPage({
       active = false;
     };
   }, [projectId]);
+
+  useEffect(() => {
+    let active = true;
+    getDefaultKickoffAttendeeIds().then((ids) => {
+      if (active) setDefaultAttendeeIds(ids);
+    });
+    return () => {
+      active = false;
+    };
+  }, []);
 
   function showToast(message: string) {
     setToast(message);
@@ -80,10 +88,13 @@ export default function InternalKickoffPage({
   // don't appear (and get invited) twice.
   const attendees = [...new Map(roleAssignedUsers.map((u) => [u.id, u])).values()];
 
-  const standingAttendeeEmails = STANDING_ATTENDEE_EMAILS.filter(
-    (email) => !attendees.some((u) => u.email.toLowerCase() === email.toLowerCase())
-  );
-  const allAttendeeEmails = [...attendees.map((a) => a.email), ...standingAttendeeEmails];
+  // Default attendees come from Admin → Default Internal Kickoff Attendees, deduped against
+  // anyone already pulled in via a project role assignment above.
+  const standingAttendees = defaultAttendeeIds
+    .map(userById)
+    .filter((u): u is NonNullable<typeof u> => u !== null && u.email.trim() !== "")
+    .filter((u) => !attendees.some((a) => a.id === u.id));
+  const allAttendeeEmails = [...attendees.map((a) => a.email), ...standingAttendees.map((a) => a.email)];
 
   const startTime = date && time ? new Date(`${date}T${time}`).toISOString() : null;
   const endTime = startTime ? new Date(new Date(startTime).getTime() + duration * 60000).toISOString() : null;
@@ -212,11 +223,12 @@ export default function InternalKickoffPage({
               ))}
             </ul>
           )}
-          {standingAttendeeEmails.length > 0 ? (
+          {standingAttendees.length > 0 ? (
             <ul className="mt-1 space-y-1 text-sm">
-              {standingAttendeeEmails.map((email) => (
-                <li key={email} className="text-muted-foreground">
-                  {email} <span className="text-xs">(always invited)</span>
+              {standingAttendees.map((user) => (
+                <li key={user.id} className="text-muted-foreground">
+                  <span className="font-medium text-foreground">{user.name}</span> · {user.email}{" "}
+                  <span className="text-xs">(always invited)</span>
                 </li>
               ))}
             </ul>

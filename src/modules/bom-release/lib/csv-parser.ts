@@ -113,7 +113,13 @@ export function parseCsvToImportRows(text: string): ParsedBomRow[] {
   let body = data.slice(1);
 
   const headerScore = headers.filter((h) => HEADER_HINT.test(h)).length;
-  if (headerScore === 0) {
+  // Positional fallbacks (cols[N]) are only meaningful for headerless files, where the
+  // synthetic headers above line up with column index 1:1. When a real header row exists,
+  // findVal already authoritatively resolved each field by name — if it comes back empty,
+  // that cell is genuinely blank (e.g. a "Shipping - Southeast" line with no manufacturer),
+  // not a sign to grab whatever raw value happens to sit at that column index.
+  const hasRealHeaders = headerScore > 0;
+  if (!hasRealHeaders) {
     body = data;
     headers = ["Sequence", "Manufacturer", "Product ID", "Description", "Qty", "Notes"];
   }
@@ -125,13 +131,17 @@ export function parseCsvToImportRows(text: string): ParsedBomRow[] {
         record[h || `Column ${i + 1}`] = cols[i] ?? "";
       });
 
-      const seq = normalizeSeq(firstNonEmpty([findVal(record, FIELD_ALIASES.seq), cols[0]]));
-      const mfr = firstNonEmpty([findVal(record, FIELD_ALIASES.mfr), cols[1]]);
-      const part = firstNonEmpty([findVal(record, FIELD_ALIASES.part), cols[2]]);
-      const desc = firstNonEmpty([findVal(record, FIELD_ALIASES.desc), cols[3]]);
-      const qtyRaw = firstNonEmpty([findVal(record, FIELD_ALIASES.qty), cols[4]]);
+      const seq = normalizeSeq(
+        hasRealHeaders ? findVal(record, FIELD_ALIASES.seq) : firstNonEmpty([findVal(record, FIELD_ALIASES.seq), cols[0]])
+      );
+      const mfr = hasRealHeaders ? findVal(record, FIELD_ALIASES.mfr) : firstNonEmpty([findVal(record, FIELD_ALIASES.mfr), cols[1]]);
+      const part = hasRealHeaders ? findVal(record, FIELD_ALIASES.part) : firstNonEmpty([findVal(record, FIELD_ALIASES.part), cols[2]]);
+      const desc = hasRealHeaders ? findVal(record, FIELD_ALIASES.desc) : firstNonEmpty([findVal(record, FIELD_ALIASES.desc), cols[3]]);
+      const qtyRaw = hasRealHeaders ? findVal(record, FIELD_ALIASES.qty) : firstNonEmpty([findVal(record, FIELD_ALIASES.qty), cols[4]]);
       const notes = findVal(record, FIELD_ALIASES.notes);
-      const unitCostRaw = firstNonEmpty([findVal(record, FIELD_ALIASES.unitCost), cols[5]]);
+      const unitCostRaw = hasRealHeaders
+        ? findVal(record, FIELD_ALIASES.unitCost)
+        : firstNonEmpty([findVal(record, FIELD_ALIASES.unitCost), cols[5]]);
 
       return {
         seq,

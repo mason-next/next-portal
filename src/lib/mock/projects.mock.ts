@@ -8,7 +8,7 @@ export const SAMPLE_PROJECT: Project = {
   siteAddress: "1201 N. Anaheim Blvd, Anaheim, CA 92801",
   coordinatorGroup: "Project Coordination Team",
   contractValue: 184000,
-  grossMarginPercent: 22,
+  grossProfit: 40480,
   solutionsExecutiveId: "user-marcus-reed",
   solutionsEngineerId: "user-priya-subramaniam",
   leadTechnicianId: "user-carlos-ibarra",

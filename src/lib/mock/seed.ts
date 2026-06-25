@@ -50,6 +50,7 @@ export function generateSampleEquipmentRows(count = 50): EquipmentRow[] {
     let pickedQty = 0;
     let shippedQty = 0;
     let cancelled = "";
+    let poInfo = "";
 
     switch (bucket) {
       case 1: // Allocated
@@ -81,11 +82,25 @@ export function generateSampleEquipmentRows(count = 50): EquipmentRow[] {
         specialOrder = "2026-01-12";
         cancelled = "2026-02-01";
         break;
+      case 9: // Delivered
+        specialOrder = "2026-01-03";
+        pickedQty = qty;
+        shippedQty = qty;
+        poInfo = "Product Status: Received";
+        break;
       default: // Not Ordered
         break;
     }
 
-    const status = computeEquipmentStatus({ qty, stockAllocation, specialOrder, pickedQty, shippedQty, cancelled });
+    const status = computeEquipmentStatus({
+      qty,
+      stockAllocation,
+      specialOrder,
+      pickedQty,
+      shippedQty,
+      cancelled,
+      poInfo,
+    });
 
     return {
       id: crypto.randomUUID(),
@@ -94,12 +109,17 @@ export function generateSampleEquipmentRows(count = 50): EquipmentRow[] {
       product: PARTS[i % PARTS.length],
       desc: DESCRIPTIONS[i % DESCRIPTIONS.length],
       qty,
+      // Every 11th item is OFE (Owner Furnished Equipment) — tracked with no cost, hidden from
+      // the table and totals by default via the "Hide zero-cost rows" view filter.
+      unitCost: i % 11 === 0 ? 0 : ((i % 6) + 1) * 85,
       stockAllocation,
       specialOrder,
       pickedQty,
       shippedQty,
       cancelled,
+      poInfo,
       status,
+      rmaRequestedAt: null,
       source: "csv",
       audit: [],
       updatedAt: now,

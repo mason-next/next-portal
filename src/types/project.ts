@@ -12,7 +12,7 @@ export interface Project {
   siteAddress: string;
   coordinatorGroup: string;
   contractValue: number;
-  grossMarginPercent: number;
+  grossProfit: number;
   solutionsExecutiveId: string | null;
   solutionsEngineerId: string | null;
   leadTechnicianId: string | null;

@@ -20,7 +20,7 @@ interface EditProjectOverviewModalProps {
 export function EditProjectOverviewModal({ project, onClose, onSaved }: EditProjectOverviewModalProps) {
   const { users } = useUsersContext();
   const [contractValue, setContractValue] = useState(String(project.contractValue));
-  const [grossMarginPercent, setGrossMarginPercent] = useState(String(project.grossMarginPercent));
+  const [grossProfit, setGrossProfit] = useState(String(project.grossProfit));
   const [fieldProjectManagerId, setFieldProjectManagerId] = useState(project.fieldProjectManagerId);
   const [solutionsEngineerId, setSolutionsEngineerId] = useState(project.solutionsEngineerId);
   const [solutionsExecutiveId, setSolutionsExecutiveId] = useState(project.solutionsExecutiveId);
@@ -34,7 +34,7 @@ export function EditProjectOverviewModal({ project, onClose, onSaved }: EditProj
     setSubmitting(true);
     const updated = await updateProject(project.id, {
       contractValue: Number(contractValue) || 0,
-      grossMarginPercent: Number(grossMarginPercent) || 0,
+      grossProfit: Number(grossProfit) || 0,
       fieldProjectManagerId,
       solutionsEngineerId,
       solutionsExecutiveId,
@@ -59,14 +59,13 @@ export function EditProjectOverviewModal({ project, onClose, onSaved }: EditProj
             onChange={(e) => setContractValue(e.target.value)}
           />
         </Field>
-        <Field label="Gross Margin %">
+        <Field label="Gross Profit">
           <input
             type="number"
             min={0}
-            max={100}
             className={FIELD_INPUT_CLASS}
-            value={grossMarginPercent}
-            onChange={(e) => setGrossMarginPercent(e.target.value)}
+            value={grossProfit}
+            onChange={(e) => setGrossProfit(e.target.value)}
           />
         </Field>
         <Field label="Field Project Manager">
@@ -76,7 +75,7 @@ export function EditProjectOverviewModal({ project, onClose, onSaved }: EditProj
           <UserSelect users={users} value={solutionsEngineerId} onChange={setSolutionsEngineerId} allowNotNeeded />
         </Field>
         <Field label="Solutions Executive">
-          <UserSelect users={users} value={solutionsExecutiveId} onChange={setSolutionsExecutiveId} />
+          <UserSelect users={users} value={solutionsExecutiveId} onChange={setSolutionsExecutiveId} allowNotNeeded />
         </Field>
         <Field label="Lead Technician">
           <UserSelect users={users} value={leadTechnicianId} onChange={setLeadTechnicianId} allowNotNeeded />

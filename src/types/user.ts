@@ -13,6 +13,7 @@ export interface AppUser {
   name: string;
   title: string;
   email: string;
+  phone: string;
   avatarUrl: string | null;
   role: UserRole;
   isActive: boolean;
@@ -24,6 +25,7 @@ export interface NewUserInput {
   name: string;
   title: string;
   email: string;
+  phone: string;
   avatarUrl: string | null;
   role: UserRole;
   isActive: boolean;

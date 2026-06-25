@@ -34,13 +34,13 @@ export function ProjectOverviewCard() {
     >
       <div className="grid grid-cols-4 gap-6">
         <Field label="Contract Value" value={formatMoney(project.contractValue)} />
-        <Field label="Gross Margin" value={`${project.grossMarginPercent}%`} />
+        <Field label="Gross Profit" value={formatMoney(project.grossProfit)} />
         <Field
           label="Field Project Manager"
           value={<UserInlineLabel user={userById(project.fieldProjectManagerId)} />}
         />
         <Field label="Solutions Engineer" value={roleLabel(project.solutionsEngineerId)} />
-        <Field label="Solutions Executive" value={<UserInlineLabel user={userById(project.solutionsExecutiveId)} />} />
+        <Field label="Solutions Executive" value={roleLabel(project.solutionsExecutiveId)} />
         <Field label="Lead Technician" value={roleLabel(project.leadTechnicianId)} />
         <Field label="Start Date" value={formatCalendarDate(project.createdAt)} />
         <Field label="Target Completion" value={formatCalendarDate(project.targetCompletionDate)} />

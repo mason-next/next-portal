@@ -1,6 +1,3 @@
-// Always invited to every Internal Kickoff, in addition to the project's assigned team.
-export const STANDING_ATTENDEE_EMAILS = ["sverissimo@mason247.com", "abehan@mason247.com"];
-
 // Standing agenda used for every Internal Kickoff unless the organizer edits it.
 export const DEFAULT_KICKOFF_AGENDA = `Pre-Work (Required):
 • Review project scope, BOM, and drawings

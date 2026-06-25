@@ -1,13 +1,14 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { Activity, CheckCircle2, MessageSquare, RefreshCw, Settings2, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { UserAvatarImage } from "@/components/shared/AppShell/UserAvatarImage";
 import { useUsersContext } from "@/components/shared/AppShell/UsersProvider";
-import { MentionTextarea } from "@/components/shared/MentionTextarea";
 import { MentionText } from "@/components/shared/MentionText";
+import { RichCommentEditor, type RichCommentEditorHandle } from "@/components/shared/RichCommentEditor";
+import { RichCommentView } from "@/components/shared/RichCommentView";
 import {
   addProjectComment,
   deleteProjectActivity,
@@ -18,6 +19,7 @@ import {
 import { CURRENT_USER, CURRENT_USER_ID } from "@/lib/current-user";
 import { useCurrentUserAvatar } from "@/lib/hooks/useCurrentUserAvatar";
 import { getMentionableUsers } from "@/lib/mentions/mentionable-users";
+import { readGlobal, writeGlobal } from "@/lib/storage/local-store";
 import { cn } from "@/lib/utils";
 import { useProjectContext } from "@/modules/project-command-center/hooks/ProjectContext";
 import type { ActivityCategory, ProjectActivity } from "@/types/activity";
@@ -26,6 +28,10 @@ import type { ActivityCategory, ProjectActivity } from "@/types/activity";
 // while the drawer is mounted is what keeps the unread badge from going stale when an
 // action on another tab of this same project (e.g. completing a workflow step) logs activity.
 const POLL_INTERVAL_MS = 6000;
+
+// Display-only preference — never affects what's logged, the unread badge, or the
+// underlying activity records, just which rows render in the panel.
+const HIDE_NON_COMMENTS_KEY = "project-activity:hide-non-comments";
 
 const CATEGORY_ICON: Record<ActivityCategory, typeof MessageSquare> = {
   comment: MessageSquare,
@@ -78,9 +84,23 @@ export function ProjectActivityDrawer({ projectId }: { projectId: string }) {
   const [open, setOpen] = useState(false);
   const [activity, setActivity] = useState<ProjectActivity[] | null>(null);
   const [lastViewed, setLastViewed] = useState<string | null>(() => getActivityLastViewed(projectId));
-  const [draft, setDraft] = useState("");
+  const [isDraftEmpty, setIsDraftEmpty] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [highlightedId, setHighlightedId] = useState<string | null>(null);
+  const [hideNonComments, setHideNonComments] = useState(false);
+  const editorRef = useRef<RichCommentEditorHandle>(null);
+
+  useEffect(() => {
+    queueMicrotask(() => setHideNonComments(readGlobal<boolean>(HIDE_NON_COMMENTS_KEY) ?? false));
+  }, []);
+
+  function toggleHideNonComments() {
+    setHideNonComments((prev) => {
+      const next = !prev;
+      writeGlobal(HIDE_NON_COMMENTS_KEY, next);
+      return next;
+    });
+  }
 
   // Drawer persists across project navigations (layout isn't remounted on param change), so
   // the lazy useState initializer above only fires once — re-derive lastViewed during render
@@ -141,11 +161,12 @@ export function ProjectActivityDrawer({ projectId }: { projectId: string }) {
   }
 
   async function handlePost() {
-    const body = draft.trim();
-    if (!body) return;
+    const editor = editorRef.current;
+    if (!editor || editor.isEmpty()) return;
     setSubmitting(true);
-    await addProjectComment(projectId, CURRENT_USER, body, CURRENT_USER_ID);
-    setDraft("");
+    await addProjectComment(projectId, CURRENT_USER, editor.getPayload(), CURRENT_USER_ID);
+    editor.clear();
+    setIsDraftEmpty(true);
     setSubmitting(false);
     refresh();
   }
@@ -155,9 +176,11 @@ export function ProjectActivityDrawer({ projectId }: { projectId: string }) {
     refresh();
   }
 
+  const mentionableUsers = project ? getMentionableUsers(project, users) : [];
   const unreadCount =
     activity?.filter((a) => !lastViewed || new Date(a.createdAt) > new Date(lastViewed)).length ?? 0;
-  const groups = groupByDate(activity ?? []);
+  const visibleActivity = hideNonComments ? (activity ?? []).filter((a) => a.category === "comment") : activity ?? [];
+  const groups = groupByDate(visibleActivity);
 
   return (
     <>
@@ -193,33 +216,43 @@ export function ProjectActivityDrawer({ projectId }: { projectId: string }) {
       >
         <div className="flex items-center justify-between border-b px-5 py-4">
           <span className="text-sm font-semibold">Project Activity</span>
-          <button
-            type="button"
-            onClick={() => setOpen(false)}
-            className="rounded-md p-1 text-muted-foreground hover:bg-muted hover:text-foreground"
-            title="Close"
-          >
-            <X className="h-4 w-4" />
-          </button>
+          <div className="flex items-center gap-3">
+            <button
+              type="button"
+              onClick={toggleHideNonComments}
+              className="text-xs text-muted-foreground underline-offset-2 hover:text-foreground hover:underline"
+            >
+              {hideNonComments ? "Show all activity" : "Hide activity"}
+            </button>
+            <button
+              type="button"
+              onClick={() => setOpen(false)}
+              className="rounded-md p-1 text-muted-foreground hover:bg-muted hover:text-foreground"
+              title="Close"
+            >
+              <X className="h-4 w-4" />
+            </button>
+          </div>
         </div>
 
         <div className="border-b p-4">
           <div className="flex gap-2.5">
             <UserAvatarImage name={CURRENT_USER} avatarUrl={currentUserAvatar} size={28} />
             <div className="min-w-0 flex-1">
-              <MentionTextarea
-                className="w-full rounded-md border border-input bg-background p-2 text-sm outline-none focus:border-primary"
-                rows={2}
-                placeholder="Write an update or note… (type @ to mention someone)"
-                value={draft}
-                onChange={setDraft}
-                users={project ? getMentionableUsers(project, users) : []}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) handlePost();
-                }}
+              <RichCommentEditor
+                // Tiptap's useEditor only re-creates the editor (and its closure-captured
+                // extension config, incl. the mention suggestion's user roster) when this
+                // component remounts — the drawer persists across project navigations, so key
+                // on projectId to force a fresh editor (and fresh roster) per project.
+                key={projectId}
+                ref={editorRef}
+                placeholder="Write an update or note… (type @ to mention someone, or paste rich text)"
+                users={mentionableUsers}
+                onSubmitShortcut={handlePost}
+                onEmptyChange={setIsDraftEmpty}
               />
               <div className="mt-1.5 flex justify-end">
-                <Button size="xs" onClick={handlePost} disabled={submitting || !draft.trim()}>
+                <Button size="xs" onClick={handlePost} disabled={submitting || isDraftEmpty}>
                   {submitting ? "Posting…" : "Comment"}
                 </Button>
               </div>
@@ -230,8 +263,10 @@ export function ProjectActivityDrawer({ projectId }: { projectId: string }) {
         <div className="flex-1 overflow-y-auto p-4">
           {activity === null ? (
             <p className="text-sm text-muted-foreground">Loading activity…</p>
-          ) : activity.length === 0 ? (
-            <p className="text-sm text-muted-foreground">No activity yet.</p>
+          ) : visibleActivity.length === 0 ? (
+            <p className="text-sm text-muted-foreground">
+              {hideNonComments && activity.length > 0 ? "No comments yet." : "No activity yet."}
+            </p>
           ) : (
             <div className="space-y-5">
               {groups.map((group) => (
@@ -291,9 +326,9 @@ function ActivityRow({
             <span className="text-sm font-semibold">{item.userName}</span>
             <span className="text-xs text-muted-foreground">{time}</span>
           </div>
-          <p className="mt-1 whitespace-pre-wrap text-sm">
-            <MentionText text={item.message} />
-          </p>
+          <div className="prose-comment mt-1 text-sm">
+            {item.richContent ? <RichCommentView doc={item.richContent} /> : <MentionText text={item.message} />}
+          </div>
           {item.userName === CURRENT_USER ? (
             <button
               type="button"
