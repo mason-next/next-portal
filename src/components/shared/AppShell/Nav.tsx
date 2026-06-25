@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { FileBarChart2, FolderKanban, LayoutDashboard, ShieldCheck, TrendingUp } from "lucide-react";
+import { FileBarChart2, FolderKanban, LayoutDashboard, Network, ShieldCheck, TrendingUp } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const NAV_ITEMS = [
@@ -10,6 +10,7 @@ const NAV_ITEMS = [
   { href: "/projects",   label: "Projects",   icon: FolderKanban },
   { href: "/deal-desk",  label: "Deal Desk",  icon: TrendingUp },
   { href: "/reports",    label: "Reports",    icon: FileBarChart2 },
+  { href: "/process",    label: "Process",    icon: Network },
   { href: "/admin",      label: "Admin",      icon: ShieldCheck },
 ];
 
