@@ -1,10 +1,11 @@
+import type { JSONContent } from "@tiptap/core";
 import { readProjectScoped, writeProjectScoped } from "@/lib/storage/local-store";
 import { addCommentMentions } from "@/lib/data/comment-mentions";
 import { createNotification } from "@/lib/data/notifications";
 import { getProject } from "@/lib/data/projects";
 import { getUsers } from "@/lib/data/users";
-import { extractMentionedUserIds } from "@/lib/mentions/mention-tokens";
 import { getMentionableUsers } from "@/lib/mentions/mentionable-users";
+import { extractMentionedUserIdsFromDoc } from "@/lib/mentions/tiptap-mentions";
 import { truncate } from "@/lib/utils";
 import type { ActivityCategory, ProjectActivity } from "@/types/activity";
 
@@ -52,6 +53,7 @@ export interface LogActivityInput {
   userName: string;
   userId?: string | null;
   message: string;
+  richContent?: JSONContent;
   metadata?: Record<string, unknown>;
 }
 
@@ -65,6 +67,7 @@ export async function logProjectActivity(projectId: string, input: LogActivityIn
     userId: input.userId ?? null,
     userName: input.userName,
     message: input.message,
+    richContent: input.richContent,
     metadata: input.metadata,
     createdAt: new Date().toISOString(),
   };
@@ -72,35 +75,41 @@ export async function logProjectActivity(projectId: string, input: LogActivityIn
   return record;
 }
 
+export interface CommentPayload {
+  text: string;
+  richContent: JSONContent;
+}
+
 export async function addProjectComment(
   projectId: string,
   userName: string,
-  body: string,
+  payload: CommentPayload,
   actingUserId?: string | null
 ): Promise<ProjectActivity> {
   const comment = await logProjectActivity(projectId, {
     category: "comment",
     activityType: "comment_added",
     userName,
-    message: body,
+    message: payload.text,
+    richContent: payload.richContent,
   });
 
-  await notifyMentionedUsers(projectId, comment, userName, body, actingUserId ?? null);
+  await notifyMentionedUsers(projectId, comment, userName, payload.richContent, actingUserId ?? null);
 
   return comment;
 }
 
 // A mention only produces a notification if the mentioned user is currently eligible per
-// getMentionableUsers — the dropdown that inserted the token is just UX convenience, this is
+// getMentionableUsers — the dropdown that inserted the mention is just UX convenience, this is
 // the authoritative check (eligibility can change between typing and posting).
 async function notifyMentionedUsers(
   projectId: string,
   comment: ProjectActivity,
   authorName: string,
-  body: string,
+  richContent: JSONContent,
   actingUserId: string | null
 ): Promise<void> {
-  const extractedIds = extractMentionedUserIds(body);
+  const extractedIds = extractMentionedUserIdsFromDoc(richContent);
   if (extractedIds.length === 0) return;
 
   const [project, users] = await Promise.all([getProject(projectId), getUsers()]);
@@ -115,7 +124,7 @@ async function notifyMentionedUsers(
   await addCommentMentions(projectId, comment.id, eligibleIds);
 
   const notifyIds = eligibleIds.filter((id) => id !== actingUserId);
-  const commentPreview = truncate(body, 120);
+  const commentPreview = truncate(comment.message, 120);
 
   await Promise.all(
     notifyIds.map((userId) =>

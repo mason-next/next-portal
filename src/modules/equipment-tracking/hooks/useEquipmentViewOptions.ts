@@ -2,42 +2,37 @@
 
 import { useEffect, useState } from "react";
 import { readGlobal, writeGlobal } from "@/lib/storage/local-store";
-import type { ViewOptionsState } from "@/types/bom";
+import type { EquipmentViewOptionsState } from "@/types/equipment";
 
-const DEFAULT_ROW_FILTERS: ViewOptionsState["rowFilters"] = {
-  hideReleased: false,
-  hideDoNotOrder: false,
+const DEFAULT_ROW_FILTERS: EquipmentViewOptionsState["rowFilters"] = {
+  hideCancelled: false,
+  hideDelivered: false,
   hideZeroQty: false,
-  hideBlankMfr: true,
+  // Zero-cost rows are typically OFE (Owner Furnished Equipment) — tracked for visibility but
+  // not part of procurement spend, so they're hidden (and excluded from summary totals) by
+  // default. Still fully present in the data; this is a display preference, not a data filter.
+  hideZeroCost: true,
 };
 
-// The sticky drag/select/seq columns are excluded — they're anchored to the left and
-// aren't reorderable. This is the default order for everything after them.
-export const DEFAULT_COLUMN_ORDER = [
-  "mfr",
-  "part",
-  "desc",
-  "qty",
-  "unitCost",
-  "totalCost",
-  "status",
-  "release",
-  "releasedAt",
-  "notes",
-  "audit",
-  "delete",
-];
+// PO Info is the raw distributor text status detection reads off of, and Unit Cost is mostly
+// useful when investigating the zero-cost (OFE) filter above — neither is useful day-to-day,
+// so both start hidden. Still revealable here if someone needs to check them.
+const DEFAULT_HIDDEN_COLUMNS = ["poInfo", "unitCost"];
 
-const VIEW_OPTIONS_KEY = "view-options";
+// The seq column is always first and isn't reorderable/hideable — everything after it
+// follows the user's chosen order.
+export const DEFAULT_COLUMN_ORDER = ["mfr", "product", "desc", "qty", "unitCost", "poInfo", "status", "actions"];
+
+const VIEW_OPTIONS_KEY = "equipment-view-options";
 
 interface StoredViewOptions {
   hiddenColumns: string[];
   columnOrder: string[];
-  rowFilters: ViewOptionsState["rowFilters"];
+  rowFilters: EquipmentViewOptionsState["rowFilters"];
 }
 
-export function useViewOptions() {
-  const [hiddenColumns, setHiddenColumns] = useState<Set<string>>(new Set());
+export function useEquipmentViewOptions() {
+  const [hiddenColumns, setHiddenColumns] = useState<Set<string>>(new Set(DEFAULT_HIDDEN_COLUMNS));
   const [rowFilters, setRowFilters] = useState(DEFAULT_ROW_FILTERS);
   const [columnOrder, setColumnOrder] = useState<string[]>(DEFAULT_COLUMN_ORDER);
   const [columnFilters, setColumnFilters] = useState<Record<string, string>>({});
@@ -50,12 +45,10 @@ export function useViewOptions() {
       const stored = readGlobal<StoredViewOptions>(VIEW_OPTIONS_KEY);
       if (stored) {
         setHiddenColumns(new Set(stored.hiddenColumns));
-        // Append any column keys added since this config was saved (e.g. a new column
-        // shipped later) instead of letting them silently disappear from the table.
+        // Append any column keys added since this config was saved instead of letting them
+        // silently disappear from the table.
         const missing = DEFAULT_COLUMN_ORDER.filter((key) => !stored.columnOrder.includes(key));
         setColumnOrder([...stored.columnOrder, ...missing]);
-        // Merge over the defaults (not a bare overwrite) so a row filter added after this
-        // config was saved — like hideBlankMfr — still gets its default instead of `undefined`.
         setRowFilters({ ...DEFAULT_ROW_FILTERS, ...stored.rowFilters });
       }
       setHydrated(true);
@@ -95,12 +88,12 @@ export function useViewOptions() {
     });
   }
 
-  function setRowFilter(key: keyof ViewOptionsState["rowFilters"], value: boolean) {
+  function setRowFilter(key: keyof EquipmentViewOptionsState["rowFilters"], value: boolean) {
     setRowFilters((prev) => ({ ...prev, [key]: value }));
   }
 
   function reset() {
-    setHiddenColumns(new Set());
+    setHiddenColumns(new Set(DEFAULT_HIDDEN_COLUMNS));
     setRowFilters(DEFAULT_ROW_FILTERS);
     setColumnOrder(DEFAULT_COLUMN_ORDER);
     setColumnFilters({});

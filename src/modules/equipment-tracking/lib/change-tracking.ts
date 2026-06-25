@@ -7,11 +7,13 @@ export function snapshotRow(row: EquipmentRow): EquipmentRowSnapshot {
     product: row.product,
     desc: row.desc,
     qty: String(row.qty),
+    unitCost: String(row.unitCost),
     stockAllocation: row.stockAllocation,
     specialOrder: row.specialOrder,
     pickedQty: String(row.pickedQty),
     shippedQty: String(row.shippedQty),
     cancelled: row.cancelled,
+    poInfo: row.poInfo,
   };
 }
 

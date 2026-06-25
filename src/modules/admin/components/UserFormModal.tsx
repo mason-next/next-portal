@@ -21,6 +21,7 @@ export function UserFormModal({ user, onClose, onSaved, onDeleted }: UserFormMod
   const [name, setName] = useState(user?.name ?? "");
   const [title, setTitle] = useState(user?.title ?? "");
   const [email, setEmail] = useState(user?.email ?? "");
+  const [phone, setPhone] = useState(user?.phone ?? "");
   const [avatarUrl, setAvatarUrl] = useState<string | null>(user?.avatarUrl ?? null);
   const [role, setRole] = useState(user?.role ?? "Member");
   const [isActive, setIsActive] = useState(user?.isActive ?? true);
@@ -36,8 +37,8 @@ export function UserFormModal({ user, onClose, onSaved, onDeleted }: UserFormMod
   async function handleSave() {
     setSubmitting(true);
     const saved = user
-      ? await updateUser(user.id, { name, title, email, avatarUrl, role, isActive })
-      : await createUser({ name, title, email, avatarUrl, role, isActive });
+      ? await updateUser(user.id, { name, title, email, phone, avatarUrl, role, isActive })
+      : await createUser({ name, title, email, phone, avatarUrl, role, isActive });
     onSaved(saved);
   }
 
@@ -86,6 +87,14 @@ export function UserFormModal({ user, onClose, onSaved, onDeleted }: UserFormMod
             className={FIELD_INPUT_CLASS}
             value={email}
             onChange={(e) => setEmail(e.target.value)}
+          />
+        </Field>
+        <Field label="Phone">
+          <input
+            type="tel"
+            className={FIELD_INPUT_CLASS}
+            value={phone}
+            onChange={(e) => setPhone(e.target.value)}
           />
         </Field>
         <Field label="Role">

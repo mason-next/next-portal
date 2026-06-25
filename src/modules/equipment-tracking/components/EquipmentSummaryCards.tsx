@@ -25,6 +25,7 @@ export function EquipmentSummaryCards({ summary, activeFilter, onSelectFilter }:
     { label: "Ordered", display: String(summary.byStatus.Ordered), filter: "Ordered" },
     { label: "Received", display: String(summary.byStatus.Received), filter: "Received" },
     { label: "Shipped", display: String(summary.byStatus.Shipped), tone: "good", filter: "Shipped" },
+    { label: "Delivered", display: String(summary.byStatus.Delivered), tone: "good", filter: "Delivered" },
     {
       label: "Cancelled",
       display: String(summary.byStatus.Cancelled),
@@ -35,7 +36,7 @@ export function EquipmentSummaryCards({ summary, activeFilter, onSelectFilter }:
   ];
 
   return (
-    <div className="grid grid-cols-2 gap-3 sm:grid-cols-4 lg:grid-cols-8">
+    <div className="grid grid-cols-2 gap-3 sm:grid-cols-4 lg:grid-cols-9">
       {cards.map((card) => {
         const isActive = card.filter === activeFilter;
         return (

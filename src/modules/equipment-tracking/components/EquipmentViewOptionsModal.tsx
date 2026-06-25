@@ -3,35 +3,31 @@
 import { Button } from "@/components/ui/button";
 import { Modal } from "@/components/shared/Modal";
 import { ColumnVisibilityMenu } from "@/components/shared/data-table/ColumnVisibilityMenu";
-import type { ViewOptionsState } from "@/types/bom";
+import type { EquipmentViewOptionsState } from "@/types/equipment";
 
 const COLUMN_LABELS: Record<string, string> = {
   mfr: "Manufacturer",
-  part: "Part #",
+  product: "Product",
   desc: "Description",
   qty: "Qty",
   unitCost: "Unit Cost",
-  totalCost: "Total Cost",
+  poInfo: "PO Info",
   status: "Status",
-  release: "Release",
-  releasedAt: "Released At",
-  notes: "Notes",
-  audit: "Audit",
-  delete: "Delete",
+  actions: "Actions",
 };
 
-interface ViewOptionsModalProps {
+interface EquipmentViewOptionsModalProps {
   hiddenColumns: Set<string>;
   columnOrder: string[];
-  rowFilters: ViewOptionsState["rowFilters"];
+  rowFilters: EquipmentViewOptionsState["rowFilters"];
   onToggleColumn: (key: string, visible: boolean) => void;
   onMoveColumn: (key: string, direction: "up" | "down") => void;
-  onSetRowFilter: (key: keyof ViewOptionsState["rowFilters"], value: boolean) => void;
+  onSetRowFilter: (key: keyof EquipmentViewOptionsState["rowFilters"], value: boolean) => void;
   onReset: () => void;
   onClose: () => void;
 }
 
-export function ViewOptionsModal({
+export function EquipmentViewOptionsModal({
   hiddenColumns,
   columnOrder,
   rowFilters,
@@ -40,15 +36,15 @@ export function ViewOptionsModal({
   onSetRowFilter,
   onReset,
   onClose,
-}: ViewOptionsModalProps) {
+}: EquipmentViewOptionsModalProps) {
   const columnOptions = columnOrder.map((key) => ({ key, label: COLUMN_LABELS[key] ?? key }));
 
   return (
     <Modal open onClose={onClose}>
       <h2 className="mb-1 text-lg font-semibold">View Options</h2>
       <p className="mb-4 text-sm text-muted-foreground">
-        Hide, show, or reorder columns, or temporarily hide rows from the BOM grid. This does not delete or
-        change the BOM.
+        Hide, show, or reorder columns, or temporarily hide rows from the equipment grid. This does not delete or
+        change the equipment list.
       </p>
 
       <div className="rounded-lg border p-3">
@@ -66,20 +62,20 @@ export function ViewOptionsModal({
         <label className="flex items-center gap-2 text-sm">
           <input
             type="checkbox"
-            checked={rowFilters.hideReleased}
-            onChange={(e) => onSetRowFilter("hideReleased", e.target.checked)}
+            checked={rowFilters.hideCancelled}
+            onChange={(e) => onSetRowFilter("hideCancelled", e.target.checked)}
             className="size-4 accent-primary"
           />
-          Hide Released rows
+          Hide Cancelled rows
         </label>
         <label className="mt-2 flex items-center gap-2 text-sm">
           <input
             type="checkbox"
-            checked={rowFilters.hideDoNotOrder}
-            onChange={(e) => onSetRowFilter("hideDoNotOrder", e.target.checked)}
+            checked={rowFilters.hideDelivered}
+            onChange={(e) => onSetRowFilter("hideDelivered", e.target.checked)}
             className="size-4 accent-primary"
           />
-          Hide Do Not Order rows
+          Hide Delivered rows
         </label>
         <label className="mt-2 flex items-center gap-2 text-sm">
           <input
@@ -93,11 +89,11 @@ export function ViewOptionsModal({
         <label className="mt-2 flex items-center gap-2 text-sm">
           <input
             type="checkbox"
-            checked={rowFilters.hideBlankMfr}
-            onChange={(e) => onSetRowFilter("hideBlankMfr", e.target.checked)}
+            checked={rowFilters.hideZeroCost}
+            onChange={(e) => onSetRowFilter("hideZeroCost", e.target.checked)}
             className="size-4 accent-primary"
           />
-          Hide rows with blank Manufacturer
+          Hide zero-cost rows (e.g. OFE items) — also excludes them from the summary totals
         </label>
       </div>
 

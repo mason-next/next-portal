@@ -1,4 +1,4 @@
-import type { EmailContact, EmailSection, EmailTemplateContent } from "./types";
+import type { EmailContact, EmailSection, EmailStatRow, EmailTemplateContent } from "./types";
 
 const LOGO_PATH = "/logo-white.png";
 
@@ -28,6 +28,13 @@ const FOOTER_PILLAR_COLOR = "#999999";
 const FOOTER_BORDER = "#eeeeee";
 const DIVIDER_COLOR = "#bdbdbd";
 const AVATAR_BORDER = "#dddddd";
+const BAR_LABEL_COLOR = "#111111";
+const BAR_VALUE_COLOR = "#666666";
+const BAR_TRACK_BG = "#eeeeee";
+const BAR_FILL_BG = "#111111";
+// Outlook's Word rendering engine doesn't reliably honor percentage table-cell widths, so the
+// bar is a fixed-px two-cell table instead of CSS width:%.
+const BAR_WIDTH_PX = 300;
 
 function escapeHtml(value: string): string {
   return value.replace(
@@ -91,12 +98,56 @@ function renderContactRow(contact: EmailContact, isLast: boolean): string {
       </tr>${spacer}`;
 }
 
+function renderStatRow(stat: EmailStatRow, isLast: boolean): string {
+  const clamped = Math.min(100, Math.max(0, stat.percent));
+  const filled = Math.round((BAR_WIDTH_PX * clamped) / 100);
+  const remaining = BAR_WIDTH_PX - filled;
+  const spacer = isLast ? "" : `<tr><td height="16" style="height:16px; line-height:16px; font-size:16px;">&nbsp;</td></tr>`;
+  return `<tr>
+        <td style="padding:0;">
+          <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="width:100%; border-collapse:collapse;">
+            <tr>
+              <td style="font-size:13px; color:${BAR_LABEL_COLOR}; padding:0 0 6px 0;">${escapeHtml(stat.label)}</td>
+              <td align="right" style="font-size:13px; color:${BAR_VALUE_COLOR}; padding:0 0 6px 0;">${Math.round(clamped)}%</td>
+            </tr>
+          </table>
+          <table role="presentation" width="${BAR_WIDTH_PX}" cellpadding="0" cellspacing="0" style="width:${BAR_WIDTH_PX}px; border-collapse:collapse;">
+            <tr>
+              ${filled > 0 ? `<td width="${filled}" height="8" style="width:${filled}px; height:8px; background-color:${BAR_FILL_BG}; font-size:0; line-height:0;">&nbsp;</td>` : ""}
+              ${remaining > 0 ? `<td width="${remaining}" height="8" style="width:${remaining}px; height:8px; background-color:${BAR_TRACK_BG}; font-size:0; line-height:0;">&nbsp;</td>` : ""}
+            </tr>
+          </table>
+        </td>
+      </tr>${spacer}`;
+}
+
+function renderNotes(notes: string[]): string {
+  return `<table width="100%" cellpadding="0" cellspacing="0" role="presentation" style="border-collapse:collapse;">
+      ${notes
+        .map(
+          (note, i) =>
+            `<tr><td style="padding:${i === 0 ? "0" : "6"}px 0 0 0; font-size:13px; line-height:1.5; color:${BLURB_COLOR};">• ${escapeHtml(note)}</td></tr>`
+        )
+        .join("\n")}
+    </table>`;
+}
+
 function renderSectionRow(section: EmailSection, isFirst: boolean): string {
   const divider = isFirst
     ? ""
     : `<tr><td style="border-top:1px solid ${DIVIDER_COLOR}; height:0; line-height:0; font-size:0;">&nbsp;</td></tr>`;
+  const hasMoreBelowIntro = Boolean(section.stats?.length || section.notes?.length || section.contacts?.length);
   const intro = section.intro
-    ? `<p style="font-size:13px; line-height:1.5; color:${BLURB_COLOR}; margin:0 0 16px 0;">${escapeHtml(section.intro)}</p>`
+    ? `<p style="font-size:13px; line-height:1.5; color:${BLURB_COLOR}; margin:0 0 ${hasMoreBelowIntro ? "20" : "0"}px 0;">${escapeHtml(section.intro)}</p>`
+    : "";
+  const hasMoreBelowStats = Boolean(section.notes?.length || section.contacts?.length);
+  const stats = section.stats?.length
+    ? `<table width="100%" cellpadding="0" cellspacing="0" role="presentation" style="border-collapse:collapse; margin:0 0 ${hasMoreBelowStats ? "20" : "0"}px 0;">
+        ${section.stats.map((s, i) => renderStatRow(s, i === section.stats!.length - 1)).join("\n")}
+      </table>`
+    : "";
+  const notes = section.notes?.length
+    ? `<div style="margin:0 0 ${section.contacts?.length ? "20" : "0"}px 0;">${renderNotes(section.notes)}</div>`
     : "";
   const contacts = section.contacts?.length
     ? `<table width="100%" cellpadding="0" cellspacing="0" role="presentation" style="border-collapse:collapse;">
@@ -109,6 +160,8 @@ function renderSectionRow(section: EmailSection, isFirst: boolean): string {
         <td style="padding:30px 28px 34px 28px;">
           <h2 style="font-size:16px; line-height:1.3; margin:0 0 30px 0; color:${SECTION_HEADING_COLOR}; font-weight:bold;">${escapeHtml(section.heading)}</h2>
           ${intro}
+          ${stats}
+          ${notes}
           ${contacts}
         </td>
       </tr>`;
@@ -236,11 +289,15 @@ o\\:* {behavior:url(#default#VML);}
 export function renderEmailPlainText(content: EmailTemplateContent, subject: string): string {
   const sections = content.sections
     .map((section) => {
+      const statLines = section.stats?.map((s) => `${s.label}: ${Math.round(s.percent)}%`).join("\n") ?? "";
+      const noteLines = section.notes?.map((n) => `• ${n}`).join("\n") ?? "";
       const contactLines =
         section.contacts
           ?.map((c) => `${c.role}\n${c.name}${c.blurb ? `\n${c.blurb}` : ""}`)
           .join("\n\n") ?? "";
-      return [section.heading.toUpperCase(), section.intro, contactLines].filter(Boolean).join("\n\n");
+      return [section.heading.toUpperCase(), section.intro, statLines, noteLines, contactLines]
+        .filter(Boolean)
+        .join("\n\n");
     })
     .join("\n\n");
 

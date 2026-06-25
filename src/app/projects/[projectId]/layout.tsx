@@ -9,7 +9,9 @@ import { ProjectTabNav } from "@/components/shared/AppShell/ProjectTabNav";
 import { EditProjectModal } from "@/components/shared/AppShell/EditProjectModal";
 import { DeleteProjectModal } from "@/components/shared/AppShell/DeleteProjectModal";
 import { StatusBadge } from "@/components/shared/StatusBadge";
+import { useUsersContext } from "@/components/shared/AppShell/UsersProvider";
 import { ProjectActivityDrawer } from "@/modules/project-command-center/components/ProjectActivityDrawer";
+import { ProjectBriefModal } from "@/modules/project-brief/components/ProjectBriefModal";
 import { HEALTH_TONE } from "@/modules/project-command-center/lib/project-health";
 import { deriveProjectStatus, getProjectHealthSummary } from "@/modules/project-command-center/engine/workflow-engine";
 import { WorkflowStepsProvider, useWorkflowStepsContext } from "@/modules/project-command-center/hooks/WorkflowStepsContext";
@@ -61,8 +63,10 @@ function ProjectLayoutBody({
   const router = useRouter();
   const { project, setProject } = useProjectContext();
   const { steps } = useWorkflowStepsContext();
+  const { users } = useUsersContext();
   const [showEdit, setShowEdit] = useState(false);
   const [showDelete, setShowDelete] = useState(false);
+  const [showBrief, setShowBrief] = useState(false);
 
   if (!project) return null;
 
@@ -92,6 +96,9 @@ function ProjectLayoutBody({
         healthBadge={<StatusBadge label={health} tone={HEALTH_TONE[health]} />}
         actions={
           <>
+            <Button variant="outline" onClick={() => setShowBrief(true)}>
+              Project Brief Report
+            </Button>
             <Button variant="outline" onClick={() => setShowEdit(true)}>
               Edit
             </Button>
@@ -123,6 +130,10 @@ function ProjectLayoutBody({
           onClose={() => setShowDelete(false)}
           onDeleted={() => router.push("/projects")}
         />
+      ) : null}
+
+      {showBrief ? (
+        <ProjectBriefModal project={project} steps={steps} users={users} onClose={() => setShowBrief(false)} />
       ) : null}
     </div>
   );

@@ -59,5 +59,6 @@ export interface ViewOptionsState {
     hideReleased: boolean;
     hideDoNotOrder: boolean;
     hideZeroQty: boolean;
+    hideBlankMfr: boolean;
   };
 }

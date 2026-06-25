@@ -6,9 +6,9 @@ export interface EquipmentSummary {
   total: number;
   byStatus: Record<EquipmentStatus, number>;
   activeCount: number; // total minus Cancelled
-  outstanding: number; // active minus Shipped
-  readyForInstallationPercent: number; // Shipped / active
-  procurementProgressPercent: number; // (Received + Shipped) / active
+  outstanding: number; // active minus Shipped/Delivered
+  readyForInstallationPercent: number; // (Shipped + Delivered) / active
+  procurementProgressPercent: number; // (Received + Shipped + Delivered) / active
 }
 
 export function computeEquipmentSummary(rows: EquipmentRow[]): EquipmentSummary {
@@ -19,10 +19,11 @@ export function computeEquipmentSummary(rows: EquipmentRow[]): EquipmentSummary 
   for (const row of rows) byStatus[row.status]++;
 
   const activeCount = rows.length - byStatus.Cancelled;
-  const outstanding = activeCount - byStatus.Shipped;
-  const readyForInstallationPercent = activeCount > 0 ? Math.round((byStatus.Shipped / activeCount) * 100) : 0;
+  const fulfilled = byStatus.Shipped + byStatus.Delivered;
+  const outstanding = activeCount - fulfilled;
+  const readyForInstallationPercent = activeCount > 0 ? Math.round((fulfilled / activeCount) * 100) : 0;
   const procurementProgressPercent =
-    activeCount > 0 ? Math.round(((byStatus.Received + byStatus.Shipped) / activeCount) * 100) : 0;
+    activeCount > 0 ? Math.round(((byStatus.Received + fulfilled) / activeCount) * 100) : 0;
 
   return {
     total: rows.length,

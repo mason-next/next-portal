@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { StatusBadge } from "@/components/shared/StatusBadge";
 import { UserAvatarImage } from "@/components/shared/AppShell/UserAvatarImage";
 import { useUsersContext } from "@/components/shared/AppShell/UsersProvider";
+import { DefaultKickoffAttendeesCard } from "@/modules/admin/components/DefaultKickoffAttendeesCard";
 import { UserFormModal } from "@/modules/admin/components/UserFormModal";
 import { cn } from "@/lib/utils";
 import type { AppUser } from "@/types/user";
@@ -65,6 +66,10 @@ export default function AdminPage() {
           ))}
         </ul>
       )}
+
+      <div className="mt-8">
+        <DefaultKickoffAttendeesCard />
+      </div>
 
       {showForm ? (
         <UserFormModal
