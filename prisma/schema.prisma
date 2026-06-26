@@ -1,0 +1,452 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ─── Enums ───────────────────────────────────────────────────────────────────
+
+enum UserRole {
+  Administrator
+  ProjectManager      @map("Project Manager")
+  EngineeringManager  @map("Engineering Manager")
+  ProcurementManager  @map("Procurement Manager")
+  Member
+}
+
+enum ProjectMemberRole {
+  SolutionsExecutive  @map("Solutions Executive")
+  SolutionsEngineer   @map("Solutions Engineer")
+  LeadTechnician      @map("Lead Technician")
+  FieldProjectManager @map("Field Project Manager")
+}
+
+enum ActivityCategory {
+  comment
+  workflow
+  status_change
+  system
+}
+
+enum WorkflowSection {
+  setup
+  engineering
+  procurement
+  implementation
+  closeout
+}
+
+enum WorkflowStepStatus {
+  NotStarted @map("Not Started")
+  InProgress @map("In Progress")
+  Complete
+  NotNeeded  @map("Not Needed")
+}
+
+enum BomStatus {
+  PendingReview @map("Pending Review")
+  Approved
+  UpdateNeeded  @map("Update Needed")
+  DoNotOrder    @map("Do Not Order")
+  OnHold        @map("On Hold")
+  Released
+}
+
+enum EquipmentSource {
+  csv
+  connectwise
+}
+
+enum DealStatus {
+  Pending
+  Approved
+  Rejected
+}
+
+enum CommissionStatus {
+  Estimated
+  PendingApproval @map("Pending Approval")
+  Approved
+  Paid
+}
+
+// ─── Users ───────────────────────────────────────────────────────────────────
+
+model User {
+  id        String   @id
+  name      String
+  title     String
+  email     String   @unique
+  phone     String   @default("")
+  avatarUrl String?
+  role      UserRole @default(Member)
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  projectMembers  ProjectMember[]
+  workflowSteps   WorkflowStep[]    @relation("StepOwner")
+  activities      ProjectActivity[]
+  notifications   Notification[]
+  commentMentions CommentMention[]
+
+  @@map("users")
+}
+
+// ─── Customers ───────────────────────────────────────────────────────────────
+
+model Customer {
+  id        String   @id @default(cuid())
+  name      String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  projects Project[]
+
+  @@map("customers")
+}
+
+// ─── Projects ────────────────────────────────────────────────────────────────
+
+model Project {
+  id                   String    @id
+  name                 String
+  projectNumber        String    @unique
+  // Denormalized for fast display — customerId is the normalized FK when set.
+  customerName         String
+  customerId           String?
+  siteAddress          String
+  coordinatorGroup     String
+  contractValue        Float
+  grossProfit          Float
+  targetCompletionDate DateTime?
+  createdAt            DateTime  @default(now())
+  updatedAt            DateTime  @updatedAt
+
+  customer         Customer?         @relation(fields: [customerId], references: [id], onDelete: SetNull)
+  members          ProjectMember[]
+  workflowSteps    WorkflowStep[]
+  activities       ProjectActivity[]
+  notifications    Notification[]
+  commentMentions  CommentMention[]
+  bomRows          BomRow[]
+  releases         Release[]
+  equipmentRows    EquipmentRow[]
+  equipmentUploads EquipmentUpload[]
+  welcomeLetter    WelcomeLetter?
+  internalKickoff  InternalKickoff?
+
+  @@map("projects")
+}
+
+// One row per project role. Replaces the four nullable FK columns on Project.
+// "Not needed" is represented by the absence of a row, not a sentinel value.
+model ProjectMember {
+  id        String            @id @default(cuid())
+  projectId String
+  userId    String
+  role      ProjectMemberRole
+  createdAt DateTime          @default(now())
+
+  project Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  user    User    @relation(fields: [userId],    references: [id], onDelete: Cascade)
+
+  @@unique([projectId, role])
+  @@index([projectId])
+  @@map("project_members")
+}
+
+// ─── Workflow ─────────────────────────────────────────────────────────────────
+
+model WorkflowStep {
+  id               String             @id
+  projectId        String
+  key              String
+  name             String
+  section          WorkflowSection
+  weight           Float
+  status           WorkflowStepStatus @default(NotStarted)
+  ownerId          String?
+  dueDate          DateTime?
+  completedDate    DateTime?
+  sortOrder        Int
+  statusOverridden Boolean            @default(false)
+  weightOverridden Boolean            @default(false)
+  isCustom         Boolean            @default(false)
+  updatedAt        DateTime           @updatedAt
+
+  project Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  owner   User?   @relation("StepOwner", fields: [ownerId], references: [id], onDelete: SetNull)
+
+  @@unique([projectId, key])
+  @@index([projectId, sortOrder])
+  @@map("workflow_steps")
+}
+
+// ─── Activity & Comments ──────────────────────────────────────────────────────
+
+// Unified feed: category = "comment" for rich comments, other values for system events.
+model ProjectActivity {
+  id           String           @id @default(cuid())
+  projectId    String
+  category     ActivityCategory
+  activityType String
+  userId       String?
+  userName     String
+  message      String
+  richContent  Json?
+  metadata     Json?
+  createdAt    DateTime         @default(now())
+
+  project         Project          @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  user            User?            @relation(fields: [userId],    references: [id], onDelete: SetNull)
+  notifications   Notification[]
+  commentMentions CommentMention[]
+
+  @@index([projectId, createdAt(sort: Desc)])
+  @@map("project_activities")
+}
+
+model Notification {
+  id             String   @id @default(cuid())
+  userId         String
+  projectId      String
+  projectName    String
+  commentId      String
+  commentAuthor  String
+  commentPreview String
+  message        String
+  isRead         Boolean  @default(false)
+  createdAt      DateTime @default(now())
+
+  user    User            @relation(fields: [userId],    references: [id], onDelete: Cascade)
+  project Project         @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  comment ProjectActivity @relation(fields: [commentId], references: [id], onDelete: Cascade)
+
+  @@index([userId, isRead])
+  @@map("notifications")
+}
+
+model CommentMention {
+  id              String   @id @default(cuid())
+  projectId       String
+  commentId       String
+  mentionedUserId String
+  createdAt       DateTime @default(now())
+
+  project       Project         @relation(fields: [projectId],       references: [id], onDelete: Cascade)
+  comment       ProjectActivity @relation(fields: [commentId],       references: [id], onDelete: Cascade)
+  mentionedUser User            @relation(fields: [mentionedUserId], references: [id], onDelete: Cascade)
+
+  @@index([mentionedUserId, createdAt(sort: Desc)])
+  @@map("comment_mentions")
+}
+
+// ─── BOM ──────────────────────────────────────────────────────────────────────
+
+model BomRow {
+  id           String    @id @default(cuid())
+  projectId    String
+  seq          String
+  mfr          String
+  part         String
+  desc         String
+  qty          Int
+  unitCost     Float
+  status       BomStatus @default(PendingReview)
+  releaseId    String?
+  releasedAt   DateTime?
+  shippingType String?
+  shipTo       String?
+  notes        String    @default("")
+  sortOrder    Int       @default(0)
+  updatedAt    DateTime  @updatedAt
+
+  project  Project       @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  release  Release?      @relation(fields: [releaseId],  references: [id], onDelete: SetNull)
+  auditLog BomAuditLog[]
+
+  @@index([projectId])
+  @@map("bom_rows")
+}
+
+// Extracted from the embedded BomRow.audit[] array — each field edit becomes a row.
+model BomAuditLog {
+  id        String   @id @default(cuid())
+  rowId     String
+  field     String
+  oldValue  String
+  newValue  String
+  userName  String
+  userId    String?
+  createdAt DateTime @default(now())
+
+  row BomRow @relation(fields: [rowId], references: [id], onDelete: Cascade)
+
+  @@index([rowId])
+  @@map("bom_audit_log")
+}
+
+model Release {
+  id             String   @id @default(cuid())
+  projectId      String
+  releaseNumber  String
+  shippingType   String
+  shipTo         String
+  recipients     String
+  notes          String   @default("")
+  generatedAt    DateTime
+  generatedBy    String
+  // Frozen point-in-time snapshot of rows at generation — never joined live.
+  rowSnapshot    Json
+  emailPlainText String
+  emailHtml      String
+  emailSubject   String
+  updatedAt      DateTime @updatedAt
+
+  project Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  bomRows BomRow[]
+
+  @@index([projectId])
+  @@map("releases")
+}
+
+// ─── Equipment ────────────────────────────────────────────────────────────────
+
+// status is always computed via computeEquipmentStatus() — not stored in DB.
+model EquipmentRow {
+  id              String          @id @default(cuid())
+  projectId       String
+  seq             String
+  mfr             String
+  product         String
+  desc            String
+  qty             Int
+  unitCost        Float
+  stockAllocation String          @default("")
+  specialOrder    String          @default("")
+  pickedQty       Int             @default(0)
+  shippedQty      Int             @default(0)
+  cancelled       String          @default("")
+  poInfo          String          @default("")
+  rmaRequestedAt  DateTime?
+  source          EquipmentSource @default(csv)
+  sortOrder       Int             @default(0)
+  updatedAt       DateTime        @updatedAt
+
+  project  Project            @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  auditLog EquipmentAuditLog[]
+
+  @@index([projectId])
+  @@map("equipment_rows")
+}
+
+// Extracted from the embedded EquipmentRow.audit[] array.
+model EquipmentAuditLog {
+  id        String   @id @default(cuid())
+  rowId     String
+  field     String
+  oldValue  String
+  newValue  String
+  userName  String
+  userId    String?
+  createdAt DateTime @default(now())
+
+  row EquipmentRow @relation(fields: [rowId], references: [id], onDelete: Cascade)
+
+  @@index([rowId])
+  @@map("equipment_audit_log")
+}
+
+model EquipmentUpload {
+  id           String          @id @default(cuid())
+  projectId    String
+  fileName     String
+  rowCount     Int
+  newCount     Int
+  updatedCount Int
+  removedCount Int             @default(0)
+  uploadedBy   String
+  uploadedAt   DateTime
+  source       EquipmentSource @default(csv)
+
+  project Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  @@index([projectId])
+  @@map("equipment_uploads")
+}
+
+// ─── Module Records ───────────────────────────────────────────────────────────
+
+model WelcomeLetter {
+  id        String   @id @default(cuid())
+  projectId String   @unique
+  subject   String
+  html      String
+  plainText String
+  sentBy    String
+  sentAt    DateTime
+
+  project Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  @@map("welcome_letters")
+}
+
+model InternalKickoff {
+  id          String   @id @default(cuid())
+  projectId   String   @unique
+  subject     String
+  agenda      String
+  attendees   String[]
+  startTime   DateTime
+  endTime     DateTime
+  scheduledBy String
+  scheduledAt DateTime
+
+  project Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  @@map("internal_kickoffs")
+}
+
+// ─── Deal Desk ────────────────────────────────────────────────────────────────
+
+model DealDeskQuote {
+  id                String           @id @default(cuid())
+  customer          String
+  projectName       String
+  quoteNumber       String
+  opportunityNumber String
+  revision          String
+  version           Int              @default(1)
+  projectType       String
+  salesperson       String
+  importedAt        DateTime
+  importedBy        String
+  quarter           String
+  status            DealStatus       @default(Pending)
+  commissionStatus  CommissionStatus @default(Estimated)
+  categories        Json
+  team              Json
+  executiveNotes    String           @default("")
+  approvalHistory   Json             @default("[]")
+  auditLog          Json             @default("[]")
+  sourceFiles       String[]
+  createdAt         DateTime         @default(now())
+  updatedAt         DateTime         @updatedAt
+
+  @@map("deal_desk_quotes")
+}
+
+// ─── Settings ─────────────────────────────────────────────────────────────────
+
+// Generic key/value store for app-wide settings (e.g. default kickoff attendees).
+model AppSetting {
+  key       String   @id
+  value     Json
+  updatedAt DateTime @updatedAt
+
+  @@map("app_settings")
+}
