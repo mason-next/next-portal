@@ -1,85 +1,90 @@
-import type { AppUser, NewUserInput } from "@/types/user";
-import { SAMPLE_USERS } from "@/lib/mock/users.mock";
-import { readGlobal, writeGlobal } from "@/lib/storage/local-store";
+"use server";
 
-const USERS_KEY = "users";
-// Tombstone of seed ids ever merged in by the backfill below — once a seed id has been applied,
-// it's never re-applied, so deliberately deleting a seeded user (e.g. a duplicate) sticks instead
-// of the backfill resurrecting it on the next load.
-const SEEDED_IDS_KEY = "seeded-user-ids";
+import { UserRole as PrismaRole, type User as PrismaUser } from "@prisma/client";
+import { db } from "@/lib/db";
+import type { AppUser, NewUserInput, UserRole } from "@/types/user";
 
-// Backfills fields added after a user may have already been saved to localStorage under the
-// old shape — without this, older stored users would have `undefined` role/isActive and break
-// the @-mention eligibility filter (lib/mentions/mentionable-users.ts).
-function withUserDefaults(user: AppUser): AppUser {
+// ─── Enum converters ──────────────────────────────────────────────────────────
+
+// Prisma TypeScript enum values use no spaces ("ProjectManager"); the @map values
+// ("Project Manager") only affect what Postgres stores, not what the client sees.
+const ROLE_FROM_DB: Record<PrismaRole, UserRole> = {
+  [PrismaRole.Administrator]: "Administrator",
+  [PrismaRole.ProjectManager]: "Project Manager",
+  [PrismaRole.EngineeringManager]: "Engineering Manager",
+  [PrismaRole.ProcurementManager]: "Procurement Manager",
+  [PrismaRole.Member]: "Member",
+};
+
+const ROLE_TO_DB: Record<UserRole, PrismaRole> = {
+  Administrator: PrismaRole.Administrator,
+  "Project Manager": PrismaRole.ProjectManager,
+  "Engineering Manager": PrismaRole.EngineeringManager,
+  "Procurement Manager": PrismaRole.ProcurementManager,
+  Member: PrismaRole.Member,
+};
+
+// ─── Type mapper ──────────────────────────────────────────────────────────────
+
+function toAppUser(p: PrismaUser): AppUser {
   return {
-    ...user,
-    role: user.role ?? "Member",
-    isActive: user.isActive ?? true,
-    phone: user.phone ?? "",
+    id: p.id,
+    name: p.name,
+    title: p.title,
+    email: p.email,
+    phone: p.phone,
+    avatarUrl: p.avatarUrl,
+    role: ROLE_FROM_DB[p.role] ?? "Member",
+    isActive: p.isActive,
+    createdAt: p.createdAt.toISOString(),
+    updatedAt: p.updatedAt.toISOString(),
   };
 }
 
-function loadAll(): AppUser[] {
-  const stored = readGlobal<AppUser[]>(USERS_KEY);
-  if (stored) {
-    const withDefaults = stored.map(withUserDefaults);
-    // Backfill any seeded users added after this browser already had a stored list (e.g. a new
-    // standing contact added to SAMPLE_USERS) — but only the ones never applied before, so a
-    // deliberate deletion of a seeded user isn't undone by this backfill on the next load.
-    const appliedSeedIds = new Set(readGlobal<string[]>(SEEDED_IDS_KEY) ?? []);
-    const existingIds = new Set(withDefaults.map((u) => u.id));
-    const missingSeeded = SAMPLE_USERS.filter((u) => !existingIds.has(u.id) && !appliedSeedIds.has(u.id));
-    if (missingSeeded.length === 0) return withDefaults;
-    const merged = [...withDefaults, ...missingSeeded];
-    writeGlobal(USERS_KEY, merged);
-    writeGlobal(SEEDED_IDS_KEY, [...appliedSeedIds, ...missingSeeded.map((u) => u.id)]);
-    return merged;
-  }
-  writeGlobal(USERS_KEY, SAMPLE_USERS);
-  writeGlobal(SEEDED_IDS_KEY, SAMPLE_USERS.map((u) => u.id));
-  return SAMPLE_USERS;
-}
+// ─── Queries ──────────────────────────────────────────────────────────────────
 
 export async function getUsers(): Promise<AppUser[]> {
-  return loadAll();
+  const rows = await db.user.findMany({ orderBy: { name: "asc" } });
+  return rows.map(toAppUser);
 }
 
 export async function getUser(id: string): Promise<AppUser | null> {
-  return loadAll().find((u) => u.id === id) ?? null;
+  const row = await db.user.findUnique({ where: { id } });
+  return row ? toAppUser(row) : null;
 }
 
+// ─── Mutations ────────────────────────────────────────────────────────────────
+
 export async function createUser(input: NewUserInput): Promise<AppUser> {
-  const all = loadAll();
-  const now = new Date().toISOString();
-  const user: AppUser = {
-    id: crypto.randomUUID(),
-    name: input.name,
-    title: input.title,
-    email: input.email,
-    phone: input.phone,
-    avatarUrl: input.avatarUrl,
-    role: input.role,
-    isActive: input.isActive,
-    createdAt: now,
-    updatedAt: now,
-  };
-  writeGlobal(USERS_KEY, [...all, user]);
-  return user;
+  const row = await db.user.create({
+    data: {
+      id: crypto.randomUUID(),
+      name: input.name,
+      title: input.title,
+      email: input.email,
+      phone: input.phone,
+      avatarUrl: input.avatarUrl,
+      role: ROLE_TO_DB[input.role],
+      isActive: input.isActive,
+    },
+  });
+  return toAppUser(row);
 }
 
 export async function updateUser(id: string, patch: Partial<AppUser>): Promise<AppUser> {
-  const all = loadAll();
-  const index = all.findIndex((u) => u.id === id);
-  if (index === -1) throw new Error(`User not found: ${id}`);
-  const updated: AppUser = { ...all[index], ...patch, id, updatedAt: new Date().toISOString() };
-  const next = [...all];
-  next[index] = updated;
-  writeGlobal(USERS_KEY, next);
-  return updated;
+  const data: Parameters<typeof db.user.update>[0]["data"] = {};
+  if ("name" in patch)      data.name = patch.name;
+  if ("title" in patch)     data.title = patch.title;
+  if ("email" in patch)     data.email = patch.email;
+  if ("phone" in patch)     data.phone = patch.phone ?? "";
+  if ("avatarUrl" in patch) data.avatarUrl = patch.avatarUrl ?? null;
+  if ("role" in patch && patch.role) data.role = ROLE_TO_DB[patch.role];
+  if ("isActive" in patch)  data.isActive = patch.isActive;
+
+  const row = await db.user.update({ where: { id }, data });
+  return toAppUser(row);
 }
 
 export async function deleteUser(id: string): Promise<void> {
-  const all = loadAll();
-  writeGlobal(USERS_KEY, all.filter((u) => u.id !== id));
+  await db.user.delete({ where: { id } });
 }
