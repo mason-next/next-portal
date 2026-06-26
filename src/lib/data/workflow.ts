@@ -234,8 +234,6 @@ export async function updateWorkflowStep(
     await redistributeWeightsDb(projectId, currentApp.section);
   }
 
-  // Activity logging — logProjectActivity is localStorage-based and is a no-op on the
-  // server until the Activity module is migrated to Postgres.
   if ("status" in patch && patch.status !== currentApp.status) {
     await logProjectActivity(projectId, {
       category: "workflow",

@@ -57,10 +57,6 @@ const USER_ID_FIELDS = new Set<keyof Project>([
   "fieldProjectManagerId",
 ]);
 
-// NOTE: getUser() is localStorage-based and returns null when called server-side.
-// Descriptions for user-type fields will show "Not set" until the Users module
-// is migrated to Postgres. Activity logging itself is also a localStorage no-op
-// on the server until the Activity module is migrated.
 async function describeFieldValue(field: keyof Project, value: unknown): Promise<string> {
   if (value === null || value === undefined || value === "" || value === "not-needed") return "Not set";
   if (USER_ID_FIELDS.has(field)) {
@@ -127,10 +123,6 @@ export async function updateProject(id: string, patch: Partial<Project>): Promis
   const updated = await db.project.update({ where: { id }, data });
   const result = toProject(updated);
 
-  // Log field-change activity.
-  // logProjectActivity is localStorage-based — these calls are no-ops on the server
-  // until the Activity module is migrated to Postgres. Field-change activity entries
-  // will resume appearing once that migration completes.
   const changedFields = (Object.keys(patch) as (keyof Project)[]).filter(
     (field) => FIELD_LABELS[field] !== undefined && patch[field] !== current[field as keyof PrismaProject]
   );

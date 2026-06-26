@@ -12,10 +12,9 @@ import { RichCommentView } from "@/components/shared/RichCommentView";
 import {
   addProjectComment,
   deleteProjectActivity,
-  getActivityLastViewed,
   getProjectActivity,
-  markActivityViewed,
 } from "@/lib/data/activity";
+import { getActivityLastViewed, markActivityViewed } from "@/lib/data/activity-client";
 import { CURRENT_USER, CURRENT_USER_ID } from "@/lib/current-user";
 import { useCurrentUserAvatar } from "@/lib/hooks/useCurrentUserAvatar";
 import { getMentionableUsers } from "@/lib/mentions/mentionable-users";
