@@ -122,6 +122,12 @@ model Project {
   coordinatorGroup     String
   contractValue        Float
   grossProfit          Float
+  // Role assignment fields — stored as plain strings so "not-needed" sentinel is valid.
+  // ProjectMember join table holds the normalized form; these are the canonical read source.
+  solutionsExecutiveId  String?
+  solutionsEngineerId   String?
+  leadTechnicianId      String?
+  fieldProjectManagerId String?
   targetCompletionDate DateTime?
   createdAt            DateTime  @default(now())
   updatedAt            DateTime  @updatedAt

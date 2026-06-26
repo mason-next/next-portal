@@ -350,10 +350,18 @@ async function main() {
       grossProfit: SAMPLE_PROJECT.grossProfit,
       targetCompletionDate: SAMPLE_PROJECT.targetCompletionDate,
       customerId: customer.id,
+      solutionsExecutiveId: "user-marcus-reed",
+      solutionsEngineerId: "user-priya-subramaniam",
+      leadTechnicianId: "user-carlos-ibarra",
+      fieldProjectManagerId: "user-dana-whitfield",
     },
     create: {
       ...SAMPLE_PROJECT,
       customerId: customer.id,
+      solutionsExecutiveId: "user-marcus-reed",
+      solutionsEngineerId: "user-priya-subramaniam",
+      leadTechnicianId: "user-carlos-ibarra",
+      fieldProjectManagerId: "user-dana-whitfield",
     },
   });
   console.log(`  ✓ project: ${SAMPLE_PROJECT.name}`);
