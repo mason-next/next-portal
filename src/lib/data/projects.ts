@@ -160,7 +160,6 @@ export async function deleteProject(id: string): Promise<void> {
   removeProjectScoped(id, "internal-kickoff");
   removeProjectScoped(id, "activity");
   removeProjectScoped(id, "activity-last-viewed");
-  removeProjectScoped(id, "comment-mentions");
 
   // Also a localStorage no-op on server until Notifications module is migrated.
   await deleteNotificationsForProject(id);

@@ -1,28 +1,54 @@
-import { readProjectScoped, writeProjectScoped } from "@/lib/storage/local-store";
+"use server";
+
+import { type CommentMention as PrismaMention } from "@prisma/client";
+import { db } from "@/lib/db";
 import type { CommentMention } from "@/types/comment-mention";
 
-const COMMENT_MENTIONS_KEY = "comment-mentions";
+// ─── Type mapper ──────────────────────────────────────────────────────────────
 
-export async function getCommentMentions(projectId: string): Promise<CommentMention[]> {
-  return readProjectScoped<CommentMention[]>(projectId, COMMENT_MENTIONS_KEY) ?? [];
+function toMention(p: PrismaMention): CommentMention {
+  return {
+    id: p.id,
+    projectId: p.projectId,
+    commentId: p.commentId,
+    mentionedUserId: p.mentionedUserId,
+    createdAt: p.createdAt.toISOString(),
+  };
 }
 
-// Append-only — comments aren't editable today, so there's no update/delete path yet.
+// ─── Queries ──────────────────────────────────────────────────────────────────
+
+export async function getCommentMentions(projectId: string): Promise<CommentMention[]> {
+  const rows = await db.commentMention.findMany({
+    where: { projectId },
+    orderBy: { createdAt: "asc" },
+  });
+  return rows.map(toMention);
+}
+
+// ─── Mutations ────────────────────────────────────────────────────────────────
+
+// Append-only — comments aren't editable, so there's no update/delete path.
+// Deletion is handled by Postgres cascade when the parent ProjectActivity is deleted.
 export async function addCommentMentions(
   projectId: string,
   commentId: string,
   mentionedUserIds: string[]
 ): Promise<CommentMention[]> {
-  const existing = await getCommentMentions(projectId);
-  const now = new Date().toISOString();
-  const created: CommentMention[] = mentionedUserIds.map((mentionedUserId) => ({
-    id: crypto.randomUUID(),
+  if (mentionedUserIds.length === 0) return [];
+
+  const data = mentionedUserIds.map((mentionedUserId) => ({
     projectId,
     commentId,
     mentionedUserId,
-    createdAt: now,
   }));
-  const next = [...existing, ...created];
-  writeProjectScoped(projectId, COMMENT_MENTIONS_KEY, next);
-  return created;
+
+  await db.commentMention.createMany({ data });
+
+  // Re-fetch to return the created rows with server-generated id and createdAt.
+  const created = await db.commentMention.findMany({
+    where: { commentId, mentionedUserId: { in: mentionedUserIds } },
+    orderBy: { createdAt: "asc" },
+  });
+  return created.map(toMention);
 }

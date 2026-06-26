@@ -7,6 +7,13 @@ import {
   type ProjectActivity as PrismaActivity,
 } from "@prisma/client";
 import { db } from "@/lib/db";
+import { addCommentMentions } from "@/lib/data/comment-mentions";
+import { createNotification } from "@/lib/data/notifications";
+import { getProject } from "@/lib/data/projects";
+import { getUsers } from "@/lib/data/users";
+import { getMentionableUsers } from "@/lib/mentions/mentionable-users";
+import { extractMentionedUserIdsFromDoc } from "@/lib/mentions/tiptap-mentions";
+import { truncate } from "@/lib/utils";
 import type { ActivityCategory, ProjectActivity } from "@/types/activity";
 
 // ─── Type mapper ──────────────────────────────────────────────────────────────
@@ -88,12 +95,52 @@ export async function addProjectComment(
     richContent: payload.richContent,
   });
 
-  // No-op: addCommentMentions and createNotification are localStorage-backed and
-  // unavailable server-side. Mention audit records and notification delivery will
-  // resume once those modules migrate to Postgres.
-  void actingUserId;
+  await notifyMentionedUsers(projectId, comment, userName, payload.richContent, actingUserId ?? null);
 
   return comment;
+}
+
+// addCommentMentions is now Prisma-backed and live.
+// createNotification is still localStorage-backed — calls below are silent no-ops on
+// the server (isBrowser() guard in local-store.ts). Notification delivery will resume
+// once the Notifications module migrates to Postgres.
+async function notifyMentionedUsers(
+  projectId: string,
+  comment: ProjectActivity,
+  authorName: string,
+  richContent: JSONContent,
+  actingUserId: string | null
+): Promise<void> {
+  const extractedIds = extractMentionedUserIdsFromDoc(richContent);
+  if (extractedIds.length === 0) return;
+
+  const [project, users] = await Promise.all([getProject(projectId), getUsers()]);
+  if (!project) return;
+
+  const mentionableIds = new Set(getMentionableUsers(project, users).map((u) => u.id));
+  const eligibleIds = extractedIds.filter((id) => mentionableIds.has(id));
+  if (eligibleIds.length === 0) return;
+
+  await addCommentMentions(projectId, comment.id, eligibleIds);
+
+  const notifyIds = eligibleIds.filter((id) => id !== actingUserId);
+  if (notifyIds.length === 0) return;
+
+  const commentPreview = truncate(comment.message, 120);
+  await Promise.all(
+    notifyIds.map((userId) =>
+      createNotification({
+        userId,
+        type: "mention",
+        projectId,
+        projectName: project.name,
+        commentId: comment.id,
+        commentAuthor: authorName,
+        commentPreview,
+        message: `${authorName} mentioned you in ${project.name}`,
+      })
+    )
+  );
 }
 
 export async function deleteProjectActivity(projectId: string, activityId: string): Promise<void> {
