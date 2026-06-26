@@ -1,39 +1,146 @@
-import type { ProjectSectionKey, WorkflowStep } from "@/types/workflow";
+"use server";
+
+import {
+  WorkflowSection,
+  WorkflowStepStatus as WfStatus,
+  type WorkflowStep as PrismaStep,
+} from "@prisma/client";
+import { db } from "@/lib/db";
 import { logProjectActivity } from "@/lib/data/activity";
 import { CURRENT_USER } from "@/lib/current-user";
-import { SAMPLE_PROJECT } from "@/lib/mock/projects.mock";
-import { defaultWorkflowSteps, SAMPLE_WORKFLOW_STEPS } from "@/lib/mock/workflow.mock";
-import { readProjectScoped, writeProjectScoped } from "@/lib/storage/local-store";
-import { redistributeWeights, WORKFLOW_STEP_TEMPLATE } from "@/modules/project-command-center/lib/workflow-steps";
+import { defaultWorkflowSteps } from "@/lib/mock/workflow.mock";
+import {
+  redistributeWeights,
+  WORKFLOW_STEP_TEMPLATE,
+} from "@/modules/project-command-center/lib/workflow-steps";
+import type { ProjectSectionKey, WorkflowStep, WorkflowStepStatus } from "@/types/workflow";
 
-const WORKFLOW_STEPS_KEY = "workflow-steps";
+// ─── Enum converters ──────────────────────────────────────────────────────────
 
-// Backfills fields saved before they existed — section in particular, since steps used to
-// derive it from a static key→section map instead of carrying it directly. Any step saved
-// before this had a fixed template key, so the template lookup is always safe here.
-function withStepDefaults(step: WorkflowStep): WorkflowStep {
-  const template = WORKFLOW_STEP_TEMPLATE.find((entry) => entry.key === step.key);
+// WfStatus enum values are the TypeScript identifiers (e.g. "NotStarted"); the @map
+// values ("Not Started") only affect what PostgreSQL stores, not what the client sees.
+const STATUS_FROM_DB: Record<WfStatus, WorkflowStepStatus> = {
+  [WfStatus.NotStarted]: "Not Started",
+  [WfStatus.InProgress]: "In Progress",
+  [WfStatus.Complete]: "Complete",
+  [WfStatus.NotNeeded]: "Not Needed",
+};
+
+const STATUS_TO_DB: Record<WorkflowStepStatus, WfStatus> = {
+  "Not Started": WfStatus.NotStarted,
+  "In Progress": WfStatus.InProgress,
+  "Complete": WfStatus.Complete,
+  "Not Needed": WfStatus.NotNeeded,
+};
+
+// WorkflowSection enum values are lowercase strings identical to ProjectSectionKey —
+// the cast below is always safe.
+const SECTION_TO_DB: Record<ProjectSectionKey, WorkflowSection> = {
+  setup: WorkflowSection.setup,
+  engineering: WorkflowSection.engineering,
+  procurement: WorkflowSection.procurement,
+  implementation: WorkflowSection.implementation,
+  closeout: WorkflowSection.closeout,
+};
+
+// ─── Type mapper ──────────────────────────────────────────────────────────────
+
+function toStep(p: PrismaStep): WorkflowStep {
   return {
-    ...step,
-    section: step.section ?? template?.section ?? "setup",
-    statusOverridden: step.statusOverridden ?? false,
-    weightOverridden: step.weightOverridden ?? false,
-    isCustom: step.isCustom ?? false,
+    id: p.id,
+    projectId: p.projectId,
+    key: p.key,
+    name: p.name,
+    section: p.section as unknown as ProjectSectionKey,
+    weight: p.weight,
+    status: STATUS_FROM_DB[p.status] ?? "Not Started",
+    ownerId: p.ownerId,
+    dueDate: p.dueDate?.toISOString() ?? null,
+    completedDate: p.completedDate?.toISOString() ?? null,
+    sortOrder: p.sortOrder,
+    statusOverridden: p.statusOverridden,
+    weightOverridden: p.weightOverridden,
+    isCustom: p.isCustom,
+    updatedAt: p.updatedAt.toISOString(),
   };
 }
 
-function buildMissingStep(projectId: string, key: string, now: string): WorkflowStep | null {
-  const template = WORKFLOW_STEP_TEMPLATE.find((entry) => entry.key === key);
-  if (!template) return null;
+function toDbCreate(s: WorkflowStep) {
   return {
-    id: `${projectId}:${key}`,
+    id: s.id,
+    projectId: s.projectId,
+    key: s.key,
+    name: s.name,
+    section: SECTION_TO_DB[s.section],
+    weight: s.weight,
+    status: STATUS_TO_DB[s.status],
+    ownerId: s.ownerId ?? null,
+    dueDate: s.dueDate ? new Date(s.dueDate) : null,
+    completedDate: s.completedDate ? new Date(s.completedDate) : null,
+    sortOrder: s.sortOrder,
+    statusOverridden: s.statusOverridden,
+    weightOverridden: s.weightOverridden,
+    isCustom: s.isCustom,
+    updatedAt: new Date(s.updatedAt),
+  };
+}
+
+// ─── Weight redistribution ────────────────────────────────────────────────────
+
+// Recomputes the even-split weight budget for non-overridden steps in the section
+// and persists the new values. Called after any add/remove/weight-change.
+async function redistributeWeightsDb(projectId: string, section: ProjectSectionKey): Promise<void> {
+  const dbSteps = await db.workflowStep.findMany({
+    where: { projectId, section: SECTION_TO_DB[section] },
+  });
+  const appSteps = dbSteps.map(toStep);
+  const redistributed = redistributeWeights(appSteps, section);
+
+  await Promise.all(
+    redistributed
+      .filter((s) => !s.weightOverridden)
+      .map((s) =>
+        db.workflowStep.update({
+          where: { projectId_key: { projectId, key: s.key } },
+          data: { weight: s.weight },
+        })
+      )
+  );
+}
+
+// ─── Template reconciliation ──────────────────────────────────────────────────
+
+// Adds built-in template steps missing from the project (added to the template after the
+// project was created) and removes template steps deleted from the template. Custom steps
+// are never touched. Persists changes to the DB and returns the updated step list.
+async function reconcileTemplateStepsDb(
+  projectId: string,
+  steps: WorkflowStep[]
+): Promise<WorkflowStep[]> {
+  const templateKeys = new Set<string>(WORKFLOW_STEP_TEMPLATE.map((e) => e.key));
+  const toRemove = steps.filter((s) => !s.isCustom && !templateKeys.has(s.key));
+
+  const existingKeys = new Set(steps.map((s) => s.key));
+  const toAdd = WORKFLOW_STEP_TEMPLATE.filter((e) => !existingKeys.has(e.key));
+
+  if (toRemove.length === 0 && toAdd.length === 0) return steps;
+
+  if (toRemove.length > 0) {
+    await db.workflowStep.deleteMany({
+      where: { projectId, key: { in: toRemove.map((s) => s.key) } },
+    });
+  }
+
+  const now = new Date().toISOString();
+  const newSteps: WorkflowStep[] = toAdd.map((entry) => ({
+    id: `${projectId}:${entry.key}`,
     projectId,
-    key,
-    name: template.name,
-    section: template.section,
+    key: entry.key,
+    name: entry.name,
+    section: entry.section,
     weight: 0,
-    sortOrder: template.sortOrder,
-    status: "Not Started",
+    sortOrder: entry.sortOrder,
+    status: "Not Started" as WorkflowStepStatus,
     ownerId: null,
     dueDate: null,
     completedDate: null,
@@ -41,51 +148,53 @@ function buildMissingStep(projectId: string, key: string, now: string): Workflow
     statusOverridden: false,
     weightOverridden: false,
     isCustom: false,
-  };
+  }));
+
+  if (newSteps.length > 0) {
+    await db.workflowStep.createMany({ data: newSteps.map(toDbCreate) });
+  }
+
+  const affectedSections = new Set([
+    ...toRemove.map((s) => s.section),
+    ...newSteps.map((s) => s.section),
+  ]);
+  for (const section of affectedSections) {
+    await redistributeWeightsDb(projectId, section as ProjectSectionKey);
+  }
+
+  const refreshed = await db.workflowStep.findMany({
+    where: { projectId },
+    orderBy: { sortOrder: "asc" },
+  });
+  return refreshed.map(toStep);
 }
 
-// Catches up an already-seeded project with built-in steps added to or removed from
-// WORKFLOW_STEP_TEMPLATE after that project was first created — without this,
-// getWorkflowSteps would only ever return exactly what was seeded at creation time, so a
-// new template entry (like equipmentTracking) would never appear, and a removed one (like
-// the generic "procurement" step) would never go away, for a project seeded before the
-// template changed. Custom (user-added) steps are never touched here.
-function reconcileTemplateSteps(projectId: string, steps: WorkflowStep[]): WorkflowStep[] {
-  const templateKeys = new Set<string>(WORKFLOW_STEP_TEMPLATE.map((entry) => entry.key));
-  const pruned = steps.filter((s) => s.isCustom || templateKeys.has(s.key));
-
-  const existingKeys = new Set(pruned.map((s) => s.key));
-  const missingTemplates = WORKFLOW_STEP_TEMPLATE.filter((entry) => !existingKeys.has(entry.key));
-
-  if (missingTemplates.length === 0 && pruned.length === steps.length) return steps;
-
-  const now = new Date().toISOString();
-  const missingSteps = missingTemplates
-    .map((entry) => buildMissingStep(projectId, entry.key, now))
-    .filter((step): step is WorkflowStep => step !== null);
-
-  const removedSections = steps.filter((s) => !pruned.includes(s)).map((s) => s.section);
-  const affectedSections = new Set([...removedSections, ...missingSteps.map((s) => s.section)]);
-  let next = [...pruned, ...missingSteps];
-  for (const section of affectedSections) next = redistributeWeights(next, section);
-
-  writeProjectScoped(projectId, WORKFLOW_STEPS_KEY, next);
-  return next;
-}
+// ─── Queries ──────────────────────────────────────────────────────────────────
 
 export async function getWorkflowSteps(projectId: string): Promise<WorkflowStep[]> {
-  const stored = readProjectScoped<WorkflowStep[]>(projectId, WORKFLOW_STEPS_KEY);
-  if (stored) return reconcileTemplateSteps(projectId, stored.map(withStepDefaults));
-  const seeded =
-    projectId === SAMPLE_PROJECT.id
-      ? SAMPLE_WORKFLOW_STEPS
-      : defaultWorkflowSteps(projectId, new Date().toISOString());
-  writeProjectScoped(projectId, WORKFLOW_STEPS_KEY, seeded);
-  return seeded;
+  const dbSteps = await db.workflowStep.findMany({
+    where: { projectId },
+    orderBy: { sortOrder: "asc" },
+  });
+
+  // Auto-seed template steps for new projects that have none in the DB.
+  if (dbSteps.length === 0) {
+    const project = await db.project.findUnique({
+      where: { id: projectId },
+      select: { createdAt: true },
+    });
+    if (!project) throw new Error(`Project not found: ${projectId}`);
+    const defaults = defaultWorkflowSteps(projectId, project.createdAt.toISOString());
+    await db.workflowStep.createMany({ data: defaults.map(toDbCreate) });
+    return defaults;
+  }
+
+  return reconcileTemplateStepsDb(projectId, dbSteps.map(toStep));
 }
 
-// completedDate is never set directly by callers — it's purely derived from status
-// transitions: stamped the moment a step enters Complete/Not Needed, cleared the moment it leaves.
+// ─── Mutations ────────────────────────────────────────────────────────────────
+
+// completedDate is purely derived from status transitions — never set directly by callers.
 function resolveCompletedDate(current: WorkflowStep, patch: Partial<WorkflowStep>): string | null {
   if (!("status" in patch) || patch.status === current.status) return current.completedDate;
   const isDone = patch.status === "Complete" || patch.status === "Not Needed";
@@ -97,36 +206,50 @@ export async function updateWorkflowStep(
   key: string,
   patch: Partial<WorkflowStep>
 ): Promise<WorkflowStep> {
-  const all = await getWorkflowSteps(projectId);
-  const index = all.findIndex((s) => s.key === key);
-  if (index === -1) throw new Error(`Workflow step not found: ${key}`);
+  const current = await db.workflowStep.findUnique({
+    where: { projectId_key: { projectId, key } },
+  });
+  if (!current) throw new Error(`Workflow step not found: ${key}`);
 
-  const current = all[index];
-  const updated: WorkflowStep = {
-    ...current,
-    ...patch,
-    projectId,
-    key,
-    completedDate: resolveCompletedDate(current, patch),
-    updatedAt: new Date().toISOString(),
-  };
-  const next = [...all];
-  next[index] = updated;
-  // Editing a step's weight pins it (weightOverridden, set by the caller) — rebalance the
-  // rest of its section so the phase's total weight budget stays constant.
-  const reconciled = "weight" in patch ? redistributeWeights(next, current.section) : next;
-  writeProjectScoped(projectId, WORKFLOW_STEPS_KEY, reconciled);
+  const currentApp = toStep(current);
+  const completedDate = resolveCompletedDate(currentApp, patch);
 
-  if ("status" in patch && patch.status !== current.status) {
+  const data: Parameters<typeof db.workflowStep.update>[0]["data"] = {};
+  if ("name" in patch)             data.name = patch.name;
+  if ("status" in patch)           data.status = STATUS_TO_DB[patch.status!];
+  if ("ownerId" in patch)          data.ownerId = patch.ownerId ?? null;
+  if ("dueDate" in patch)          data.dueDate = patch.dueDate ? new Date(patch.dueDate) : null;
+  if ("weight" in patch)           data.weight = patch.weight;
+  if ("weightOverridden" in patch) data.weightOverridden = patch.weightOverridden;
+  if ("statusOverridden" in patch) data.statusOverridden = patch.statusOverridden;
+  if ("sortOrder" in patch)        data.sortOrder = patch.sortOrder;
+  if (completedDate !== currentApp.completedDate) {
+    data.completedDate = completedDate ? new Date(completedDate) : null;
+  }
+
+  await db.workflowStep.update({ where: { projectId_key: { projectId, key } }, data });
+
+  // Rebalance section weights when this step's weight was explicitly set.
+  if ("weight" in patch) {
+    await redistributeWeightsDb(projectId, currentApp.section);
+  }
+
+  // Activity logging — logProjectActivity is localStorage-based and is a no-op on the
+  // server until the Activity module is migrated to Postgres.
+  if ("status" in patch && patch.status !== currentApp.status) {
     await logProjectActivity(projectId, {
       category: "workflow",
       activityType: "step_status_changed",
       userName: CURRENT_USER,
-      message: `"${current.name}" status changed from ${current.status} to ${patch.status}`,
+      message: `"${currentApp.name}" status changed from ${currentApp.status} to ${patch.status}`,
     });
   }
 
-  return reconciled.find((s) => s.key === key) ?? updated;
+  // Re-fetch to return post-redistribution weight if it changed.
+  const final = await db.workflowStep.findUnique({
+    where: { projectId_key: { projectId, key } },
+  });
+  return toStep(final ?? current);
 }
 
 export async function addWorkflowStep(
@@ -135,36 +258,52 @@ export async function addWorkflowStep(
   name: string,
   dueDate: string | null = null
 ): Promise<WorkflowStep> {
-  const all = await getWorkflowSteps(projectId);
-  const maxSortOrder = all.reduce((max, s) => Math.max(max, s.sortOrder), 0);
-  const now = new Date().toISOString();
-  const newStep: WorkflowStep = {
-    id: `${projectId}:custom-${crypto.randomUUID()}`,
-    projectId,
-    key: `custom-${crypto.randomUUID()}`,
-    name,
-    section,
-    weight: 0,
-    status: "Not Started",
-    ownerId: null,
-    dueDate,
-    completedDate: null,
-    sortOrder: maxSortOrder + 1,
-    updatedAt: now,
-    statusOverridden: false,
-    weightOverridden: false,
-    isCustom: true,
-  };
-  const next = redistributeWeights([...all, newStep], section);
-  writeProjectScoped(projectId, WORKFLOW_STEPS_KEY, next);
-  return next.find((s) => s.key === newStep.key) ?? newStep;
+  const maxResult = await db.workflowStep.aggregate({
+    where: { projectId },
+    _max: { sortOrder: true },
+  });
+  const maxSortOrder = maxResult._max.sortOrder ?? 0;
+
+  const customKey = `custom-${crypto.randomUUID()}`;
+  const newStep = await db.workflowStep.create({
+    data: {
+      id: `${projectId}:${customKey}`,
+      projectId,
+      key: customKey,
+      name,
+      section: SECTION_TO_DB[section],
+      weight: 0,
+      status: WfStatus.NotStarted,
+      ownerId: null,
+      dueDate: dueDate ? new Date(dueDate) : null,
+      completedDate: null,
+      sortOrder: maxSortOrder + 1,
+      statusOverridden: false,
+      weightOverridden: false,
+      isCustom: true,
+    },
+  });
+
+  await redistributeWeightsDb(projectId, section);
+
+  const final = await db.workflowStep.findUnique({
+    where: { projectId_key: { projectId, key: customKey } },
+  });
+  return toStep(final ?? newStep);
 }
 
 export async function removeWorkflowStep(projectId: string, key: string): Promise<void> {
-  const all = await getWorkflowSteps(projectId);
-  const target = all.find((s) => s.key === key);
-  if (!target) return;
-  if (!target.isCustom) throw new Error("Only custom steps can be removed");
-  const remaining = redistributeWeights(all.filter((s) => s.key !== key), target.section);
-  writeProjectScoped(projectId, WORKFLOW_STEPS_KEY, remaining);
+  const step = await db.workflowStep.findUnique({
+    where: { projectId_key: { projectId, key } },
+  });
+  if (!step) return;
+  if (!step.isCustom) throw new Error("Only custom steps can be removed");
+
+  const section = step.section as unknown as ProjectSectionKey;
+
+  await db.workflowStep.delete({
+    where: { projectId_key: { projectId, key } },
+  });
+
+  await redistributeWeightsDb(projectId, section);
 }
