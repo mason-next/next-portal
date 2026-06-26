@@ -100,10 +100,6 @@ export async function addProjectComment(
   return comment;
 }
 
-// addCommentMentions is now Prisma-backed and live.
-// createNotification is still localStorage-backed — calls below are silent no-ops on
-// the server (isBrowser() guard in local-store.ts). Notification delivery will resume
-// once the Notifications module migrates to Postgres.
 async function notifyMentionedUsers(
   projectId: string,
   comment: ProjectActivity,

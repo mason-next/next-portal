@@ -1,60 +1,77 @@
-import { readGlobal, writeGlobal } from "@/lib/storage/local-store";
-import type { NewNotificationInput, Notification } from "@/types/notification";
+"use server";
 
-const NOTIFICATIONS_KEY = "notifications";
+import { type Notification as PrismaNotification } from "@prisma/client";
+import { db } from "@/lib/db";
+import type { NewNotificationInput, Notification, NotificationType } from "@/types/notification";
 
-// Global (not project-scoped) — a user can be mentioned across many different projects, and
-// the notification bell needs to query across all of them by userId regardless of project.
-function loadAll(): Notification[] {
-  return readGlobal<Notification[]>(NOTIFICATIONS_KEY) ?? [];
+// ─── Type mapper ──────────────────────────────────────────────────────────────
+
+// The Prisma schema has no `type` column — there is currently only one notification
+// type ("mention"). The field is hardcoded here; add a Prisma `type` column and
+// run a migration if a second NotificationType is introduced.
+function toNotification(p: PrismaNotification): Notification {
+  return {
+    id: p.id,
+    userId: p.userId,
+    type: "mention" as NotificationType,
+    projectId: p.projectId,
+    projectName: p.projectName,
+    commentId: p.commentId,
+    commentAuthor: p.commentAuthor,
+    commentPreview: p.commentPreview,
+    message: p.message,
+    isRead: p.isRead,
+    createdAt: p.createdAt.toISOString(),
+  };
 }
+
+// ─── Queries ──────────────────────────────────────────────────────────────────
 
 export async function getNotificationsForUser(userId: string): Promise<Notification[]> {
-  return loadAll()
-    .filter((n) => n.userId === userId)
-    .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+  const rows = await db.notification.findMany({
+    where: { userId },
+    orderBy: { createdAt: "desc" },
+  });
+  return rows.map(toNotification);
 }
 
-// Dedup key is (userId, commentId, type) — NOT (userId, projectId, type): a second comment in
-// the same project mentioning the same person is a genuinely new event and should still notify.
-// Returns null on a dedup no-op rather than throwing, since callers loop over multiple
-// mentioned users and a skip for one of them isn't an error.
+// ─── Mutations ────────────────────────────────────────────────────────────────
+
+// Dedup key is (userId, commentId). The original also included `type`, but since
+// there is only one type ("mention") the reduced key is equivalent.
+// Returns null on a dedup skip — callers loop over multiple users and a skip for
+// one of them is not an error.
 export async function createNotification(input: NewNotificationInput): Promise<Notification | null> {
-  const all = loadAll();
-  const isDuplicate = all.some(
-    (n) => n.userId === input.userId && n.commentId === input.commentId && n.type === input.type
-  );
+  const isDuplicate = await db.notification.findFirst({
+    where: { userId: input.userId, commentId: input.commentId },
+    select: { id: true },
+  });
   if (isDuplicate) return null;
 
-  const record: Notification = {
-    id: crypto.randomUUID(),
-    isRead: false,
-    createdAt: new Date().toISOString(),
-    ...input,
-  };
-  writeGlobal(NOTIFICATIONS_KEY, [record, ...all]);
-  return record;
+  const row = await db.notification.create({
+    data: {
+      userId: input.userId,
+      projectId: input.projectId,
+      projectName: input.projectName,
+      commentId: input.commentId,
+      commentAuthor: input.commentAuthor,
+      commentPreview: input.commentPreview,
+      message: input.message,
+    },
+  });
+  return toNotification(row);
 }
 
 export async function markNotificationRead(id: string): Promise<void> {
-  const all = loadAll();
-  writeGlobal(
-    NOTIFICATIONS_KEY,
-    all.map((n) => (n.id === id ? { ...n, isRead: true } : n))
-  );
+  await db.notification.update({ where: { id }, data: { isRead: true } });
 }
 
 export async function markAllNotificationsRead(userId: string): Promise<void> {
-  const all = loadAll();
-  writeGlobal(
-    NOTIFICATIONS_KEY,
-    all.map((n) => (n.userId === userId ? { ...n, isRead: true } : n))
-  );
+  await db.notification.updateMany({ where: { userId }, data: { isRead: true } });
 }
 
-// Used by deleteProject's cleanup — notifications aren't stored under a project-scoped key, so
-// they need an explicit filter-and-rewrite instead of removeProjectScoped.
+// Cascade on Project.onDelete handles this automatically when deleteProject runs.
+// This function is retained for API completeness and explicit call-site clarity.
 export async function deleteNotificationsForProject(projectId: string): Promise<void> {
-  const all = loadAll();
-  writeGlobal(NOTIFICATIONS_KEY, all.filter((n) => n.projectId !== projectId));
+  await db.notification.deleteMany({ where: { projectId } });
 }
