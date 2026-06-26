@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { getEquipmentRows, saveEquipmentRows } from "@/lib/data/equipment";
+import { getEquipmentRows, updateEquipmentRow, type EquipmentRowPatch } from "@/lib/data/equipment";
 import { CURRENT_USER } from "@/lib/current-user";
 import type { AuditEntry } from "@/types/audit";
 import type { EquipmentRow, EquipmentRowSnapshot } from "@/types/equipment";
@@ -57,8 +57,10 @@ export function useEquipmentRows(projectId: string) {
     const updatedRow: EquipmentRow = { ...patched, status, updatedAt: now, audit: [auditEntry, ...row.audit] };
     const nextRows = loaded.rows.map((r) => (r.id === rowId ? updatedRow : r));
 
+    // Optimistic update — UI reflects the change immediately
     setLoaded({ ...loaded, rows: nextRows });
-    saveEquipmentRows(projectId, nextRows);
+    // Targeted DB write — only updates the changed row and appends one audit entry
+    updateEquipmentRow(projectId, rowId, { [field]: value } as EquipmentRowPatch, auditEntry);
   }
 
   return {

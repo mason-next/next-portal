@@ -155,8 +155,6 @@ export async function deleteProject(id: string): Promise<void> {
   removeProjectScoped(id, "welcome-letter");
   removeProjectScoped(id, "audit-trail");
   removeProjectScoped(id, "comments");
-  removeProjectScoped(id, "equipment-rows");
-  removeProjectScoped(id, "equipment-uploads");
   removeProjectScoped(id, "internal-kickoff");
   removeProjectScoped(id, "activity");
   removeProjectScoped(id, "activity-last-viewed");
