@@ -27,6 +27,9 @@ function toProject(p: PrismaProject): Project {
     solutionsEngineerId: p.solutionsEngineerId,
     leadTechnicianId: p.leadTechnicianId,
     fieldProjectManagerId: p.fieldProjectManagerId,
+    seniorInsideId: p.seniorInsideId,
+    projectManagerId: p.projectManagerId,
+    insidePMId: p.insidePMId,
     targetCompletionDate: p.targetCompletionDate?.toISOString() ?? null,
     createdAt: p.createdAt.toISOString(),
     updatedAt: p.updatedAt.toISOString(),
@@ -47,6 +50,9 @@ const FIELD_LABELS: Partial<Record<keyof Project, string>> = {
   solutionsEngineerId: "Solutions Engineer",
   leadTechnicianId: "Lead Technician",
   fieldProjectManagerId: "Field Project Manager",
+  seniorInsideId: "Senior Inside",
+  projectManagerId: "Project Manager",
+  insidePMId: "Inside PM",
   targetCompletionDate: "Target Completion",
 };
 
@@ -55,6 +61,9 @@ const USER_ID_FIELDS = new Set<keyof Project>([
   "solutionsEngineerId",
   "leadTechnicianId",
   "fieldProjectManagerId",
+  "seniorInsideId",
+  "projectManagerId",
+  "insidePMId",
 ]);
 
 async function describeFieldValue(field: keyof Project, value: unknown): Promise<string> {
@@ -81,6 +90,14 @@ export async function getProject(id: string): Promise<Project | null> {
 // ─── Mutations ────────────────────────────────────────────────────────────────
 
 export async function createProject(input: NewProjectInput): Promise<Project> {
+  // Apply default role assignments stored in AppSetting (set during setup/M12 migration).
+  const [seniorInsideSetting, insidePMSetting] = await Promise.all([
+    db.appSetting.findUnique({ where: { key: "default_senior_inside_id" } }),
+    db.appSetting.findUnique({ where: { key: "default_inside_pm_id" } }),
+  ]);
+  const defaultSeniorInsideId = (seniorInsideSetting?.value as string | null) ?? null;
+  const defaultInsidePMId = (insidePMSetting?.value as string | null) ?? null;
+
   const row = await db.project.create({
     data: {
       id: crypto.randomUUID(),
@@ -91,6 +108,8 @@ export async function createProject(input: NewProjectInput): Promise<Project> {
       coordinatorGroup: input.coordinatorGroup,
       contractValue: 0,
       grossProfit: 0,
+      seniorInsideId: defaultSeniorInsideId,
+      insidePMId: defaultInsidePMId,
     },
   });
   return toProject(row);
@@ -114,6 +133,9 @@ export async function updateProject(id: string, patch: Partial<Project>): Promis
   if ("solutionsEngineerId" in patch)   data.solutionsEngineerId = patch.solutionsEngineerId;
   if ("leadTechnicianId" in patch)      data.leadTechnicianId = patch.leadTechnicianId;
   if ("fieldProjectManagerId" in patch) data.fieldProjectManagerId = patch.fieldProjectManagerId;
+  if ("seniorInsideId" in patch)        data.seniorInsideId = patch.seniorInsideId;
+  if ("projectManagerId" in patch)      data.projectManagerId = patch.projectManagerId;
+  if ("insidePMId" in patch)            data.insidePMId = patch.insidePMId;
   if ("targetCompletionDate" in patch) {
     data.targetCompletionDate = patch.targetCompletionDate
       ? new Date(patch.targetCompletionDate)

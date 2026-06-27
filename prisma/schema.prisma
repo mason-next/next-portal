@@ -22,6 +22,9 @@ enum ProjectMemberRole {
   SolutionsEngineer   @map("Solutions Engineer")
   LeadTechnician      @map("Lead Technician")
   FieldProjectManager @map("Field Project Manager")
+  SeniorInside        @map("Senior Inside")
+  ProjectManager      @map("Project Manager")
+  InsidePM            @map("Inside PM")
 }
 
 enum ActivityCategory {
@@ -150,6 +153,9 @@ model Project {
   solutionsEngineerId   String?
   leadTechnicianId      String?
   fieldProjectManagerId String?
+  seniorInsideId        String?
+  projectManagerId      String?
+  insidePMId            String?
   targetCompletionDate DateTime?
   createdAt            DateTime  @default(now())
   updatedAt            DateTime  @updatedAt

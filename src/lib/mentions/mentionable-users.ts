@@ -22,6 +22,9 @@ export function getMentionableUsers(project: Project, allUsers: AppUser[]): AppU
       project.solutionsEngineerId,
       project.leadTechnicianId,
       project.fieldProjectManagerId,
+      project.seniorInsideId,
+      project.projectManagerId,
+      project.insidePMId,
     ].filter((id): id is string => Boolean(id) && id !== ROLE_NOT_NEEDED)
   );
 

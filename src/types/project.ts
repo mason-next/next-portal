@@ -17,6 +17,9 @@ export interface Project {
   solutionsEngineerId: string | null;
   leadTechnicianId: string | null;
   fieldProjectManagerId: string | null;
+  seniorInsideId: string | null;
+  projectManagerId: string | null;
+  insidePMId: string | null;
   targetCompletionDate: string | null;
   createdAt: string;
   updatedAt: string;

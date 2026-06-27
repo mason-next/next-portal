@@ -25,6 +25,9 @@ export function EditProjectOverviewModal({ project, onClose, onSaved }: EditProj
   const [solutionsEngineerId, setSolutionsEngineerId] = useState(project.solutionsEngineerId);
   const [solutionsExecutiveId, setSolutionsExecutiveId] = useState(project.solutionsExecutiveId);
   const [leadTechnicianId, setLeadTechnicianId] = useState(project.leadTechnicianId);
+  const [seniorInsideId, setSeniorInsideId] = useState(project.seniorInsideId);
+  const [projectManagerId, setProjectManagerId] = useState(project.projectManagerId);
+  const [insidePMId, setInsidePMId] = useState(project.insidePMId);
   const [targetCompletionDate, setTargetCompletionDate] = useState(
     project.targetCompletionDate ? project.targetCompletionDate.slice(0, 10) : ""
   );
@@ -39,6 +42,9 @@ export function EditProjectOverviewModal({ project, onClose, onSaved }: EditProj
       solutionsEngineerId,
       solutionsExecutiveId,
       leadTechnicianId,
+      seniorInsideId,
+      projectManagerId,
+      insidePMId,
       targetCompletionDate: targetCompletionDate || null,
     });
     onSaved(updated);
@@ -70,6 +76,15 @@ export function EditProjectOverviewModal({ project, onClose, onSaved }: EditProj
         </Field>
         <Field label="Field Project Manager">
           <UserSelect users={users} value={fieldProjectManagerId} onChange={setFieldProjectManagerId} />
+        </Field>
+        <Field label="Senior Inside">
+          <UserSelect users={users} value={seniorInsideId} onChange={setSeniorInsideId} allowNotNeeded />
+        </Field>
+        <Field label="Project Manager">
+          <UserSelect users={users} value={projectManagerId} onChange={setProjectManagerId} allowNotNeeded />
+        </Field>
+        <Field label="Inside PM">
+          <UserSelect users={users} value={insidePMId} onChange={setInsidePMId} allowNotNeeded />
         </Field>
         <Field label="Solutions Engineer">
           <UserSelect users={users} value={solutionsEngineerId} onChange={setSolutionsEngineerId} allowNotNeeded />
