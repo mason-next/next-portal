@@ -9,6 +9,7 @@ import { cn } from "@/lib/utils";
 interface QuoteTableProps {
   quotes: DealDeskQuote[];
   onDelete?: (id: string) => void;
+  basePath?: string;
 }
 
 type SortKey = "projectName" | "customer" | "revenue" | "margin" | "commission" | "importedAt" | "status";
@@ -34,7 +35,7 @@ function SortBtn({ k, label, sort, onToggle }: { k: SortKey; label: string; sort
   );
 }
 
-export function QuoteTable({ quotes, onDelete }: QuoteTableProps) {
+export function QuoteTable({ quotes, onDelete, basePath = "/sales/deal-desk" }: QuoteTableProps) {
   const [query, setQuery] = useState("");
   const [sort, setSort] = useState<SortState>({ key: "importedAt", dir: "desc" });
 
@@ -109,7 +110,7 @@ export function QuoteTable({ quotes, onDelete }: QuoteTableProps) {
                 return (
                   <tr key={q.id} className="hover:bg-muted/30 transition-colors">
                     <td className="px-4 py-3 font-medium">
-                      <Link href={`/deal-desk/${q.id}`} className="hover:text-primary hover:underline">
+                      <Link href={`${basePath}/${q.id}`} className="hover:text-primary hover:underline">
                         {q.projectName}
                       </Link>
                     </td>

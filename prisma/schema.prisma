@@ -455,6 +455,99 @@ model DealDeskQuote {
   @@map("deal_desk_quotes")
 }
 
+// ─── Sales Activity ───────────────────────────────────────────────────────────
+
+enum LogoStage {
+  Prospecting
+  Qualifying
+  Proposal
+  Negotiation
+  ClosedWon   @map("Closed Won")
+  ClosedLost  @map("Closed Lost")
+}
+
+// A company/prospect being pursued
+model SalesLogo {
+  id         String    @id @default(cuid())
+  company    String
+  domain     String    @default("") // used to fetch logo via clearbit
+  stage      LogoStage @default(Prospecting)
+  ownerId    String?   // User.id
+  ownerName  String    @default("")
+  notes      String    @default("")
+  dealDeskId String?   // optional link to a DealDeskQuote id
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+
+  activities SalesActivity[]
+
+  @@map("sales_logos")
+}
+
+enum ActivityType {
+  Call
+  Email
+  Meeting
+  Research
+  Demo
+  Proposal
+  Other
+}
+
+// A single logged activity entry
+model SalesActivity {
+  id           String       @id @default(cuid())
+  userId       String?      // User.id — null if entered by management on behalf
+  userName     String
+  logoId       String?      // optional link to a SalesLogo
+  type         ActivityType
+  description  String       @default("")
+  weekStart    DateTime     // Monday of the week this belongs to (for grouping)
+  durationMins Int          @default(0)
+  createdAt    DateTime     @default(now())
+
+  logo SalesLogo? @relation(fields: [logoId], references: [id], onDelete: SetNull)
+
+  @@index([userId, weekStart])
+  @@index([weekStart])
+  @@map("sales_activities")
+}
+
+// ─── Quote Portal ─────────────────────────────────────────────────────────────
+
+// Customer-facing HTML presentation quotes
+model QuotePresentation {
+  id           String   @id @default(cuid())
+  slug         String   @unique
+  title        String
+  customer     String
+  isActive     Boolean  @default(true)
+  // File storage: path relative to storage root (swapped to S3/Volume when confirmed)
+  htmlFile     String   @default("presentation.html") // relative path within the quote folder
+  storageKey   String   @default("") // future: S3/Volume key prefix for the quote folder
+  createdBy    String
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  accessLogs QuoteAccessLog[]
+
+  @@map("quote_presentations")
+}
+
+model QuoteAccessLog {
+  id          String   @id @default(cuid())
+  quoteId     String
+  email       String
+  ip          String   @default("")
+  userAgent   String   @default("")
+  accessedAt  DateTime @default(now())
+
+  quote QuotePresentation @relation(fields: [quoteId], references: [id], onDelete: Cascade)
+
+  @@index([quoteId, accessedAt(sort: Desc)])
+  @@map("quote_access_logs")
+}
+
 // ─── Settings ─────────────────────────────────────────────────────────────────
 
 // Generic key/value store for app-wide settings (e.g. default kickoff attendees).
