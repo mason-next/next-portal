@@ -82,7 +82,7 @@ export async function getProjects(): Promise<Project[]> {
 export async function getProject(id: string): Promise<Project | null> {
   const [row, technicians] = await Promise.all([
     db.project.findUnique({ where: { id } }),
-    getProjectTechnicians(id),
+    getProjectTechnicians(id).catch(() => [] as Awaited<ReturnType<typeof getProjectTechnicians>>),
   ]);
   return row ? { ...toProject(row), technicians } : null;
 }

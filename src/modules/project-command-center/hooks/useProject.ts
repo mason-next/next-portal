@@ -12,9 +12,13 @@ export function useProject(projectId: string) {
 
   useEffect(() => {
     let active = true;
-    getProject(projectId).then((project) => {
-      if (active) setLoaded({ projectId, project });
-    });
+    getProject(projectId)
+      .then((project) => {
+        if (active) setLoaded({ projectId, project });
+      })
+      .catch(() => {
+        if (active) setLoaded({ projectId, project: null });
+      });
     return () => {
       active = false;
     };
