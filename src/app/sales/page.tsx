@@ -1,46 +1,45 @@
+"use client";
+
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { getDealDeskQuotes } from "@/lib/data/deal-desk";
 import { getSalesLogos, getSalesActivities } from "@/lib/data/sales-activity";
 import { calcFinancials } from "@/modules/deal-desk/lib/financial-calc";
 import { getWeekStart } from "@/types/sales";
+import type { DealDeskQuote } from "@/types/deal-desk";
+import type { SalesLogo } from "@/types/sales";
 
-async function getTechNews() {
-  try {
-    const res = await fetch(
-      "https://feeds.feedburner.com/TechCrunch",
-      { next: { revalidate: 3600 } }
-    );
-    if (!res.ok) return [];
-    const xml = await res.text();
-    const items: { title: string; link: string; pub: string }[] = [];
-    const itemRegex = /<item>([\s\S]*?)<\/item>/g;
-    let match;
-    while ((match = itemRegex.exec(xml)) !== null && items.length < 5) {
-      const inner = match[1];
-      const title = inner.match(/<title><!\[CDATA\[(.*?)\]\]><\/title>/)?.[1] ??
-                    inner.match(/<title>(.*?)<\/title>/)?.[1] ?? "";
-      const link = inner.match(/<link>(.*?)<\/link>/)?.[1] ?? "";
-      const pub = inner.match(/<pubDate>(.*?)<\/pubDate>/)?.[1] ?? "";
-      if (title && link) items.push({ title, link, pub });
-    }
-    return items;
-  } catch {
-    return [];
-  }
-}
+interface NewsItem { title: string; link: string; pub: string }
 
-export default async function SalesDashboardPage() {
-  const [quotes, logos, activities, news] = await Promise.all([
-    getDealDeskQuotes(),
-    getSalesLogos(),
-    getSalesActivities({ weekStart: getWeekStart() }),
-    getTechNews(),
-  ]);
+export default function SalesDashboardPage() {
+  const [quotes, setQuotes] = useState<DealDeskQuote[]>([]);
+  const [logos, setLogos] = useState<SalesLogo[]>([]);
+  const [activityCount, setActivityCount] = useState(0);
+  const [news, setNews] = useState<NewsItem[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    Promise.all([
+      getDealDeskQuotes(),
+      getSalesLogos(),
+      getSalesActivities({ weekStart: getWeekStart() }),
+    ]).then(([q, l, a]) => {
+      setQuotes(q);
+      setLogos(l);
+      setActivityCount(a.length);
+      setLoading(false);
+    });
+
+    // Fetch news separately so it doesn't block the main data
+    fetch("/api/sales/news")
+      .then((r) => r.json())
+      .then((data) => setNews(data))
+      .catch(() => {});
+  }, []);
 
   const totalRevenue = quotes.reduce((s, q) => s + calcFinancials(q.categories).revenueCents, 0);
   const pipelineCount = logos.filter((l) => !["Closed Won", "Closed Lost"].includes(l.stage)).length;
   const closedWon = logos.filter((l) => l.stage === "Closed Won").length;
-  const weekActivities = activities.length;
 
   const recentQuotes = quotes
     .slice()
@@ -49,7 +48,6 @@ export default async function SalesDashboardPage() {
 
   return (
     <div className="mx-auto max-w-7xl p-8 space-y-8">
-      {/* Header */}
       <div>
         <h1 className="text-xl font-semibold tracking-tight">Sales Dashboard</h1>
         <p className="text-sm text-muted-foreground mt-0.5">Overview of pipeline, activity, and recent deals</p>
@@ -58,10 +56,10 @@ export default async function SalesDashboardPage() {
       {/* KPI Cards */}
       <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
         {[
-          { label: "Total Quote Revenue", value: `$${(totalRevenue / 100).toLocaleString("en-US", { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`, sub: `${quotes.length} quotes` },
-          { label: "Active Pipeline", value: pipelineCount.toString(), sub: `${logos.length} total companies` },
-          { label: "Closed Won", value: closedWon.toString(), sub: "of tracked companies" },
-          { label: "Activities This Week", value: weekActivities.toString(), sub: "logged this week" },
+          { label: "Total Quote Revenue", value: loading ? "—" : `$${(totalRevenue / 100).toLocaleString("en-US", { maximumFractionDigits: 0 })}`, sub: `${quotes.length} quotes` },
+          { label: "Active Pipeline", value: loading ? "—" : pipelineCount.toString(), sub: `${logos.length} total companies` },
+          { label: "Closed Won", value: loading ? "—" : closedWon.toString(), sub: "of tracked companies" },
+          { label: "Activities This Week", value: loading ? "—" : activityCount.toString(), sub: "logged this week" },
         ].map(({ label, value, sub }) => (
           <div key={label} className="rounded-xl border bg-card p-5">
             <div className="text-xs text-muted-foreground">{label}</div>
@@ -89,7 +87,11 @@ export default async function SalesDashboardPage() {
                 </tr>
               </thead>
               <tbody className="divide-y">
-                {recentQuotes.map((q) => {
+                {loading ? (
+                  <tr><td colSpan={4} className="px-4 py-8 text-center text-sm text-muted-foreground">Loading…</td></tr>
+                ) : recentQuotes.length === 0 ? (
+                  <tr><td colSpan={4} className="px-4 py-8 text-center text-sm text-muted-foreground">No quotes yet.</td></tr>
+                ) : recentQuotes.map((q) => {
                   const f = calcFinancials(q.categories);
                   return (
                     <tr key={q.id} className="hover:bg-muted/20">
@@ -104,9 +106,6 @@ export default async function SalesDashboardPage() {
                     </tr>
                   );
                 })}
-                {recentQuotes.length === 0 && (
-                  <tr><td colSpan={4} className="px-4 py-8 text-center text-sm text-muted-foreground">No quotes yet.</td></tr>
-                )}
               </tbody>
             </table>
           </div>
@@ -117,21 +116,11 @@ export default async function SalesDashboardPage() {
           <h2 className="text-sm font-semibold">Tech News</h2>
           <div className="rounded-xl border bg-card divide-y overflow-hidden">
             {news.length === 0 ? (
-              <div className="p-5 text-sm text-muted-foreground">News feed unavailable.</div>
+              <div className="p-5 text-sm text-muted-foreground">Loading news…</div>
             ) : news.map((item, i) => (
-              <a
-                key={i}
-                href={item.link}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="block p-4 hover:bg-muted/20 transition-colors"
-              >
+              <a key={i} href={item.link} target="_blank" rel="noopener noreferrer" className="block p-4 hover:bg-muted/20 transition-colors">
                 <p className="text-sm font-medium line-clamp-2 leading-snug">{item.title}</p>
-                {item.pub && (
-                  <p className="text-xs text-muted-foreground mt-1">
-                    {new Date(item.pub).toLocaleDateString()}
-                  </p>
-                )}
+                {item.pub && <p className="text-xs text-muted-foreground mt-1">{new Date(item.pub).toLocaleDateString()}</p>}
               </a>
             ))}
           </div>
@@ -147,15 +136,12 @@ export default async function SalesDashboardPage() {
             <Link href="/sales/activity" className="text-xs text-primary hover:underline">Manage →</Link>
           </div>
           <div className="grid grid-cols-3 gap-3 sm:grid-cols-6">
-            {["Prospecting","Qualifying","Proposal","Negotiation","Closed Won","Closed Lost"].map((stage) => {
-              const count = logos.filter((l) => l.stage === stage).length;
-              return (
-                <div key={stage} className="rounded-lg border bg-card p-3 text-center">
-                  <div className="text-xs text-muted-foreground">{stage}</div>
-                  <div className="text-xl font-bold mt-1">{count}</div>
-                </div>
-              );
-            })}
+            {["Prospecting","Qualifying","Proposal","Negotiation","Closed Won","Closed Lost"].map((stage) => (
+              <div key={stage} className="rounded-lg border bg-card p-3 text-center">
+                <div className="text-xs text-muted-foreground">{stage}</div>
+                <div className="text-xl font-bold mt-1">{logos.filter((l) => l.stage === stage).length}</div>
+              </div>
+            ))}
           </div>
         </div>
       )}
