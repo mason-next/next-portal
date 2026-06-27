@@ -1,0 +1,66 @@
+export const TASK_STATUSES = [
+  "Not Started",
+  "In Progress",
+  "Blocked",
+  "Complete",
+  "Cancelled",
+] as const;
+
+export type ImplementationTaskStatus = (typeof TASK_STATUSES)[number];
+
+export const TASK_PRIORITIES = ["Low", "Medium", "High", "Critical"] as const;
+export type TaskPriority = (typeof TASK_PRIORITIES)[number];
+
+export interface ImplementationTask {
+  id: string;
+  projectId: string;
+  title: string;
+  description: string;
+  status: ImplementationTaskStatus;
+  priority: TaskPriority;
+  percentComplete: number; // 0–100
+  assigneeId: string | null;
+  assigneeName: string | null;
+  createdById: string | null;
+  startDate: string | null; // ISO
+  dueDate: string | null;   // ISO
+  completedAt: string | null;
+  sortOrder: number;
+  parentTaskId: string | null;
+  notes: string;
+  tags: string[];
+  subtaskCount: number;
+  completedSubtaskCount: number;
+  commentCount: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface ImplementationTaskComment {
+  id: string;
+  taskId: string;
+  userId: string | null;
+  userName: string;
+  richContent: Record<string, unknown> | null;
+  plainText: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface CreateTaskInput {
+  title: string;
+  description?: string;
+  status?: ImplementationTaskStatus;
+  priority?: TaskPriority;
+  percentComplete?: number;
+  assigneeId?: string | null;
+  startDate?: string | null;
+  dueDate?: string | null;
+  parentTaskId?: string | null;
+  notes?: string;
+  tags?: string[];
+}
+
+export interface UpdateTaskInput extends Partial<CreateTaskInput> {
+  completedAt?: string | null;
+}
