@@ -33,6 +33,10 @@ export function PayoutPanel({ quote, onUpdate }: PayoutPanelProps) {
   function recordPayment() {
     const pct = parseFloat(paymentPct);
     if (isNaN(pct) || pct <= 0) return;
+    if (summary.paidPct + pct > 100) {
+      alert(`This payment (${pct}%) would bring total paid to ${(summary.paidPct + pct).toFixed(1)}%, which exceeds 100%. Reduce the amount and try again.`);
+      return;
+    }
     const event: PayoutEvent = {
       id: crypto.randomUUID(),
       date: new Date().toISOString(),
@@ -176,6 +180,16 @@ export function PayoutPanel({ quote, onUpdate }: PayoutPanelProps) {
                 </button>
               </div>
             ))}
+            {(() => {
+              const milestoneSum = editingMilestones.reduce((s, m) => s + (m.commissionPct || 0), 0);
+              if (milestoneSum !== 100) {
+                return (
+                  <p className="text-xs text-amber-600 font-medium">
+                    Commission % values sum to {milestoneSum}% — they should total 100% to release the full pool.
+                  </p>
+                );
+              }
+            })()}
             <div className="flex gap-2 pt-2">
               <Button variant="outline" size="sm" onClick={addMilestone}>+ Add Milestone</Button>
               <Button variant="outline" size="sm" onClick={resetMilestones}>Reset to 50/40/10</Button>

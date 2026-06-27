@@ -76,20 +76,24 @@ export default function MyCommissionsPage() {
     owedCents: rows.reduce((s, r) => s + r.owedCents, 0),
   }), [rows]);
 
+  function csvCell(val: string): string {
+    return `"${val.replace(/"/g, '""')}"`;
+  }
+
   function exportCSV() {
     const headers = ["Project", "Customer", "Quarter", "Role", "Rate %", "Total Commission", "Billing %", "Earned", "Paid", "Owed", "Status"];
     const csvRows = rows.map((r) => [
-      `"${r.projectName}"`,
-      `"${r.customer}"`,
-      `"${r.quarter}"`,
-      `"${r.role}"`,
+      csvCell(r.projectName),
+      csvCell(r.customer),
+      csvCell(r.quarter),
+      csvCell(r.role),
       (r.rateBps / 100).toFixed(2),
       (r.totalCents / 100).toFixed(2),
       r.billingPct.toFixed(0),
       (r.earnedCents / 100).toFixed(2),
       (r.paidCents / 100).toFixed(2),
       (r.owedCents / 100).toFixed(2),
-      `"${r.commissionStatus}"`,
+      csvCell(r.commissionStatus),
     ]);
     const totalRow = [
       '"TOTAL"', '""', '""', '""', '""',
