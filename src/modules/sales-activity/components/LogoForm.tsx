@@ -3,25 +3,33 @@
 import { useState } from "react";
 import type { SalesLogo } from "@/types/sales";
 import { LOGO_STAGES } from "@/types/sales";
+import { UserPicker } from "@/components/shared/UserPicker";
+import type { AppUser } from "@/types/user";
 
 interface LogoFormProps {
   initial?: Partial<SalesLogo>;
-  teamMembers?: string[];
   onSave: (logo: Partial<SalesLogo> & { company: string }) => void;
   onCancel: () => void;
 }
 
-export function LogoForm({ initial, teamMembers = [], onSave, onCancel }: LogoFormProps) {
+export function LogoForm({ initial, onSave, onCancel }: LogoFormProps) {
   const [company, setCompany] = useState(initial?.company ?? "");
   const [domain, setDomain] = useState(initial?.domain ?? "");
   const [stage, setStage] = useState<string>(initial?.stage ?? "Prospecting");
-  const [ownerName, setOwnerName] = useState(initial?.ownerName ?? "");
+  const [owner, setOwner] = useState<AppUser | null>(null);
   const [notes, setNotes] = useState(initial?.notes ?? "");
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (!company.trim()) return;
-    onSave({ ...(initial?.id ? { id: initial.id } : {}), company: company.trim(), domain: domain.trim(), stage: stage as SalesLogo["stage"], ownerName, notes });
+    onSave({
+      ...(initial?.id ? { id: initial.id } : {}),
+      company: company.trim(),
+      domain: domain.trim(),
+      stage: stage as SalesLogo["stage"],
+      ownerName: owner?.name ?? "",
+      notes,
+    });
   }
 
   return (
@@ -56,26 +64,14 @@ export function LogoForm({ initial, teamMembers = [], onSave, onCancel }: LogoFo
             {LOGO_STAGES.map((s) => <option key={s} value={s}>{s}</option>)}
           </select>
         </label>
-        <label className="space-y-1 col-span-2">
+        <div className="space-y-1 col-span-2">
           <span className="text-xs font-medium text-muted-foreground">Owner / Rep</span>
-          {teamMembers.length > 0 ? (
-            <select
-              value={ownerName}
-              onChange={(e) => setOwnerName(e.target.value)}
-              className="w-full rounded-md border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
-            >
-              <option value="">— Unassigned —</option>
-              {teamMembers.map((m) => <option key={m} value={m}>{m}</option>)}
-            </select>
-          ) : (
-            <input
-              value={ownerName}
-              onChange={(e) => setOwnerName(e.target.value)}
-              className="w-full rounded-md border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
-              placeholder="Name"
-            />
-          )}
-        </label>
+          <UserPicker
+            value={owner?.id ?? ""}
+            onChange={(u) => setOwner(u)}
+            placeholder="Assign to a user…"
+          />
+        </div>
         <label className="space-y-1 col-span-2">
           <span className="text-xs font-medium text-muted-foreground">Notes</span>
           <textarea

@@ -1,14 +1,16 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useState } from "react";
 import { Button } from "@/components/ui/button";
+import { UserPicker } from "@/components/shared/UserPicker";
 import { parseConnectWiseXls } from "@/modules/deal-desk/lib/xls-parser";
 import { calcFinancials, fmtUSD, fmtPct } from "@/modules/deal-desk/lib/financial-calc";
-import type { DealDeskQuote, DealCategory, TeamMember, CategoryName, ProjectType } from "@/types/deal-desk";
+import type { DealDeskQuote, DealCategory, CategoryName, ProjectType } from "@/types/deal-desk";
 import { CATEGORY_NAMES, PROJECT_TYPES, DEFAULT_PAYOUT_MILESTONES } from "@/types/deal-desk";
 import type { AppUser } from "@/types/user";
 import { CURRENT_USER } from "@/lib/current-user";
 import { cn } from "@/lib/utils";
+import { useRef } from "react";
 
 interface ImportModalProps {
   onClose: () => void;
@@ -21,152 +23,13 @@ function currentQuarter(): string {
   return `Q${q} ${now.getFullYear()}`;
 }
 
-const DEFAULT_TEAM: Omit<TeamMember, "id">[] = [
-  { name: "", role: "Enterprise Director", matrixKey: "director" },
-  { name: "", role: "Account Executive",   matrixKey: "bd" },
-  { name: "", role: "Design Engineer",     matrixKey: "de" },
-];
-
-// ── User avatar ───────────────────────────────────────────────────────────────
-
-function Avatar({ user, size = 28 }: { user: AppUser; size?: number }) {
-  const initials = user.name.split(" ").map((w) => w[0]).join("").slice(0, 2).toUpperCase();
-  if (user.avatarUrl) {
-    return <img src={user.avatarUrl} alt={user.name} style={{ width: size, height: size, borderRadius: "50%", objectFit: "cover", flexShrink: 0 }} />;
-  }
-  return (
-    <div style={{ width: size, height: size, borderRadius: "50%", background: "hsl(var(--primary)/0.12)", color: "hsl(var(--primary))", display: "flex", alignItems: "center", justifyContent: "center", fontSize: size * 0.4, fontWeight: 700, flexShrink: 0 }}>
-      {initials}
-    </div>
-  );
-}
-
-// ── User picker dropdown ──────────────────────────────────────────────────────
-
-function UserPicker({
-  users,
-  value,
-  onChange,
-  placeholder = "Search users…",
-}: {
-  users: AppUser[];
-  value: string;           // user ID or ""
-  onChange: (user: AppUser | null) => void;
-  placeholder?: string;
-}) {
-  const [open, setOpen] = useState(false);
-  const [query, setQuery] = useState("");
-  const ref = useRef<HTMLDivElement>(null);
-  const inputRef = useRef<HTMLInputElement>(null);
-
-  const selected = users.find((u) => u.id === value) ?? null;
-
-  const filtered = query
-    ? users.filter((u) => u.name.toLowerCase().includes(query.toLowerCase()) || u.title.toLowerCase().includes(query.toLowerCase()))
-    : users;
-
-  // Close on outside click
-  useEffect(() => {
-    function handle(e: MouseEvent) {
-      if (ref.current && !ref.current.contains(e.target as Node)) {
-        setOpen(false); setQuery("");
-      }
-    }
-    document.addEventListener("mousedown", handle);
-    return () => document.removeEventListener("mousedown", handle);
-  }, []);
-
-  return (
-    <div ref={ref} style={{ position: "relative" }}>
-      {/* Trigger */}
-      <button
-        type="button"
-        onClick={() => { setOpen((o) => !o); setTimeout(() => inputRef.current?.focus(), 50); }}
-        className="w-full flex items-center gap-2 rounded-md border bg-background px-2.5 py-1.5 text-sm text-left hover:bg-muted/40 transition-colors"
-      >
-        {selected ? (
-          <>
-            <Avatar user={selected} size={22} />
-            <div className="min-w-0 flex-1">
-              <div className="font-medium truncate">{selected.name}</div>
-            </div>
-            <button
-              type="button"
-              onClick={(e) => { e.stopPropagation(); onChange(null); setQuery(""); }}
-              className="text-muted-foreground hover:text-foreground text-xs ml-auto flex-shrink-0"
-            >✕</button>
-          </>
-        ) : (
-          <span className="text-muted-foreground">{placeholder}</span>
-        )}
-      </button>
-
-      {/* Dropdown */}
-      {open && (
-        <div className="absolute z-[200] left-0 right-0 top-full mt-1 rounded-lg border bg-card shadow-xl overflow-hidden" style={{ maxHeight: 260 }}>
-          <div className="p-2 border-b">
-            <input
-              ref={inputRef}
-              type="text"
-              value={query}
-              onChange={(e) => setQuery(e.target.value)}
-              placeholder="Type a name…"
-              className="w-full rounded-md border bg-background px-2.5 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
-            />
-          </div>
-          <div style={{ overflowY: "auto", maxHeight: 200 }}>
-            {filtered.length === 0 ? (
-              <div className="px-3 py-4 text-center text-sm text-muted-foreground">No users found</div>
-            ) : (
-              filtered.map((u) => (
-                <button
-                  key={u.id}
-                  type="button"
-                  onClick={() => { onChange(u); setOpen(false); setQuery(""); }}
-                  className={cn(
-                    "w-full flex items-center gap-2.5 px-3 py-2 text-sm text-left hover:bg-muted/50 transition-colors",
-                    u.id === value && "bg-primary/8 text-primary"
-                  )}
-                >
-                  <Avatar user={u} size={28} />
-                  <div className="min-w-0">
-                    <div className="font-medium truncate">{u.name}</div>
-                    <div className="text-xs text-muted-foreground truncate">{u.title}</div>
-                  </div>
-                </button>
-              ))
-            )}
-          </div>
-          {/* Create new user shortcut */}
-          <div className="border-t px-3 py-2">
-            <a
-              href="/admin"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="flex items-center gap-1.5 text-xs text-primary hover:underline"
-              onClick={() => { setOpen(false); setQuery(""); }}
-            >
-              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="12" x2="12" y1="5" y2="19"/><line x1="5" x2="19" y1="12" y2="12"/></svg>
-              Add a new user in Admin ↗
-            </a>
-          </div>
-        </div>
-      )}
-    </div>
-  );
-}
-
-// ── Main modal ────────────────────────────────────────────────────────────────
-
 export function ImportModal({ onClose, onImported }: ImportModalProps) {
   const fileRef = useRef<HTMLInputElement>(null);
   const [isParsing, setIsParsing] = useState(false);
   const [parseError, setParseError] = useState<string | null>(null);
   const [fileName, setFileName] = useState<string | null>(null);
 
-  const [users, setUsers] = useState<AppUser[]>([]);
-  const [salespersonId, setSalespersonId] = useState("");
-
+  const [salesperson, setSalesperson] = useState<AppUser | null>(null);
   const [customer, setCustomer] = useState("");
   const [projectName, setProjectName] = useState("");
   const [quoteNumber, setQuoteNumber] = useState("");
@@ -174,15 +37,8 @@ export function ImportModal({ onClose, onImported }: ImportModalProps) {
   const [revision, setRevision] = useState("");
   const [projectType, setProjectType] = useState<ProjectType>("Enterprise");
   const [quarter, setQuarter] = useState(currentQuarter());
-
   const [categories, setCategories] = useState<DealCategory[]>([]);
-  const [team, setTeam] = useState<TeamMember[]>(DEFAULT_TEAM.map((m) => ({ ...m, id: crypto.randomUUID() })));
   const [step, setStep] = useState<"upload" | "review">("upload");
-
-  // Fetch users on mount
-  useEffect(() => {
-    fetch("/api/users").then((r) => r.json()).then(setUsers).catch(() => {});
-  }, []);
 
   async function handleFile(file: File) {
     setIsParsing(true);
@@ -216,29 +72,8 @@ export function ImportModal({ onClose, onImported }: ImportModalProps) {
     setCategories((prev) => prev.filter((_, i) => i !== idx));
   }
 
-  function setTeamUser(memberId: string, user: AppUser | null) {
-    setTeam((prev) => prev.map((m) =>
-      m.id === memberId
-        ? { ...m, userId: user?.id ?? undefined, avatarUrl: user?.avatarUrl ?? undefined, name: user?.name ?? "" }
-        : m
-    ));
-  }
-
-  function updateTeamMember(memberId: string, field: keyof TeamMember, value: string) {
-    setTeam((prev) => prev.map((m) => (m.id === memberId ? { ...m, [field]: value } : m)));
-  }
-
-  function addTeamMember() {
-    setTeam((prev) => [...prev, { id: crypto.randomUUID(), name: "", role: "", matrixKey: "custom", customRateBps: 0 }]);
-  }
-
-  function removeTeamMember(id: string) {
-    setTeam((prev) => prev.filter((m) => m.id !== id));
-  }
-
   function handleConfirm() {
     const now = new Date().toISOString();
-    const salesperson = users.find((u) => u.id === salespersonId)?.name ?? "";
     const quote: DealDeskQuote = {
       id: crypto.randomUUID(),
       customer,
@@ -248,14 +83,15 @@ export function ImportModal({ onClose, onImported }: ImportModalProps) {
       revision,
       version: 1,
       projectType,
-      salesperson,
+      salesperson: salesperson?.name ?? "",
       importedAt: now,
       importedBy: CURRENT_USER,
       quarter,
       status: "Pending",
       commissionStatus: "Estimated",
       categories,
-      team: team.filter((m) => m.name.trim() !== ""),
+      // Commission team is set by management after import
+      team: [],
       executiveNotes: "",
       approvalHistory: [],
       auditLog: [{
@@ -348,29 +184,29 @@ export function ImportModal({ onClose, onImported }: ImportModalProps) {
                 <h3 className="text-sm font-semibold mb-3">Project Information</h3>
                 <div className="grid grid-cols-2 gap-3">
                   {([
-                    { label: "Customer", value: customer, set: setCustomer },
-                    { label: "Project Name", value: projectName, set: setProjectName },
-                    { label: "Quote Number", value: quoteNumber, set: setQuoteNumber },
-                    { label: "Opportunity Number", value: opportunityNumber, set: setOpportunityNumber },
-                    { label: "Revision", value: revision, set: setRevision },
-                  ] as const).map(({ label, value, set }) => (
+                    { label: "Customer", value: customer, set: setCustomer, placeholder: "City of Coral Gables" },
+                    { label: "Project Name", value: projectName, set: setProjectName, placeholder: "Network Infrastructure Proposal" },
+                    { label: "Quote Number", value: quoteNumber, set: setQuoteNumber, placeholder: "065511" },
+                    { label: "Opportunity Number", value: opportunityNumber, set: setOpportunityNumber, placeholder: "" },
+                    { label: "Revision", value: revision, set: setRevision, placeholder: "v8" },
+                  ] as const).map(({ label, value, set, placeholder }) => (
                     <label key={label} className="space-y-1">
                       <span className="text-xs font-medium text-muted-foreground">{label}</span>
                       <input
                         value={value}
                         onChange={(e) => set(e.target.value)}
+                        placeholder={placeholder}
                         className="w-full rounded-md border bg-background px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
                       />
                     </label>
                   ))}
 
-                  {/* Salesperson — linked to user */}
+                  {/* Salesperson — linked to user directory */}
                   <div className="space-y-1">
                     <span className="text-xs font-medium text-muted-foreground">Salesperson</span>
                     <UserPicker
-                      users={users}
-                      value={salespersonId}
-                      onChange={(u) => setSalespersonId(u?.id ?? "")}
+                      value={salesperson?.id ?? ""}
+                      onChange={(u) => setSalesperson(u)}
                       placeholder="Link to a user…"
                     />
                   </div>
@@ -400,7 +236,10 @@ export function ImportModal({ onClose, onImported }: ImportModalProps) {
               {/* Financial Categories */}
               <div>
                 <div className="flex items-center justify-between mb-3">
-                  <h3 className="text-sm font-semibold">Financial Categories</h3>
+                  <div>
+                    <h3 className="text-sm font-semibold">Financial Categories</h3>
+                    <p className="text-xs text-muted-foreground mt-0.5">Commission rates are derived from Project Type by management</p>
+                  </div>
                   <Button variant="outline" size="sm" onClick={addManualCategory}>+ Add</Button>
                 </div>
                 <div className="rounded-lg border overflow-hidden">
@@ -450,61 +289,6 @@ export function ImportModal({ onClose, onImported }: ImportModalProps) {
                       ))}
                     </tbody>
                   </table>
-                </div>
-              </div>
-
-              {/* Commission Team */}
-              <div>
-                <div className="flex items-center justify-between mb-3">
-                  <div>
-                    <h3 className="text-sm font-semibold">Commission Team</h3>
-                    <p className="text-xs text-muted-foreground mt-0.5">Link each role to a team member from the directory</p>
-                  </div>
-                  <Button variant="outline" size="sm" onClick={addTeamMember}>+ Member</Button>
-                </div>
-
-                <div className="space-y-2">
-                  {team.map((m) => (
-                    <div key={m.id} className="grid gap-2 items-start" style={{ gridTemplateColumns: "1fr 1fr auto auto auto" }}>
-                      {/* User picker */}
-                      <UserPicker
-                        users={users}
-                        value={m.userId ?? ""}
-                        onChange={(u) => setTeamUser(m.id, u)}
-                        placeholder="Pick a person…"
-                      />
-                      {/* Role label */}
-                      <input
-                        value={m.role}
-                        onChange={(e) => updateTeamMember(m.id, "role", e.target.value)}
-                        placeholder="Role title"
-                        className="rounded-md border bg-background px-2.5 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
-                      />
-                      {/* Matrix key */}
-                      <select
-                        value={m.matrixKey}
-                        onChange={(e) => updateTeamMember(m.id, "matrixKey", e.target.value)}
-                        className="rounded-md border bg-background px-2 py-1.5 text-sm focus:outline-none"
-                      >
-                        <option value="director">Director rate</option>
-                        <option value="bd">BD rate</option>
-                        <option value="de">DE rate</option>
-                        <option value="custom">Custom %</option>
-                      </select>
-                      {/* Custom rate */}
-                      {m.matrixKey === "custom" ? (
-                        <input
-                          type="number"
-                          value={((m.customRateBps ?? 0) / 100).toFixed(2)}
-                          onChange={(e) => updateTeamMember(m.id, "customRateBps", String(Math.round(parseFloat(e.target.value || "0") * 100)))}
-                          placeholder="Rate %"
-                          className="w-20 rounded-md border bg-background px-2 py-1.5 text-sm focus:outline-none"
-                        />
-                      ) : <div />}
-                      {/* Remove */}
-                      <button type="button" onClick={() => removeTeamMember(m.id)} className="text-muted-foreground hover:text-destructive text-xs mt-2">✕</button>
-                    </div>
-                  ))}
                 </div>
               </div>
 
