@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { parseConnectWiseXls } from "@/modules/deal-desk/lib/xls-parser";
 import { calcFinancials, fmtUSD, fmtPct } from "@/modules/deal-desk/lib/financial-calc";
 import type { DealDeskQuote, DealCategory, TeamMember, CategoryName, ProjectType } from "@/types/deal-desk";
-import { CATEGORY_NAMES, PROJECT_TYPES } from "@/types/deal-desk";
+import { CATEGORY_NAMES, PROJECT_TYPES, DEFAULT_PAYOUT_MILESTONES } from "@/types/deal-desk";
 import { CURRENT_USER } from "@/lib/current-user";
 import { cn } from "@/lib/utils";
 
@@ -123,6 +123,9 @@ export function ImportModal({ onClose, onImported }: ImportModalProps) {
       sourceFiles: fileName ? [fileName] : [],
       createdAt: now,
       updatedAt: now,
+      billingCompletionPct: 0,
+      milestones: DEFAULT_PAYOUT_MILESTONES,
+      payoutEvents: [],
     };
     onImported(quote);
   }

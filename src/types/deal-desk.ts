@@ -54,6 +54,35 @@ export interface AuditEntry {
   timestamp: string;
 }
 
+export interface PayoutMilestone {
+  id: string;
+  label: string;
+  triggerBillingPct: number; // milestone triggers when billingCompletionPct >= this
+  commissionPct: number;     // % of total commission pool earned at this milestone
+}
+
+export interface PayoutEvent {
+  id: string;
+  date: string;
+  commissionPctReleased: number; // % of total commission pool actually paid out
+  notes: string;
+  recordedBy: string;
+}
+
+export const DEFAULT_PAYOUT_MILESTONES: PayoutMilestone[] = [
+  { id: "m1", label: "Contract Signing",  triggerBillingPct: 0,  commissionPct: 50 },
+  { id: "m2", label: "Project Delivery",  triggerBillingPct: 50, commissionPct: 40 },
+  { id: "m3", label: "Project Closeout",  triggerBillingPct: 90, commissionPct: 10 },
+];
+
+// UI preference only — not domain data. Stored in localStorage.
+export type DealDeskRole = "management" | "salesperson";
+
+export interface DealDeskUser {
+  name: string;
+  role: DealDeskRole;
+}
+
 export interface DealDeskQuote {
   id: string;
   customer: string;
@@ -77,4 +106,7 @@ export interface DealDeskQuote {
   sourceFiles: string[];
   createdAt: string;
   updatedAt: string;
+  billingCompletionPct: number;
+  milestones: PayoutMilestone[];
+  payoutEvents: PayoutEvent[];
 }
