@@ -13,6 +13,7 @@ const ROLE_FROM_DB: Record<PrismaRole, UserRole> = {
   [PrismaRole.ProjectManager]: "Project Manager",
   [PrismaRole.EngineeringManager]: "Engineering Manager",
   [PrismaRole.ProcurementManager]: "Procurement Manager",
+  [PrismaRole.Salesperson]: "Salesperson",
   [PrismaRole.Member]: "Member",
 };
 
@@ -21,6 +22,7 @@ const ROLE_TO_DB: Record<UserRole, PrismaRole> = {
   "Project Manager": PrismaRole.ProjectManager,
   "Engineering Manager": PrismaRole.EngineeringManager,
   "Procurement Manager": PrismaRole.ProcurementManager,
+  Salesperson: PrismaRole.Salesperson,
   Member: PrismaRole.Member,
 };
 
