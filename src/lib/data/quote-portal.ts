@@ -101,8 +101,15 @@ export async function deleteQuotePresentation(id: string): Promise<void> {
   await db.quotePresentation.delete({ where: { id } });
 }
 
-export async function logQuoteAccess(slug: string, email: string): Promise<void> {
-  const quote = await db.quotePresentation.findUnique({ where: { slug }, select: { id: true, isActive: true } });
+export async function logQuoteAccess(
+  slug: string,
+  email: string
+): Promise<{ quoteId: string; htmlFile: string; storageKey: string }> {
+  const quote = await db.quotePresentation.findUnique({
+    where: { slug },
+    select: { id: true, isActive: true, htmlFile: true, storageKey: true },
+  });
   if (!quote || !quote.isActive) throw new Error("Presentation not found or no longer available.");
   await db.quoteAccessLog.create({ data: { quoteId: quote.id, email, ip: "", userAgent: "" } });
+  return { quoteId: quote.id, htmlFile: quote.htmlFile, storageKey: quote.storageKey };
 }

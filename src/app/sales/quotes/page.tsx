@@ -3,10 +3,11 @@
 import { useState } from "react";
 import Link from "next/link";
 import { useQuotePortal } from "@/modules/quote-portal/lib/useQuotePortal";
+import { UploadButton } from "@/modules/quote-portal/components/UploadButton";
 import { CURRENT_USER } from "@/lib/current-user";
 
 export default function QuotePortalAdminPage() {
-  const { quotes, isLoading, create, toggle, remove } = useQuotePortal();
+  const { quotes, isLoading, create, toggle, remove, bump } = useQuotePortal();
   const [showForm, setShowForm] = useState(false);
   const [slug, setSlug] = useState("");
   const [title, setTitle] = useState("");
@@ -116,7 +117,8 @@ export default function QuotePortalAdminPage() {
                     </span>
                   </td>
                   <td className="px-4 py-3 text-right">
-                    <div className="flex items-center justify-end gap-2">
+                    <div className="flex items-center justify-end gap-3">
+                      <UploadButton quoteId={q.id} hasFile={!!q.storageKey} onUploaded={bump} />
                       <button onClick={() => toggle(q.id)} className="text-xs text-muted-foreground hover:text-foreground">
                         {q.isActive ? "Deactivate" : "Activate"}
                       </button>
@@ -135,9 +137,6 @@ export default function QuotePortalAdminPage() {
         </div>
       )}
 
-      <div className="rounded-lg border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800">
-        <strong>Note:</strong> File upload for presentations is pending a storage decision (Railway Volume vs S3). Once confirmed, each presentation will have an upload button to attach the HTML presentation package.
-      </div>
     </div>
   );
 }

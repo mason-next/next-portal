@@ -6,7 +6,8 @@ import { logQuoteAccess } from "@/lib/data/quote-portal";
 export default function CustomerQuotePage({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = use(params);
   const [email, setEmail] = useState("");
-  const [submitted, setSubmitted] = useState(false);
+  const [serveUrl, setServeUrl] = useState<string | null>(null);
+  const [noFile, setNoFile] = useState(false);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
@@ -19,8 +20,14 @@ export default function CustomerQuotePage({ params }: { params: Promise<{ slug: 
     }
     setLoading(true);
     try {
-      await logQuoteAccess(slug, trimmed);
-      setSubmitted(true);
+      const { quoteId, htmlFile, storageKey } = await logQuoteAccess(slug, trimmed);
+      if (storageKey) {
+        // Build the serve URL: /api/quotes/serve/quotes/<id>/<htmlFile>
+        const filePath = htmlFile.replace(/^\/+/, "");
+        setServeUrl(`/api/quotes/serve/quotes/${quoteId}/${filePath}`);
+      } else {
+        setNoFile(true);
+      }
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : "Presentation not found or no longer available.";
       setError(msg);
@@ -29,17 +36,28 @@ export default function CustomerQuotePage({ params }: { params: Promise<{ slug: 
     }
   }
 
-  if (submitted) {
+  // Presentation loaded — show it fullscreen in an iframe
+  if (serveUrl) {
+    return (
+      <iframe
+        src={serveUrl}
+        className="fixed inset-0 w-full h-full border-0"
+        title="Presentation"
+        sandbox="allow-scripts allow-same-origin allow-popups"
+      />
+    );
+  }
+
+  // Access logged but no file uploaded yet
+  if (noFile) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center p-4">
         <div className="w-full max-w-md rounded-xl border bg-card shadow-lg p-8 text-center space-y-4">
           <div className="text-3xl">✓</div>
-          <h1 className="text-lg font-semibold">You&apos;re in</h1>
+          <h1 className="text-lg font-semibold">Access confirmed</h1>
           <p className="text-sm text-muted-foreground">
-            Your presentation is ready. The team will follow up at <strong>{email}</strong>.
-          </p>
-          <p className="text-xs text-muted-foreground mt-4">
-            (Presentation file delivery is coming soon — this confirms your access has been logged.)
+            Your access has been logged. The team will send the presentation to{" "}
+            <strong>{email}</strong> shortly.
           </p>
         </div>
       </div>
