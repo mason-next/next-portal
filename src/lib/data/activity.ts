@@ -95,7 +95,11 @@ export async function addProjectComment(
     richContent: payload.richContent,
   });
 
-  await notifyMentionedUsers(projectId, comment, userName, payload.richContent, actingUserId ?? null);
+  try {
+    await notifyMentionedUsers(projectId, comment, userName, payload.richContent, actingUserId ?? null);
+  } catch (err) {
+    console.error("[addProjectComment] mention notifications failed:", err);
+  }
 
   return comment;
 }

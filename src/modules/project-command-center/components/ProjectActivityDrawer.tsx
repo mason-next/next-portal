@@ -163,11 +163,14 @@ export function ProjectActivityDrawer({ projectId }: { projectId: string }) {
     const editor = editorRef.current;
     if (!editor || editor.isEmpty()) return;
     setSubmitting(true);
-    await addProjectComment(projectId, CURRENT_USER, editor.getPayload(), CURRENT_USER_ID);
-    editor.clear();
-    setIsDraftEmpty(true);
-    setSubmitting(false);
-    refresh();
+    try {
+      await addProjectComment(projectId, CURRENT_USER, editor.getPayload(), CURRENT_USER_ID);
+      editor.clear();
+      setIsDraftEmpty(true);
+    } finally {
+      setSubmitting(false);
+      refresh();
+    }
   }
 
   async function handleDelete(activityId: string) {
