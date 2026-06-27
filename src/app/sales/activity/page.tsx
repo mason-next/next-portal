@@ -9,11 +9,10 @@ import { LogoForm } from "@/modules/sales-activity/components/LogoForm";
 import { ActivityLogForm } from "@/modules/sales-activity/components/ActivityLogForm";
 import { ActivityFeed, ActivitySummaryCards } from "@/modules/sales-activity/components/ActivityFeed";
 import { formatWeekLabel } from "@/types/sales";
-import type { SalesLogo, SalesActivity } from "@/types/sales";
-import type { DealDeskRole } from "@/types/deal-desk";
+import type { SalesLogo } from "@/types/sales";
 
 export default function SalesActivityPage() {
-  const { user, setUser, isManagement } = useDealDeskUser();
+  const { userName, isManagement, actuallyManagement, previewAsSalesperson, togglePreview } = useDealDeskUser();
   const { logos, activities, summary, isLoading, weekStart, setWeekStart, saveLogo, removeLogo, logActivity, removeActivity } = useSalesActivity();
 
   const [showLogoForm, setShowLogoForm] = useState(false);
@@ -23,7 +22,6 @@ export default function SalesActivityPage() {
 
   const filteredLogos = stageFilter === "All" ? logos : logos.filter((l) => l.stage === stageFilter);
 
-  // week navigation
   function prevWeek() {
     const d = new Date(weekStart);
     d.setDate(d.getDate() - 7);
@@ -52,26 +50,24 @@ export default function SalesActivityPage() {
           <h1 className="text-xl font-semibold tracking-tight">Sales Activity</h1>
           <p className="text-sm text-muted-foreground mt-0.5">Track prospects and log weekly sales activities</p>
         </div>
-        <div className="flex items-center gap-3 flex-wrap">
-          {/* Role selector */}
-          <div className="flex items-center gap-2 rounded-lg border bg-card px-3 py-2">
-            <span className="text-xs text-muted-foreground">Viewing as</span>
-            <input
-              value={user.name}
-              onChange={(e) => setUser({ ...user, name: e.target.value })}
-              className="text-sm font-medium bg-transparent focus:outline-none w-28"
-              placeholder="Your name"
-            />
-            <span className="text-muted-foreground">·</span>
-            <select
-              value={user.role}
-              onChange={(e) => setUser({ ...user, role: e.target.value as DealDeskRole })}
-              className="text-sm bg-transparent focus:outline-none"
+        <div className="flex items-center gap-3">
+          {/* Management-only: preview toggle */}
+          {actuallyManagement && (
+            <button
+              onClick={togglePreview}
+              className={`inline-flex items-center gap-1.5 rounded-md border px-3 py-1.5 text-xs font-medium transition-colors ${
+                previewAsSalesperson
+                  ? "bg-amber-50 border-amber-300 text-amber-700 dark:bg-amber-900/20 dark:border-amber-700 dark:text-amber-400"
+                  : "text-muted-foreground hover:bg-muted"
+              }`}
+              title="Toggle between management overview and salesperson view"
             >
-              <option value="management">Management</option>
-              <option value="salesperson">Salesperson</option>
-            </select>
-          </div>
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/>
+              </svg>
+              {previewAsSalesperson ? "Previewing as Salesperson" : "Management View"}
+            </button>
+          )}
           <button
             onClick={() => { setEditingLogo(null); setShowLogoForm(true); }}
             className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 transition-colors"
@@ -87,7 +83,7 @@ export default function SalesActivityPage() {
           <button
             key={t}
             onClick={() => setTab(t)}
-            className={`rounded-md px-4 py-1.5 text-sm font-medium transition-colors capitalize ${tab === t ? "bg-card shadow-sm text-foreground" : "text-muted-foreground hover:text-foreground"}`}
+            className={`rounded-md px-4 py-1.5 text-sm font-medium transition-colors ${tab === t ? "bg-card shadow-sm text-foreground" : "text-muted-foreground hover:text-foreground"}`}
           >
             {t === "board" ? "Pipeline Board" : "Activity Log"}
           </button>
@@ -98,7 +94,6 @@ export default function SalesActivityPage() {
         <div className="py-16 text-center text-sm text-muted-foreground">Loading…</div>
       ) : (
         <>
-          {/* Logo Form Modal */}
           {showLogoForm && (
             <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
               <div className="w-full max-w-lg rounded-xl border bg-card shadow-xl p-6">
@@ -114,7 +109,6 @@ export default function SalesActivityPage() {
 
           {tab === "board" && (
             <div className="space-y-4">
-              {/* Stage filter */}
               <div className="flex gap-1 flex-wrap">
                 {stages.map((s) => (
                   <button
@@ -148,7 +142,6 @@ export default function SalesActivityPage() {
 
           {tab === "activity" && (
             <div className="space-y-6">
-              {/* Week nav */}
               <div className="flex items-center gap-3">
                 <button onClick={prevWeek} className="rounded-md border px-3 py-1.5 text-sm hover:bg-muted">←</button>
                 <span className="text-sm font-medium">{formatWeekLabel(weekStart)}</span>
@@ -159,7 +152,7 @@ export default function SalesActivityPage() {
 
               <ActivityLogForm
                 logos={logos}
-                currentUser={user.name}
+                currentUser={userName}
                 isManagement={isManagement}
                 onSubmit={logActivity}
               />

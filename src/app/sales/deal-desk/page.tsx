@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useMemo, useState } from "react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { KpiCards } from "@/modules/deal-desk/components/KpiCards";
@@ -8,23 +8,20 @@ import { QuoteTable } from "@/modules/deal-desk/components/QuoteTable";
 import { ImportModal } from "@/modules/deal-desk/components/ImportModal";
 import { useDealDeskStore } from "@/modules/deal-desk/hooks/useDealDeskStore";
 import { useDealDeskUser } from "@/modules/deal-desk/hooks/useDealDeskUser";
-import type { DealDeskQuote, DealDeskRole } from "@/types/deal-desk";
+import type { DealDeskQuote } from "@/types/deal-desk";
 
 export default function DealDeskPage() {
   const { quotes, isLoading, upsert, remove } = useDealDeskStore();
-  const { user, setUser, isManagement } = useDealDeskUser();
+  const { userName, isManagement, actuallyManagement, previewAsSalesperson, togglePreview } = useDealDeskUser();
   const [showImport, setShowImport] = useState(false);
 
-  const allNames = useMemo(() => {
-    const names = new Set<string>();
-    for (const q of quotes) for (const m of q.team) if (m.name) names.add(m.name);
-    return Array.from(names).sort();
-  }, [quotes]);
-
+  // Salesperson view: only show quotes where the user is on the team
   const visibleQuotes = useMemo(() => {
-    if (isManagement || !user.name) return quotes;
-    return quotes.filter((q) => q.team.some((m) => m.name === user.name));
-  }, [quotes, user, isManagement]);
+    if (isManagement) return quotes;
+    return quotes.filter(
+      (q) => q.salesperson === userName || q.team.some((m) => m.name === userName)
+    );
+  }, [quotes, userName, isManagement]);
 
   function handleImported(quote: DealDeskQuote) {
     upsert(quote);
@@ -33,44 +30,49 @@ export default function DealDeskPage() {
 
   return (
     <div className="mx-auto max-w-7xl p-8 space-y-6">
-      <div className="flex items-center gap-2 text-sm text-muted-foreground mb-2">
+      <div className="flex items-center gap-2 text-sm text-muted-foreground">
         <Link href="/sales" className="hover:text-foreground">Sales</Link>
         <span>/</span>
         <span className="text-foreground font-medium">Deal Desk</span>
       </div>
+
       <div className="flex items-center justify-between gap-4 flex-wrap">
         <div>
           <h1 className="text-xl font-semibold tracking-tight">Deal Desk</h1>
           <p className="text-sm text-muted-foreground mt-0.5">Profitability, commissions & executive reporting</p>
         </div>
         <div className="flex items-center gap-3 flex-wrap">
-          <div className="flex items-center gap-2 rounded-lg border bg-card px-3 py-2">
-            <span className="text-xs text-muted-foreground whitespace-nowrap">Viewing as</span>
-            <select
-              value={user.name}
-              onChange={(e) => setUser({ ...user, name: e.target.value })}
-              className="text-sm font-medium bg-transparent focus:outline-none"
+          {/* Management-only: salesperson preview toggle */}
+          {actuallyManagement && (
+            <button
+              onClick={togglePreview}
+              className={`inline-flex items-center gap-1.5 rounded-md border px-3 py-1.5 text-xs font-medium transition-colors ${
+                previewAsSalesperson
+                  ? "bg-amber-50 border-amber-300 text-amber-700 dark:bg-amber-900/20 dark:border-amber-700 dark:text-amber-400"
+                  : "text-muted-foreground hover:bg-muted"
+              }`}
+              title="Toggle salesperson preview — see what a rep would see"
             >
-              <option value="">— Select —</option>
-              {allNames.map((n) => <option key={n} value={n}>{n}</option>)}
-            </select>
-            <span className="text-muted-foreground">·</span>
-            <select
-              value={user.role}
-              onChange={(e) => setUser({ ...user, role: e.target.value as DealDeskRole })}
-              className="text-sm bg-transparent focus:outline-none"
-            >
-              <option value="management">Management</option>
-              <option value="salesperson">Salesperson</option>
-            </select>
-          </div>
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/>
+              </svg>
+              {previewAsSalesperson ? "Previewing as Salesperson" : "Management View"}
+            </button>
+          )}
           <Link href="/sales/deal-desk/my-commissions">
             <Button variant="outline">My Commissions</Button>
           </Link>
-          <Button onClick={() => setShowImport(true)}>
-            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="mr-1.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" x2="12" y1="3" y2="15"/></svg>
-            Import Excel
-          </Button>
+          {/* Import is management only */}
+          {actuallyManagement && (
+            <Button onClick={() => setShowImport(true)}>
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="mr-1.5">
+                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                <polyline points="17 8 12 3 7 8"/>
+                <line x1="12" x2="12" y1="3" y2="15"/>
+              </svg>
+              Import Excel
+            </Button>
+          )}
         </div>
       </div>
 

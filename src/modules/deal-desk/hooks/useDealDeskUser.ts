@@ -1,27 +1,39 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
-import { readGlobal, writeGlobal } from "@/lib/storage/local-store";
-import type { DealDeskUser, DealDeskRole } from "@/types/deal-desk";
+import { useCallback, useState } from "react";
+import { useSession } from "@/lib/auth/client";
+import type { UserRole } from "@/types/user";
 
-const STORE_KEY = "deal-desk:user";
-
-const DEFAULT_USER: DealDeskUser = { name: "", role: "management" };
+const MANAGEMENT_ROLES: UserRole[] = [
+  "Administrator",
+  "Project Manager",
+  "Engineering Manager",
+  "Procurement Manager",
+];
 
 export function useDealDeskUser() {
-  const [user, setUserState] = useState<DealDeskUser>(DEFAULT_USER);
+  const session = useSession();
+  const actuallyManagement = MANAGEMENT_ROLES.includes(session.role);
 
-  useEffect(() => {
-    const stored = readGlobal<DealDeskUser>(STORE_KEY);
-    if (stored) setUserState(stored);
+  // Management can toggle a "preview as salesperson" mode to see what a rep sees
+  const [previewAsSalesperson, setPreviewAsSalesperson] = useState(false);
+
+  const togglePreview = useCallback(() => {
+    setPreviewAsSalesperson((v) => !v);
   }, []);
 
-  const setUser = useCallback((u: DealDeskUser) => {
-    writeGlobal(STORE_KEY, u);
-    setUserState(u);
-  }, []);
+  // Effective management flag — management previewing as salesperson acts like one
+  const isManagement = actuallyManagement && !previewAsSalesperson;
 
-  const isManagement = user.role === "management";
-
-  return { user, setUser, isManagement };
+  return {
+    /** The logged-in user's name */
+    userName: session.name,
+    /** True if the user has a management role (and isn't previewing as salesperson) */
+    isManagement,
+    /** True if the logged-in user is actually management (regardless of preview) */
+    actuallyManagement,
+    /** Whether management is currently previewing the salesperson view */
+    previewAsSalesperson,
+    togglePreview,
+  };
 }
