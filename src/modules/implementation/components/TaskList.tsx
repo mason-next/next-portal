@@ -74,8 +74,8 @@ export function TaskList({ projectId, users }: TaskListProps) {
 
       {drawerOpen && (
         <TaskDrawer
+          key={openTask?.id ?? "new"}
           task={openTask}
-          projectId={projectId}
           users={users}
           onClose={() => setDrawerTask(null)}
           onSave={async (id, input) => {

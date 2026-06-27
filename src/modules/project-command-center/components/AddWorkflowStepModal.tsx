@@ -69,7 +69,7 @@ export function AddWorkflowStepModal({
     <Modal open onClose={onClose} className="max-w-xl">
       <h2 className="mb-1 text-base font-semibold">Add Workflow Step</h2>
       <p className="mb-5 text-sm text-muted-foreground">
-        Custom steps are included in the section's completion percentage.
+        Custom steps are included in the section&apos;s completion percentage.
       </p>
 
       <div className="space-y-4">

@@ -13,7 +13,6 @@ import { getTaskComments, addTaskComment, deleteTaskComment } from "@/lib/data/i
 
 interface TaskDrawerProps {
   task: ImplementationTask | null;
-  projectId: string;
   users: AppUser[];
   onClose: () => void;
   onSave: (taskId: string, input: UpdateTaskInput) => Promise<void>;
@@ -59,9 +58,11 @@ const EMPTY_FORM: FormState = {
   notes: "",
 };
 
-export function TaskDrawer({ task, projectId, users, onClose, onSave, onCreate, onDelete }: TaskDrawerProps) {
+export function TaskDrawer({ task, users, onClose, onSave, onCreate, onDelete }: TaskDrawerProps) {
   const isCreate = task === null;
-  const [form, setForm] = useState<FormState>(task ? toFormState(task) : EMPTY_FORM);
+  // form state is initialized from task on each mount; TaskList passes a key prop so
+  // switching tasks forces a remount rather than relying on a sync setState in effect.
+  const [form, setForm] = useState<FormState>(() => (task ? toFormState(task) : EMPTY_FORM));
   const [comments, setComments] = useState<ImplementationTaskComment[]>([]);
   const [commentText, setCommentText] = useState("");
   const [saving, setSaving] = useState(false);
@@ -69,15 +70,12 @@ export function TaskDrawer({ task, projectId, users, onClose, onSave, onCreate, 
   const [addingComment, setAddingComment] = useState(false);
   const titleRef = useRef<HTMLInputElement>(null);
 
+  const taskId = task?.id;
   useEffect(() => {
-    setForm(task ? toFormState(task) : EMPTY_FORM);
-    if (!isCreate && task) {
-      getTaskComments(task.id).then(setComments);
-    } else {
-      setComments([]);
+    if (!isCreate && taskId) {
+      getTaskComments(taskId).then(setComments);
     }
-    setCommentText("");
-  }, [task, isCreate]);
+  }, [taskId, isCreate]);
 
   useEffect(() => {
     function onKey(e: KeyboardEvent) {
