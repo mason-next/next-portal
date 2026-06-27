@@ -124,12 +124,12 @@ export default function CustomerGatePage({ params }: { params: Promise<{ slug: s
           <div className="card">
             {/* Branding */}
             <div style={{ marginBottom: 32 }}>
-              <div style={{ fontSize: 22, fontWeight: 800, color: "#c8a84b", letterSpacing: 2, textTransform: "uppercase" }}>
-                Mason
-              </div>
-              <div style={{ fontSize: 10, color: "#a8b8cc", letterSpacing: 3, textTransform: "uppercase", marginTop: 4 }}>
-                Technologies
-              </div>
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src="/logo-white.png"
+                alt="Mason Technologies"
+                style={{ height: 48, width: "auto", margin: "0 auto", display: "block" }}
+              />
             </div>
 
             <div style={{ width: 48, height: 2, background: "rgba(200,168,75,0.3)", margin: "0 auto 20px" }} />
