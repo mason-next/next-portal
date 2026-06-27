@@ -1,6 +1,8 @@
 "use client";
 
 import { useEffect, useState, type SyntheticEvent } from "react";
+import { AddWorkflowStepModal } from "./AddWorkflowStepModal";
+import type { AddWorkflowStepInput } from "@/lib/data/workflow";
 import Link from "next/link";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { StatusBadge } from "@/components/shared/StatusBadge";
@@ -26,12 +28,11 @@ const SHOW_WEIGHT_KEY = "workflow-checklist:show-weight";
 
 interface WorkflowChecklistProps {
   projectId: string;
-  // Omitted on the all-sections dashboard view, where there's no single phase to attach a
-  // new step to — the "+ Add step" affordance only renders when both are provided.
+  // When omitted, the "+ Add step" affordance is hidden (e.g. on the all-sections dashboard).
   section?: ProjectSectionKey;
   steps: WorkflowStep[];
   onUpdateStep: (key: string, patch: Partial<WorkflowStep>) => void;
-  onAddStep?: (section: ProjectSectionKey, name: string, dueDate: string | null) => void;
+  onAddStep?: (input: AddWorkflowStepInput) => void;
   onDeleteStep: (key: string) => void;
   percentByKey?: Partial<Record<string, number>>;
 }
@@ -57,9 +58,7 @@ export function WorkflowChecklist({
   const [editingOwnerKey, setEditingOwnerKey] = useState<string | null>(null);
   const [editingWeightKey, setEditingWeightKey] = useState<string | null>(null);
   const [draftWeight, setDraftWeight] = useState("");
-  const [isAddingStep, setIsAddingStep] = useState(false);
-  const [newStepName, setNewStepName] = useState("");
-  const [newStepDueDate, setNewStepDueDate] = useState("");
+  const [showAddModal, setShowAddModal] = useState(false);
   // Group by phase first (Setup, Engineering, Procurement, Implementation, Closeout), then
   // by sortOrder within the phase — sortOrder alone isn't reliable across phases, since
   // custom steps are appended with a global max+1 value regardless of which section they
@@ -134,16 +133,7 @@ export function WorkflowChecklist({
     setEditingWeightKey(null);
   }
 
-  function submitNewStep() {
-    const name = newStepName.trim();
-    if (!name || !section || !onAddStep) return;
-    onAddStep(section, name, newStepDueDate || null);
-    setNewStepName("");
-    setNewStepDueDate("");
-    setIsAddingStep(false);
-  }
-
-  const canAddStep = Boolean(section && onAddStep);
+  const canAddStep = Boolean(onAddStep);
 
   return (
     <>
@@ -151,7 +141,7 @@ export function WorkflowChecklist({
         {canAddStep ? (
           <button
             type="button"
-            onClick={() => setIsAddingStep(true)}
+            onClick={() => setShowAddModal(true)}
             className="text-xs text-muted-foreground underline-offset-2 hover:text-foreground hover:underline"
           >
             + Add step
@@ -330,42 +320,6 @@ export function WorkflowChecklist({
                 </tr>
               );
             })}
-            {canAddStep && isAddingStep ? (
-              <tr className="border-b last:border-b-0 bg-muted/30">
-                <td className="h-11 px-3" colSpan={2}>
-                  <input
-                    type="text"
-                    autoFocus
-                    placeholder="Step name"
-                    className="h-7 w-full rounded-md border border-input bg-background px-1.5 text-xs outline-none focus:border-primary"
-                    value={newStepName}
-                    onChange={(e) => setNewStepName(e.target.value)}
-                    onKeyDown={(e) => {
-                      if (e.key === "Enter") submitNewStep();
-                      if (e.key === "Escape") setIsAddingStep(false);
-                    }}
-                  />
-                </td>
-                <td className="h-11 px-3" colSpan={showWeight ? 3 : 2}>
-                  <input
-                    type="date"
-                    className="h-7 rounded-md border border-input bg-background px-1.5 text-xs outline-none focus:border-primary"
-                    value={newStepDueDate}
-                    onChange={(e) => setNewStepDueDate(e.target.value)}
-                  />
-                </td>
-                <td className="h-11 px-3" colSpan={4}>
-                  <div className="flex items-center gap-2">
-                    <Button size="xs" onClick={submitNewStep}>
-                      Add
-                    </Button>
-                    <Button variant="outline" size="xs" onClick={() => setIsAddingStep(false)}>
-                      Cancel
-                    </Button>
-                  </div>
-                </td>
-              </tr>
-            ) : null}
           </tbody>
         </table>
       </div>
@@ -376,6 +330,18 @@ export function WorkflowChecklist({
           step={activeStep}
           onClose={() => setActiveKey(null)}
           onUpdateStep={onUpdateStep}
+        />
+      ) : null}
+
+      {showAddModal && onAddStep ? (
+        <AddWorkflowStepModal
+          defaultSection={section}
+          existingSteps={orderedSteps}
+          onClose={() => setShowAddModal(false)}
+          onAdd={async (input) => {
+            await onAddStep(input);
+            setShowAddModal(false);
+          }}
         />
       ) : null}
 

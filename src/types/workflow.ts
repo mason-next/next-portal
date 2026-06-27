@@ -60,4 +60,9 @@ export interface WorkflowStep {
   weightOverridden: boolean;
   // True for user-added steps (see addWorkflowStep) — only these can be deleted.
   isCustom: boolean;
+  description: string;
+  // Keys of other WorkflowSteps that must be Complete or Not Needed before this step is available.
+  dependsOnKeys: string[];
+  // "manual" = user sets status; "module" = auto-computed by a MODULE_PROGRESS_PROVIDERS entry.
+  completionRule: "manual" | "module";
 }

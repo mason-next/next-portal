@@ -35,6 +35,9 @@ function step(
     statusOverridden: false,
     weightOverridden,
     isCustom: false,
+    description: "",
+    dependsOnKeys: [],
+    completionRule: "manual",
   };
 }
 

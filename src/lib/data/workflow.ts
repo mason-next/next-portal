@@ -61,6 +61,9 @@ function toStep(p: PrismaStep): WorkflowStep {
     statusOverridden: p.statusOverridden,
     weightOverridden: p.weightOverridden,
     isCustom: p.isCustom,
+    description: p.description,
+    dependsOnKeys: p.dependsOnKeys,
+    completionRule: (p.completionRule === "module" ? "module" : "manual") as "manual" | "module",
     updatedAt: p.updatedAt.toISOString(),
   };
 }
@@ -81,6 +84,9 @@ function toDbCreate(s: WorkflowStep) {
     statusOverridden: s.statusOverridden,
     weightOverridden: s.weightOverridden,
     isCustom: s.isCustom,
+    description: s.description ?? "",
+    dependsOnKeys: s.dependsOnKeys ?? [],
+    completionRule: s.completionRule ?? "manual",
     updatedAt: new Date(s.updatedAt),
   };
 }
@@ -148,6 +154,9 @@ async function reconcileTemplateStepsDb(
     statusOverridden: false,
     weightOverridden: false,
     isCustom: false,
+    description: "",
+    dependsOnKeys: [],
+    completionRule: "manual" as const,
   }));
 
   if (newSteps.length > 0) {
@@ -223,6 +232,9 @@ export async function updateWorkflowStep(
   if ("weightOverridden" in patch) data.weightOverridden = patch.weightOverridden;
   if ("statusOverridden" in patch) data.statusOverridden = patch.statusOverridden;
   if ("sortOrder" in patch)        data.sortOrder = patch.sortOrder;
+  if ("description" in patch)      data.description = patch.description;
+  if ("dependsOnKeys" in patch)    data.dependsOnKeys = patch.dependsOnKeys;
+  if ("completionRule" in patch)   data.completionRule = patch.completionRule;
   if (completedDate !== currentApp.completedDate) {
     data.completedDate = completedDate ? new Date(completedDate) : null;
   }
@@ -252,12 +264,29 @@ export async function updateWorkflowStep(
   return toStep(final ?? current);
 }
 
+export interface AddWorkflowStepInput {
+  section: ProjectSectionKey;
+  name: string;
+  description?: string;
+  dueDate?: string | null;
+  dependsOnKeys?: string[];
+  completionRule?: "manual" | "module";
+}
+
 export async function addWorkflowStep(
   projectId: string,
-  section: ProjectSectionKey,
-  name: string,
-  dueDate: string | null = null
+  input: AddWorkflowStepInput | ProjectSectionKey,
+  legacyName?: string,
+  legacyDueDate?: string | null
 ): Promise<WorkflowStep> {
+  // Support legacy positional call: addWorkflowStep(projectId, section, name, dueDate)
+  const normalized: AddWorkflowStepInput =
+    typeof input === "string"
+      ? { section: input, name: legacyName!, dueDate: legacyDueDate ?? null }
+      : input;
+
+  const { section, name, description = "", dueDate = null, dependsOnKeys = [], completionRule = "manual" } = normalized;
+
   const maxResult = await db.workflowStep.aggregate({
     where: { projectId },
     _max: { sortOrder: true },
@@ -281,6 +310,9 @@ export async function addWorkflowStep(
       statusOverridden: false,
       weightOverridden: false,
       isCustom: true,
+      description,
+      dependsOnKeys,
+      completionRule,
     },
   });
 

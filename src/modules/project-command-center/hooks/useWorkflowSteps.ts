@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { addWorkflowStep, removeWorkflowStep, updateWorkflowStep } from "@/lib/data/workflow";
+import { addWorkflowStep, removeWorkflowStep, updateWorkflowStep, type AddWorkflowStepInput } from "@/lib/data/workflow";
 import { getWorkflowStepsWithProgress } from "@/modules/project-command-center/engine/module-progress";
 import type { ProjectSectionKey, WorkflowStep } from "@/types/workflow";
 
@@ -36,8 +36,8 @@ export function useWorkflowSteps(projectId: string) {
     setReloadToken((token) => token + 1);
   }
 
-  async function addStep(section: ProjectSectionKey, name: string, dueDate: string | null = null) {
-    const created = await addWorkflowStep(projectId, section, name, dueDate);
+  async function addStep(input: AddWorkflowStepInput) {
+    const created = await addWorkflowStep(projectId, input);
     refetch();
     return created;
   }
