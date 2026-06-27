@@ -81,15 +81,17 @@ function renderInline(text: string, users: AppUser[], keyPrefix: string): ReactN
 
     const resolvedUser = users.find((u) => u.id === userId);
     nodes.push(
-      <span
+      <a
         key={`${keyPrefix}-m${i}`}
+        href={userId ? `/users/${userId}` : undefined}
         className={cn(
-          "inline-flex items-center rounded-full px-1.5 py-0.5 text-xs font-medium",
-          resolvedUser ? "bg-sky-100 text-sky-700" : "bg-muted text-muted-foreground"
+          "inline-flex items-center rounded-full px-1.5 py-0.5 text-xs font-medium transition-opacity hover:opacity-80",
+          resolvedUser ? "bg-sky-100 text-sky-700" : "bg-muted text-muted-foreground",
+          userId && "cursor-pointer"
         )}
       >
         @{resolvedUser?.name ?? name}
-      </span>
+      </a>
     );
   }
 

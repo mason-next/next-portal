@@ -143,6 +143,38 @@ async function notifyMentionedUsers(
   );
 }
 
+// Updates a comment's rich content and re-processes mentions.
+// Old CommentMention and Notification rows for this comment are replaced with fresh ones
+// so edits that add/remove mentions stay in sync.
+export async function updateProjectComment(
+  projectId: string,
+  activityId: string,
+  authorName: string,
+  payload: CommentPayload,
+  actingUserId: string | null
+): Promise<ProjectActivity> {
+  const row = await db.projectActivity.update({
+    where: { id: activityId },
+    data: {
+      message: payload.text,
+      richContent: payload.richContent as Prisma.InputJsonValue,
+    },
+  });
+  const updated = toActivity(row);
+
+  // Re-process mentions: delete old records for this comment, then re-create from new content
+  await db.commentMention.deleteMany({ where: { commentId: activityId } });
+  await db.notification.deleteMany({ where: { commentId: activityId } });
+
+  try {
+    await notifyMentionedUsers(projectId, updated, authorName, payload.richContent, actingUserId);
+  } catch (err) {
+    console.error("[updateProjectComment] mention notifications failed:", err);
+  }
+
+  return updated;
+}
+
 export async function deleteProjectActivity(projectId: string, activityId: string): Promise<void> {
   // Cascade deletes in Postgres handle related Notification and CommentMention rows.
   await db.projectActivity.delete({ where: { id: activityId } });

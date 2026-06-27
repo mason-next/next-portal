@@ -13,6 +13,7 @@ import {
   addProjectComment,
   deleteProjectActivity,
   getProjectActivity,
+  updateProjectComment,
 } from "@/lib/data/activity";
 import { getActivityLastViewed, markActivityViewed } from "@/lib/data/activity-client";
 import { useSession } from "@/lib/auth/client";
@@ -22,6 +23,7 @@ import { readGlobal, writeGlobal } from "@/lib/storage/local-store";
 import { cn } from "@/lib/utils";
 import { useProjectContext } from "@/modules/project-command-center/hooks/ProjectContext";
 import type { ActivityCategory, ProjectActivity } from "@/types/activity";
+import type { AppUser } from "@/types/user";
 
 // Local-storage-backed, single-user prototype — there's no push channel, so a light poll
 // while the drawer is mounted is what keeps the unread badge from going stale when an
@@ -282,9 +284,13 @@ export function ProjectActivityDrawer({ projectId }: { projectId: string }) {
                       <ActivityRow
                         key={item.id}
                         item={item}
+                        projectId={projectId}
                         currentUserName={session.name}
+                        currentUserId={session.id}
                         currentUserAvatar={currentUserAvatar}
+                        mentionableUsers={mentionableUsers}
                         onDelete={handleDelete}
+                        onEdited={refresh}
                         highlighted={item.id === highlightedId}
                       />
                     ))}
@@ -301,19 +307,45 @@ export function ProjectActivityDrawer({ projectId }: { projectId: string }) {
 
 function ActivityRow({
   item,
+  projectId,
   currentUserName,
+  currentUserId,
   currentUserAvatar,
+  mentionableUsers,
   onDelete,
+  onEdited,
   highlighted,
 }: {
   item: ProjectActivity;
+  projectId: string;
   currentUserName: string;
+  currentUserId: string;
   currentUserAvatar: string | null;
+  mentionableUsers: AppUser[];
   onDelete: (activityId: string) => void;
+  onEdited: () => void;
   highlighted: boolean;
 }) {
+  const [editing, setEditing] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [editEmpty, setEditEmpty] = useState(false);
+  const editRef = useRef<RichCommentEditorHandle>(null);
+
   const time = new Date(item.createdAt).toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" });
   const isOwn = item.userName === currentUserName;
+
+  async function handleSaveEdit() {
+    const editor = editRef.current;
+    if (!editor || editor.isEmpty()) return;
+    setSaving(true);
+    try {
+      await updateProjectComment(projectId, item.id, currentUserName, editor.getPayload(), currentUserId);
+      setEditing(false);
+      onEdited();
+    } finally {
+      setSaving(false);
+    }
+  }
 
   if (item.category === "comment") {
     return (
@@ -333,17 +365,54 @@ function ActivityRow({
             <span className="text-sm font-semibold">{item.userName}</span>
             <span className="text-xs text-muted-foreground">{time}</span>
           </div>
-          <div className="prose-comment mt-1 text-sm">
-            {item.richContent ? <RichCommentView doc={item.richContent} /> : <MentionText text={item.message} />}
-          </div>
-          {isOwn ? (
-            <button
-              type="button"
-              onClick={() => onDelete(item.id)}
-              className="mt-1 text-xs text-muted-foreground hover:text-foreground hover:underline"
-            >
-              Delete
-            </button>
+
+          {editing ? (
+            <div className="mt-1.5">
+              <RichCommentEditor
+                key={item.id}
+                ref={editRef}
+                users={mentionableUsers}
+                initialContent={item.richContent ?? undefined}
+                onSubmitShortcut={handleSaveEdit}
+                onEmptyChange={setEditEmpty}
+                placeholder="Edit your comment…"
+              />
+              <div className="mt-1.5 flex items-center gap-2">
+                <Button size="xs" onClick={handleSaveEdit} disabled={saving || editEmpty}>
+                  {saving ? "Saving…" : "Save"}
+                </Button>
+                <button
+                  type="button"
+                  onClick={() => setEditing(false)}
+                  className="text-xs text-muted-foreground hover:text-foreground hover:underline"
+                >
+                  Cancel
+                </button>
+              </div>
+            </div>
+          ) : (
+            <div className="prose-comment mt-1 text-sm">
+              {item.richContent ? <RichCommentView doc={item.richContent} /> : <MentionText text={item.message} />}
+            </div>
+          )}
+
+          {isOwn && !editing ? (
+            <div className="mt-1 flex gap-3">
+              <button
+                type="button"
+                onClick={() => setEditing(true)}
+                className="text-xs text-muted-foreground hover:text-foreground hover:underline"
+              >
+                Edit
+              </button>
+              <button
+                type="button"
+                onClick={() => onDelete(item.id)}
+                className="text-xs text-muted-foreground hover:text-foreground hover:underline"
+              >
+                Delete
+              </button>
+            </div>
           ) : null}
         </div>
       </div>

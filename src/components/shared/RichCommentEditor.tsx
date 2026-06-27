@@ -30,6 +30,7 @@ interface RichCommentEditorProps {
   users: AppUser[];
   placeholder?: string;
   className?: string;
+  initialContent?: JSONContent;
   // Cmd/Ctrl+Enter inside the editor forwards here — the parent decides what "submit" means
   // (it owns the actual post button/async call, via the imperative handle above).
   onSubmitShortcut: () => void;
@@ -43,9 +44,10 @@ interface RichCommentEditorProps {
 // Tiptap's Mention extension — mentions are now structured nodes in the document, not a string
 // token, see lib/mentions/tiptap-mentions.ts.
 export const RichCommentEditor = forwardRef<RichCommentEditorHandle, RichCommentEditorProps>(
-  function RichCommentEditor({ users, placeholder, className, onSubmitShortcut, onEmptyChange }, ref) {
+  function RichCommentEditor({ users, placeholder, className, initialContent, onSubmitShortcut, onEmptyChange }, ref) {
     const editor = useEditor({
       immediatelyRender: false,
+      content: initialContent,
       extensions: [
         StarterKit.configure({
           codeBlock: false,
