@@ -8,7 +8,7 @@ import {
 } from "@prisma/client";
 import { db } from "@/lib/db";
 import { addCommentMentions } from "@/lib/data/comment-mentions";
-import { createNotification } from "@/lib/data/notifications";
+import { notifyMention } from "@/lib/services/notification-service";
 import { getProject } from "@/lib/data/projects";
 import { getUsers } from "@/lib/data/users";
 import { getMentionableUsers } from "@/lib/mentions/mentionable-users";
@@ -129,15 +129,13 @@ async function notifyMentionedUsers(
   const commentPreview = truncate(comment.message, 120);
   await Promise.all(
     notifyIds.map((userId) =>
-      createNotification({
-        userId,
-        type: "mention",
+      notifyMention({
+        recipientId: userId,
+        authorName,
         projectId,
         projectName: project.name,
         commentId: comment.id,
-        commentAuthor: authorName,
         commentPreview,
-        message: `${authorName} mentioned you in ${project.name}`,
       })
     )
   );

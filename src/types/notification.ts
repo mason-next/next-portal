@@ -1,22 +1,40 @@
-export const NOTIFICATION_TYPES = ["mention"] as const;
+export const NOTIFICATION_TYPES = [
+  "mention",           // @mentioned in a comment
+  "assignment",        // assigned to a task / workflow step
+  "approval_needed",   // workflow step needs approval
+  "approval_decision", // approval was made (approved / rejected)
+  "status_change",     // project status changed
+  "project_assigned",  // added to a project
+  "procurement_update",// procurement event (order placed, received, etc.)
+  "daily_report",      // daily report submitted
+] as const;
 
 export type NotificationType = (typeof NOTIFICATION_TYPES)[number];
 
+export const NOTIFICATION_LABELS: Record<NotificationType, string> = {
+  mention: "Mention",
+  assignment: "Assignment",
+  approval_needed: "Approval Needed",
+  approval_decision: "Approval Decision",
+  status_change: "Status Change",
+  project_assigned: "Project Assignment",
+  procurement_update: "Procurement Update",
+  daily_report: "Daily Report",
+};
+
 export interface Notification {
   id: string;
-  userId: string; // recipient — AppUser.id
+  userId: string;
   type: NotificationType;
   projectId: string;
-  projectName: string; // frozen at creation — survives a later project rename
-  commentId: string; // ProjectActivity.id
+  projectName: string;
+  commentId: string | null;
   commentAuthor: string;
   commentPreview: string;
-  // Precomputed display string (e.g. "Dana mentioned you in 123 Main St") so
-  // the notification bell never needs type-specific message-building logic —
-  // a future NotificationType just needs its own creation call site.
   message: string;
+  metadata: Record<string, unknown> | null;
   isRead: boolean;
-  createdAt: string; // ISO 8601
+  createdAt: string;
 }
 
 export interface NewNotificationInput {
@@ -24,8 +42,11 @@ export interface NewNotificationInput {
   type: NotificationType;
   projectId: string;
   projectName: string;
-  commentId: string;
-  commentAuthor: string;
-  commentPreview: string;
   message: string;
+  // Comment-specific (optional — omit for non-comment notifications)
+  commentId?: string | null;
+  commentAuthor?: string;
+  commentPreview?: string;
+  // Arbitrary key-value context for future display/routing
+  metadata?: Record<string, unknown>;
 }
