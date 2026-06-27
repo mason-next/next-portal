@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { getBomRows, saveBomRows } from "@/lib/data/bom-rows";
+import { getBomRows, saveBomRows, updateBomRow, type BomRowPatch } from "@/lib/data/bom-rows";
 import { CURRENT_USER } from "@/lib/current-user";
 import type { AuditEntry } from "@/types/audit";
 import type { BomRow, BomRowSnapshot, BomStatus } from "@/types/bom";
@@ -45,7 +45,8 @@ export function useBomRows(projectId: string) {
     const nextRows = loaded.rows.map((r) => (r.id === rowId ? updatedRow : r));
 
     setLoaded({ ...loaded, rows: nextRows });
-    saveBomRows(projectId, nextRows);
+    // Targeted DB write — only updates the changed row and appends one audit entry
+    updateBomRow(projectId, rowId, { [field]: value } as BomRowPatch, auditEntry);
   }
 
   // Applies the same status to many rows in one pass. Cannot be expressed as a loop of
@@ -75,8 +76,8 @@ export function useBomRows(projectId: string) {
     saveBomRows(projectId, nextRows);
   }
 
-  // Assigns a row to a release (or clears it) — releaseId (FK) and release (display
-  // label) always move together in one pass, for the same stale-closure reason as above.
+  // Assigns a row to a release (or clears it) — releaseId and releaseLabel always
+  // move together. Uses a targeted update since only one row changes.
   function assignRelease(rowId: string, releaseId: string | null, releaseLabel: string | null) {
     if (!loaded) return;
     const row = loaded.rows.find((r) => r.id === rowId);
@@ -104,7 +105,7 @@ export function useBomRows(projectId: string) {
     const nextRows = loaded.rows.map((r) => (r.id === rowId ? updatedRow : r));
 
     setLoaded({ ...loaded, rows: nextRows });
-    saveBomRows(projectId, nextRows);
+    updateBomRow(projectId, rowId, { releaseId, releaseLabel }, auditEntry);
   }
 
   // Assigns many rows to the same release in one pass — same stale-closure reason as

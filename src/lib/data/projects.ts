@@ -149,7 +149,6 @@ export async function deleteProject(id: string): Promise<void> {
   // each module is migrated to Postgres and localStorage usage is removed.
   await db.project.delete({ where: { id } });
 
-  removeProjectScoped(id, "bom-rows");
   removeProjectScoped(id, "releases");
   removeProjectScoped(id, "workflow-steps");
   removeProjectScoped(id, "welcome-letter");

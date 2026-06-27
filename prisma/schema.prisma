@@ -263,7 +263,10 @@ model BomRow {
   qty          Int
   unitCost     Float
   status       BomStatus @default(PendingReview)
+  // releaseId stores the Release UUID as a plain string (no FK) until Release is DB-migrated.
+  // releaseLabel stores the display label ("Release 1") denormalized alongside it.
   releaseId    String?
+  releaseLabel String?
   releasedAt   DateTime?
   shippingType String?
   shipTo       String?
@@ -272,7 +275,6 @@ model BomRow {
   updatedAt    DateTime  @updatedAt
 
   project  Project       @relation(fields: [projectId], references: [id], onDelete: Cascade)
-  release  Release?      @relation(fields: [releaseId],  references: [id], onDelete: SetNull)
   auditLog BomAuditLog[]
 
   @@index([projectId])
@@ -314,7 +316,6 @@ model Release {
   updatedAt      DateTime @updatedAt
 
   project Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
-  bomRows BomRow[]
 
   @@index([projectId])
   @@map("releases")
