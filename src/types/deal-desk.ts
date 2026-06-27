@@ -22,6 +22,8 @@ export interface DealCategory {
 
 export interface TeamMember {
   id: string;
+  userId?: string;       // linked AppUser.id
+  avatarUrl?: string | null;
   name: string;
   role: string;
   matrixKey: RoleKey;
