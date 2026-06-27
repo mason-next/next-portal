@@ -72,6 +72,41 @@ enum DealStatus {
   Rejected
 }
 
+// ─── Subcontractors ──────────────────────────────────────────────────────────
+
+// Minimal subcontractor model. M7 (Subcontractor Management) will expand this
+// with contacts, scopes, insurance tracking, and a portal login.
+model Subcontractor {
+  id        String   @id @default(cuid())
+  name      String
+  trade     String   @default("")
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  projectTechnicians ProjectTechnician[]
+
+  @@map("subcontractors")
+}
+
+// Many-to-many: a project can have multiple technician assignments.
+// Each row represents either an internal user (userId set) or an external
+// subcontractor (subcontractorId set). Exactly one of the two must be non-null.
+model ProjectTechnician {
+  id              String         @id @default(cuid())
+  projectId       String
+  userId          String?
+  subcontractorId String?
+  createdAt       DateTime       @default(now())
+
+  project       Project        @relation(fields: [projectId],       references: [id], onDelete: Cascade)
+  user          User?          @relation("ProjectTechUser",         fields: [userId],          references: [id], onDelete: SetNull)
+  subcontractor Subcontractor? @relation(fields: [subcontractorId], references: [id], onDelete: SetNull)
+
+  @@index([projectId])
+  @@map("project_technicians")
+}
+
 enum ImplementationTaskStatus {
   NotStarted @map("Not Started")
   InProgress @map("In Progress")
@@ -117,6 +152,7 @@ model User {
   assignedImplTasks    ImplementationTask[]        @relation("ImplTaskAssignee")
   createdImplTasks     ImplementationTask[]        @relation("ImplTaskCreatedBy")
   implTaskComments     ImplementationTaskComment[] @relation("ImplTaskCommentAuthor")
+  technicianAssignments ProjectTechnician[]        @relation("ProjectTechUser")
 
   @@map("users")
 }
@@ -173,6 +209,7 @@ model Project {
   welcomeLetter        WelcomeLetter?
   internalKickoff      InternalKickoff?
   implementationTasks  ImplementationTask[]
+  technicians          ProjectTechnician[]
 
   @@map("projects")
 }

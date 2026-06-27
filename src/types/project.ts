@@ -4,6 +4,8 @@ export const PROJECT_HEALTH = ["Ahead", "On Track", "At Risk", "Off Track"] as c
 
 export type ProjectHealth = (typeof PROJECT_HEALTH)[number];
 
+import type { ProjectTechnicianEntry } from "@/types/subcontractor";
+
 export interface Project {
   id: string;
   name: string;
@@ -13,13 +15,18 @@ export interface Project {
   coordinatorGroup: string;
   contractValue: number;
   grossProfit: number;
+  // Single-person role FKs. Display labels:
+  //   fieldProjectManagerId → "Solution Project Manager"
+  //   seniorInsideId        → "Senior Inside Project Manager"
+  //   insidePMId            → "Inside Project Manager"
   solutionsExecutiveId: string | null;
   solutionsEngineerId: string | null;
-  leadTechnicianId: string | null;
   fieldProjectManagerId: string | null;
   seniorInsideId: string | null;
-  projectManagerId: string | null;
   insidePMId: string | null;
+  // Multi-person technician assignments (internal users + subcontractors).
+  // Populated by getProject(); getProjects() returns [] to keep the list query lean.
+  technicians: ProjectTechnicianEntry[];
   targetCompletionDate: string | null;
   createdAt: string;
   updatedAt: string;

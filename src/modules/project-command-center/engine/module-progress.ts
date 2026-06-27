@@ -23,16 +23,20 @@ export const MODULE_PROGRESS_PROVIDERS: Partial<Record<string, ModuleProgressPro
   assignTeam: async (projectId) => {
     const project = await getProject(projectId);
     if (!project) return null;
-    const roles = [
+    const singleRoles = [
       project.fieldProjectManagerId,
       project.solutionsExecutiveId,
       project.solutionsEngineerId,
-      project.leadTechnicianId,
+      project.seniorInsideId,
+      project.insidePMId,
     ];
-    const assignedCount = roles.filter(Boolean).length;
+    const singleFilled = singleRoles.filter(Boolean).length;
+    const hasTech = project.technicians.length > 0;
+    const total = singleRoles.length + 1;
+    const assignedCount = singleFilled + (hasTech ? 1 : 0);
     const status: WorkflowStepStatus =
-      assignedCount === 0 ? "Not Started" : assignedCount === roles.length ? "Complete" : "In Progress";
-    return { status, percent: Math.round((assignedCount / roles.length) * 100) };
+      assignedCount === 0 ? "Not Started" : assignedCount === total ? "Complete" : "In Progress";
+    return { status, percent: Math.round((assignedCount / total) * 100) };
   },
   sendWelcomeLetter: async (projectId) => {
     const record = await getWelcomeLetterRecord(projectId);

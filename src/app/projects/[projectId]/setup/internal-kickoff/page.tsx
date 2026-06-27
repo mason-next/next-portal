@@ -77,11 +77,16 @@ export default function InternalKickoffPage({
   const effectiveAgenda = agenda.trim() || DEFAULT_KICKOFF_AGENDA;
 
   const userById = (id: string | null) => users.find((u) => u.id === id) ?? null;
+  const technicianUserIds = project.technicians
+    .filter((t) => t.userId !== null)
+    .map((t) => t.userId as string);
   const roleAssignedUsers = [
     project.fieldProjectManagerId,
     project.solutionsExecutiveId,
     project.solutionsEngineerId,
-    project.leadTechnicianId,
+    project.seniorInsideId,
+    project.insidePMId,
+    ...technicianUserIds,
   ]
     .map(userById)
     .filter((u): u is NonNullable<typeof u> => u !== null && u.email.trim() !== "");

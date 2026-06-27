@@ -20,11 +20,10 @@ export function getMentionableUsers(project: Project, allUsers: AppUser[]): AppU
     [
       project.solutionsExecutiveId,
       project.solutionsEngineerId,
-      project.leadTechnicianId,
       project.fieldProjectManagerId,
       project.seniorInsideId,
-      project.projectManagerId,
       project.insidePMId,
+      ...project.technicians.map((t) => t.userId).filter(Boolean),
     ].filter((id): id is string => Boolean(id) && id !== ROLE_NOT_NEEDED)
   );
 

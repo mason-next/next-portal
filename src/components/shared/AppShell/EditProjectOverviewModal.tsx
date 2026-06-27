@@ -4,9 +4,12 @@ import { useState, type ReactNode } from "react";
 import { Button } from "@/components/ui/button";
 import { Modal } from "@/components/shared/Modal";
 import { UserSelect } from "@/components/shared/UserSelect";
+import { TechnicianMultiSelect } from "@/components/shared/TechnicianMultiSelect";
 import { useUsersContext } from "@/components/shared/AppShell/UsersProvider";
 import { updateProject } from "@/lib/data/projects";
+import { setProjectTechnicians } from "@/lib/data/subcontractors";
 import type { Project } from "@/types/project";
+import type { ProjectTechnicianEntry } from "@/types/subcontractor";
 
 const FIELD_INPUT_CLASS =
   "h-9 w-full rounded-md border border-input bg-background px-3 text-sm outline-none focus:border-primary";
@@ -22,12 +25,11 @@ export function EditProjectOverviewModal({ project, onClose, onSaved }: EditProj
   const [contractValue, setContractValue] = useState(String(project.contractValue));
   const [grossProfit, setGrossProfit] = useState(String(project.grossProfit));
   const [fieldProjectManagerId, setFieldProjectManagerId] = useState(project.fieldProjectManagerId);
+  const [seniorInsideId, setSeniorInsideId] = useState(project.seniorInsideId);
+  const [insidePMId, setInsidePMId] = useState(project.insidePMId);
   const [solutionsEngineerId, setSolutionsEngineerId] = useState(project.solutionsEngineerId);
   const [solutionsExecutiveId, setSolutionsExecutiveId] = useState(project.solutionsExecutiveId);
-  const [leadTechnicianId, setLeadTechnicianId] = useState(project.leadTechnicianId);
-  const [seniorInsideId, setSeniorInsideId] = useState(project.seniorInsideId);
-  const [projectManagerId, setProjectManagerId] = useState(project.projectManagerId);
-  const [insidePMId, setInsidePMId] = useState(project.insidePMId);
+  const [technicians, setTechnicians] = useState<ProjectTechnicianEntry[]>(project.technicians);
   const [targetCompletionDate, setTargetCompletionDate] = useState(
     project.targetCompletionDate ? project.targetCompletionDate.slice(0, 10) : ""
   );
@@ -35,19 +37,23 @@ export function EditProjectOverviewModal({ project, onClose, onSaved }: EditProj
 
   async function handleSave() {
     setSubmitting(true);
-    const updated = await updateProject(project.id, {
-      contractValue: Number(contractValue) || 0,
-      grossProfit: Number(grossProfit) || 0,
-      fieldProjectManagerId,
-      solutionsEngineerId,
-      solutionsExecutiveId,
-      leadTechnicianId,
-      seniorInsideId,
-      projectManagerId,
-      insidePMId,
-      targetCompletionDate: targetCompletionDate || null,
-    });
-    onSaved(updated);
+    const [updated] = await Promise.all([
+      updateProject(project.id, {
+        contractValue: Number(contractValue) || 0,
+        grossProfit: Number(grossProfit) || 0,
+        fieldProjectManagerId,
+        seniorInsideId,
+        insidePMId,
+        solutionsEngineerId,
+        solutionsExecutiveId,
+        targetCompletionDate: targetCompletionDate || null,
+      }),
+      setProjectTechnicians(
+        project.id,
+        technicians.map((t) => ({ userId: t.userId, subcontractorId: t.subcontractorId }))
+      ),
+    ]);
+    onSaved({ ...updated, technicians });
   }
 
   return (
@@ -74,16 +80,13 @@ export function EditProjectOverviewModal({ project, onClose, onSaved }: EditProj
             onChange={(e) => setGrossProfit(e.target.value)}
           />
         </Field>
-        <Field label="Field Project Manager">
+        <Field label="Solution Project Manager">
           <UserSelect users={users} value={fieldProjectManagerId} onChange={setFieldProjectManagerId} />
         </Field>
-        <Field label="Senior Inside">
+        <Field label="Senior Inside Project Manager">
           <UserSelect users={users} value={seniorInsideId} onChange={setSeniorInsideId} allowNotNeeded />
         </Field>
-        <Field label="Project Manager">
-          <UserSelect users={users} value={projectManagerId} onChange={setProjectManagerId} allowNotNeeded />
-        </Field>
-        <Field label="Inside PM">
+        <Field label="Inside Project Manager">
           <UserSelect users={users} value={insidePMId} onChange={setInsidePMId} allowNotNeeded />
         </Field>
         <Field label="Solutions Engineer">
@@ -92,9 +95,6 @@ export function EditProjectOverviewModal({ project, onClose, onSaved }: EditProj
         <Field label="Solutions Executive">
           <UserSelect users={users} value={solutionsExecutiveId} onChange={setSolutionsExecutiveId} allowNotNeeded />
         </Field>
-        <Field label="Lead Technician">
-          <UserSelect users={users} value={leadTechnicianId} onChange={setLeadTechnicianId} allowNotNeeded />
-        </Field>
         <Field label="Target Completion">
           <input
             type="date"
@@ -102,6 +102,9 @@ export function EditProjectOverviewModal({ project, onClose, onSaved }: EditProj
             value={targetCompletionDate}
             onChange={(e) => setTargetCompletionDate(e.target.value)}
           />
+        </Field>
+        <Field label="Technicians" fullWidth>
+          <TechnicianMultiSelect users={users} value={technicians} onChange={setTechnicians} />
         </Field>
       </div>
 
@@ -117,9 +120,9 @@ export function EditProjectOverviewModal({ project, onClose, onSaved }: EditProj
   );
 }
 
-function Field({ label, children }: { label: string; children: ReactNode }) {
+function Field({ label, children, fullWidth }: { label: string; children: ReactNode; fullWidth?: boolean }) {
   return (
-    <label className="block">
+    <label className={fullWidth ? "col-span-2 block" : "block"}>
       <div className="mb-1 text-xs font-semibold text-muted-foreground">{label}</div>
       {children}
     </label>

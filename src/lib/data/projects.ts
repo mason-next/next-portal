@@ -4,6 +4,7 @@ import { db } from "@/lib/db";
 import { logProjectActivity } from "@/lib/data/activity";
 import { deleteNotificationsForProject } from "@/lib/data/notifications";
 import { getUser } from "@/lib/data/users";
+import { getProjectTechnicians } from "@/lib/data/subcontractors";
 import { removeProjectScoped } from "@/lib/storage/local-store";
 import { getServerSession } from "@/lib/auth/server";
 import type { Project, NewProjectInput } from "@/types/project";
@@ -12,7 +13,8 @@ import type { Project as PrismaProject } from "@prisma/client";
 // ─── Type mapping ─────────────────────────────────────────────────────────────
 
 // Converts a Prisma Project row to the app's Project shape.
-// Dates are always stored as Date in Postgres and returned as ISO strings to clients.
+// technicians is always [] here — call getProject() with includeTeam:true or
+// getProjectTechnicians() separately to load the multi-person technician list.
 function toProject(p: PrismaProject): Project {
   return {
     id: p.id,
@@ -25,11 +27,10 @@ function toProject(p: PrismaProject): Project {
     grossProfit: p.grossProfit,
     solutionsExecutiveId: p.solutionsExecutiveId,
     solutionsEngineerId: p.solutionsEngineerId,
-    leadTechnicianId: p.leadTechnicianId,
     fieldProjectManagerId: p.fieldProjectManagerId,
     seniorInsideId: p.seniorInsideId,
-    projectManagerId: p.projectManagerId,
     insidePMId: p.insidePMId,
+    technicians: [],
     targetCompletionDate: p.targetCompletionDate?.toISOString() ?? null,
     createdAt: p.createdAt.toISOString(),
     updatedAt: p.updatedAt.toISOString(),
@@ -48,21 +49,17 @@ const FIELD_LABELS: Partial<Record<keyof Project, string>> = {
   grossProfit: "Gross Profit",
   solutionsExecutiveId: "Solutions Executive",
   solutionsEngineerId: "Solutions Engineer",
-  leadTechnicianId: "Lead Technician",
-  fieldProjectManagerId: "Field Project Manager",
-  seniorInsideId: "Senior Inside",
-  projectManagerId: "Project Manager",
-  insidePMId: "Inside PM",
+  fieldProjectManagerId: "Solution Project Manager",
+  seniorInsideId: "Senior Inside Project Manager",
+  insidePMId: "Inside Project Manager",
   targetCompletionDate: "Target Completion",
 };
 
 const USER_ID_FIELDS = new Set<keyof Project>([
   "solutionsExecutiveId",
   "solutionsEngineerId",
-  "leadTechnicianId",
   "fieldProjectManagerId",
   "seniorInsideId",
-  "projectManagerId",
   "insidePMId",
 ]);
 
@@ -83,8 +80,11 @@ export async function getProjects(): Promise<Project[]> {
 }
 
 export async function getProject(id: string): Promise<Project | null> {
-  const row = await db.project.findUnique({ where: { id } });
-  return row ? toProject(row) : null;
+  const [row, technicians] = await Promise.all([
+    db.project.findUnique({ where: { id } }),
+    getProjectTechnicians(id),
+  ]);
+  return row ? { ...toProject(row), technicians } : null;
 }
 
 // ─── Mutations ────────────────────────────────────────────────────────────────
@@ -131,10 +131,8 @@ export async function updateProject(id: string, patch: Partial<Project>): Promis
   if ("grossProfit" in patch)           data.grossProfit = patch.grossProfit;
   if ("solutionsExecutiveId" in patch)  data.solutionsExecutiveId = patch.solutionsExecutiveId;
   if ("solutionsEngineerId" in patch)   data.solutionsEngineerId = patch.solutionsEngineerId;
-  if ("leadTechnicianId" in patch)      data.leadTechnicianId = patch.leadTechnicianId;
   if ("fieldProjectManagerId" in patch) data.fieldProjectManagerId = patch.fieldProjectManagerId;
   if ("seniorInsideId" in patch)        data.seniorInsideId = patch.seniorInsideId;
-  if ("projectManagerId" in patch)      data.projectManagerId = patch.projectManagerId;
   if ("insidePMId" in patch)            data.insidePMId = patch.insidePMId;
   if ("targetCompletionDate" in patch) {
     data.targetCompletionDate = patch.targetCompletionDate
