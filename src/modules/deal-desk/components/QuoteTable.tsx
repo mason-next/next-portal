@@ -1,6 +1,7 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useRef, useEffect, useLayoutEffect } from "react";
+import { createPortal } from "react-dom";
 import Link from "next/link";
 import { calcFinancials, fmtUSD, fmtPct } from "@/modules/deal-desk/lib/financial-calc";
 import type { DealDeskQuote } from "@/types/deal-desk";
@@ -32,6 +33,72 @@ function SortBtn({ k, label, sort, onToggle }: { k: SortKey; label: string; sort
       {label}
       {active && <span>{sort.dir === "asc" ? "↑" : "↓"}</span>}
     </button>
+  );
+}
+
+function KebabMenu({ label, onDelete }: { label: string; onDelete: () => void }) {
+  const [open, setOpen] = useState(false);
+  const [menuStyle, setMenuStyle] = useState<React.CSSProperties>({});
+  const triggerRef = useRef<HTMLButtonElement>(null);
+  const menuRef = useRef<HTMLDivElement>(null);
+
+  useLayoutEffect(() => {
+    if (!open || !triggerRef.current) return;
+    const rect = triggerRef.current.getBoundingClientRect();
+    setMenuStyle({
+      position: "fixed",
+      top: rect.bottom + 4,
+      right: window.innerWidth - rect.right,
+      zIndex: 9999,
+    });
+  }, [open]);
+
+  useEffect(() => {
+    function handle(e: MouseEvent) {
+      const t = e.target as Node;
+      if (
+        triggerRef.current && !triggerRef.current.contains(t) &&
+        menuRef.current && !menuRef.current.contains(t)
+      ) setOpen(false);
+    }
+    document.addEventListener("mousedown", handle);
+    return () => document.removeEventListener("mousedown", handle);
+  }, []);
+
+  const menu = open && typeof document !== "undefined" && (
+    <div
+      ref={menuRef}
+      style={menuStyle}
+      className="w-36 rounded-lg border bg-card shadow-xl py-1 text-sm"
+    >
+      <button
+        type="button"
+        onClick={() => {
+          setOpen(false);
+          if (confirm(`Delete "${label}"?`)) onDelete();
+        }}
+        className="w-full text-left px-3 py-2 text-destructive hover:bg-muted transition-colors"
+      >
+        Delete
+      </button>
+    </div>
+  );
+
+  return (
+    <div className="flex justify-end">
+      <button
+        ref={triggerRef}
+        type="button"
+        onClick={() => setOpen((o) => !o)}
+        className="rounded p-1 text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
+        aria-label="Row actions"
+      >
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+          <circle cx="12" cy="5" r="1.5" /><circle cx="12" cy="12" r="1.5" /><circle cx="12" cy="19" r="1.5" />
+        </svg>
+      </button>
+      {menu && createPortal(menu, document.body)}
+    </div>
   );
 }
 
@@ -132,17 +199,9 @@ export function QuoteTable({ quotes, onDelete, basePath = "/sales/deal-desk" }: 
                     <td className="px-4 py-3 text-xs text-muted-foreground whitespace-nowrap">
                       {new Date(q.importedAt).toLocaleDateString()}
                     </td>
-                    <td className="px-4 py-3 text-right">
+                    <td className="px-4 py-3">
                       {onDelete && (
-                        <button
-                          type="button"
-                          onClick={() => {
-                            if (confirm(`Delete "${q.projectName}"?`)) onDelete(q.id);
-                          }}
-                          className="text-xs text-muted-foreground hover:text-destructive"
-                        >
-                          Delete
-                        </button>
+                        <KebabMenu label={q.projectName} onDelete={() => onDelete(q.id)} />
                       )}
                     </td>
                   </tr>

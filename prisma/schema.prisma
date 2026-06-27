@@ -435,8 +435,10 @@ model DealDeskQuote {
   version           Int              @default(1)
   projectType       String
   salesperson       String
+  salespersonId     String?
   importedAt        DateTime
   importedBy        String
+  bookingDate       String?
   quarter           String
   status            DealStatus       @default(Pending)
   commissionStatus  CommissionStatus @default(Estimated)
@@ -458,31 +460,13 @@ model DealDeskQuote {
 
 // ─── Sales Activity ───────────────────────────────────────────────────────────
 
-enum LogoStage {
+enum OppStage {
   Prospecting
   Qualifying
   Proposal
   Negotiation
-  ClosedWon   @map("Closed Won")
-  ClosedLost  @map("Closed Lost")
-}
-
-// A company/prospect being pursued
-model SalesLogo {
-  id         String    @id @default(cuid())
-  company    String
-  domain     String    @default("") // used to fetch logo via clearbit
-  stage      LogoStage @default(Prospecting)
-  ownerId    String?   // User.id
-  ownerName  String    @default("")
-  notes      String    @default("")
-  dealDeskId String?   // optional link to a DealDeskQuote id
-  createdAt  DateTime  @default(now())
-  updatedAt  DateTime  @updatedAt
-
-  activities SalesActivity[]
-
-  @@map("sales_logos")
+  ClosedWon  @map("Closed Won")
+  ClosedLost @map("Closed Lost")
 }
 
 enum ActivityType {
@@ -495,22 +479,63 @@ enum ActivityType {
   Other
 }
 
+// A prospect/customer company
+model SalesCompany {
+  id         String    @id @default(cuid())
+  name       String
+  domain     String    @default("")
+  notes      String    @default("")
+  dealDeskId String?
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+
+  opportunities SalesOpportunity[]
+  activities    SalesActivity[]
+
+  @@map("sales_companies")
+}
+
+// A specific deal/opportunity at a company
+model SalesOpportunity {
+  id        String    @id @default(cuid())
+  companyId String
+  name      String
+  stage     OppStage  @default(Prospecting)
+  ownerId   String?
+  ownerName String    @default("")
+  value     Int       @default(0) // estimated value in cents
+  notes     String    @default("")
+  closeDate DateTime?
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+
+  company    SalesCompany   @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  activities SalesActivity[]
+
+  @@index([companyId])
+  @@map("sales_opportunities")
+}
+
 // A single logged activity entry
 model SalesActivity {
-  id           String       @id @default(cuid())
-  userId       String?      // User.id — null if entered by management on behalf
-  userName     String
-  logoId       String?      // optional link to a SalesLogo
-  type         ActivityType
-  description  String       @default("")
-  weekStart    DateTime     // Monday of the week this belongs to (for grouping)
-  durationMins Int          @default(0)
-  createdAt    DateTime     @default(now())
+  id            String       @id @default(cuid())
+  userId        String?
+  userName      String
+  companyId     String?
+  opportunityId String?
+  type          ActivityType
+  description   String       @default("")
+  contacts      Json         @default("[]") // [{name: string, title: string}]
+  aiGenerated   Boolean      @default(false)
+  weekStart     DateTime
+  createdAt     DateTime     @default(now())
 
-  logo SalesLogo? @relation(fields: [logoId], references: [id], onDelete: SetNull)
+  company     SalesCompany?     @relation(fields: [companyId], references: [id], onDelete: SetNull)
+  opportunity SalesOpportunity? @relation(fields: [opportunityId], references: [id], onDelete: SetNull)
 
   @@index([userId, weekStart])
   @@index([weekStart])
+  @@index([companyId])
   @@map("sales_activities")
 }
 

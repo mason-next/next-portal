@@ -1,9 +1,9 @@
-import type { DealCategory, CommissionBand } from "@/types/deal-desk";
+import type { DealCategory, CommissionBand, ProjectType } from "@/types/deal-desk";
 import {
   findBand,
+  getCommissionMatrix,
   SALARIES_OVERHEAD_BPS,
   LEADERSHIP_BONUS_RATE,
-  DEFAULT_COMMISSION_MATRIX,
 } from "./commission-engine";
 
 export interface DealFinancials {
@@ -11,6 +11,9 @@ export interface DealFinancials {
   costCents: number;
   grossProfitCents: number;
   grossMarginPct: number;
+  netProfitMarginPct: number;
+  bandLookupPct: number;
+  bandLookupLabel: string;
   band: CommissionBand;
   commissionPoolCents: number;
   masonShareCents: number;
@@ -20,17 +23,27 @@ export interface DealFinancials {
   masonRetainedProfitCents: number;
 }
 
-export function calcFinancials(categories: DealCategory[]): DealFinancials {
+export function calcFinancials(categories: DealCategory[], projectType?: ProjectType): DealFinancials {
   const revenueCents = categories.reduce((s, c) => s + c.revenueCents, 0);
   const costCents = categories.reduce((s, c) => s + c.costCents, 0);
   const grossProfitCents = revenueCents - costCents;
   const grossMarginPct = revenueCents > 0 ? (grossProfitCents / revenueCents) * 100 : 0;
-  const band = findBand(grossMarginPct, DEFAULT_COMMISSION_MATRIX);
 
-  // Commission is calculated on revenue (not profit)
+  const salariesOverheadCents = Math.round((revenueCents * SALARIES_OVERHEAD_BPS) / 10000);
+  // Net profit before commission — used as the Pod band lookup key
+  const netProfitBeforeCommCents = grossProfitCents - salariesOverheadCents;
+  const netProfitMarginPct = revenueCents > 0 ? (netProfitBeforeCommCents / revenueCents) * 100 : 0;
+
+  // All project types use gross margin % for band lookup; the matrix itself differs per type
+  const bandLookupPct = grossMarginPct;
+  const bandLookupLabel = "Gross Margin";
+
+  const matrix = getCommissionMatrix(projectType);
+  const band = findBand(bandLookupPct, matrix);
+
+  // Commission is always applied to gross revenue
   const commissionPoolCents = Math.round((revenueCents * band.totalBps) / 10000);
   const masonShareCents = grossProfitCents - commissionPoolCents;
-  const salariesOverheadCents = Math.round((revenueCents * SALARIES_OVERHEAD_BPS) / 10000);
   const masonProfitCents = masonShareCents - salariesOverheadCents;
   const leadershipBonusCents = Math.round(masonProfitCents * LEADERSHIP_BONUS_RATE);
   const masonRetainedProfitCents = masonProfitCents - leadershipBonusCents;
@@ -40,6 +53,9 @@ export function calcFinancials(categories: DealCategory[]): DealFinancials {
     costCents,
     grossProfitCents,
     grossMarginPct,
+    netProfitMarginPct,
+    bandLookupPct,
+    bandLookupLabel,
     band,
     commissionPoolCents,
     masonShareCents,

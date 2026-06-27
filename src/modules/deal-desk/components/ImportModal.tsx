@@ -6,7 +6,7 @@ import { UserPicker } from "@/components/shared/UserPicker";
 import { parseConnectWiseXls } from "@/modules/deal-desk/lib/xls-parser";
 import { calcFinancials, fmtUSD, fmtPct } from "@/modules/deal-desk/lib/financial-calc";
 import type { DealDeskQuote, DealCategory, CategoryName, ProjectType } from "@/types/deal-desk";
-import { CATEGORY_NAMES, PROJECT_TYPES, DEFAULT_PAYOUT_MILESTONES } from "@/types/deal-desk";
+import { CATEGORY_NAMES, PROJECT_TYPES, defaultMilestonesForType, quarterFromDate } from "@/types/deal-desk";
 import type { AppUser } from "@/types/user";
 import { CURRENT_USER } from "@/lib/current-user";
 import { cn } from "@/lib/utils";
@@ -15,12 +15,6 @@ import { useRef } from "react";
 interface ImportModalProps {
   onClose: () => void;
   onImported: (quote: DealDeskQuote) => void;
-}
-
-function currentQuarter(): string {
-  const now = new Date();
-  const q = Math.ceil((now.getMonth() + 1) / 3);
-  return `Q${q} ${now.getFullYear()}`;
 }
 
 export function ImportModal({ onClose, onImported }: ImportModalProps) {
@@ -36,7 +30,7 @@ export function ImportModal({ onClose, onImported }: ImportModalProps) {
   const [opportunityNumber, setOpportunityNumber] = useState("");
   const [revision, setRevision] = useState("");
   const [projectType, setProjectType] = useState<ProjectType>("Enterprise");
-  const [quarter, setQuarter] = useState(currentQuarter());
+  const [bookingDate, setBookingDate] = useState(new Date().toISOString().slice(0, 10));
   const [categories, setCategories] = useState<DealCategory[]>([]);
   const [step, setStep] = useState<"upload" | "review">("upload");
 
@@ -84,9 +78,11 @@ export function ImportModal({ onClose, onImported }: ImportModalProps) {
       version: 1,
       projectType,
       salesperson: salesperson?.name ?? "",
+      salespersonId: salesperson?.id,
       importedAt: now,
       importedBy: CURRENT_USER,
-      quarter,
+      bookingDate,
+      quarter: quarterFromDate(bookingDate),
       status: "Pending",
       commissionStatus: "Estimated",
       categories,
@@ -105,13 +101,13 @@ export function ImportModal({ onClose, onImported }: ImportModalProps) {
       createdAt: now,
       updatedAt: now,
       billingCompletionPct: 0,
-      milestones: DEFAULT_PAYOUT_MILESTONES,
+      milestones: defaultMilestonesForType(projectType),
       payoutEvents: [],
     };
     onImported(quote);
   }
 
-  const f = categories.length > 0 ? calcFinancials(categories) : null;
+  const f = categories.length > 0 ? calcFinancials(categories, projectType) : null;
   const canConfirm = projectName.trim() !== "" && customer.trim() !== "" && categories.length > 0;
 
   return (
@@ -187,7 +183,6 @@ export function ImportModal({ onClose, onImported }: ImportModalProps) {
                     { label: "Customer", value: customer, set: setCustomer, placeholder: "City of Coral Gables" },
                     { label: "Project Name", value: projectName, set: setProjectName, placeholder: "Network Infrastructure Proposal" },
                     { label: "Quote Number", value: quoteNumber, set: setQuoteNumber, placeholder: "065511" },
-                    { label: "Opportunity Number", value: opportunityNumber, set: setOpportunityNumber, placeholder: "" },
                     { label: "Revision", value: revision, set: setRevision, placeholder: "v8" },
                   ] as const).map(({ label, value, set, placeholder }) => (
                     <label key={label} className="space-y-1">
@@ -222,14 +217,20 @@ export function ImportModal({ onClose, onImported }: ImportModalProps) {
                     </select>
                   </label>
 
-                  <label className="space-y-1">
-                    <span className="text-xs font-medium text-muted-foreground">Quarter</span>
-                    <input
-                      value={quarter}
-                      onChange={(e) => setQuarter(e.target.value)}
-                      className="w-full rounded-md border bg-background px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
-                    />
-                  </label>
+                  <div className="space-y-1">
+                    <span className="text-xs font-medium text-muted-foreground">Booking / Win Date</span>
+                    <div className="flex items-center gap-2">
+                      <input
+                        type="date"
+                        value={bookingDate}
+                        onChange={(e) => setBookingDate(e.target.value)}
+                        className="flex-1 rounded-md border bg-background px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+                      />
+                      <span className="text-xs font-semibold text-muted-foreground whitespace-nowrap">
+                        {quarterFromDate(bookingDate)}
+                      </span>
+                    </div>
+                  </div>
                 </div>
               </div>
 

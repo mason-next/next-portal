@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useSession } from "@/lib/auth/client";
 import type { UserRole } from "@/types/user";
 
@@ -11,12 +11,21 @@ const MANAGEMENT_ROLES: UserRole[] = [
   "Procurement Manager",
 ];
 
+const LS_KEY = "deal-desk:preview-as-salesperson";
+
 export function useDealDeskUser() {
   const session = useSession();
   const actuallyManagement = MANAGEMENT_ROLES.includes(session.role);
 
-  // Management can toggle a "preview as salesperson" mode to see what a rep sees
-  const [previewAsSalesperson, setPreviewAsSalesperson] = useState(false);
+  // Persisted across navigation via localStorage
+  const [previewAsSalesperson, setPreviewAsSalesperson] = useState(() => {
+    if (typeof window === "undefined") return false;
+    return localStorage.getItem(LS_KEY) === "1";
+  });
+
+  useEffect(() => {
+    localStorage.setItem(LS_KEY, previewAsSalesperson ? "1" : "0");
+  }, [previewAsSalesperson]);
 
   const togglePreview = useCallback(() => {
     setPreviewAsSalesperson((v) => !v);

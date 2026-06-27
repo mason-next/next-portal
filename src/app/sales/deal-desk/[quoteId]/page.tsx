@@ -27,7 +27,7 @@ export default function QuoteDetailPage({ params }: { params: Promise<{ quoteId:
   const router = useRouter();
   const [quote, setQuote] = useState<DealDeskQuote | null>(null);
   const [tab, setTab] = useState<Tab>("report");
-  const { isManagement } = useDealDeskUser();
+  const { isManagement, userName, actuallyManagement, previewAsSalesperson, togglePreview } = useDealDeskUser();
 
   useEffect(() => {
     let active = true;
@@ -48,8 +48,8 @@ export default function QuoteDetailPage({ params }: { params: Promise<{ quoteId:
     if (!quote) return;
     persist({
       ...quote, status,
-      approvalHistory: [...quote.approvalHistory, { id: crypto.randomUUID(), status, user: "Current User", comment, timestamp: new Date().toISOString() }],
-      auditLog: [...quote.auditLog, { id: crypto.randomUUID(), action: "Approval updated", detail: `Status → ${status}${comment ? `. ${comment}` : ""}`, user: "Current User", timestamp: new Date().toISOString() }],
+      approvalHistory: [...quote.approvalHistory, { id: crypto.randomUUID(), status, user: userName, comment, timestamp: new Date().toISOString() }],
+      auditLog: [...quote.auditLog, { id: crypto.randomUUID(), action: "Approval updated", detail: `Status → ${status}${comment ? ` · "${comment}"` : ""}`, user: userName, timestamp: new Date().toISOString() }],
     });
   }
 
@@ -57,13 +57,13 @@ export default function QuoteDetailPage({ params }: { params: Promise<{ quoteId:
     if (!quote) return;
     persist({
       ...quote, commissionStatus,
-      auditLog: [...quote.auditLog, { id: crypto.randomUUID(), action: "Commission status updated", detail: `Commission status → ${commissionStatus}`, user: "Current User", timestamp: new Date().toISOString() }],
+      auditLog: [...quote.auditLog, { id: crypto.randomUUID(), action: "Commission status updated", detail: `Commission status → ${commissionStatus}`, user: userName, timestamp: new Date().toISOString() }],
     });
   }
 
   if (!quote) return <div className="p-8 text-sm text-muted-foreground">Loading…</div>;
 
-  const f = calcFinancials(quote.categories);
+  const f = calcFinancials(quote.categories, quote.projectType);
   const tabs: { id: Tab; label: string; managementOnly?: boolean }[] = [
     { id: "report", label: "Deal Report" },
     { id: "commissions", label: "Commissions" },
@@ -88,7 +88,26 @@ export default function QuoteDetailPage({ params }: { params: Promise<{ quoteId:
             <h1 className="text-xl font-bold">{quote.projectName}</h1>
             <p className="text-sm text-muted-foreground mt-0.5">{quote.customer} · {quote.quoteNumber} {quote.revision} · {quote.projectType}</p>
           </div>
-          <span className={cn("inline-flex items-center rounded-full px-3 py-1 text-sm font-semibold", STATUS_TONE[quote.status] ?? "bg-muted")}>{quote.status}</span>
+          <div className="flex items-center gap-3">
+            {actuallyManagement && (
+              <button
+                onClick={togglePreview}
+                className={cn(
+                  "inline-flex items-center gap-1.5 rounded-md border px-3 py-1.5 text-xs font-medium transition-colors",
+                  previewAsSalesperson
+                    ? "bg-amber-50 border-amber-300 text-amber-700 dark:bg-amber-900/20 dark:border-amber-700 dark:text-amber-400"
+                    : "bg-primary/5 border-primary/30 text-primary"
+                )}
+                title="Toggle salesperson preview"
+              >
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/>
+                </svg>
+                {previewAsSalesperson ? "Salesperson View" : "Management View"}
+              </button>
+            )}
+            <span className={cn("inline-flex items-center rounded-full px-3 py-1 text-sm font-semibold", STATUS_TONE[quote.status] ?? "bg-muted")}>{quote.status}</span>
+          </div>
         </div>
         <div className="mt-5 grid grid-cols-2 gap-3 sm:grid-cols-4">
           {[
@@ -116,8 +135,8 @@ export default function QuoteDetailPage({ params }: { params: Promise<{ quoteId:
       </div>
 
       <div>
-        {tab === "report"      && <DealReport quote={quote} />}
-        {tab === "commissions" && <CommissionPanel quote={quote} onCommissionStatusChange={handleCommissionStatusChange} />}
+        {tab === "report"      && <DealReport quote={quote} onUpdate={persist} />}
+        {tab === "commissions" && <CommissionPanel quote={quote} onCommissionStatusChange={handleCommissionStatusChange} onUpdate={persist} />}
         {tab === "payout"      && <PayoutPanel quote={quote} onUpdate={persist} />}
         {tab === "sankey"      && <SankeyPanel quote={quote} />}
         {tab === "approval"    && <ApprovalPanel quote={quote} onStatusChange={handleStatusChange} onNotesChange={(n) => persist({ ...quote, executiveNotes: n })} />}

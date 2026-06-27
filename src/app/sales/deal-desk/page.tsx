@@ -62,6 +62,11 @@ export default function DealDeskPage() {
           <Link href="/sales/deal-desk/my-commissions">
             <Button variant="outline">My Commissions</Button>
           </Link>
+          {actuallyManagement && (
+            <Link href="/sales/deal-desk/commission-report">
+              <Button variant="outline">Commission Report</Button>
+            </Link>
+          )}
           {/* Import is management only */}
           {actuallyManagement && (
             <Button onClick={() => setShowImport(true)}>
@@ -70,7 +75,7 @@ export default function DealDeskPage() {
                 <polyline points="17 8 12 3 7 8"/>
                 <line x1="12" x2="12" y1="3" y2="15"/>
               </svg>
-              Import Excel
+              Upload Data
             </Button>
           )}
         </div>

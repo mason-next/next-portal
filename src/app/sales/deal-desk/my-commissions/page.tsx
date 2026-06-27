@@ -17,7 +17,7 @@ interface ProjectRow {
 
 export default function MyCommissionsPage() {
   const { quotes } = useDealDeskStore();
-  const { user, setUser } = useDealDeskUser();
+  const { userName } = useDealDeskUser();
   const [quarterFilter, setQuarterFilter] = useState("");
 
   const allNames = useMemo(() => {
@@ -32,10 +32,10 @@ export default function MyCommissionsPage() {
   }, [quotes]);
 
   const rows = useMemo((): ProjectRow[] => {
-    if (!user.name) return [];
+    if (!userName) return [];
     return quotes.flatMap((quote) => {
       if (quarterFilter && quote.quarter !== quarterFilter) return [];
-      const member = quote.team.find((m) => m.name === user.name);
+      const member = quote.team.find((m) => m.name === userName);
       if (!member) return [];
       const f = calcFinancials(quote.categories);
       const memberRows = calcMemberPayouts(quote);
@@ -49,7 +49,7 @@ export default function MyCommissionsPage() {
         billingPct: quote.billingCompletionPct, commissionStatus: quote.commissionStatus,
       }];
     });
-  }, [quotes, user.name, quarterFilter]);
+  }, [quotes, userName, quarterFilter]);
 
   const totals = useMemo(() => ({
     totalCents: rows.reduce((s, r) => s + r.totalCents, 0),
@@ -71,7 +71,7 @@ export default function MyCommissionsPage() {
     const csv = [headers.join(","), ...csvRows.map((r) => r.join(",")), totalRow.join(",")].join("\n");
     const a = document.createElement("a");
     a.href = URL.createObjectURL(new Blob([csv], { type: "text/csv" }));
-    a.download = `commissions-${user.name.replace(/\s+/g,"-").toLowerCase()}-${new Date().toISOString().slice(0,10)}.csv`;
+    a.download = `commissions-${userName.replace(/\s+/g,"-").toLowerCase()}-${new Date().toISOString().slice(0,10)}.csv`;
     a.click();
   }
 
@@ -87,7 +87,7 @@ export default function MyCommissionsPage() {
           <span className="text-foreground font-medium">My Commissions</span>
         </div>
         <div className="print-header mb-4">
-          <h1 className="text-xl font-bold">Commission Report — {user.name}</h1>
+          <h1 className="text-xl font-bold">Commission Report — {userName}</h1>
           <p className="text-sm text-muted-foreground">Generated {new Date().toLocaleDateString()}{quarterFilter ? ` · ${quarterFilter}` : ""}</p>
         </div>
         <div className="flex items-center justify-between gap-4 flex-wrap no-print">
@@ -96,18 +96,6 @@ export default function MyCommissionsPage() {
             <p className="text-sm text-muted-foreground mt-0.5">Personal commission report across all assigned projects</p>
           </div>
           <div className="flex items-center gap-3 flex-wrap">
-            <div className="flex items-center gap-2 rounded-lg border bg-card px-3 py-2">
-              <span className="text-xs text-muted-foreground">Viewing as</span>
-              <select value={user.name} onChange={(e) => setUser({ ...user, name: e.target.value })} className="text-sm font-medium bg-transparent focus:outline-none">
-                <option value="">— Select —</option>
-                {allNames.map((n) => <option key={n} value={n}>{n}</option>)}
-              </select>
-              <span className="text-muted-foreground">·</span>
-              <select value={user.role} onChange={(e) => setUser({ ...user, role: e.target.value as DealDeskRole })} className="text-sm bg-transparent focus:outline-none">
-                <option value="management">Management</option>
-                <option value="salesperson">Salesperson</option>
-              </select>
-            </div>
             <select value={quarterFilter} onChange={(e) => setQuarterFilter(e.target.value)} className="rounded-md border bg-card px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring">
               <option value="">All Quarters</option>
               {allQuarters.map((q) => <option key={q} value={q}>{q}</option>)}
@@ -119,7 +107,7 @@ export default function MyCommissionsPage() {
           </div>
         </div>
 
-        {!user.name ? (
+        {!userName ? (
           <div className="rounded-lg border bg-card p-12 text-center">
             <p className="text-sm text-muted-foreground">Select a team member above to view commissions.</p>
           </div>
@@ -140,10 +128,10 @@ export default function MyCommissionsPage() {
             </div>
             <div className="rounded-lg border bg-card overflow-hidden">
               <div className="px-5 py-3 border-b bg-muted/30">
-                <h2 className="text-sm font-semibold">Projects — {user.name} {rows.length > 0 && <span className="text-muted-foreground font-normal ml-2">({rows.length} project{rows.length !== 1 ? "s" : ""})</span>}</h2>
+                <h2 className="text-sm font-semibold">Projects — {userName} {rows.length > 0 && <span className="text-muted-foreground font-normal ml-2">({rows.length} project{rows.length !== 1 ? "s" : ""})</span>}</h2>
               </div>
               {rows.length === 0 ? (
-                <p className="px-5 py-8 text-sm text-muted-foreground">{user.name} is not listed as a team member on any projects{quarterFilter ? ` in ${quarterFilter}` : ""}.</p>
+                <p className="px-5 py-8 text-sm text-muted-foreground">{userName} is not listed as a team member on any projects{quarterFilter ? ` in ${quarterFilter}` : ""}.</p>
               ) : (
                 <div className="overflow-x-auto">
                   <table className="w-full text-sm">
