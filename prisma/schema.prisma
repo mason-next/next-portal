@@ -442,11 +442,15 @@ model DealDeskQuote {
   categories        Json
   team              Json
   executiveNotes    String           @default("")
-  approvalHistory   Json             @default("[]")
-  auditLog          Json             @default("[]")
-  sourceFiles       String[]
-  createdAt         DateTime         @default(now())
-  updatedAt         DateTime         @updatedAt
+  approvalHistory      Json             @default("[]")
+  auditLog             Json             @default("[]")
+  sourceFiles          String[]
+  createdAt            DateTime         @default(now())
+  updatedAt            DateTime         @updatedAt
+  // Payout tracking — added feature/payout-commissions
+  billingCompletionPct Float            @default(0)
+  milestones           Json             @default("[]")
+  payoutEvents         Json             @default("[]")
 
   @@map("deal_desk_quotes")
 }

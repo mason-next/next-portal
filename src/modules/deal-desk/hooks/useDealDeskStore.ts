@@ -12,103 +12,93 @@ function nowIso(): string {
 export function useDealDeskStore() {
   const [quotes, setQuotes] = useState<DealDeskQuote[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-
-  const reload = useCallback(() => {
-    setQuotes(getDealDeskQuotes());
-    setIsLoading(false);
-  }, []);
+  const [reloadToken, setReloadToken] = useState(0);
 
   useEffect(() => {
-    queueMicrotask(reload);
-  }, [reload]);
+    let active = true;
+    getDealDeskQuotes().then((data) => {
+      if (active) {
+        setQuotes(data);
+        setIsLoading(false);
+      }
+    });
+    return () => { active = false; };
+  }, [reloadToken]);
 
-  const upsert = useCallback(
-    (quote: DealDeskQuote) => {
-      saveDealDeskQuote(quote);
-      reload();
-    },
-    [reload]
-  );
+  const bump = useCallback(() => setReloadToken((t) => t + 1), []);
 
-  const remove = useCallback(
-    (id: string) => {
-      deleteDealDeskQuote(id);
-      reload();
-    },
-    [reload]
-  );
+  const upsert = useCallback(async (quote: DealDeskQuote) => {
+    await saveDealDeskQuote(quote);
+    bump();
+  }, [bump]);
 
-  const updateStatus = useCallback(
-    (id: string, status: DealStatus, comment: string) => {
-      const all = getDealDeskQuotes();
-      const quote = all.find((q) => q.id === id);
-      if (!quote) return;
-      const updated: DealDeskQuote = {
-        ...quote,
-        status,
-        updatedAt: nowIso(),
-        approvalHistory: [
-          ...quote.approvalHistory,
-          { id: crypto.randomUUID(), status, user: CURRENT_USER, comment, timestamp: nowIso() },
-        ],
-        auditLog: [
-          ...quote.auditLog,
-          {
-            id: crypto.randomUUID(),
-            action: "Approval status changed",
-            detail: `Status set to "${status}". ${comment ? `Comment: ${comment}` : ""}`.trim(),
-            user: CURRENT_USER,
-            timestamp: nowIso(),
-          },
-        ],
-      };
-      saveDealDeskQuote(updated);
-      reload();
-    },
-    [reload]
-  );
+  const remove = useCallback(async (id: string) => {
+    await deleteDealDeskQuote(id);
+    bump();
+  }, [bump]);
 
-  const updateCommissionStatus = useCallback(
-    (id: string, commissionStatus: CommissionStatus) => {
-      const all = getDealDeskQuotes();
-      const quote = all.find((q) => q.id === id);
-      if (!quote) return;
-      const updated: DealDeskQuote = {
-        ...quote,
-        commissionStatus,
-        updatedAt: nowIso(),
-        auditLog: [
-          ...quote.auditLog,
-          {
-            id: crypto.randomUUID(),
-            action: "Commission status changed",
-            detail: `Commission status set to "${commissionStatus}".`,
-            user: CURRENT_USER,
-            timestamp: nowIso(),
-          },
-        ],
-      };
-      saveDealDeskQuote(updated);
-      reload();
-    },
-    [reload]
-  );
+  const updateStatus = useCallback(async (id: string, status: DealStatus, comment: string) => {
+    const all = await getDealDeskQuotes();
+    const quote = all.find((q) => q.id === id);
+    if (!quote) return;
+    const updated: DealDeskQuote = {
+      ...quote,
+      status,
+      updatedAt: nowIso(),
+      approvalHistory: [
+        ...quote.approvalHistory,
+        { id: crypto.randomUUID(), status, user: CURRENT_USER, comment, timestamp: nowIso() },
+      ],
+      auditLog: [
+        ...quote.auditLog,
+        {
+          id: crypto.randomUUID(),
+          action: "Approval status changed",
+          detail: `Status set to "${status}". ${comment ? `Comment: ${comment}` : ""}`.trim(),
+          user: CURRENT_USER,
+          timestamp: nowIso(),
+        },
+      ],
+    };
+    await saveDealDeskQuote(updated);
+    bump();
+  }, [bump]);
 
-  const updateNotes = useCallback(
-    (id: string, executiveNotes: string) => {
-      const all = getDealDeskQuotes();
-      const quote = all.find((q) => q.id === id);
-      if (!quote) return;
-      saveDealDeskQuote({ ...quote, executiveNotes, updatedAt: nowIso() });
-      reload();
-    },
-    [reload]
-  );
+  const updateCommissionStatus = useCallback(async (id: string, commissionStatus: CommissionStatus) => {
+    const all = await getDealDeskQuotes();
+    const quote = all.find((q) => q.id === id);
+    if (!quote) return;
+    const updated: DealDeskQuote = {
+      ...quote,
+      commissionStatus,
+      updatedAt: nowIso(),
+      auditLog: [
+        ...quote.auditLog,
+        {
+          id: crypto.randomUUID(),
+          action: "Commission status changed",
+          detail: `Commission status set to "${commissionStatus}".`,
+          user: CURRENT_USER,
+          timestamp: nowIso(),
+        },
+      ],
+    };
+    await saveDealDeskQuote(updated);
+    bump();
+  }, [bump]);
+
+  const updateNotes = useCallback(async (id: string, executiveNotes: string) => {
+    const all = await getDealDeskQuotes();
+    const quote = all.find((q) => q.id === id);
+    if (!quote) return;
+    await saveDealDeskQuote({ ...quote, executiveNotes, updatedAt: nowIso() });
+    bump();
+  }, [bump]);
 
   return {
     quotes,
     isLoading,
-    reload,
+    reload: bump,
     upsert,
     remove,
     updateStatus,

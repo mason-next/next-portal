@@ -8,8 +8,10 @@ import { saveDealDeskQuote } from "@/lib/data/deal-desk";
 import { calcFinancials, fmtUSD, fmtPct } from "@/modules/deal-desk/lib/financial-calc";
 import { DealReport } from "@/modules/deal-desk/components/DealReport";
 import { CommissionPanel } from "@/modules/deal-desk/components/CommissionPanel";
+import { PayoutPanel } from "@/modules/deal-desk/components/PayoutPanel";
 import { SankeyPanel } from "@/modules/deal-desk/components/SankeyPanel";
 import { ApprovalPanel } from "@/modules/deal-desk/components/ApprovalPanel";
+import { useDealDeskUser } from "@/modules/deal-desk/hooks/useDealDeskUser";
 import type { DealDeskQuote, DealStatus, CommissionStatus } from "@/types/deal-desk";
 import { cn } from "@/lib/utils";
 
@@ -19,24 +21,27 @@ const STATUS_TONE: Record<string, string> = {
   Rejected: "bg-red-100 text-red-800",
 };
 
-type Tab = "report" | "commissions" | "sankey" | "approval";
+type Tab = "report" | "commissions" | "payout" | "sankey" | "approval";
 
 export default function QuoteDetailPage({ params }: { params: Promise<{ quoteId: string }> }) {
   const { quoteId } = use(params);
   const router = useRouter();
   const [quote, setQuote] = useState<DealDeskQuote | null>(null);
   const [tab, setTab] = useState<Tab>("report");
+  const { isManagement } = useDealDeskUser();
 
   useEffect(() => {
-    queueMicrotask(() => {
-      const q = getDealDeskQuote(quoteId);
+    let active = true;
+    getDealDeskQuote(quoteId).then((q) => {
+      if (!active) return;
       if (!q) { router.replace("/deal-desk"); return; }
       setQuote(q);
     });
+    return () => { active = false; };
   }, [quoteId, router]);
 
-  function persist(updated: DealDeskQuote) {
-    saveDealDeskQuote({ ...updated, updatedAt: new Date().toISOString() });
+  async function persist(updated: DealDeskQuote) {
+    await saveDealDeskQuote({ ...updated, updatedAt: new Date().toISOString() });
     setQuote(updated);
   }
 
@@ -77,21 +82,22 @@ export default function QuoteDetailPage({ params }: { params: Promise<{ quoteId:
 
   const f = calcFinancials(quote.categories);
 
-  const tabs: { id: Tab; label: string }[] = [
+  const tabs: { id: Tab; label: string; managementOnly?: boolean }[] = [
     { id: "report",      label: "Deal Report" },
     { id: "commissions", label: "Commissions" },
-    { id: "sankey",      label: "Sankey Export" },
-    { id: "approval",    label: "Approval" },
+    { id: "payout",      label: "Payout Tracking" },
+    { id: "sankey",      label: "Sankey Export",  managementOnly: true },
+    { id: "approval",    label: "Approval",        managementOnly: true },
   ];
+
+  const visibleTabs = tabs.filter((t) => !t.managementOnly || isManagement);
 
   return (
     <div className="mx-auto max-w-5xl p-8 space-y-6">
-      {/* Back nav */}
       <Link href="/deal-desk" className="inline-flex items-center text-sm text-muted-foreground hover:text-foreground">
         ← Deal Desk
       </Link>
 
-      {/* Header card */}
       <div className="rounded-xl border bg-card p-6">
         <div className="flex items-start justify-between gap-4 flex-wrap">
           <div>
@@ -109,7 +115,7 @@ export default function QuoteDetailPage({ params }: { params: Promise<{ quoteId:
             { label: "Revenue",      value: fmtUSD(f.revenueCents) },
             { label: "Gross Profit", value: fmtUSD(f.grossProfitCents) },
             { label: "Margin",       value: fmtPct(f.grossMarginPct, 2) },
-            { label: "Commission Pool", value: fmtUSD(f.commissionPoolCents) },
+            ...(isManagement ? [{ label: "Commission Pool", value: fmtUSD(f.commissionPoolCents) }] : []),
           ].map(({ label, value }) => (
             <div key={label} className="rounded-lg bg-muted/40 p-3">
               <div className="text-xs text-muted-foreground">{label}</div>
@@ -119,9 +125,8 @@ export default function QuoteDetailPage({ params }: { params: Promise<{ quoteId:
         </div>
       </div>
 
-      {/* Tabs */}
       <div className="flex border-b gap-1">
-        {tabs.map(({ id, label }) => (
+        {visibleTabs.map(({ id, label }) => (
           <button
             key={id}
             type="button"
@@ -138,10 +143,10 @@ export default function QuoteDetailPage({ params }: { params: Promise<{ quoteId:
         ))}
       </div>
 
-      {/* Tab content */}
       <div>
         {tab === "report"      && <DealReport quote={quote} />}
         {tab === "commissions" && <CommissionPanel quote={quote} onCommissionStatusChange={handleCommissionStatusChange} />}
+        {tab === "payout"      && <PayoutPanel quote={quote} onUpdate={persist} />}
         {tab === "sankey"      && <SankeyPanel quote={quote} />}
         {tab === "approval"    && <ApprovalPanel quote={quote} onStatusChange={handleStatusChange} onNotesChange={handleNotesChange} />}
       </div>
