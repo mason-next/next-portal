@@ -18,7 +18,6 @@ function unmapCommissionStatus(s: string): string {
   return s;
 }
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
 function toQuote(p: PrismaQuote): DealDeskQuote {
   const milestones = Array.isArray(p.milestones) && p.milestones.length
     // eslint-disable-next-line @typescript-eslint/no-explicit-any

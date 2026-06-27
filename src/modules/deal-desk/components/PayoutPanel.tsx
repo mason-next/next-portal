@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { calcProjectPayout, calcMemberPayouts } from "@/modules/deal-desk/lib/payout-calc";
-import { fmtUSD, fmtPct } from "@/modules/deal-desk/lib/financial-calc";
+import { fmtUSD } from "@/modules/deal-desk/lib/financial-calc";
 import { useDealDeskUser } from "@/modules/deal-desk/hooks/useDealDeskUser";
 import type { DealDeskQuote, PayoutMilestone, PayoutEvent } from "@/types/deal-desk";
 import { DEFAULT_PAYOUT_MILESTONES } from "@/types/deal-desk";
@@ -139,7 +139,7 @@ export function PayoutPanel({ quote, onUpdate }: PayoutPanelProps) {
 
         {showMilestoneEditor ? (
           <div className="p-5 space-y-3">
-            {editingMilestones.map((m, i) => (
+            {editingMilestones.map((m) => (
               <div key={m.id} className="grid grid-cols-[1fr_auto_auto_auto] gap-2 items-center">
                 <input
                   value={m.label}

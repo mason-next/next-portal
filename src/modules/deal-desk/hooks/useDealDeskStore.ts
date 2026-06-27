@@ -63,7 +63,7 @@ export function useDealDeskStore() {
     };
     await saveDealDeskQuote(updated);
     bump();
-  }, [bump]);
+  }, [bump, currentUserName]);
 
   const updateCommissionStatus = useCallback(async (id: string, commissionStatus: CommissionStatus) => {
     const all = await getDealDeskQuotes();
@@ -86,7 +86,7 @@ export function useDealDeskStore() {
     };
     await saveDealDeskQuote(updated);
     bump();
-  }, [bump]);
+  }, [bump, currentUserName]);
 
   const updateNotes = useCallback(async (id: string, executiveNotes: string) => {
     const all = await getDealDeskQuotes();

@@ -8,7 +8,7 @@
 // Future providers: email (AWS SES / SMTP), Microsoft Teams (Graph API), push (web-push)
 
 import { createNotification } from "@/lib/data/notifications";
-import type { NewNotificationInput, NotificationType } from "@/types/notification";
+import type { NewNotificationInput } from "@/types/notification";
 
 // ─── Provider contract ────────────────────────────────────────────────────────
 

@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { addWorkflowStep, removeWorkflowStep, updateWorkflowStep, type AddWorkflowStepInput } from "@/lib/data/workflow";
 import { getWorkflowStepsWithProgress } from "@/modules/project-command-center/engine/module-progress";
-import type { ProjectSectionKey, WorkflowStep } from "@/types/workflow";
+import type { WorkflowStep } from "@/types/workflow";
 
 export function useWorkflowSteps(projectId: string) {
   const [loaded, setLoaded] = useState<{

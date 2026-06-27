@@ -6,7 +6,7 @@ import { useDealDeskStore } from "@/modules/deal-desk/hooks/useDealDeskStore";
 import { useDealDeskUser } from "@/modules/deal-desk/hooks/useDealDeskUser";
 import { calcMemberPayouts } from "@/modules/deal-desk/lib/payout-calc";
 import { calcFinancials, fmtUSD, fmtPct } from "@/modules/deal-desk/lib/financial-calc";
-import { memberPayoutCents, memberRateBps } from "@/modules/deal-desk/lib/commission-engine";
+import { memberRateBps } from "@/modules/deal-desk/lib/commission-engine";
 import type { DealDeskRole } from "@/types/deal-desk";
 
 interface ProjectRow {

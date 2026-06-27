@@ -26,7 +26,7 @@ type PrismaTechWithRelations = PrismaTech & {
   subcontractor: Pick<PrismaSub, "id" | "name" | "trade"> | null;
 };
 
-export function toTechnicianEntry(p: PrismaTechWithRelations): ProjectTechnicianEntry {
+function toTechnicianEntry(p: PrismaTechWithRelations): ProjectTechnicianEntry {
   return {
     id: p.id,
     userId: p.userId,
