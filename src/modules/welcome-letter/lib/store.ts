@@ -1,6 +1,6 @@
-import { readProjectScoped, writeProjectScoped } from "@/lib/storage/local-store";
+"use server";
 
-const WELCOME_LETTER_KEY = "welcome-letter";
+import { db } from "@/lib/db";
 
 export interface WelcomeLetterRecord {
   subject: string;
@@ -11,9 +11,28 @@ export interface WelcomeLetterRecord {
 }
 
 export async function getWelcomeLetterRecord(projectId: string): Promise<WelcomeLetterRecord | null> {
-  return readProjectScoped<WelcomeLetterRecord>(projectId, WELCOME_LETTER_KEY);
+  const row = await db.welcomeLetter.findUnique({ where: { projectId } });
+  if (!row) return null;
+  return {
+    subject: row.subject,
+    html: row.html,
+    plainText: row.plainText,
+    sentBy: row.sentBy,
+    sentAt: row.sentAt.toISOString(),
+  };
 }
 
 export async function saveWelcomeLetterRecord(projectId: string, record: WelcomeLetterRecord): Promise<void> {
-  writeProjectScoped(projectId, WELCOME_LETTER_KEY, record);
+  const data = {
+    subject: record.subject,
+    html: record.html,
+    plainText: record.plainText,
+    sentBy: record.sentBy,
+    sentAt: new Date(record.sentAt),
+  };
+  await db.welcomeLetter.upsert({
+    where: { projectId },
+    update: data,
+    create: { projectId, ...data },
+  });
 }

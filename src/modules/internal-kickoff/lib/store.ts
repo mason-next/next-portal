@@ -1,4 +1,6 @@
-import { readProjectScoped, writeProjectScoped } from "@/lib/storage/local-store";
+"use server";
+
+import { db } from "@/lib/db";
 
 export interface InternalKickoffRecord {
   subject: string;
@@ -10,12 +12,33 @@ export interface InternalKickoffRecord {
   scheduledAt: string; // ISO 8601 — when "Mark Complete" was clicked
 }
 
-const INTERNAL_KICKOFF_KEY = "internal-kickoff";
-
 export async function getInternalKickoffRecord(projectId: string): Promise<InternalKickoffRecord | null> {
-  return readProjectScoped<InternalKickoffRecord>(projectId, INTERNAL_KICKOFF_KEY);
+  const row = await db.internalKickoff.findUnique({ where: { projectId } });
+  if (!row) return null;
+  return {
+    subject: row.subject,
+    agenda: row.agenda,
+    attendees: row.attendees,
+    startTime: row.startTime.toISOString(),
+    endTime: row.endTime.toISOString(),
+    scheduledBy: row.scheduledBy,
+    scheduledAt: row.scheduledAt.toISOString(),
+  };
 }
 
 export async function saveInternalKickoffRecord(projectId: string, record: InternalKickoffRecord): Promise<void> {
-  writeProjectScoped(projectId, INTERNAL_KICKOFF_KEY, record);
+  const data = {
+    subject: record.subject,
+    agenda: record.agenda,
+    attendees: record.attendees,
+    startTime: new Date(record.startTime),
+    endTime: new Date(record.endTime),
+    scheduledBy: record.scheduledBy,
+    scheduledAt: new Date(record.scheduledAt),
+  };
+  await db.internalKickoff.upsert({
+    where: { projectId },
+    update: data,
+    create: { projectId, ...data },
+  });
 }
