@@ -77,9 +77,10 @@ function groupByDate(activity: ProjectActivity[]): { label: string; items: Proje
 
 export function ProjectActivityDrawer({ projectId }: { projectId: string }) {
   const session = useSession();
-  const currentUserAvatar = useCurrentUserAvatar();
   const { project } = useProjectContext();
   const { users } = useUsersContext();
+  const dbAvatar = users?.find((u) => u.id === session.id)?.avatarUrl ?? null;
+  const currentUserAvatar = useCurrentUserAvatar(dbAvatar);
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();

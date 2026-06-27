@@ -90,13 +90,26 @@ export async function getProject(id: string): Promise<Project | null> {
 // ─── Mutations ────────────────────────────────────────────────────────────────
 
 export async function createProject(input: NewProjectInput): Promise<Project> {
-  // Apply default role assignments stored in AppSetting (set during setup/M12 migration).
-  const [seniorInsideSetting, insidePMSetting] = await Promise.all([
-    db.appSetting.findUnique({ where: { key: "default_senior_inside_id" } }),
-    db.appSetting.findUnique({ where: { key: "default_inside_pm_id" } }),
-  ]);
-  const defaultSeniorInsideId = (seniorInsideSetting?.value as string | null) ?? null;
-  const defaultInsidePMId = (insidePMSetting?.value as string | null) ?? null;
+  // Look up default role assignments from AppSetting, then verify each user actually exists
+  // before using their ID — app_settings may hold stale IDs from seed/migration data.
+  let defaultSeniorInsideId: string | null = null;
+  let defaultInsidePMId: string | null = null;
+  try {
+    const [seniorSetting, insideSetting] = await Promise.all([
+      db.appSetting.findUnique({ where: { key: "default_senior_inside_id" } }),
+      db.appSetting.findUnique({ where: { key: "default_inside_pm_id" } }),
+    ]);
+    const seniorId = seniorSetting?.value as string | null;
+    const insideId = insideSetting?.value as string | null;
+    const [seniorExists, insideExists] = await Promise.all([
+      seniorId ? db.user.findUnique({ where: { id: seniorId }, select: { id: true } }) : null,
+      insideId ? db.user.findUnique({ where: { id: insideId }, select: { id: true } }) : null,
+    ]);
+    if (seniorExists) defaultSeniorInsideId = seniorId;
+    if (insideExists) defaultInsidePMId = insideId;
+  } catch {
+    // app_settings unavailable — create without defaults
+  }
 
   const row = await db.project.create({
     data: {

@@ -24,8 +24,14 @@ export function NewProjectModal({ onClose, onCreated }: NewProjectModalProps) {
 
   async function handleCreate() {
     setSubmitting(true);
-    const project = await createProject({ name, projectNumber, customerName, siteAddress, coordinatorGroup });
-    onCreated(project);
+    try {
+      const project = await createProject({ name, projectNumber, customerName, siteAddress, coordinatorGroup });
+      onCreated(project);
+    } catch (err) {
+      console.error("[NewProjectModal] createProject failed:", err);
+    } finally {
+      setSubmitting(false);
+    }
   }
 
   return (

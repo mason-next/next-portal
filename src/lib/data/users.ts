@@ -14,6 +14,7 @@ const ROLE_FROM_DB: Record<PrismaRole, UserRole> = {
   [PrismaRole.EngineeringManager]: "Engineering Manager",
   [PrismaRole.ProcurementManager]: "Procurement Manager",
   [PrismaRole.Member]: "Member",
+  [PrismaRole.Salesperson]: "Salesperson",
 };
 
 const ROLE_TO_DB: Record<UserRole, PrismaRole> = {
@@ -22,6 +23,7 @@ const ROLE_TO_DB: Record<UserRole, PrismaRole> = {
   "Engineering Manager": PrismaRole.EngineeringManager,
   "Procurement Manager": PrismaRole.ProcurementManager,
   Member: PrismaRole.Member,
+  Salesperson: PrismaRole.Salesperson,
 };
 
 // ─── Type mapper ──────────────────────────────────────────────────────────────

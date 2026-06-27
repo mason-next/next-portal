@@ -3,12 +3,15 @@
 import { useRef, useState } from "react";
 import { useSession } from "@/lib/auth/client";
 import { CURRENT_USER_AVATAR_KEY, useCurrentUserAvatar } from "@/lib/hooks/useCurrentUserAvatar";
+import { useUsersContext } from "@/components/shared/AppShell/UsersProvider";
 import { writeGlobal } from "@/lib/storage/local-store";
 import { UserAvatarImage } from "./UserAvatarImage";
 
 export function UserAvatar() {
   const session = useSession();
-  const initialAvatar = useCurrentUserAvatar();
+  const { users } = useUsersContext();
+  const dbAvatar = users?.find((u) => u.id === session.id)?.avatarUrl ?? null;
+  const initialAvatar = useCurrentUserAvatar(dbAvatar);
   const [avatar, setAvatar] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 

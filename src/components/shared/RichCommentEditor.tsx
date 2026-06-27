@@ -84,14 +84,17 @@ export const RichCommentEditor = forwardRef<RichCommentEditorHandle, RichComment
           return false;
         },
       },
-      onUpdate: ({ editor: e }) => onEmptyChange?.(e.isEmpty),
-      onCreate: ({ editor: e }) => onEmptyChange?.(e.isEmpty),
+      // editor.isEmpty returns true for mention-only content in Tiptap v3 because inline
+      // atom nodes have no text. Check doc.content.size instead: an empty paragraph has
+      // size 2 (open+close), any real content (text or mention atom) raises it above 2.
+      onUpdate: ({ editor: e }) => onEmptyChange?.(e.state.doc.content.size <= 2),
+      onCreate: ({ editor: e }) => onEmptyChange?.(e.state.doc.content.size <= 2),
     });
 
     useImperativeHandle(
       ref,
       () => ({
-        isEmpty: () => editor?.isEmpty ?? true,
+        isEmpty: () => (editor?.state.doc.content.size ?? 0) <= 2,
         getPayload: () => ({ richContent: editor?.getJSON() ?? { type: "doc", content: [] }, text: editor?.getText() ?? "" }),
         clear: () => editor?.commands.clearContent(true),
         focus: () => editor?.commands.focus(),
