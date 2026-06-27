@@ -5,7 +5,7 @@
   "scripts": {
     "dev": "next dev",
     "build": "next build",
-    "start": "prisma migrate deploy && prisma db seed && next start",
+    "start": "prisma migrate resolve --applied 20260627060000_add_welcome_letter_internal_kickoff_app_settings || true && prisma migrate deploy && prisma db seed && next start",
     "postinstall": "prisma generate",
     "lint": "eslint",
     "db:generate": "prisma generate",
