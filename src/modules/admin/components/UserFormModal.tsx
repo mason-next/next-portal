@@ -29,24 +29,44 @@ export function UserFormModal({ user, onClose, onSaved, onDeleted }: UserFormMod
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   function handleFile(file: File) {
-    const reader = new FileReader();
-    reader.onload = () => setAvatarUrl(String(reader.result));
-    reader.readAsDataURL(file);
+    const img = new Image();
+    const objectUrl = URL.createObjectURL(file);
+    img.onload = () => {
+      const MAX = 256;
+      const scale = Math.min(1, MAX / Math.max(img.width, img.height));
+      const w = Math.round(img.width * scale);
+      const h = Math.round(img.height * scale);
+      const canvas = document.createElement("canvas");
+      canvas.width = w;
+      canvas.height = h;
+      canvas.getContext("2d")!.drawImage(img, 0, 0, w, h);
+      setAvatarUrl(canvas.toDataURL("image/jpeg", 0.82));
+      URL.revokeObjectURL(objectUrl);
+    };
+    img.src = objectUrl;
   }
 
   async function handleSave() {
     setSubmitting(true);
-    const saved = user
-      ? await updateUser(user.id, { name, title, email, phone, avatarUrl, role, isActive })
-      : await createUser({ name, title, email, phone, avatarUrl, role, isActive });
-    onSaved(saved);
+    try {
+      const saved = user
+        ? await updateUser(user.id, { name, title, email, phone, avatarUrl, role, isActive })
+        : await createUser({ name, title, email, phone, avatarUrl, role, isActive });
+      onSaved(saved);
+    } finally {
+      setSubmitting(false);
+    }
   }
 
   async function handleDelete() {
     if (!user) return;
     setSubmitting(true);
-    await deleteUser(user.id);
-    onDeleted(user.id);
+    try {
+      await deleteUser(user.id);
+      onDeleted(user.id);
+    } finally {
+      setSubmitting(false);
+    }
   }
 
   return (
