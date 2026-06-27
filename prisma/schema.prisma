@@ -299,21 +299,25 @@ model BomAuditLog {
 }
 
 model Release {
-  id             String   @id @default(cuid())
+  id             String    @id @default(cuid())
   projectId      String
   releaseNumber  String
-  shippingType   String
-  shipTo         String
-  recipients     String
-  notes          String   @default("")
-  generatedAt    DateTime
-  generatedBy    String
+  shippingType   String    @default("")
+  shipTo         String    @default("")
+  recipients     String    @default("")
+  notes          String    @default("")
+  // Null until the draft is finalized via "Generate Release".
+  generatedAt    DateTime?
+  generatedBy    String    @default("")
+  // BomRow.id values included in this release — denormalized for email/PDF rebuild.
+  rowIds         String[]  @default([])
   // Frozen point-in-time snapshot of rows at generation — never joined live.
-  rowSnapshot    Json
-  emailPlainText String
-  emailHtml      String
-  emailSubject   String
-  updatedAt      DateTime @updatedAt
+  rowSnapshot    Json      @default("[]")
+  emailPlainText String    @default("")
+  emailHtml      String    @default("")
+  emailSubject   String    @default("")
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
 
   project Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
 

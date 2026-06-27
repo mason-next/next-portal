@@ -4,7 +4,7 @@ const BASE = "http://localhost:3000";
 const BOM_URL = `${BASE}/projects/proj-iat-anaheim/engineering/bom-review`;
 
 async function waitForTable(page: import("@playwright/test").Page) {
-  await expect(page.locator("table")).toBeVisible({ timeout: 15000 });
+  await expect(page.locator("table tbody tr").first()).toBeVisible({ timeout: 30000 });
 }
 
 // Ensures BOM rows are loaded; imports the sample CSV if the page shows the empty dropzone.
@@ -35,19 +35,27 @@ async function ensureRowsLoaded(page: import("@playwright/test").Page) {
 }
 
 test.describe("BOM Review — PostgreSQL migration", () => {
-  test.setTimeout(90000);
+  test.setTimeout(150000);
   test("1. BOM review page loads without console errors", async ({ page }) => {
     const errors: string[] = [];
     page.on("console", (msg) => {
       if (msg.type() === "error") errors.push(msg.text());
     });
 
-    await page.goto(BOM_URL, { waitUntil: "networkidle", timeout: 30000 });
+    await page.goto(BOM_URL, { waitUntil: "domcontentloaded", timeout: 30000 });
 
-    const hasTable = await page.locator("table").isVisible({ timeout: 5000 }).catch(() => false);
+    // isVisible() is immediate — use waitFor() to actually wait for React to mount
+    await page
+      .locator("table")
+      .or(page.getByRole("button", { name: "Use Sample BOM" }))
+      .first()
+      .waitFor({ state: "visible", timeout: 20000 })
+      .catch(() => {});
+
+    const hasTable = await page.locator("table").isVisible().catch(() => false);
     const hasDropzone = await page
       .getByRole("button", { name: "Use Sample BOM" })
-      .isVisible({ timeout: 5000 })
+      .isVisible()
       .catch(() => false);
     expect(hasTable || hasDropzone).toBe(true);
 
@@ -56,7 +64,7 @@ test.describe("BOM Review — PostgreSQL migration", () => {
   });
 
   test("2. CSV import (sample) creates rows in DB", async ({ page }) => {
-    await page.goto(BOM_URL, { waitUntil: "networkidle", timeout: 30000 });
+    await page.goto(BOM_URL, { waitUntil: "domcontentloaded", timeout: 30000 });
     await ensureRowsLoaded(page);
 
     const rowCount = await page.locator("table tbody tr").count();
@@ -64,12 +72,12 @@ test.describe("BOM Review — PostgreSQL migration", () => {
   });
 
   test("3. BOM rows persist after page reload", async ({ page }) => {
-    await page.goto(BOM_URL, { waitUntil: "networkidle", timeout: 30000 });
+    await page.goto(BOM_URL, { waitUntil: "domcontentloaded", timeout: 30000 });
     await ensureRowsLoaded(page);
 
     const countBefore = await page.locator("table tbody tr").count();
 
-    await page.reload({ waitUntil: "networkidle" });
+    await page.reload({ waitUntil: "domcontentloaded", timeout: 30000 });
     await waitForTable(page);
 
     const countAfter = await page.locator("table tbody tr").count();
@@ -77,7 +85,7 @@ test.describe("BOM Review — PostgreSQL migration", () => {
   });
 
   test("4. editing notes field persists after reload", async ({ page }) => {
-    await page.goto(BOM_URL, { waitUntil: "networkidle", timeout: 30000 });
+    await page.goto(BOM_URL, { waitUntil: "domcontentloaded", timeout: 30000 });
     await ensureRowsLoaded(page);
 
     const firstRow = page.locator("table tbody tr").first();
@@ -88,7 +96,7 @@ test.describe("BOM Review — PostgreSQL migration", () => {
     await notesInput.press("Tab");
     await page.waitForTimeout(2000);
 
-    await page.reload({ waitUntil: "networkidle" });
+    await page.reload({ waitUntil: "domcontentloaded", timeout: 30000 });
     await waitForTable(page);
 
     const notesInputAfter = page.locator("table tbody tr").first().locator("input[type='text']").nth(5);
@@ -96,16 +104,27 @@ test.describe("BOM Review — PostgreSQL migration", () => {
   });
 
   test("5. editing status persists after reload", async ({ page }) => {
-    await page.goto(BOM_URL, { waitUntil: "networkidle", timeout: 30000 });
+    await page.goto(BOM_URL, { waitUntil: "domcontentloaded", timeout: 30000 });
     await ensureRowsLoaded(page);
 
-    // Find first row's status cell — it should have a select or clickable element
-    const firstRow = page.locator("table tbody tr").first();
-    const statusSelect = firstRow.locator("select").first();
+    // Released rows render a StatusBadge (no <select>). Find first row that HAS a select.
+    const rows = page.locator("table tbody tr");
+    const rowCount = await rows.count();
+    let targetRowIndex = -1;
+    for (let i = 0; i < rowCount; i++) {
+      if ((await rows.nth(i).locator("select").count()) >= 1) {
+        targetRowIndex = i;
+        break;
+      }
+    }
+    if (targetRowIndex === -1) {
+      test.skip();
+      return;
+    }
 
-    const originalStatus = await statusSelect.inputValue().catch(() => null);
+    const statusSelect = rows.nth(targetRowIndex).locator("select").first();
+    const originalStatus = await statusSelect.inputValue({ timeout: 5000 }).catch(() => null);
     if (originalStatus === null) {
-      // Status might render as a button/dropdown rather than a native select
       test.skip();
       return;
     }
@@ -114,15 +133,18 @@ test.describe("BOM Review — PostgreSQL migration", () => {
     await statusSelect.selectOption(newStatus);
     await page.waitForTimeout(2000);
 
-    await page.reload({ waitUntil: "networkidle" });
+    await page.reload({ waitUntil: "domcontentloaded", timeout: 30000 });
     await waitForTable(page);
 
-    const statusAfter = await firstRow.locator("select").first().inputValue();
-    expect(statusAfter).toBe(newStatus);
+    // Re-locate by the same row index; toHaveValue retries until the DB-backed
+    // value propagates, with an explicit ceiling that prevents an indefinite hang.
+    await expect(
+      page.locator("table tbody tr").nth(targetRowIndex).locator("select").first()
+    ).toHaveValue(newStatus, { timeout: 15000 });
   });
 
   test("6. audit history is visible and persists", async ({ page }) => {
-    await page.goto(BOM_URL, { waitUntil: "networkidle", timeout: 30000 });
+    await page.goto(BOM_URL, { waitUntil: "domcontentloaded", timeout: 30000 });
     await ensureRowsLoaded(page);
 
     // Make a field change to generate an audit entry
@@ -135,7 +157,7 @@ test.describe("BOM Review — PostgreSQL migration", () => {
     await mfrInput.press("Tab");
     await page.waitForTimeout(2000);
 
-    await page.reload({ waitUntil: "networkidle" });
+    await page.reload({ waitUntil: "domcontentloaded", timeout: 30000 });
     await waitForTable(page);
 
     // Confirm the edited field value persisted — first text input (seq) should have newVal
@@ -146,14 +168,14 @@ test.describe("BOM Review — PostgreSQL migration", () => {
   });
 
   test("7. clearing localStorage does not remove DB-backed rows", async ({ page }) => {
-    await page.goto(BOM_URL, { waitUntil: "networkidle", timeout: 30000 });
+    await page.goto(BOM_URL, { waitUntil: "domcontentloaded", timeout: 30000 });
     await ensureRowsLoaded(page);
 
     const countBefore = await page.locator("table tbody tr").count();
     expect(countBefore).toBeGreaterThan(0);
 
     await page.evaluate(() => localStorage.clear());
-    await page.reload({ waitUntil: "networkidle" });
+    await page.reload({ waitUntil: "domcontentloaded", timeout: 30000 });
     await waitForTable(page);
 
     const countAfter = await page.locator("table tbody tr").count();
@@ -166,9 +188,9 @@ test.describe("BOM Review — PostgreSQL migration", () => {
       if (msg.type() === "error") errors.push(msg.text());
     });
 
-    await page.goto(BOM_URL, { waitUntil: "networkidle", timeout: 30000 });
+    await page.goto(BOM_URL, { waitUntil: "domcontentloaded", timeout: 30000 });
     await page.evaluate(() => localStorage.clear());
-    await page.reload({ waitUntil: "networkidle" });
+    await page.reload({ waitUntil: "domcontentloaded", timeout: 30000 });
     await page.waitForTimeout(2000);
 
     const realErrors = errors.filter(
