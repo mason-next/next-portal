@@ -18,6 +18,9 @@ const PRISMA_TO_APP: Record<PrismaBomStatus, BomRow["status"]> = {
   DoNotOrder: "Do Not Order",
   OnHold: "On Hold",
   Released: "Released",
+  Ordered: "Ordered",
+  Received: "Received",
+  Installed: "Installed",
 };
 
 const APP_TO_PRISMA: Record<BomRow["status"], PrismaBomStatus> = {
@@ -27,6 +30,9 @@ const APP_TO_PRISMA: Record<BomRow["status"], PrismaBomStatus> = {
   "Do Not Order": "DoNotOrder",
   "On Hold": "OnHold",
   Released: "Released",
+  Ordered: "Ordered",
+  Received: "Received",
+  Installed: "Installed",
 };
 
 // ─── Type mappers ─────────────────────────────────────────────────────────────

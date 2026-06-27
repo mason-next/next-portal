@@ -7,6 +7,9 @@ export const BOM_STATUSES = [
   "Do Not Order",
   "On Hold",
   "Released",
+  "Ordered",
+  "Received",
+  "Installed",
 ] as const;
 
 export type BomStatus = (typeof BOM_STATUSES)[number];

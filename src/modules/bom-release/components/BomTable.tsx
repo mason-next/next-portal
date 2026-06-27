@@ -8,7 +8,6 @@ import { EditableCell } from "@/components/shared/data-table/EditableCell";
 import { SelectableRowCheckbox } from "@/components/shared/data-table/SelectableRowCheckbox";
 import { useSortableRows } from "@/components/shared/data-table/useSortableRows";
 import { AuditTrailModal } from "@/components/shared/AuditTrailModal";
-import { StatusBadge } from "@/components/shared/StatusBadge";
 import { formatDate, formatMoney } from "@/lib/utils";
 import { rowTotal } from "@/modules/bom-release/lib/bom-calculations";
 import { isFieldChanged } from "@/modules/bom-release/lib/change-tracking";
@@ -17,6 +16,17 @@ import type { Release } from "@/types/release";
 const UNASSIGNED_RELEASE_OPTION = "Unassigned";
 const NEW_RELEASE_OPTION = "+ New Release";
 
+// Statuses representing items that have been through the release process.
+// These rows have their release label locked and only allow procurement-stage transitions.
+const PROCUREMENT_STATUSES: ReadonlySet<BomStatus> = new Set([
+  "Released",
+  "Ordered",
+  "Received",
+  "Installed",
+]);
+
+const PROCUREMENT_STATUS_OPTIONS: BomStatus[] = ["Released", "Ordered", "Received", "Installed"];
+
 const STATUS_SELECT_TONE: Record<BomStatus, string> = {
   "Pending Review": "bg-muted text-muted-foreground",
   Approved: "bg-emerald-50 text-emerald-700",
@@ -24,6 +34,9 @@ const STATUS_SELECT_TONE: Record<BomStatus, string> = {
   "Do Not Order": "bg-red-50 text-red-700",
   "On Hold": "bg-purple-50 text-purple-700",
   Released: "bg-sky-50 text-sky-700",
+  Ordered: "bg-blue-50 text-blue-700",
+  Received: "bg-teal-50 text-teal-700",
+  Installed: "bg-emerald-100 text-emerald-800",
 };
 
 interface BomTableProps {
@@ -211,10 +224,15 @@ export function BomTable({
       sortValue: (row) => row.status,
       filterable: true,
       cell: (row) =>
-        row.status === "Released" ? (
-          <div className="px-2">
-            <StatusBadge label="Released" tone="info" />
-          </div>
+        PROCUREMENT_STATUSES.has(row.status) ? (
+          <EditableCell
+            value={row.status}
+            type="select"
+            options={PROCUREMENT_STATUS_OPTIONS}
+            className={STATUS_SELECT_TONE[row.status]}
+            isChanged={isFieldChanged(snapshot[row.id], "status", row.status)}
+            onCommit={(value) => onUpdateField(row.id, "status", value as BomStatus)}
+          />
         ) : (
           <EditableCell
             value={row.status}
@@ -233,7 +251,7 @@ export function BomTable({
       sortValue: (row) => row.release ?? "",
       filterable: true,
       cell: (row) =>
-        row.status === "Released" ? (
+        PROCUREMENT_STATUSES.has(row.status) ? (
           <span className="block px-2 text-sm text-muted-foreground">{row.release ?? "—"}</span>
         ) : (
           <EditableCell

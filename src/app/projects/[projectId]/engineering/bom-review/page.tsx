@@ -21,7 +21,7 @@ import {
 } from "@/modules/bom-release/lib/view-filters";
 import { useSession } from "@/lib/auth/client";
 import { CostSummaryCards } from "@/modules/bom-release/components/CostSummaryCards";
-import { bomCompletionPercent } from "@/modules/bom-release/lib/bom-progress";
+import { bomCompletionPercent, procurementProgressPercent } from "@/modules/bom-release/lib/bom-progress";
 import { QuickFilterTabs } from "@/modules/bom-release/components/QuickFilterTabs";
 import { BomTable } from "@/modules/bom-release/components/BomTable";
 import { BomBulkActionBar } from "@/modules/bom-release/components/BomBulkActionBar";
@@ -282,7 +282,11 @@ export default function BomReviewPage({
               <Button onClick={() => setShowReleaseModal(true)}>Create Release</Button>
             </div>
           </div>
-          <CostSummaryCards summary={summary} reviewedPercent={bomCompletionPercent(rows ?? [])} />
+          <CostSummaryCards
+            summary={summary}
+            reviewedPercent={bomCompletionPercent(rows ?? [])}
+            procurementPercent={procurementProgressPercent(rows ?? [])}
+          />
           <QuickFilterTabs value={quickFilter} onChange={setQuickFilter} />
           <BomBulkActionBar
             selectedCount={selected.size}

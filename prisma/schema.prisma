@@ -53,6 +53,9 @@ enum BomStatus {
   DoNotOrder    @map("Do Not Order")
   OnHold        @map("On Hold")
   Released
+  Ordered
+  Received
+  Installed
 }
 
 enum EquipmentSource {
