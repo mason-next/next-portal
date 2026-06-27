@@ -20,12 +20,10 @@ export function DefaultKickoffAttendeesCard() {
   }, []);
 
   function toggle(userId: string) {
-    setSelectedIds((prev) => {
-      const current = prev ?? [];
-      const next = current.includes(userId) ? current.filter((id) => id !== userId) : [...current, userId];
-      setDefaultKickoffAttendeeIds(next);
-      return next;
-    });
+    const current = selectedIds ?? [];
+    const next = current.includes(userId) ? current.filter((id) => id !== userId) : [...current, userId];
+    setSelectedIds(next);
+    setDefaultKickoffAttendeeIds(next);
   }
 
   const activeUsers = users.filter((u) => u.isActive);
