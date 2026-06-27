@@ -5,7 +5,13 @@ const SESSION_COOKIE = "next-portal-session";
 const EXPIRY_DAYS = 30;
 
 function getSecret(): Uint8Array {
-  const secret = process.env.AUTH_SECRET ?? "dev-secret-change-in-production-min-32-chars";
+  const secret = process.env.AUTH_SECRET;
+  if (!secret) {
+    if (process.env.NODE_ENV === "production") {
+      throw new Error("AUTH_SECRET environment variable must be set in production");
+    }
+    return new TextEncoder().encode("dev-secret-change-in-production-min-32-chars");
+  }
   return new TextEncoder().encode(secret);
 }
 
