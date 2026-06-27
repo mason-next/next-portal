@@ -53,6 +53,22 @@ export default function SalesDashboardPage() {
         <p className="text-sm text-muted-foreground mt-0.5">Overview of pipeline, activity, and recent deals</p>
       </div>
 
+      {/* Module Nav Cards */}
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+        {[
+          { href: "/sales/activity", label: "Sales Activity", desc: "Track prospects and log weekly calls, emails, meetings, and demos", icon: "📊" },
+          { href: "/sales/deal-desk", label: "Deal Desk", desc: "Import quotes, review commissions, and manage payout milestones", icon: "💼" },
+          { href: "/sales/quotes", label: "Interactive Quote Portal", desc: "Share customer-facing HTML presentations with email-gated access", icon: "🔗" },
+        ].map(({ href, label, desc, icon }) => (
+          <Link key={href} href={href} className="group rounded-xl border bg-card p-6 hover:border-primary hover:shadow-sm transition-all">
+            <div className="text-2xl mb-3">{icon}</div>
+            <div className="font-semibold text-base group-hover:text-primary transition-colors">{label}</div>
+            <div className="text-sm text-muted-foreground mt-1 leading-snug">{desc}</div>
+            <div className="text-xs text-primary mt-3 font-medium">Open →</div>
+          </Link>
+        ))}
+      </div>
+
       {/* KPI Cards */}
       <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
         {[

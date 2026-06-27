@@ -17,7 +17,7 @@ const SALES_ITEMS = [
   { href: "/sales",            label: "Dashboard" },
   { href: "/sales/activity",   label: "Activity" },
   { href: "/sales/deal-desk",  label: "Deal Desk" },
-  { href: "/sales/quotes",     label: "Quote Portal" },
+  { href: "/sales/quotes",     label: "Interactive Quotes" },
 ];
 
 export function Nav() {

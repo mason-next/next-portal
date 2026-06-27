@@ -26,9 +26,10 @@ export function useQuotePortal() {
     return () => { active = false; };
   }, [reloadToken]);
 
-  const create = useCallback(async (data: { slug: string; title: string; customer: string; createdBy: string }) => {
-    await createQuotePresentation(data);
+  const create = useCallback(async (data: { slug: string; title: string; customer: string; createdBy: string }): Promise<QuotePresentation> => {
+    const created = await createQuotePresentation(data);
     bump();
+    return created;
   }, [bump]);
 
   const toggle = useCallback(async (id: string) => {
