@@ -19,7 +19,7 @@ import {
   applyRowFilters,
   type QuickFilter,
 } from "@/modules/bom-release/lib/view-filters";
-import { CURRENT_USER } from "@/lib/current-user";
+import { useSession } from "@/lib/auth/client";
 import { CostSummaryCards } from "@/modules/bom-release/components/CostSummaryCards";
 import { bomCompletionPercent } from "@/modules/bom-release/lib/bom-progress";
 import { QuickFilterTabs } from "@/modules/bom-release/components/QuickFilterTabs";
@@ -41,6 +41,7 @@ export default function BomReviewPage({
   params: Promise<{ projectId: string }>;
 }) {
   const { projectId } = use(params);
+  const { name: currentUserName } = useSession();
   const router = useRouter();
   const {
     rows,
@@ -208,7 +209,7 @@ export default function BomReviewPage({
       recipients: details.recipients,
       notes: details.notes,
       generatedAt: now,
-      generatedBy: CURRENT_USER,
+      generatedBy: currentUserName,
     };
     const emailSubject = buildEmailSubject(emailDetails);
     const emailPlainText = buildEmailPlainText(emailDetails, rowSnapshot);
@@ -221,7 +222,7 @@ export default function BomReviewPage({
       rowIds: releasedRows.map((row) => row.id),
       rowSnapshot,
       generatedAt: now,
-      generatedBy: CURRENT_USER,
+      generatedBy: currentUserName,
       emailSubject,
       emailPlainText,
       emailHtml,

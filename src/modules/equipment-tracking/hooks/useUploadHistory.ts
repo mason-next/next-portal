@@ -2,10 +2,11 @@
 
 import { useEffect, useState } from "react";
 import { appendEquipmentUploadRecord, getEquipmentUploadHistory } from "@/lib/data/equipment";
-import { CURRENT_USER } from "@/lib/current-user";
+import { useSession } from "@/lib/auth/client";
 import type { EquipmentSource, EquipmentUploadRecord } from "@/types/equipment";
 
 export function useUploadHistory(projectId: string) {
+  const { name: currentUserName } = useSession();
   const [history, setHistory] = useState<EquipmentUploadRecord[] | null>(null);
 
   useEffect(() => {
@@ -28,7 +29,7 @@ export function useUploadHistory(projectId: string) {
   }) {
     const record: EquipmentUploadRecord = {
       id: crypto.randomUUID(),
-      uploadedBy: CURRENT_USER,
+      uploadedBy: currentUserName,
       uploadedAt: new Date().toISOString(),
       ...input,
     };

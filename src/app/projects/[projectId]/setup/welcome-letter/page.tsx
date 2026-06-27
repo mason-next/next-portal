@@ -17,7 +17,7 @@ import { getWelcomeLetterRecord, saveWelcomeLetterRecord, type WelcomeLetterReco
 import { EditWelcomeLetterModal } from "@/modules/welcome-letter/components/EditWelcomeLetterModal";
 import { WelcomeLetterPreviewModal } from "@/modules/welcome-letter/components/WelcomeLetterPreviewModal";
 import { logProjectActivity } from "@/lib/data/activity";
-import { CURRENT_USER } from "@/lib/current-user";
+import { useSession } from "@/lib/auth/client";
 import {
   INSIDE_PROJECT_MANAGER_NAME,
   MANAGING_DIRECTOR_NAME,
@@ -31,6 +31,7 @@ export default function WelcomeLetterPage({
   params: Promise<{ projectId: string }>;
 }) {
   const { projectId } = use(params);
+  const { name: currentUserName } = useSession();
   const { project } = useProjectContext();
   const { users } = useUsersContext();
   const { refetch: refetchWorkflowSteps } = useWorkflowStepsContext();
@@ -115,15 +116,15 @@ export default function WelcomeLetterPage({
       subject: email.subject,
       html: email.html,
       plainText: email.plainText,
-      sentBy: CURRENT_USER,
+      sentBy: currentUserName,
       sentAt: now,
     };
     await saveWelcomeLetterRecord(projectId, newRecord);
     await logProjectActivity(projectId, {
       category: "system",
       activityType: "welcome_letter_sent",
-      userName: CURRENT_USER,
-      message: `Welcome letter sent by ${CURRENT_USER}`,
+      userName: currentUserName,
+      message: `Welcome letter sent by ${currentUserName}`,
     });
     refetchWorkflowSteps();
     setRecord(newRecord);

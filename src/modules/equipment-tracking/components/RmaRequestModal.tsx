@@ -4,7 +4,7 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Modal } from "@/components/shared/Modal";
 import { useUsersContext } from "@/components/shared/AppShell/UsersProvider";
-import { CURRENT_USER, CURRENT_USER_ID } from "@/lib/current-user";
+import { useSession } from "@/lib/auth/client";
 import { formatDate } from "@/lib/utils";
 import { buildRmaRequestEmail } from "@/modules/email-templates/templates/rma-request";
 import type { EquipmentRow } from "@/types/equipment";
@@ -20,12 +20,13 @@ interface RmaRequestModalProps {
 }
 
 export function RmaRequestModal({ row, project, onClose, onRequested }: RmaRequestModalProps) {
+  const session = useSession();
   const { users } = useUsersContext();
   const [reason, setReason] = useState("");
   const [returnQty, setReturnQty] = useState(row.qty);
   const [toast, setToast] = useState<string | null>(null);
 
-  const currentUser = users.find((u) => u.id === CURRENT_USER_ID) ?? null;
+  const currentUser = users.find((u) => u.id === session.id) ?? null;
 
   const email = buildRmaRequestEmail({
     projectName: project.name,
@@ -37,8 +38,8 @@ export function RmaRequestModal({ row, project, onClose, onRequested }: RmaReque
     orderedQty: row.qty,
     returnQty,
     reason,
-    requestedByName: CURRENT_USER,
-    requestedByEmail: currentUser?.email ?? "",
+    requestedByName: session.name,
+    requestedByEmail: currentUser?.email ?? session.email,
   });
 
   function showToast(message: string) {

@@ -5,7 +5,7 @@ import { logProjectActivity } from "@/lib/data/activity";
 import { deleteNotificationsForProject } from "@/lib/data/notifications";
 import { getUser } from "@/lib/data/users";
 import { removeProjectScoped } from "@/lib/storage/local-store";
-import { CURRENT_USER } from "@/lib/current-user";
+import { getServerSession } from "@/lib/auth/server";
 import type { Project, NewProjectInput } from "@/types/project";
 import type { Project as PrismaProject } from "@prisma/client";
 
@@ -123,6 +123,7 @@ export async function updateProject(id: string, patch: Partial<Project>): Promis
   const updated = await db.project.update({ where: { id }, data });
   const result = toProject(updated);
 
+  const session = await getServerSession();
   const changedFields = (Object.keys(patch) as (keyof Project)[]).filter(
     (field) => FIELD_LABELS[field] !== undefined && patch[field] !== current[field as keyof PrismaProject]
   );
@@ -134,7 +135,8 @@ export async function updateProject(id: string, patch: Partial<Project>): Promis
     await logProjectActivity(id, {
       category: "status_change",
       activityType: "field_changed",
-      userName: CURRENT_USER,
+      userName: session?.name ?? "System",
+      userId: session?.id,
       message: `${FIELD_LABELS[field]} changed from ${oldValue} to ${newValue}`,
     });
   }

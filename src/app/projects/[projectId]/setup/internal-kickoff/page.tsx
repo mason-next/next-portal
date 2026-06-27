@@ -14,7 +14,7 @@ import {
 import { buildTeamsMeetingUrl, DEFAULT_KICKOFF_AGENDA } from "@/modules/internal-kickoff/lib/teams-invite";
 import { logProjectActivity } from "@/lib/data/activity";
 import { getDefaultKickoffAttendeeIds } from "@/lib/data/kickoff-settings";
-import { CURRENT_USER } from "@/lib/current-user";
+import { useSession } from "@/lib/auth/client";
 import { formatDate } from "@/lib/utils";
 
 const DURATION_OPTIONS = [15, 30, 45, 60, 90];
@@ -28,6 +28,7 @@ export default function InternalKickoffPage({
   params: Promise<{ projectId: string }>;
 }) {
   const { projectId } = use(params);
+  const { name: currentUserName } = useSession();
   const { project } = useProjectContext();
   const { users } = useUsersContext();
   const { refetch: refetchWorkflowSteps } = useWorkflowStepsContext();
@@ -127,15 +128,15 @@ export default function InternalKickoffPage({
       attendees: allAttendeeEmails,
       startTime,
       endTime,
-      scheduledBy: CURRENT_USER,
+      scheduledBy: currentUserName,
       scheduledAt: now,
     };
     await saveInternalKickoffRecord(projectId, newRecord);
     await logProjectActivity(projectId, {
       category: "system",
       activityType: "internal_kickoff_scheduled",
-      userName: CURRENT_USER,
-      message: `Internal kickoff scheduled for ${formatDate(startTime)} by ${CURRENT_USER}`,
+      userName: currentUserName,
+      message: `Internal kickoff scheduled for ${formatDate(startTime)} by ${currentUserName}`,
     });
     refetchWorkflowSteps();
     setRecord(newRecord);

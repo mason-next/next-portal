@@ -32,11 +32,19 @@ export default async function RootLayout({
 }>) {
   const session = await getServerSession();
 
+  const htmlClass = `${googleSansFlex.variable} ${geistMono.variable} h-full antialiased`;
+
+  // No session = login page (middleware ensures only /login reaches here unauthenticated)
+  if (!session) {
+    return (
+      <html lang="en" className={htmlClass}>
+        <body className="min-h-full">{children}</body>
+      </html>
+    );
+  }
+
   return (
-    <html
-      lang="en"
-      className={`${googleSansFlex.variable} ${geistMono.variable} h-full antialiased`}
-    >
+    <html lang="en" className={htmlClass}>
       <body className="min-h-full flex flex-col">
         <SessionProvider user={session}>
           <UsersProvider>

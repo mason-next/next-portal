@@ -2,12 +2,13 @@
 
 import { useEffect, useState } from "react";
 import { getBomRows, saveBomRows, updateBomRow, type BomRowPatch } from "@/lib/data/bom-rows";
-import { CURRENT_USER } from "@/lib/current-user";
+import { useSession } from "@/lib/auth/client";
 import type { AuditEntry } from "@/types/audit";
 import type { BomRow, BomRowSnapshot, BomStatus } from "@/types/bom";
 import { snapshotRows } from "@/modules/bom-release/lib/change-tracking";
 
 export function useBomRows(projectId: string) {
+  const { name: currentUserName } = useSession();
   // Keyed by the projectId it was fetched for, so a project switch is "loading" until
   // the new fetch resolves, without an explicit reset call inside the effect body
   // (https://react.dev/learn/you-might-not-need-an-effect).
@@ -40,7 +41,7 @@ export function useBomRows(projectId: string) {
     if (oldValue === newValue) return;
 
     const now = new Date().toISOString();
-    const auditEntry: AuditEntry = { field: String(field), oldValue, newValue, user: CURRENT_USER, time: now };
+    const auditEntry: AuditEntry = { field: String(field), oldValue, newValue, user: currentUserName, time: now };
     const updatedRow: BomRow = { ...row, [field]: value, updatedAt: now, audit: [auditEntry, ...row.audit] };
     const nextRows = loaded.rows.map((r) => (r.id === rowId ? updatedRow : r));
 
@@ -65,7 +66,7 @@ export function useBomRows(projectId: string) {
         field: "status",
         oldValue: row.status,
         newValue: status,
-        user: CURRENT_USER,
+        user: currentUserName,
         time: now,
       };
       return { ...row, status, updatedAt: now, audit: [auditEntry, ...row.audit] };
@@ -92,7 +93,7 @@ export function useBomRows(projectId: string) {
       field: "release",
       oldValue: oldLabel,
       newValue: newLabel,
-      user: CURRENT_USER,
+      user: currentUserName,
       time: now,
     };
     const updatedRow: BomRow = {
@@ -124,7 +125,7 @@ export function useBomRows(projectId: string) {
         field: "release",
         oldValue: row.release ?? "",
         newValue: newLabel,
-        user: CURRENT_USER,
+        user: currentUserName,
         time: now,
       };
       return { ...row, releaseId, release: releaseLabel, updatedAt: now, audit: [auditEntry, ...row.audit] };
@@ -150,14 +151,14 @@ export function useBomRows(projectId: string) {
         field: "release generated",
         oldValue: row.status,
         newValue: "Released",
-        user: CURRENT_USER,
+        user: currentUserName,
         time: now,
       };
       const shippingEntry: AuditEntry = {
         field: "shipping",
         oldValue: "",
         newValue: `${shippingType} to ${shipTo}`,
-        user: CURRENT_USER,
+        user: currentUserName,
         time: now,
       };
       return {
@@ -224,7 +225,7 @@ export function useBomRows(projectId: string) {
       field: "row order",
       oldValue: `Position ${fromIndex + 1}`,
       newValue: `Position ${toIndex + 1}`,
-      user: CURRENT_USER,
+      user: currentUserName,
       time: now,
     };
     rows.splice(toIndex, 0, { ...moved, updatedAt: now, audit: [auditEntry, ...moved.audit] });

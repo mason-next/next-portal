@@ -1,12 +1,13 @@
 "use client";
 
 import { useRef, useState } from "react";
-import { CURRENT_USER } from "@/lib/current-user";
+import { useSession } from "@/lib/auth/client";
 import { CURRENT_USER_AVATAR_KEY, useCurrentUserAvatar } from "@/lib/hooks/useCurrentUserAvatar";
 import { writeGlobal } from "@/lib/storage/local-store";
 import { UserAvatarImage } from "./UserAvatarImage";
 
 export function UserAvatar() {
+  const session = useSession();
   const initialAvatar = useCurrentUserAvatar();
   const [avatar, setAvatar] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -29,7 +30,7 @@ export function UserAvatar() {
         title="Click to change profile photo"
         className="overflow-hidden rounded-full"
       >
-        <UserAvatarImage name={CURRENT_USER} avatarUrl={avatar ?? initialAvatar} size={32} />
+        <UserAvatarImage name={session.name} avatarUrl={avatar ?? initialAvatar} size={32} />
       </button>
       <input
         ref={fileInputRef}

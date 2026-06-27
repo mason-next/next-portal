@@ -3,13 +3,14 @@
 import { useCallback, useEffect, useState } from "react";
 import { getDealDeskQuotes, saveDealDeskQuote, deleteDealDeskQuote } from "@/lib/data/deal-desk";
 import type { DealDeskQuote, DealStatus, CommissionStatus } from "@/types/deal-desk";
-import { CURRENT_USER } from "@/lib/current-user";
+import { useSession } from "@/lib/auth/client";
 
 function nowIso(): string {
   return new Date().toISOString();
 }
 
 export function useDealDeskStore() {
+  const { name: currentUserName } = useSession();
   const [quotes, setQuotes] = useState<DealDeskQuote[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [reloadToken, setReloadToken] = useState(0);
@@ -47,7 +48,7 @@ export function useDealDeskStore() {
       updatedAt: nowIso(),
       approvalHistory: [
         ...quote.approvalHistory,
-        { id: crypto.randomUUID(), status, user: CURRENT_USER, comment, timestamp: nowIso() },
+        { id: crypto.randomUUID(), status, user: currentUserName, comment, timestamp: nowIso() },
       ],
       auditLog: [
         ...quote.auditLog,
@@ -55,7 +56,7 @@ export function useDealDeskStore() {
           id: crypto.randomUUID(),
           action: "Approval status changed",
           detail: `Status set to "${status}". ${comment ? `Comment: ${comment}` : ""}`.trim(),
-          user: CURRENT_USER,
+          user: currentUserName,
           timestamp: nowIso(),
         },
       ],
@@ -78,7 +79,7 @@ export function useDealDeskStore() {
           id: crypto.randomUUID(),
           action: "Commission status changed",
           detail: `Commission status set to "${commissionStatus}".`,
-          user: CURRENT_USER,
+          user: currentUserName,
           timestamp: nowIso(),
         },
       ],

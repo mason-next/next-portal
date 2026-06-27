@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { getEquipmentRows, updateEquipmentRow, type EquipmentRowPatch } from "@/lib/data/equipment";
-import { CURRENT_USER } from "@/lib/current-user";
+import { useSession } from "@/lib/auth/client";
 import type { AuditEntry } from "@/types/audit";
 import type { EquipmentRow, EquipmentRowSnapshot } from "@/types/equipment";
 import { computeEquipmentStatus } from "@/modules/equipment-tracking/lib/status";
@@ -22,6 +22,7 @@ const STATUS_DRIVING_FIELDS = new Set<keyof EquipmentRow>([
 ]);
 
 export function useEquipmentRows(projectId: string) {
+  const { name: currentUserName } = useSession();
   const [loaded, setLoaded] = useState<{
     projectId: string;
     rows: EquipmentRow[];
@@ -51,7 +52,7 @@ export function useEquipmentRows(projectId: string) {
     if (oldValue === newValue) return;
 
     const now = new Date().toISOString();
-    const auditEntry: AuditEntry = { field: String(field), oldValue, newValue, user: CURRENT_USER, time: now };
+    const auditEntry: AuditEntry = { field: String(field), oldValue, newValue, user: currentUserName, time: now };
     const patched: EquipmentRow = { ...row, [field]: value };
     const status = STATUS_DRIVING_FIELDS.has(field) ? computeEquipmentStatus(patched) : row.status;
     const updatedRow: EquipmentRow = { ...patched, status, updatedAt: now, audit: [auditEntry, ...row.audit] };

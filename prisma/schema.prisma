@@ -76,16 +76,17 @@ enum CommissionStatus {
 // ─── Users ───────────────────────────────────────────────────────────────────
 
 model User {
-  id        String   @id
-  name      String
-  title     String
-  email     String   @unique
-  phone     String   @default("")
-  avatarUrl String?
-  role      UserRole @default(Member)
-  isActive  Boolean  @default(true)
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id           String   @id
+  name         String
+  title        String
+  email        String   @unique
+  phone        String   @default("")
+  avatarUrl    String?
+  role         UserRole @default(Member)
+  isActive     Boolean  @default(true)
+  passwordHash String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
 
   projectMembers  ProjectMember[]
   workflowSteps   WorkflowStep[]    @relation("StepOwner")

@@ -15,7 +15,7 @@ import {
   getProjectActivity,
 } from "@/lib/data/activity";
 import { getActivityLastViewed, markActivityViewed } from "@/lib/data/activity-client";
-import { CURRENT_USER, CURRENT_USER_ID } from "@/lib/current-user";
+import { useSession } from "@/lib/auth/client";
 import { useCurrentUserAvatar } from "@/lib/hooks/useCurrentUserAvatar";
 import { getMentionableUsers } from "@/lib/mentions/mentionable-users";
 import { readGlobal, writeGlobal } from "@/lib/storage/local-store";
@@ -74,6 +74,7 @@ function groupByDate(activity: ProjectActivity[]): { label: string; items: Proje
 }
 
 export function ProjectActivityDrawer({ projectId }: { projectId: string }) {
+  const session = useSession();
   const currentUserAvatar = useCurrentUserAvatar();
   const { project } = useProjectContext();
   const { users } = useUsersContext();
@@ -164,7 +165,7 @@ export function ProjectActivityDrawer({ projectId }: { projectId: string }) {
     if (!editor || editor.isEmpty()) return;
     setSubmitting(true);
     try {
-      await addProjectComment(projectId, CURRENT_USER, editor.getPayload(), CURRENT_USER_ID);
+      await addProjectComment(projectId, session.name, editor.getPayload(), session.id);
       editor.clear();
       setIsDraftEmpty(true);
     } finally {
@@ -239,7 +240,7 @@ export function ProjectActivityDrawer({ projectId }: { projectId: string }) {
 
         <div className="border-b p-4">
           <div className="flex gap-2.5">
-            <UserAvatarImage name={CURRENT_USER} avatarUrl={currentUserAvatar} size={28} />
+            <UserAvatarImage name={session.name} avatarUrl={currentUserAvatar} size={28} />
             <div className="min-w-0 flex-1">
               <RichCommentEditor
                 // Tiptap's useEditor only re-creates the editor (and its closure-captured
@@ -281,6 +282,7 @@ export function ProjectActivityDrawer({ projectId }: { projectId: string }) {
                       <ActivityRow
                         key={item.id}
                         item={item}
+                        currentUserName={session.name}
                         currentUserAvatar={currentUserAvatar}
                         onDelete={handleDelete}
                         highlighted={item.id === highlightedId}
@@ -299,23 +301,26 @@ export function ProjectActivityDrawer({ projectId }: { projectId: string }) {
 
 function ActivityRow({
   item,
+  currentUserName,
   currentUserAvatar,
   onDelete,
   highlighted,
 }: {
   item: ProjectActivity;
+  currentUserName: string;
   currentUserAvatar: string | null;
   onDelete: (activityId: string) => void;
   highlighted: boolean;
 }) {
   const time = new Date(item.createdAt).toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" });
+  const isOwn = item.userName === currentUserName;
 
   if (item.category === "comment") {
     return (
       <div id={`activity-${item.id}`} className="flex gap-2.5">
         <UserAvatarImage
           name={item.userName}
-          avatarUrl={item.userName === CURRENT_USER ? currentUserAvatar : null}
+          avatarUrl={item.userName === currentUserName ? currentUserAvatar : null}
           size={28}
         />
         <div
@@ -331,7 +336,7 @@ function ActivityRow({
           <div className="prose-comment mt-1 text-sm">
             {item.richContent ? <RichCommentView doc={item.richContent} /> : <MentionText text={item.message} />}
           </div>
-          {item.userName === CURRENT_USER ? (
+          {isOwn ? (
             <button
               type="button"
               onClick={() => onDelete(item.id)}

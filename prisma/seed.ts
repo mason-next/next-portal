@@ -1,4 +1,5 @@
 import { PrismaClient, UserRole, ProjectMemberRole, WorkflowSection, WorkflowStepStatus } from "@prisma/client";
+import bcrypt from "bcryptjs";
 
 const db = new PrismaClient();
 
@@ -307,6 +308,8 @@ const SAMPLE_WORKFLOW_STEPS: SeedWorkflowStep[] = [
 async function main() {
   console.log("Seeding database...");
 
+  const defaultPasswordHash = await bcrypt.hash("password", 12);
+
   // Users — upsert by stable ID so re-running seed is safe
   for (const user of USERS) {
     await db.user.upsert({
@@ -318,6 +321,8 @@ async function main() {
         phone: user.phone,
         role: user.role,
         isActive: true,
+        // Only set hash if not already set — preserves user-changed passwords on re-seed.
+        ...(await db.user.findUnique({ where: { id: user.id } }).then((u) => u?.passwordHash ? {} : { passwordHash: defaultPasswordHash })),
       },
       create: {
         id: user.id,
@@ -327,6 +332,7 @@ async function main() {
         phone: user.phone,
         role: user.role,
         isActive: true,
+        passwordHash: defaultPasswordHash,
         createdAt: SEEDED_AT,
       },
     });

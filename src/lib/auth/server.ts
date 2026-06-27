@@ -1,26 +1,26 @@
+import { cookies } from "next/headers";
+import { SESSION_COOKIE, verifySession } from "./jwt";
 import type { SessionUser } from "./types";
 
-// Development stub — replace this function body with your auth provider when ready.
+// Returns the authenticated user from the session cookie, or null if unauthenticated.
+// Call sites that need a guaranteed user (all app pages via middleware) can cast the result;
+// pages/server-actions that tolerate anonymous access should handle null explicitly.
 //
-//   Clerk:    const { userId } = await auth();
-//             const u = await clerkClient.users.getUser(userId!);
-//             return { id: u.externalId ?? u.id, name: u.fullName ?? "", email: u.primaryEmailAddress!.emailAddress, role: ... };
-//
-//   Auth.js:  const s = await getServerSession(authOptions);
-//             if (!s?.user) redirect("/login");
-//             return { id: s.user.id, name: s.user.name ?? "", email: s.user.email!, role: ... };
-//
-//   Entra:    Validate the Authorization bearer token via MSAL and map the JWT claims.
-//
-// The return type (SessionUser) stays identical regardless of provider.
+// To swap auth providers in the future:
+//   Entra: validate the Authorization bearer token via MSAL and map JWT claims to SessionUser.
+//   Auth.js: replace with `auth()` from next-auth and map the returned session to SessionUser.
+// The SessionUser shape is intentionally designed to match Microsoft Entra ID JWT claims:
+//   sub → id, name → name, email → upn, extension_role → role
+export async function getServerSession(): Promise<SessionUser | null> {
+  const jar = await cookies();
+  const token = jar.get(SESSION_COOKIE)?.value;
+  if (!token) return null;
+  return verifySession(token);
+}
 
-const DEV_STUB: SessionUser = {
-  id: "user-juan-lazo",
-  name: "Juan Lazo",
-  email: "jlazo@mason247.com",
-  role: "Administrator",
-};
-
-export async function getServerSession(): Promise<SessionUser> {
-  return DEV_STUB;
+// Convenience: throws if unauthenticated — use in server actions that require auth.
+export async function requireSession(): Promise<SessionUser> {
+  const session = await getServerSession();
+  if (!session) throw new Error("Unauthenticated");
+  return session;
 }

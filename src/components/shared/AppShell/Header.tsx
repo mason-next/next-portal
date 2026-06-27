@@ -1,11 +1,24 @@
+"use client";
+
 import Image from "next/image";
 import Link from "next/link";
-import { CURRENT_USER } from "@/lib/current-user";
+import { useRouter } from "next/navigation";
+import { LogOut } from "lucide-react";
+import { useSession } from "@/lib/auth/client";
 import { NotificationBell } from "@/modules/notifications/components/NotificationBell";
 import { Nav } from "./Nav";
 import { UserAvatar } from "./UserAvatar";
 
 export function Header() {
+  const session = useSession();
+  const router = useRouter();
+
+  async function handleLogout() {
+    await fetch("/api/auth/logout", { method: "POST" });
+    router.push("/login");
+    router.refresh();
+  }
+
   return (
     <header className="flex h-16 items-center justify-between border-b bg-background px-6">
       <div className="flex items-center gap-8">
@@ -17,7 +30,14 @@ export function Header() {
       <div className="flex items-center gap-3">
         <NotificationBell />
         <UserAvatar />
-        <span className="text-sm font-medium">{CURRENT_USER}</span>
+        <span className="text-sm font-medium">{session.name}</span>
+        <button
+          onClick={handleLogout}
+          title="Sign out"
+          className="flex h-8 w-8 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+        >
+          <LogOut className="size-4" />
+        </button>
       </div>
     </header>
   );

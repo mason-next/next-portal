@@ -6,7 +6,7 @@ import { parseConnectWiseXls } from "@/modules/deal-desk/lib/xls-parser";
 import { calcFinancials, fmtUSD, fmtPct } from "@/modules/deal-desk/lib/financial-calc";
 import type { DealDeskQuote, DealCategory, TeamMember, CategoryName, ProjectType } from "@/types/deal-desk";
 import { CATEGORY_NAMES, PROJECT_TYPES, DEFAULT_PAYOUT_MILESTONES } from "@/types/deal-desk";
-import { CURRENT_USER } from "@/lib/current-user";
+import { useSession } from "@/lib/auth/client";
 import { cn } from "@/lib/utils";
 
 interface ImportModalProps {
@@ -27,6 +27,7 @@ const DEFAULT_TEAM: TeamMember[] = [
 ];
 
 export function ImportModal({ onClose, onImported }: ImportModalProps) {
+  const { name: currentUserName } = useSession();
   const fileRef = useRef<HTMLInputElement>(null);
   const [isParsing, setIsParsing] = useState(false);
   const [parseError, setParseError] = useState<string | null>(null);
@@ -103,7 +104,7 @@ export function ImportModal({ onClose, onImported }: ImportModalProps) {
       projectType,
       salesperson,
       importedAt: now,
-      importedBy: CURRENT_USER,
+      importedBy: currentUserName,
       quarter,
       status: "Pending",
       commissionStatus: "Estimated",
@@ -115,8 +116,8 @@ export function ImportModal({ onClose, onImported }: ImportModalProps) {
         {
           id: crypto.randomUUID(),
           action: "Quote imported",
-          detail: `Imported ${fileName ?? "manually entered"} by ${CURRENT_USER}`,
-          user: CURRENT_USER,
+          detail: `Imported ${fileName ?? "manually entered"} by ${currentUserName}`,
+          user: currentUserName,
           timestamp: now,
         },
       ],

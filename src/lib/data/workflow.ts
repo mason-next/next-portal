@@ -7,7 +7,7 @@ import {
 } from "@prisma/client";
 import { db } from "@/lib/db";
 import { logProjectActivity } from "@/lib/data/activity";
-import { CURRENT_USER } from "@/lib/current-user";
+import { getServerSession } from "@/lib/auth/server";
 import { defaultWorkflowSteps } from "@/lib/mock/workflow.mock";
 import {
   redistributeWeights,
@@ -235,10 +235,12 @@ export async function updateWorkflowStep(
   }
 
   if ("status" in patch && patch.status !== currentApp.status) {
+    const session = await getServerSession();
     await logProjectActivity(projectId, {
       category: "workflow",
       activityType: "step_status_changed",
-      userName: CURRENT_USER,
+      userName: session?.name ?? "System",
+      userId: session?.id,
       message: `"${currentApp.name}" status changed from ${currentApp.status} to ${patch.status}`,
     });
   }
