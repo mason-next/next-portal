@@ -75,15 +75,21 @@ enum DealStatus {
 
 // ─── Subcontractors ──────────────────────────────────────────────────────────
 
-// Minimal subcontractor model. M7 (Subcontractor Management) will expand this
-// with contacts, scopes, insurance tracking, and a portal login.
 model Subcontractor {
-  id        String   @id @default(cuid())
-  name      String
-  trade     String   @default("")
-  isActive  Boolean  @default(true)
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id                String   @id @default(cuid())
+  name              String
+  trade             String   @default("")
+  contactName       String   @default("")
+  contactEmail      String   @default("")
+  contactPhone      String   @default("")
+  location          String   @default("")
+  manpower          Int      @default(0)
+  geographicalReach String   @default("")
+  rating            Float?
+  notes             String   @default("")
+  isActive          Boolean  @default(true)
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
 
   projectTechnicians ProjectTechnician[]
 

@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { X, Plus, Building2 } from "lucide-react";
 import { UserAvatarImage } from "@/components/shared/AppShell/UserAvatarImage";
-import { createSubcontractor, getSubcontractors } from "@/lib/data/subcontractors";
+import { createSubcontractorQuick, getSubcontractors } from "@/lib/data/subcontractors";
 import { cn } from "@/lib/utils";
 import type { AppUser } from "@/types/user";
 import type { Subcontractor, ProjectTechnicianEntry } from "@/types/subcontractor";
@@ -87,7 +87,7 @@ export function TechnicianMultiSelect({ users, value, onChange }: TechnicianMult
     const name = newSubName.trim();
     if (!name) return;
     setCreating(true);
-    const created = await createSubcontractor(name);
+    const created = await createSubcontractorQuick(name);
     setSubs((prev) => [...prev, created]);
     onChange([
       ...value,
