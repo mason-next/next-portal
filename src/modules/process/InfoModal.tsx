@@ -115,83 +115,67 @@ const ROLES_INFO = [
     role: 'Field PM',
     group: 'Regional Hub',
     description:
-      'Owns in-region execution: onboarding, customer kickoff, packet review, walkthrough, install field guidance, commissioning, change orders, and closeout compilation.',
+      'The primary driver of project execution at the regional level. The Field PM is responsible for the success of every project stage from internal kickoff through closeout — coordinating resources, owning the customer relationship in region, managing change orders, and ensuring each handoff is clean. When anything stalls, the Field PM identifies the path forward.',
   },
   {
     role: 'Project Engineer',
     group: 'Central Ops',
     description:
-      'Owns engineering: BOM review, IP scope, functional narrative, drawings coordination, packet compilation, and all CO engineering. Always internal.',
+      'The technical authority on every project. The PE owns all engineering from initial BOM review through closeout — defining IP scope, authoring the functional narrative, coordinating drawings, and handling all change order engineering. Engineering work is always kept internal, and the PE\'s deliverables set the standard that the entire field team executes against.',
   },
   {
-    role: 'Inside PM / Accountant',
+    role: 'Inside PM',
     group: 'Central Ops',
     description:
-      'Tracks labor, costs, change impact, and margin; confirms financials closed and runs the P&L review at closeout.',
+      'The financial and logistics backbone of every active project. The Inside PM tracks labor hours, material costs, and margin — surfacing variances before they become problems and ensuring the books close clean. They also own daily logistics coordination: routing, shipping requests, and supply alignment so field crews have what they need each day. Closely partnered with the Field PM and Procurement throughout the install.',
   },
   {
-    role: 'Procurement / Logistics',
+    role: 'Procurement',
     group: 'Central Ops',
     description:
-      'Purchasing, long-lead flagging, RMAs, shipping ETAs, and next-day onsite logistics; receives the clear-for-purchasing handoff.',
+      'Bridges engineering intent and physical delivery. Procurement takes ownership of the BOM after the PE\'s clear-for-purchasing handoff — managing purchasing, flagging long-lead items early, coordinating RMAs, and ensuring the right materials are onsite when the crew needs them. Their visibility into logistics directly affects install schedule.',
   },
   {
     role: 'Admin',
     group: 'Central Ops',
     description:
-      'Welcome letter, project schedule, daily-report processing, and routine weekly customer updates.',
+      'The communication hub that keeps customers informed and the team organized. Admin handles templated outreach — welcome letters, project schedules, daily report distribution, and routine weekly updates — so the Field PM can stay focused on project execution rather than routine correspondence.',
   },
   {
-    role: 'Technician/Lead Tech',
+    role: 'Technician',
     group: 'Regional Hub',
     description:
-      'Executes the onsite install; the Lead Tech owns daily reports and reports field issues to the Field PM.',
+      'The skilled hands who execute the installation. The Lead Tech directs the field crew, submits daily reports, and serves as the Field PM\'s primary eyes and ears on the jobsite. Issues that can\'t be resolved in the field are escalated immediately so the PM can mobilize the right resources.',
   },
   {
     role: 'Programmer',
     group: 'Central · Internal',
     description:
-      'Builds GUI mockups and control programming after UX approval. External equivalent: Programming Sub.',
+      'Responsible for translating the approved system design into working control programming and GUI interfaces. Programmers engage after the UX review stage, ensuring the software matches the functional narrative and GUI mockups before anything reaches the customer. Internal programming is always preferred.',
   },
   {
     role: 'UX Designer',
     group: 'Central · Internal',
     description:
-      'Leads the UX Design Review before programming; required on projects with 10+ interfaces. Always internal.',
+      'Owns the customer-facing interface design process for projects with significant control UI. The UX Designer leads the GUI review prior to programming — ensuring the customer\'s interaction experience is intentional and approved before a single line of code is written. Required on all projects with 10 or more interfaces.',
   },
   {
     role: 'Sales Rep',
     group: '—',
     description:
-      "Holds the customer relationship; CC'd at kickoff and updated as milestones are reached or issues arise.",
+      'The original relationship owner. While not involved in day-to-day project management, the Sales Rep holds the customer\'s trust and should be kept current at key milestones and whenever issues arise. Their context on customer expectations and sensitivities is a valuable resource throughout the project lifecycle.',
   },
   {
     role: 'Pre-Sales Engineer',
     group: '—',
     description:
-      'Designed the original system; consulted during onboarding to convey design intent.',
+      'The architect of the original system design. Consulted early in the onboarding phase to transfer design intent to the project team — ensuring that the nuances of the proposed solution aren\'t lost between the sales process and execution. Their involvement reduces assumption-based scope errors.',
   },
   {
-    role: 'Leadership',
-    group: 'Regional / Central',
-    description:
-      'Escalation point for capacity concerns and multi-project CAD balancing; receives lessons learned for the knowledge base.',
-  },
-  {
-    role: 'CAD Sub',
+    role: 'CAD Engineer',
     group: 'External · $40/hr',
     description:
-      'Drafting — always subbed. Produces drawings, rack/field elevations, and pull schedules.',
-  },
-  {
-    role: 'Programming Sub',
-    group: 'External · $95/hr',
-    description: 'External programming used when internal capacity is unavailable.',
-  },
-  {
-    role: 'Labor Sub',
-    group: 'External · $65/hr',
-    description: 'External onsite labor used when internal capacity is insufficient.',
+      'External drafting resource engaged by the Project Engineer. Produces all construction drawings, rack and field elevations, and pull schedules required for installation. Always subcontracted; deliverables are incorporated into the Engineering Packet and Closeout documentation.',
   },
 ];
 
@@ -201,14 +185,12 @@ const TEMPLATES_INFO = [
   { template: 'Internal Kickoff Agenda', owner: 'Field PM', stage: 'Internal Kickoff' },
   { template: 'Functional Narrative', owner: 'Project Engineer', stage: 'Engineering Packet' },
   { template: 'Customer GUI Review', owner: 'UX Designer', stage: 'UX Design Review' },
+  { template: 'IP Scope', owner: 'Project Engineer', stage: 'Engineering Packet' },
   { template: 'Engineering Packet', owner: 'Project Engineer', stage: 'Engineering Packet' },
   { template: 'Walkthrough Checklist', owner: 'Field PM', stage: 'Pre-Install Prep' },
   { template: 'Survey', owner: 'Field PM', stage: 'Change Orders' },
   { template: 'Daily Report', owner: 'Lead Tech · Admin processes', stage: 'Onsite Install (daily)' },
-  {
-    template: 'Weekly Customer Update',
-    owner: 'Admin · from Field PM',
-    stage: 'Onsite Install (weekly)',
-  },
+  { template: 'Issue Tracker', owner: 'Field PM', stage: 'Onsite Install' },
+  { template: 'Weekly Customer Update', owner: 'Admin · from Field PM', stage: 'Onsite Install (weekly)' },
   { template: 'Closeout Packet', owner: 'Field PM', stage: 'Closeout' },
 ];
