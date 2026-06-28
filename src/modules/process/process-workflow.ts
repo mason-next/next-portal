@@ -53,6 +53,7 @@ export interface TaskNode {
   templates?: string[];
   isCall?: boolean;
   exclusiveGroup?: string;
+  wideChildren?: boolean;
   showWhen?: { decisionId: string; option: 'A' | 'B' | 'any' };
   children?: WorkflowNode[];
 }
@@ -425,6 +426,16 @@ export const WORKFLOW: MilestoneNode[] = [
           },
         ],
       },
+    ],
+  },
+
+  // ── Milestone 3: Engineering Packet Submitted ────────────────────────────────
+  {
+    type: 'milestone',
+    id: 'milestone-3',
+    number: 3,
+    title: 'Engineering Packet Submitted',
+    children: [
       {
         type: 'task',
         id: 'task-walkthrough',
@@ -452,16 +463,6 @@ export const WORKFLOW: MilestoneNode[] = [
         ],
         roles: ['Field PM', 'Programmer', 'Technician'],
       },
-    ],
-  },
-
-  // ── Milestone 3: Engineering Packet Submitted ────────────────────────────────
-  {
-    type: 'milestone',
-    id: 'milestone-3',
-    number: 3,
-    title: 'Engineering Packet Submitted',
-    children: [
       {
         type: 'task',
         id: 'task-partial-release-revisit',
@@ -511,12 +512,13 @@ export const WORKFLOW: MilestoneNode[] = [
           {
             type: 'task',
             id: 'task-pm-review-procurement',
-            title: 'PM Review to Procurement',
-            summary: 'Field PM submits routing, SOW, and shipping needs for day-1 setup.',
+            title: 'PM Review to Inside PM',
+            summary: 'Field PM submits routing, SOW, and shipping needs for day-1 logistics setup.',
             details: [
               'Field PM submits a review summarizing routing, SOW, and shipping needs (tools, materials, etc.) for day-1 setup.',
+              'Inside PM uses this to confirm logistics are in place before the install begins.',
             ],
-            roles: ['Field PM', 'Procurement'],
+            roles: ['Field PM', 'Inside PM'],
           },
         ],
       },
@@ -537,7 +539,7 @@ export const WORKFLOW: MilestoneNode[] = [
         title: 'Daily Tasks',
         summary: 'Ongoing field execution, documentation, and logistics throughout the install.',
         details: [],
-        roles: ['Field PM', 'Admin', 'Procurement', 'Technician', 'Inside PM'],
+        roles: ['Field PM', 'Admin', 'Technician', 'Inside PM'],
         templates: ['Daily Report'],
         exclusiveGroup: 'onsite-ops',
             children: [
@@ -565,17 +567,6 @@ export const WORKFLOW: MilestoneNode[] = [
                 ],
                 roles: ['Admin'],
                 templates: ['Daily Report'],
-              },
-              {
-                type: 'task',
-                id: 'task-daily-procurement',
-                title: 'Procurement',
-                summary: 'Next-day materials and logistics coordination.',
-                details: [
-                  'Reviews field needs for the following day and ensures materials, tools, and shipments are coordinated.',
-                  'Ensures next-day logistical requirements are met onsite without delays.',
-                ],
-                roles: ['Procurement'],
               },
               {
                 type: 'task',
@@ -658,6 +649,7 @@ export const WORKFLOW: MilestoneNode[] = [
             type: 'task',
             id: 'task-issue-tracking',
             title: 'Issue Tracking',
+            wideChildren: true,
             summary: 'Issues logged in tracker; never deleted; project cannot close with open issues.',
             details: [
               'Issues added to the Issue Tracker → progress updated as work continues.',
@@ -763,99 +755,92 @@ export const WORKFLOW: MilestoneNode[] = [
     title: 'Commissioning and Handoff',
     children: [
       {
-        type: 'stage',
-        id: 'stage-commissioning',
+        type: 'task',
+        id: 'task-commissioning',
         title: 'Commissioning',
-        meta: 'Owned by Field PM, with PE supporting as needed.',
-        children: [
-          {
-            type: 'task',
-            id: 'task-commissioning',
-            title: 'Commissioning',
-            summary:
-              'Use Functional Narrative as checklist; Field PM captures as-built info for PE.',
-            details: [
-              'Use the Functional Narrative as the commissioning checklist — verify each function performs as described.',
-              'Field PM gathers as-built information (text, email, red lines) and delivers to PE for as-built finalization.',
-              'Updated IP scope with all device credentials verified and recorded.',
-              'Red lines or notes on any deviations from drawings.',
-              'The individual performing commissioning may vary, but Field PM is responsible for capturing and routing the information.',
-            ],
-            roles: ['Field PM', 'Project Engineer'],
-          },
-          {
-            type: 'decision',
-            id: 'decision-functional-changes',
-            title: 'Functional Changes Requested?',
-            roles: ['Field PM'],
-            optionA: {
-              label: 'NO',
-              description: 'No functional changes — continue to training.',
-            },
-            optionB: {
-              label: 'YES',
-              description: 'Functional changes requested.',
-              branch: [
-                {
-                  type: 'task',
-                  id: 'task-pm-reviews-coordinates',
-                  title: 'Field PM Reviews & Coordinates',
-                  summary: 'Field PM reviews the requested changes and coordinates the work.',
-                  details: ['Field PM reviews the requested changes and coordinates the work.'],
-                  roles: ['Field PM'],
-                },
-                {
-                  type: 'decision',
-                  id: 'decision-is-co',
-                  title: 'Is This a Change Order?',
-                  roles: ['Field PM'],
-                  context:
-                    'Minor programming updates (sound levels, fader ranges, visual feedback) — no cost within the 3-month labor warranty period. Changes that alter documented functionality may require a change order.',
-                  optionA: {
-                    label: 'YES',
-                    description: 'Open OPP → see the Change Order process.',
-                  },
-                  optionB: {
-                    label: 'NO',
-                    description:
-                      'Direct the Project Team: Field PM communicates further direction to the project team.',
-                  },
-                },
-                {
-                  type: 'task',
-                  id: 'task-review-changes-customer',
-                  title: 'Review Changes with Customer',
-                  summary: 'Once complete, Field PM reviews the changes with the customer.',
-                  details: ['Once complete, Field PM reviews the changes with the customer.'],
-                  roles: ['Field PM'],
-                },
-              ],
-            },
-          },
-          {
-            type: 'task',
-            id: 'task-training',
-            title: 'Training',
-            summary: 'Field PM ensures onsite staff training; Admin assists with large group scheduling.',
-            details: [
-              'Field PM ensures onsite staff training is conducted if required.',
-              'Admin assists with scheduling if large staff training is requested.',
-            ],
-            roles: ['Field PM', 'Admin'],
-          },
-          {
-            type: 'task',
-            id: 'task-final-day-docs',
-            title: 'Final Day Documentation',
-            summary: 'Photos taken on final day; Lessons Learned reported to regional leadership.',
-            details: [
-              'Field PM ensures photos are taken on the final day — a record of site conditions at handoff.',
-              'Lessons Learned → reported to regional leadership for entry into the shared knowledge base.',
-              'Engineering errors discovered during the project lifecycle → tracked via an Engineering Issues Ticket in ConnectWise.',
-            ],
-            roles: ['Field PM'],
-          },
+        summary:
+          'Use Functional Narrative as checklist; Field PM captures as-built info for PE.',
+        details: [
+          'Owned by Field PM, with PE supporting as needed.',
+          'Use the Functional Narrative as the commissioning checklist — verify each function performs as described.',
+          'Field PM gathers as-built information (text, email, red lines) and delivers to PE for as-built finalization.',
+          'Updated IP scope with all device credentials verified and recorded.',
+          'Red lines or notes on any deviations from drawings.',
+          'The individual performing commissioning may vary, but Field PM is responsible for capturing and routing the information.',
         ],
+        roles: ['Field PM', 'Project Engineer'],
+      },
+      {
+        type: 'decision',
+        id: 'decision-functional-changes',
+        title: 'Functional Changes Requested?',
+        roles: ['Field PM'],
+        optionA: {
+          label: 'NO',
+          description: 'No functional changes — continue to training.',
+        },
+        optionB: {
+          label: 'YES',
+          description: 'Functional changes requested.',
+          branch: [
+            {
+              type: 'task',
+              id: 'task-pm-reviews-coordinates',
+              title: 'Field PM Reviews & Coordinates',
+              summary: 'Field PM reviews the requested changes and coordinates the work.',
+              details: ['Field PM reviews the requested changes and coordinates the work.'],
+              roles: ['Field PM'],
+            },
+            {
+              type: 'decision',
+              id: 'decision-is-co',
+              title: 'Is This a Change Order?',
+              roles: ['Field PM'],
+              context:
+                'Minor programming updates (sound levels, fader ranges, visual feedback) — no cost within the 3-month labor warranty period. Changes that alter documented functionality may require a change order.',
+              optionA: {
+                label: 'YES',
+                description: 'Open OPP → see the Change Order process.',
+              },
+              optionB: {
+                label: 'NO',
+                description:
+                  'Direct the Project Team: Field PM communicates further direction to the project team.',
+              },
+            },
+            {
+              type: 'task',
+              id: 'task-review-changes-customer',
+              title: 'Review Changes with Customer',
+              summary: 'Once complete, Field PM reviews the changes with the customer.',
+              details: ['Once complete, Field PM reviews the changes with the customer.'],
+              roles: ['Field PM'],
+            },
+          ],
+        },
+      },
+      {
+        type: 'task',
+        id: 'task-training',
+        title: 'Training',
+        summary: 'Field PM ensures onsite staff training; Admin assists with large group scheduling.',
+        details: [
+          'Field PM ensures onsite staff training is conducted if required.',
+          'Admin assists with scheduling if large staff training is requested.',
+        ],
+        roles: ['Field PM', 'Admin'],
+      },
+      {
+        type: 'task',
+        id: 'task-final-day-docs',
+        title: 'Final Day Documentation',
+        summary: 'Photos taken on final day; Lessons Learned reported to regional leadership.',
+        details: [
+          'Field PM ensures photos are taken on the final day — a record of site conditions at handoff.',
+          'Lessons Learned → reported to regional leadership for entry into the shared knowledge base.',
+          'Engineering errors discovered during the project lifecycle → tracked via an Engineering Issues Ticket in ConnectWise.',
+        ],
+        roles: ['Field PM'],
       },
     ],
   },

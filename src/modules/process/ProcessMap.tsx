@@ -216,28 +216,45 @@ function Spine() {
   return <div aria-hidden className="absolute top-0 bottom-0 left-1/2 -translate-x-1/2 w-0.5 bg-border pointer-events-none" />;
 }
 
-// ─── Children section — grid-row animation, overflow-visible once settled ────
+// ─── Children section — ResizeObserver-driven height animation ───────────────
+// Measures natural content height so the outer div animates between 0 and the
+// exact pixel height. When nested content expands, the ResizeObserver updates
+// the outer height directly (no React re-render), so the glass bubble always
+// encloses all content without overflow escaping its background/border.
 
 function ChildrenSection({ expanded, children }: { expanded: boolean; children: React.ReactNode }) {
-  const [overflowVisible, setOverflowVisible] = useState(false);
+  const outerRef = useRef<HTMLDivElement>(null);
+  const innerRef = useRef<HTMLDivElement>(null);
+  const expandedRef = useRef(expanded);
+  expandedRef.current = expanded;
 
+  // Animate height when expanded/collapsed
   useEffect(() => {
-    if (expanded) {
-      const t = setTimeout(() => setOverflowVisible(true), 460);
-      return () => clearTimeout(t);
-    } else {
-      setOverflowVisible(false);
-    }
+    const outer = outerRef.current;
+    const inner = innerRef.current;
+    if (!outer || !inner) return;
+    outer.style.height = expanded ? `${inner.scrollHeight}px` : '0px';
   }, [expanded]);
 
+  // Keep height in sync while content grows or shrinks (e.g. nested expansions)
+  useEffect(() => {
+    const inner = innerRef.current;
+    if (!inner) return;
+    const obs = new ResizeObserver(() => {
+      if (expandedRef.current && outerRef.current) {
+        outerRef.current.style.height = `${inner.scrollHeight}px`;
+      }
+    });
+    obs.observe(inner);
+    return () => obs.disconnect();
+  }, []);
+
   return (
-    <div style={{
-      display: 'grid',
-      gridTemplateRows: expanded ? '1fr' : '0fr',
-      transition: 'grid-template-rows 0.42s cubic-bezier(0.4, 0, 0.2, 1)',
-      width: '100%',
-    }}>
-      <div style={{ overflow: overflowVisible ? 'visible' : 'hidden', minHeight: 0 }}>
+    <div
+      ref={outerRef}
+      style={{ height: 0, overflow: 'hidden', transition: 'height 0.42s cubic-bezier(0.4, 0, 0.2, 1)', width: '100%' }}
+    >
+      <div ref={innerRef}>
         {children}
       </div>
     </div>
@@ -294,25 +311,40 @@ function CollapseButton({ nodeId, accentColor }: { nodeId: string; accentColor?:
 function ExclusiveGroupRenderer({ nodes, depth }: { nodes: TaskNode[]; depth: number }) {
   const { expandedParents } = useProcess();
 
+  // Nodes flagged wideChildren render their branch below the full row (full
+  // bubble width, centered) rather than inline in a narrow flex-1 column.
+  const wideNode = nodes.find((n) => n.wideChildren);
+  const isWideExpanded = wideNode ? expandedParents.has(wideNode.id) : false;
+  const wideNodeChildren = wideNode ? nodeChildren(wideNode) : [];
+
   return (
-    <div className="flex gap-3 w-full items-start">
-      {nodes.map((n) => {
-        const ch = nodeChildren(n);
-        const isExpanded = expandedParents.has(n.id);
-        return (
-          <div key={n.id} className="flex-1 relative min-w-0 flex flex-col items-center">
-            {isExpanded && <CollapseButton nodeId={n.id} />}
-            <div className="w-full">
-              <NodeRenderer node={n} />
+    <div className="w-full flex flex-col items-center">
+      <div className="flex gap-3 w-full items-start">
+        {nodes.map((n) => {
+          const isExpanded = expandedParents.has(n.id);
+          const ch = n.wideChildren ? [] : nodeChildren(n);
+          return (
+            <div key={n.id} className="flex-1 relative min-w-0 flex flex-col items-center">
+              {isExpanded && <CollapseButton nodeId={n.id} />}
+              <div className="w-full">
+                <NodeRenderer node={n} />
+              </div>
+              {ch.length > 0 && (
+                <ChildrenSection expanded={isExpanded}>
+                  <NodeList nodes={ch} depth={depth + 1} noPad />
+                </ChildrenSection>
+              )}
             </div>
-            {ch.length > 0 && (
-              <ChildrenSection expanded={isExpanded}>
-                <NodeList nodes={ch} depth={depth + 1} noPad />
-              </ChildrenSection>
-            )}
-          </div>
-        );
-      })}
+          );
+        })}
+      </div>
+
+      {/* Wide-children branch rendered below the row at full bubble width */}
+      {wideNode && wideNodeChildren.length > 0 && (
+        <ChildrenSection expanded={isWideExpanded}>
+          <NodeList nodes={wideNodeChildren} depth={depth + 1} noPad />
+        </ChildrenSection>
+      )}
     </div>
   );
 }
@@ -1081,6 +1113,24 @@ export function ProcessMap() {
   const currentIndex = flatNodes.findIndex((n) => n.id === currentNodeId);
   const interactive = transform.scale >= ZOOM_THRESHOLD;
 
+  // Arrow key navigation — Up/Right advance, Down/Left go back
+  useEffect(() => {
+    function handleKeyDown(e: KeyboardEvent) {
+      const tag = (e.target as HTMLElement).tagName;
+      if (tag === 'INPUT' || tag === 'TEXTAREA') return;
+      if (e.key === 'ArrowRight' || e.key === 'ArrowDown') {
+        e.preventDefault();
+        goToIndex(currentIndex + 1);
+      } else if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') {
+        e.preventDefault();
+        goToIndex(currentIndex - 1);
+      }
+    }
+    document.addEventListener('keydown', handleKeyDown);
+    return () => document.removeEventListener('keydown', handleKeyDown);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentIndex]);
+
   function goToIndex(idx: number) {
     const node = flatNodes[idx];
     if (!node) return;
@@ -1108,6 +1158,16 @@ export function ProcessMap() {
   function collapseAll() {
     setExpandedParents(new Set());
     setExpandedTaskId(null);
+    setActiveRoles(new Set());
+    const container = containerRef.current;
+    if (container) {
+      const { width } = container.getBoundingClientRect();
+      const initScale = 0.85;
+      const initX = Math.max(40, width / 2 - (colW * initScale) / 2);
+      setIsAnimating(true);
+      setTransform({ x: initX, y: 40, scale: initScale });
+      setTimeout(() => setIsAnimating(false), 400);
+    }
   }
 
   const ctxValue = useMemo<ProcessCtxValue>(
@@ -1132,17 +1192,16 @@ export function ProcessMap() {
         style={{ height: 'calc(100vh - 4rem)' }}
         onMouseDown={handleMouseDown}
       >
-        {/* Canvas — will-change + translate3d + antialiased for crisp GPU text */}
+        {/* Canvas — zoom for crisp text at any scale; translate3d for smooth GPU pan */}
         <div
           className="antialiased"
           style={{
             position: 'absolute', top: 0, left: 0,
-            transform: `translate3d(${transform.x}px, ${transform.y}px, 0) scale(${transform.scale})`,
-            transformOrigin: '0 0',
-            transition: isAnimating ? 'transform 0.35s cubic-bezier(0.4,0,0.2,1)' : 'none',
-            willChange: 'transform',
-            backfaceVisibility: 'hidden',
-            WebkitBackfaceVisibility: 'hidden',
+            transform: `translate3d(${transform.x}px, ${transform.y}px, 0)`,
+            zoom: transform.scale,
+            transition: isAnimating
+              ? 'transform 0.35s cubic-bezier(0.4,0,0.2,1), zoom 0.35s cubic-bezier(0.4,0,0.2,1)'
+              : 'none',
             WebkitFontSmoothing: 'antialiased',
             MozOsxFontSmoothing: 'grayscale',
           } as React.CSSProperties}
