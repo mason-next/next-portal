@@ -1,4 +1,13 @@
-import type { JSONContent } from "@tiptap/core";
+// Local mirror of Tiptap's JSONContent — lets server-side files type-check richContent
+// without importing from the @tiptap client package and triggering an RSC boundary error.
+export interface RichContent {
+  type?: string;
+  attrs?: Record<string, unknown>;
+  content?: RichContent[];
+  marks?: Array<{ type: string; attrs?: Record<string, unknown>; [key: string]: unknown }>;
+  text?: string;
+  [key: string]: unknown;
+}
 
 export const ACTIVITY_CATEGORIES = ["comment", "workflow", "status_change", "system"] as const;
 
@@ -20,7 +29,7 @@ export interface ProjectActivity {
   // Present only on comments authored via RichCommentEditor (see ProjectActivityDrawer).
   // Comments from before this field existed have none — they keep rendering through the
   // legacy markdown-lite MentionText path off `message` alone, forever. Fully additive.
-  richContent?: JSONContent;
+  richContent?: RichContent;
   metadata?: Record<string, unknown>;
   createdAt: string; // ISO 8601
 }

@@ -1,6 +1,5 @@
 "use server";
 
-import type { JSONContent } from "@tiptap/core";
 import {
   Prisma,
   ActivityCategory as PrismaCategory,
@@ -14,7 +13,7 @@ import { getUsers } from "@/lib/data/users";
 import { getMentionableUsers } from "@/lib/mentions/mentionable-users";
 import { extractMentionedUserIdsFromDoc } from "@/lib/mentions/tiptap-mentions";
 import { truncate } from "@/lib/utils";
-import type { ActivityCategory, ProjectActivity } from "@/types/activity";
+import type { ActivityCategory, ProjectActivity, RichContent } from "@/types/activity";
 
 // ─── Type mapper ──────────────────────────────────────────────────────────────
 
@@ -29,7 +28,7 @@ function toActivity(p: PrismaActivity): ProjectActivity {
     userId: p.userId,
     userName: p.userName,
     message: p.message,
-    richContent: p.richContent != null ? (p.richContent as JSONContent) : undefined,
+    richContent: p.richContent != null ? (p.richContent as RichContent) : undefined,
     metadata: p.metadata != null ? (p.metadata as Record<string, unknown>) : undefined,
     createdAt: p.createdAt.toISOString(),
   };
@@ -53,7 +52,7 @@ export interface LogActivityInput {
   userName: string;
   userId?: string | null;
   message: string;
-  richContent?: JSONContent;
+  richContent?: RichContent;
   metadata?: Record<string, unknown>;
 }
 
@@ -78,7 +77,7 @@ export async function logProjectActivity(
 
 export interface CommentPayload {
   text: string;
-  richContent: JSONContent;
+  richContent: RichContent;
 }
 
 export async function addProjectComment(
@@ -108,7 +107,7 @@ async function notifyMentionedUsers(
   projectId: string,
   comment: ProjectActivity,
   authorName: string,
-  richContent: JSONContent,
+  richContent: RichContent,
   actingUserId: string | null
 ): Promise<void> {
   const extractedIds = extractMentionedUserIdsFromDoc(richContent);
