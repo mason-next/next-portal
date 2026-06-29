@@ -12,6 +12,7 @@ const googleSansFlex = Google_Sans_Flex({
   subsets: ["latin"],
   weight: "variable",
   axes: ["opsz"],
+  adjustFontFallback: false,
 });
 
 const geistMono = Geist_Mono({

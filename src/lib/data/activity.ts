@@ -15,10 +15,6 @@ import { extractMentionedUserIdsFromDoc } from "@/lib/mentions/tiptap-mentions";
 import { truncate } from "@/lib/utils";
 import type { ActivityCategory, ProjectActivity, RichContent } from "@/types/activity";
 
-// ─── Type mapper ──────────────────────────────────────────────────────────────
-
-// Prisma ActivityCategory values are identical to the app type strings
-// ("comment", "workflow", "status_change", "system") — no converter table needed.
 function toActivity(p: PrismaActivity): ProjectActivity {
   return {
     id: p.id,
@@ -33,18 +29,6 @@ function toActivity(p: PrismaActivity): ProjectActivity {
     createdAt: p.createdAt.toISOString(),
   };
 }
-
-// ─── Queries ──────────────────────────────────────────────────────────────────
-
-export async function getProjectActivity(projectId: string): Promise<ProjectActivity[]> {
-  const rows = await db.projectActivity.findMany({
-    where: { projectId },
-    orderBy: { createdAt: "desc" },
-  });
-  return rows.map(toActivity);
-}
-
-// ─── Mutations ────────────────────────────────────────────────────────────────
 
 export interface LogActivityInput {
   category: ActivityCategory;
@@ -75,9 +59,25 @@ export async function logProjectActivity(
   return toActivity(row);
 }
 
+// ─── Queries ──────────────────────────────────────────────────────────────────
+
+export async function getProjectActivity(projectId: string): Promise<ProjectActivity[]> {
+  const rows = await db.projectActivity.findMany({
+    where: { projectId },
+    orderBy: { createdAt: "desc" },
+  });
+  return rows.map(toActivity);
+}
+
+// ─── Mutations ────────────────────────────────────────────────────────────────
+
+// richContentJson is a JSON-serialized RichContent string — passing the raw TipTap JSONContent
+// object through the RSC flight layer triggers "Cannot access toStringTag on the server" because
+// the flight deserializer treats complex objects from "use client" modules as temporary client
+// references. Stringifying on the client and parsing here avoids that proxy trap.
 export interface CommentPayload {
   text: string;
-  richContent: RichContent;
+  richContentJson: string;
 }
 
 export async function addProjectComment(
@@ -86,16 +86,17 @@ export async function addProjectComment(
   payload: CommentPayload,
   actingUserId?: string | null
 ): Promise<ProjectActivity> {
+  const richContent = JSON.parse(payload.richContentJson) as RichContent;
   const comment = await logProjectActivity(projectId, {
     category: "comment",
     activityType: "comment_added",
     userName,
     message: payload.text,
-    richContent: payload.richContent,
+    richContent,
   });
 
   try {
-    await notifyMentionedUsers(projectId, comment, userName, payload.richContent, actingUserId ?? null);
+    await notifyMentionedUsers(projectId, comment, userName, richContent, actingUserId ?? null);
   } catch (err) {
     console.error("[addProjectComment] mention notifications failed:", err);
   }
@@ -150,11 +151,12 @@ export async function updateProjectComment(
   payload: CommentPayload,
   actingUserId: string | null
 ): Promise<ProjectActivity> {
+  const richContent = JSON.parse(payload.richContentJson) as RichContent;
   const row = await db.projectActivity.update({
     where: { id: activityId },
     data: {
       message: payload.text,
-      richContent: payload.richContent as Prisma.InputJsonValue,
+      richContent: richContent as Prisma.InputJsonValue,
     },
   });
   const updated = toActivity(row);
@@ -164,7 +166,7 @@ export async function updateProjectComment(
   await db.notification.deleteMany({ where: { commentId: activityId } });
 
   try {
-    await notifyMentionedUsers(projectId, updated, authorName, payload.richContent, actingUserId);
+    await notifyMentionedUsers(projectId, updated, authorName, richContent, actingUserId);
   } catch (err) {
     console.error("[updateProjectComment] mention notifications failed:", err);
   }

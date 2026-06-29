@@ -1,6 +1,6 @@
 "use client";
 
-import { forwardRef, useImperativeHandle } from "react";
+import { forwardRef, useEffect, useImperativeHandle, useRef } from "react";
 import { EditorContent, ReactRenderer, useEditor, useEditorState, type Editor } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
 import Link from "@tiptap/extension-link";
@@ -45,6 +45,14 @@ interface RichCommentEditorProps {
 // token, see lib/mentions/tiptap-mentions.ts.
 export const RichCommentEditor = forwardRef<RichCommentEditorHandle, RichCommentEditorProps>(
   function RichCommentEditor({ users, placeholder, className, initialContent, onSubmitShortcut, onEmptyChange }, ref) {
+    // Keep a ref so the mention suggestion's items() closure always reads the live roster.
+    // useEditor initializes extensions once (on mount) — without a ref, users captured in the
+    // closure would be stale if UsersProvider hadn't finished loading when the drawer opened.
+    const usersRef = useRef<AppUser[]>(users);
+    useEffect(() => {
+      usersRef.current = users;
+    }, [users]);
+
     const editor = useEditor({
       immediatelyRender: false,
       content: initialContent,
@@ -66,7 +74,21 @@ export const RichCommentEditor = forwardRef<RichCommentEditorHandle, RichComment
           validate: (href) => /^(https?:\/\/|mailto:)/i.test(href),
         }),
         Placeholder.configure({ placeholder: placeholder ?? "Write a comment…" }),
-        Mention.configure(buildMentionOptions(users)),
+        // eslint-disable-next-line react-hooks/refs -- items() is a lazy callback (fires on user input), not a render-time read
+        Mention.configure({
+          HTMLAttributes: { class: "mention" },
+          renderHTML: ({ node }) => ["span", { class: "mention" }, `@${node.attrs.label ?? node.attrs.id}`],
+          suggestion: {
+            items: ({ query }) => {
+              const term = query.toLowerCase();
+              return usersRef.current
+                .filter((u) => u.name.toLowerCase().includes(term))
+                .slice(0, MAX_SUGGESTIONS)
+                .map((u): MentionSuggestionItem => ({ id: u.id, name: u.name, avatarUrl: u.avatarUrl }));
+            },
+            render: buildSuggestionRender,
+          },
+        }),
       ],
       editorProps: {
         attributes: {
@@ -234,63 +256,48 @@ function ToolbarButton({
   );
 }
 
-function buildMentionOptions(users: AppUser[]): Partial<MentionOptions> {
+function buildSuggestionRender(): ReturnType<NonNullable<NonNullable<MentionOptions["suggestion"]>["render"]>> {
+  let component: ReactRenderer<MentionSuggestionListHandle, { items: MentionSuggestionItem[]; command: (item: { id: string; label: string }) => void }> | null = null;
+  let popup: HTMLDivElement | null = null;
+
+  function position(props: SuggestionProps<MentionSuggestionItem>) {
+    if (!popup) return;
+    const rect = props.clientRect?.();
+    if (!rect) return;
+    popup.style.left = `${rect.left + window.scrollX}px`;
+    popup.style.top = `${rect.bottom + window.scrollY + 4}px`;
+  }
+
   return {
-    HTMLAttributes: { class: "mention" },
-    renderHTML: ({ node }) => ["span", { class: "mention" }, `@${node.attrs.label ?? node.attrs.id}`],
-    suggestion: {
-      items: ({ query }) => {
-        const term = query.toLowerCase();
-        return users
-          .filter((u) => u.name.toLowerCase().includes(term))
-          .slice(0, MAX_SUGGESTIONS)
-          .map((u): MentionSuggestionItem => ({ id: u.id, name: u.name, avatarUrl: u.avatarUrl }));
-      },
-      render: () => {
-        let component: ReactRenderer<MentionSuggestionListHandle, { items: MentionSuggestionItem[]; command: (item: { id: string; label: string }) => void }> | null = null;
-        let popup: HTMLDivElement | null = null;
+    onStart: (props) => {
+      component = new ReactRenderer(MentionSuggestionList, {
+        props: { items: props.items, command: props.command },
+        editor: props.editor,
+      });
 
-        function position(props: SuggestionProps<MentionSuggestionItem>) {
-          if (!popup) return;
-          const rect = props.clientRect?.();
-          if (!rect) return;
-          popup.style.left = `${rect.left + window.scrollX}px`;
-          popup.style.top = `${rect.bottom + window.scrollY + 4}px`;
-        }
-
-        return {
-          onStart: (props) => {
-            component = new ReactRenderer(MentionSuggestionList, {
-              props: { items: props.items, command: props.command },
-              editor: props.editor,
-            });
-
-            popup = document.createElement("div");
-            popup.style.position = "absolute";
-            popup.style.zIndex = "50";
-            document.body.appendChild(popup);
-            popup.appendChild(component.element);
-            position(props);
-          },
-          onUpdate: (props) => {
-            component?.updateProps({ items: props.items, command: props.command });
-            position(props);
-          },
-          onKeyDown: (props: SuggestionKeyDownProps) => {
-            if (props.event.key === "Escape") {
-              popup?.remove();
-              return true;
-            }
-            return component?.ref?.onKeyDown(props) ?? false;
-          },
-          onExit: () => {
-            popup?.remove();
-            popup = null;
-            component?.destroy();
-            component = null;
-          },
-        };
-      },
+      popup = document.createElement("div");
+      popup.style.position = "absolute";
+      popup.style.zIndex = "50";
+      document.body.appendChild(popup);
+      popup.appendChild(component.element);
+      position(props);
+    },
+    onUpdate: (props) => {
+      component?.updateProps({ items: props.items, command: props.command });
+      position(props);
+    },
+    onKeyDown: (props: SuggestionKeyDownProps) => {
+      if (props.event.key === "Escape") {
+        popup?.remove();
+        return true;
+      }
+      return component?.ref?.onKeyDown(props) ?? false;
+    },
+    onExit: () => {
+      popup?.remove();
+      popup = null;
+      component?.destroy();
+      component = null;
     },
   };
 }

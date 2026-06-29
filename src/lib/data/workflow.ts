@@ -6,7 +6,7 @@ import {
   type WorkflowStep as PrismaStep,
 } from "@prisma/client";
 import { db } from "@/lib/db";
-import { logProjectActivity } from "@/lib/data/activity";
+import { logProjectActivity } from "@/lib/data/activity-log";
 import { getServerSession } from "@/lib/auth/server";
 import { defaultWorkflowSteps } from "@/lib/mock/workflow.mock";
 import {

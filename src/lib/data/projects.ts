@@ -1,7 +1,7 @@
 "use server";
 
 import { db } from "@/lib/db";
-import { logProjectActivity } from "@/lib/data/activity";
+import { logProjectActivity } from "@/lib/data/activity-log";
 import { deleteNotificationsForProject } from "@/lib/data/notifications";
 import { getUser } from "@/lib/data/users";
 import { getProjectTechnicians } from "@/lib/data/subcontractors";

@@ -168,7 +168,8 @@ export function ProjectActivityDrawer({ projectId }: { projectId: string }) {
     if (!editor || editor.isEmpty()) return;
     setSubmitting(true);
     try {
-      await addProjectComment(projectId, session.name, editor.getPayload(), session.id);
+      const { richContent, text } = editor.getPayload();
+      await addProjectComment(projectId, session.name, { text, richContentJson: JSON.stringify(richContent) }, session.id);
       editor.clear();
       setIsDraftEmpty(true);
     } finally {
@@ -340,7 +341,8 @@ function ActivityRow({
     if (!editor || editor.isEmpty()) return;
     setSaving(true);
     try {
-      await updateProjectComment(projectId, item.id, currentUserName, editor.getPayload(), currentUserId);
+      const { richContent, text } = editor.getPayload();
+      await updateProjectComment(projectId, item.id, currentUserName, { text, richContentJson: JSON.stringify(richContent) }, currentUserId);
       setEditing(false);
       onEdited();
     } finally {
