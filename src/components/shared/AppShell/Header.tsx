@@ -3,7 +3,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { LogOut } from "lucide-react";
+import { LogOut, Settings } from "lucide-react";
 import { useSession } from "@/lib/auth/client";
 import { NotificationBell } from "@/modules/notifications/components/NotificationBell";
 import { Nav } from "./Nav";
@@ -28,6 +28,13 @@ export function Header() {
         <Nav />
       </div>
       <div className="flex items-center gap-3">
+        <Link
+          href="/admin"
+          title="Admin Settings"
+          className="flex h-8 w-8 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+        >
+          <Settings className="size-4" />
+        </Link>
         <NotificationBell />
         <UserAvatar />
         <span className="text-sm font-medium">{session.name}</span>
