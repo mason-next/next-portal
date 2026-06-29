@@ -22,7 +22,7 @@ export default async function UserProfilePage({
             <p className="text-sm text-muted-foreground">{user.title}</p>
             <span className="mt-1 inline-flex items-center gap-1 rounded-full bg-muted px-2 py-0.5 text-xs text-muted-foreground">
               <Shield className="size-3" />
-              {user.role}
+              {user.accountType}
             </span>
           </div>
         </div>

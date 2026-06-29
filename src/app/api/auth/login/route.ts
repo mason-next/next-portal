@@ -33,7 +33,7 @@ export async function POST(request: Request) {
       id: user.id,
       name: user.name,
       email: user.email,
-      role: user.role as SessionUser["role"],
+      accountType: user.accountType,
     };
 
     const token = await signSession(sessionUser);

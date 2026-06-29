@@ -145,7 +145,7 @@ function UsersTab() {
                   <div className="text-sm font-semibold">{user.name}</div>
                   <div className="text-xs text-muted-foreground">{user.title || "—"}</div>
                 </div>
-                <StatusBadge label={user.role} tone={user.role === "Administrator" ? "info" : "neutral"} />
+                <StatusBadge label={user.accountType} tone={user.accountType === "Administrator" ? "info" : "neutral"} />
                 {!user.isActive ? <StatusBadge label="Inactive" tone="warning" /> : null}
                 <div className="text-xs text-muted-foreground">{user.email}</div>
               </button>

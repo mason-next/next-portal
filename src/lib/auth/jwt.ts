@@ -1,5 +1,6 @@
 import { SignJWT, jwtVerify, type JWTPayload } from "jose";
 import type { SessionUser } from "./types";
+import type { AccountType } from "@/types/user";
 
 const SESSION_COOKIE = "next-portal-session";
 const EXPIRY_DAYS = 30;
@@ -21,12 +22,19 @@ interface SessionPayload extends JWTPayload {
   id: string;
   name: string;
   email: string;
-  role: string;
+  accountType?: string;
+  // kept for backwards-compat: old sessions issued before the refactor carry `role`.
+  role?: string;
 }
 
 export async function signSession(user: SessionUser): Promise<string> {
   const exp = Math.floor(Date.now() / 1000) + EXPIRY_DAYS * 86400;
-  return new SignJWT({ id: user.id, name: user.name, email: user.email, role: user.role })
+  return new SignJWT({
+    id: user.id,
+    name: user.name,
+    email: user.email,
+    accountType: user.accountType,
+  })
     .setProtectedHeader({ alg: "HS256" })
     .setIssuedAt()
     .setExpirationTime(exp)
@@ -36,12 +44,20 @@ export async function signSession(user: SessionUser): Promise<string> {
 export async function verifySession(token: string): Promise<SessionUser | null> {
   try {
     const { payload } = await jwtVerify<SessionPayload>(token, getSecret());
-    if (!payload.id || !payload.name || !payload.email || !payload.role) return null;
+    if (!payload.id || !payload.name || !payload.email) return null;
+
+    // Support old tokens that carried `role` instead of `accountType`.
+    const rawAccountType: string | undefined =
+      payload.accountType ??
+      (payload.role === "Administrator" ? "Administrator" : "Member");
+
+    if (!rawAccountType) return null;
+
     return {
       id: payload.id,
       name: payload.name,
       email: payload.email,
-      role: payload.role as SessionUser["role"],
+      accountType: rawAccountType as AccountType,
     };
   } catch {
     return null;

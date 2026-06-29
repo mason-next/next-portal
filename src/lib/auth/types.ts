@@ -1,8 +1,8 @@
-import type { UserRole } from "@/types/user";
+import type { AccountType } from "@/types/user";
 
 export interface SessionUser {
   id: string;
   name: string;
   email: string;
-  role: UserRole;
+  accountType: AccountType;
 }

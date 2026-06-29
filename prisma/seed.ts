@@ -1,4 +1,4 @@
-import { PrismaClient, UserRole, ProjectMemberRole, WorkflowSection, WorkflowStepStatus } from "@prisma/client";
+import { PrismaClient, AccountType, RoleType, ProjectMemberRole, WorkflowSection, WorkflowStepStatus } from "@prisma/client";
 import bcrypt from "bcryptjs";
 
 const db = new PrismaClient();
@@ -14,7 +14,8 @@ const USERS = [
     title: "Project Manager",
     email: "dana.whitfield@nextops.com",
     phone: "(555) 201-4471",
-    role: UserRole.ProjectManager,
+    accountType: AccountType.Member,
+    roleType: RoleType.ProjectManager,
   },
   {
     id: "user-marcus-reed",
@@ -22,7 +23,8 @@ const USERS = [
     title: "Solutions Executive",
     email: "marcus.reed@nextops.com",
     phone: "(555) 201-7732",
-    role: UserRole.Member,
+    accountType: AccountType.Member,
+    roleType: RoleType.Salesperson,
   },
   {
     id: "user-priya-subramaniam",
@@ -30,7 +32,8 @@ const USERS = [
     title: "Solutions Engineer",
     email: "priya.subramaniam@nextops.com",
     phone: "(555) 201-9015",
-    role: UserRole.Member,
+    accountType: AccountType.Member,
+    roleType: RoleType.Engineer,
   },
   {
     id: "user-carlos-ibarra",
@@ -38,7 +41,8 @@ const USERS = [
     title: "Lead Technician",
     email: "carlos.ibarra@nextops.com",
     phone: "(555) 201-3360",
-    role: UserRole.Member,
+    accountType: AccountType.Member,
+    roleType: RoleType.Technician,
   },
   {
     id: "user-juan-lazo",
@@ -46,7 +50,8 @@ const USERS = [
     title: "Administrator",
     email: "jlazo@mason247.com",
     phone: "(555) 201-1100",
-    role: UserRole.Administrator,
+    accountType: AccountType.Administrator,
+    roleType: RoleType.Executive,
   },
   {
     id: "user-sandra-verissimo",
@@ -54,7 +59,8 @@ const USERS = [
     title: "Sr. Inside Project Manager",
     email: "sverissimo@mason247.com",
     phone: "(555) 201-5588",
-    role: UserRole.Member,
+    accountType: AccountType.Member,
+    roleType: RoleType.ProjectManager,
   },
   {
     id: "user-alex-behan",
@@ -62,7 +68,8 @@ const USERS = [
     title: "Inside Project Manager",
     email: "abehan@mason247.com",
     phone: "(555) 201-6694",
-    role: UserRole.Member,
+    accountType: AccountType.Member,
+    roleType: RoleType.ProjectManager,
   },
 ] as const;
 
@@ -319,7 +326,8 @@ async function main() {
         title: user.title,
         email: user.email,
         phone: user.phone,
-        role: user.role,
+        accountType: user.accountType,
+        roleType: user.roleType,
         isActive: true,
         // Only set hash if not already set — preserves user-changed passwords on re-seed.
         ...(await db.user.findUnique({ where: { id: user.id } }).then((u) => u?.passwordHash ? {} : { passwordHash: defaultPasswordHash })),
@@ -330,7 +338,8 @@ async function main() {
         title: user.title,
         email: user.email,
         phone: user.phone,
-        role: user.role,
+        accountType: user.accountType,
+        roleType: user.roleType,
         isActive: true,
         passwordHash: defaultPasswordHash,
         createdAt: SEEDED_AT,

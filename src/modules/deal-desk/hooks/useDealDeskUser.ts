@@ -2,20 +2,12 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { useSession } from "@/lib/auth/client";
-import type { UserRole } from "@/types/user";
-
-const MANAGEMENT_ROLES: UserRole[] = [
-  "Administrator",
-  "Project Manager",
-  "Engineering Manager",
-  "Procurement Manager",
-];
 
 const LS_KEY = "deal-desk:preview-as-salesperson";
 
 export function useDealDeskUser() {
   const session = useSession();
-  const actuallyManagement = MANAGEMENT_ROLES.includes(session.role);
+  const actuallyManagement = session.accountType === "Administrator";
 
   const [previewAsSalesperson, setPreviewAsSalesperson] = useState(() => {
     if (typeof window === "undefined") return false;
@@ -36,9 +28,9 @@ export function useDealDeskUser() {
   return {
     /** The logged-in user's name */
     userName: session.name,
-    /** True if the user has a management role (and isn't previewing as salesperson) */
+    /** True if the user has Administrator account type (and isn't previewing as salesperson) */
     isManagement,
-    /** True if the logged-in user is actually management (regardless of preview) */
+    /** True if the logged-in user is actually an Administrator (regardless of preview) */
     actuallyManagement,
     /** Whether management is currently previewing the salesperson view */
     previewAsSalesperson,

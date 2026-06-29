@@ -1,19 +1,16 @@
 import { ROLE_NOT_NEEDED } from "@/lib/role-assignment";
 import type { Project } from "@/types/project";
-import type { AppUser, UserRole } from "@/types/user";
+import type { AppUser } from "@/types/user";
 
-// Global roles that make a user mentionable on every project, regardless of whether they're
-// directly assigned to it — distinct from the project's own 4 per-project assignment fields.
-export const GLOBAL_MENTION_ROLES: ReadonlySet<UserRole> = new Set([
-  "Administrator",
-  "Project Manager",
-  "Engineering Manager",
-  "Procurement Manager",
-]);
+// Users with Administrator account type are mentionable on every project regardless of
+// direct assignment — they have global visibility by virtue of their access level.
+function isGloballyMentionable(user: AppUser): boolean {
+  return user.accountType === "Administrator";
+}
 
 // The roster the @-mention dropdown shows, and the authoritative filter `addProjectComment`
-// re-checks at submit time: the project's currently-assigned team, plus every globally-roled
-// user, minus anyone inactive. The dropdown is just UX convenience — enforcement happens again
+// re-checks at submit time: the project's currently-assigned team, plus every admin,
+// minus anyone inactive. The dropdown is just UX convenience — enforcement happens again
 // when the comment is actually posted, since eligibility can change between typing and posting.
 export function getMentionableUsers(project: Project, allUsers: AppUser[]): AppUser[] {
   const assignedIds = new Set(
@@ -30,7 +27,7 @@ export function getMentionableUsers(project: Project, allUsers: AppUser[]): AppU
   const byId = new Map<string, AppUser>();
   for (const user of allUsers) {
     if (user.isActive === false) continue;
-    if (assignedIds.has(user.id) || GLOBAL_MENTION_ROLES.has(user.role)) {
+    if (assignedIds.has(user.id) || isGloballyMentionable(user)) {
       byId.set(user.id, user);
     }
   }

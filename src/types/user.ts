@@ -1,14 +1,28 @@
-export const USER_ROLES = [
-  "Administrator",
-  "Project Manager",
-  "Engineering Manager",
-  "Procurement Manager",
-  "Salesperson",
-  "Member",
-  "Salesperson",
-] as const;
+export const ACCOUNT_TYPES = ["Administrator", "Member", "Viewer"] as const;
+export type AccountType = (typeof ACCOUNT_TYPES)[number];
 
-export type UserRole = (typeof USER_ROLES)[number];
+export const ROLE_TYPES = [
+  "Engineer",
+  "Salesperson",
+  "ProjectManager",
+  "Technician",
+  "Operations",
+  "Finance",
+  "Executive",
+  "Other",
+] as const;
+export type RoleType = (typeof ROLE_TYPES)[number];
+
+export const ROLE_TYPE_LABELS: Record<RoleType, string> = {
+  Engineer: "Engineer",
+  Salesperson: "Salesperson",
+  ProjectManager: "Project Manager",
+  Technician: "Technician",
+  Operations: "Operations",
+  Finance: "Finance",
+  Executive: "Executive",
+  Other: "Other",
+};
 
 export interface AppUser {
   id: string;
@@ -17,7 +31,8 @@ export interface AppUser {
   email: string;
   phone: string;
   avatarUrl: string | null;
-  role: UserRole;
+  accountType: AccountType;
+  roleType: RoleType;
   isActive: boolean;
   createdAt: string;
   updatedAt: string;
@@ -29,6 +44,7 @@ export interface NewUserInput {
   email: string;
   phone: string;
   avatarUrl: string | null;
-  role: UserRole;
+  accountType: AccountType;
+  roleType: RoleType;
   isActive: boolean;
 }

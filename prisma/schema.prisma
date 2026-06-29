@@ -9,14 +9,23 @@ datasource db {
 
 // ─── Enums ───────────────────────────────────────────────────────────────────
 
-enum UserRole {
+// Controls app permissions / access level.
+enum AccountType {
   Administrator
-  ProjectManager      @map("Project Manager")
-  EngineeringManager  @map("Engineering Manager")
-  ProcurementManager  @map("Procurement Manager")
-  Salesperson
   Member
+  Viewer
+}
+
+// Controls functional group / reporting / filtering — not permissions.
+enum RoleType {
+  Engineer
   Salesperson
+  ProjectManager
+  Technician
+  Operations
+  Finance
+  Executive
+  Other
 }
 
 enum ProjectMemberRole {
@@ -72,6 +81,13 @@ enum DealStatus {
   Pending
   Approved
   Rejected
+}
+
+enum CommissionStatus {
+  Estimated
+  PendingApproval @map("Pending Approval")
+  Approved
+  Paid
 }
 
 // ─── Subcontractors ──────────────────────────────────────────────────────────
@@ -130,37 +146,31 @@ enum TaskPriority {
   Critical
 }
 
-enum CommissionStatus {
-  Estimated
-  PendingApproval @map("Pending Approval")
-  Approved
-  Paid
-}
-
 // ─── Users ───────────────────────────────────────────────────────────────────
 
 model User {
-  id           String   @id
+  id           String      @id
   name         String
   title        String
-  email        String   @unique
-  phone        String   @default("")
+  email        String      @unique
+  phone        String      @default("")
   avatarUrl    String?
-  role         UserRole @default(Member)
-  isActive     Boolean  @default(true)
+  accountType  AccountType @default(Member)
+  roleType     RoleType    @default(Other)
+  isActive     Boolean     @default(true)
   passwordHash String?
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
+  createdAt    DateTime    @default(now())
+  updatedAt    DateTime    @updatedAt
 
-  projectMembers       ProjectMember[]
-  workflowSteps        WorkflowStep[]             @relation("StepOwner")
-  activities           ProjectActivity[]
-  notifications        Notification[]
-  commentMentions      CommentMention[]
-  assignedImplTasks    ImplementationTask[]        @relation("ImplTaskAssignee")
-  createdImplTasks     ImplementationTask[]        @relation("ImplTaskCreatedBy")
-  implTaskComments     ImplementationTaskComment[] @relation("ImplTaskCommentAuthor")
-  technicianAssignments ProjectTechnician[]        @relation("ProjectTechUser")
+  projectMembers        ProjectMember[]
+  workflowSteps         WorkflowStep[]              @relation("StepOwner")
+  activities            ProjectActivity[]
+  notifications         Notification[]
+  commentMentions       CommentMention[]
+  assignedImplTasks     ImplementationTask[]        @relation("ImplTaskAssignee")
+  createdImplTasks      ImplementationTask[]        @relation("ImplTaskCreatedBy")
+  implTaskComments      ImplementationTaskComment[] @relation("ImplTaskCommentAuthor")
+  technicianAssignments ProjectTechnician[]         @relation("ProjectTechUser")
 
   @@map("users")
 }
@@ -360,7 +370,6 @@ model BomRow {
   @@map("bom_rows")
 }
 
-// Extracted from the embedded BomRow.audit[] array — each field edit becomes a row.
 model BomAuditLog {
   id        String   @id @default(cuid())
   rowId     String
@@ -434,7 +443,6 @@ model EquipmentRow {
   @@map("equipment_rows")
 }
 
-// Extracted from the embedded EquipmentRow.audit[] array.
 model EquipmentAuditLog {
   id        String   @id @default(cuid())
   rowId     String
@@ -503,9 +511,6 @@ model InternalKickoff {
 
 // ─── Implementation Tasks ─────────────────────────────────────────────────────
 
-// Gantt-ready task model. parentTaskId = null means root-level task; set to another
-// task id for subtasks. Dependencies use a separate junction table so the graph can
-// be traversed in both directions without duplicating edges.
 model ImplementationTask {
   id              String                   @id @default(cuid())
   projectId       String
@@ -540,7 +545,6 @@ model ImplementationTask {
   @@map("implementation_tasks")
 }
 
-// finish-to-start dependency: taskId cannot start until dependsOnId is complete.
 model ImplementationTaskDep {
   id          String @id @default(cuid())
   taskId      String
@@ -597,7 +601,6 @@ model DealDeskQuote {
   sourceFiles          String[]
   createdAt            DateTime         @default(now())
   updatedAt            DateTime         @updatedAt
-  // Payout tracking — added feature/payout-commissions
   billingCompletionPct Float            @default(0)
   milestones           Json             @default("[]")
   payoutEvents         Json             @default("[]")
@@ -607,7 +610,8 @@ model DealDeskQuote {
 
 // ─── Sales Activity ───────────────────────────────────────────────────────────
 
-enum OppStage {
+// LogoStage mirrors the DB enum created in migration 20260627035245_add_sales_module.
+enum LogoStage {
   Prospecting
   Qualifying
   Proposal
@@ -626,78 +630,53 @@ enum ActivityType {
   Other
 }
 
-// A prospect/customer company
-model SalesCompany {
+// Prospect/customer company tracked via activity board.
+// Maps to the sales_logos table created in migration 20260627035245_add_sales_module.
+model SalesLogo {
   id         String    @id @default(cuid())
-  name       String
+  company    String
   domain     String    @default("")
+  stage      LogoStage @default(Prospecting)
+  ownerId    String?
+  ownerName  String    @default("")
   notes      String    @default("")
   dealDeskId String?
   createdAt  DateTime  @default(now())
   updatedAt  DateTime  @updatedAt
 
-  opportunities SalesOpportunity[]
-  activities    SalesActivity[]
-
-  @@map("sales_companies")
-}
-
-// A specific deal/opportunity at a company
-model SalesOpportunity {
-  id        String    @id @default(cuid())
-  companyId String
-  name      String
-  stage     OppStage  @default(Prospecting)
-  ownerId   String?
-  ownerName String    @default("")
-  value     Int       @default(0) // estimated value in cents
-  notes     String    @default("")
-  closeDate DateTime?
-  createdAt DateTime  @default(now())
-  updatedAt DateTime  @updatedAt
-
-  company    SalesCompany   @relation(fields: [companyId], references: [id], onDelete: Cascade)
   activities SalesActivity[]
 
-  @@index([companyId])
-  @@map("sales_opportunities")
+  @@map("sales_logos")
 }
 
-// A single logged activity entry
 model SalesActivity {
-  id            String       @id @default(cuid())
-  userId        String?
-  userName      String
-  companyId     String?
-  opportunityId String?
-  type          ActivityType
-  description   String       @default("")
-  contacts      Json         @default("[]") // [{name: string, title: string}]
-  aiGenerated   Boolean      @default(false)
-  weekStart     DateTime
-  createdAt     DateTime     @default(now())
+  id           String       @id @default(cuid())
+  userId       String?
+  userName     String
+  logoId       String?
+  type         ActivityType
+  description  String       @default("")
+  weekStart    DateTime
+  durationMins Int          @default(0)
+  createdAt    DateTime     @default(now())
 
-  company     SalesCompany?     @relation(fields: [companyId], references: [id], onDelete: SetNull)
-  opportunity SalesOpportunity? @relation(fields: [opportunityId], references: [id], onDelete: SetNull)
+  logo SalesLogo? @relation(fields: [logoId], references: [id], onDelete: SetNull)
 
   @@index([userId, weekStart])
   @@index([weekStart])
-  @@index([companyId])
   @@map("sales_activities")
 }
 
 // ─── Quote Portal ─────────────────────────────────────────────────────────────
 
-// Customer-facing HTML presentation quotes
 model QuotePresentation {
   id           String   @id @default(cuid())
   slug         String   @unique
   title        String
   customer     String
   isActive     Boolean  @default(true)
-  // File storage: path relative to storage root (swapped to S3/Volume when confirmed)
-  htmlFile     String   @default("presentation.html") // relative path within the quote folder
-  storageKey   String   @default("") // future: S3/Volume key prefix for the quote folder
+  htmlFile     String   @default("presentation.html")
+  storageKey   String   @default("")
   createdBy    String
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
@@ -723,7 +702,6 @@ model QuoteAccessLog {
 
 // ─── Settings ─────────────────────────────────────────────────────────────────
 
-// Generic key/value store for app-wide settings (e.g. default kickoff attendees).
 model AppSetting {
   key       String   @id
   value     Json

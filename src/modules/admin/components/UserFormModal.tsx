@@ -5,7 +5,14 @@ import { Button } from "@/components/ui/button";
 import { Modal } from "@/components/shared/Modal";
 import { UserAvatarImage } from "@/components/shared/AppShell/UserAvatarImage";
 import { createUser, deleteUser, updateUser } from "@/lib/data/users";
-import { USER_ROLES, type AppUser } from "@/types/user";
+import {
+  ACCOUNT_TYPES,
+  ROLE_TYPES,
+  ROLE_TYPE_LABELS,
+  type AccountType,
+  type AppUser,
+  type RoleType,
+} from "@/types/user";
 
 const FIELD_INPUT_CLASS =
   "h-9 w-full rounded-md border border-input bg-background px-3 text-sm outline-none focus:border-primary";
@@ -23,7 +30,8 @@ export function UserFormModal({ user, onClose, onSaved, onDeleted }: UserFormMod
   const [email, setEmail] = useState(user?.email ?? "");
   const [phone, setPhone] = useState(user?.phone ?? "");
   const [avatarUrl, setAvatarUrl] = useState<string | null>(user?.avatarUrl ?? null);
-  const [role, setRole] = useState(user?.role ?? "Member");
+  const [accountType, setAccountType] = useState<AccountType>(user?.accountType ?? "Member");
+  const [roleType, setRoleType] = useState<RoleType>(user?.roleType ?? "Other");
   const [isActive, setIsActive] = useState(user?.isActive ?? true);
   const [submitting, setSubmitting] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -50,8 +58,8 @@ export function UserFormModal({ user, onClose, onSaved, onDeleted }: UserFormMod
     setSubmitting(true);
     try {
       const saved = user
-        ? await updateUser(user.id, { name, title, email, phone, avatarUrl, role, isActive })
-        : await createUser({ name, title, email, phone, avatarUrl, role, isActive });
+        ? await updateUser(user.id, { name, title, email, phone, avatarUrl, accountType, roleType, isActive })
+        : await createUser({ name, title, email, phone, avatarUrl, accountType, roleType, isActive });
       onSaved(saved);
     } finally {
       setSubmitting(false);
@@ -117,15 +125,28 @@ export function UserFormModal({ user, onClose, onSaved, onDeleted }: UserFormMod
             onChange={(e) => setPhone(e.target.value)}
           />
         </Field>
-        <Field label="Role">
+        <Field label="Access Level">
           <select
             className={FIELD_INPUT_CLASS}
-            value={role}
-            onChange={(e) => setRole(e.target.value as AppUser["role"])}
+            value={accountType}
+            onChange={(e) => setAccountType(e.target.value as AccountType)}
           >
-            {USER_ROLES.map((r) => (
+            {ACCOUNT_TYPES.map((t) => (
+              <option key={t} value={t}>
+                {t}
+              </option>
+            ))}
+          </select>
+        </Field>
+        <Field label="Role / Group">
+          <select
+            className={FIELD_INPUT_CLASS}
+            value={roleType}
+            onChange={(e) => setRoleType(e.target.value as RoleType)}
+          >
+            {ROLE_TYPES.map((r) => (
               <option key={r} value={r}>
-                {r}
+                {ROLE_TYPE_LABELS[r]}
               </option>
             ))}
           </select>
