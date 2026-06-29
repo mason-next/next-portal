@@ -22,6 +22,8 @@ export interface DealCategory {
 
 export interface TeamMember {
   id: string;
+  userId?: string;       // linked AppUser.id
+  avatarUrl?: string | null;
   name: string;
   role: string;
   matrixKey: RoleKey;
@@ -69,11 +71,28 @@ export interface PayoutEvent {
   recordedBy: string;
 }
 
+// Enterprise: 50% at signing, 40% at delivery, 10% at closeout
 export const DEFAULT_PAYOUT_MILESTONES: PayoutMilestone[] = [
   { id: "m1", label: "Contract Signing",  triggerBillingPct: 0,  commissionPct: 50 },
   { id: "m2", label: "Project Delivery",  triggerBillingPct: 50, commissionPct: 40 },
   { id: "m3", label: "Project Closeout",  triggerBillingPct: 90, commissionPct: 10 },
 ];
+
+// Pod/SE: 50% on opportunity win + first 50% invoiced; 50% on project close + all invoices paid
+export const POD_PAYOUT_MILESTONES: PayoutMilestone[] = [
+  { id: "pm1", label: "Opportunity Won + 50% Invoiced",    triggerBillingPct: 50,  commissionPct: 50 },
+  { id: "pm2", label: "Project Close + All Invoices Paid", triggerBillingPct: 100, commissionPct: 50 },
+];
+
+export function defaultMilestonesForType(projectType: ProjectType): PayoutMilestone[] {
+  return projectType === "Pod" ? POD_PAYOUT_MILESTONES : DEFAULT_PAYOUT_MILESTONES;
+}
+
+export function quarterFromDate(isoDate: string): string {
+  const d = new Date(isoDate + "T12:00:00"); // noon avoids timezone edge cases
+  const q = Math.ceil((d.getMonth() + 1) / 3);
+  return `Q${q} ${d.getFullYear()}`;
+}
 
 // UI preference only — not domain data. Stored in localStorage.
 export type DealDeskRole = "management" | "salesperson";
@@ -93,9 +112,11 @@ export interface DealDeskQuote {
   version: number;
   projectType: ProjectType;
   salesperson: string;
+  salespersonId?: string;
   importedAt: string;
   importedBy: string;
-  quarter: string;
+  bookingDate?: string;  // ISO date string (YYYY-MM-DD); quarter is derived from this
+  quarter: string;       // derived display value, e.g. "Q2 2026"
   status: DealStatus;
   commissionStatus: CommissionStatus;
   categories: DealCategory[];
