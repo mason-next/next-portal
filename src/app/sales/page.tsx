@@ -1,0 +1,166 @@
+"use client";
+
+import { useEffect, useState } from "react";
+import Link from "next/link";
+import { getDealDeskQuotes } from "@/lib/data/deal-desk";
+import { getSalesLogos, getSalesActivities } from "@/lib/data/sales-activity";
+import { calcFinancials } from "@/modules/deal-desk/lib/financial-calc";
+import { getWeekStart } from "@/types/sales";
+import type { DealDeskQuote } from "@/types/deal-desk";
+import type { SalesLogo } from "@/types/sales";
+
+interface NewsItem { title: string; link: string; pub: string }
+
+export default function SalesDashboardPage() {
+  const [quotes, setQuotes] = useState<DealDeskQuote[]>([]);
+  const [logos, setLogos] = useState<SalesLogo[]>([]);
+  const [activityCount, setActivityCount] = useState(0);
+  const [news, setNews] = useState<NewsItem[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    Promise.all([
+      getDealDeskQuotes(),
+      getSalesLogos(),
+      getSalesActivities({ weekStart: getWeekStart() }),
+    ]).then(([q, l, a]) => {
+      setQuotes(q);
+      setLogos(l);
+      setActivityCount(a.length);
+      setLoading(false);
+    });
+
+    // Fetch news separately so it doesn't block the main data
+    fetch("/api/sales/news")
+      .then((r) => r.json())
+      .then((data) => setNews(data))
+      .catch(() => {});
+  }, []);
+
+  const totalRevenue = quotes.reduce((s, q) => s + calcFinancials(q.categories).revenueCents, 0);
+  const pipelineCount = logos.filter((l) => !["Closed Won", "Closed Lost"].includes(l.stage)).length;
+  const closedWon = logos.filter((l) => l.stage === "Closed Won").length;
+
+  const recentQuotes = quotes
+    .slice()
+    .sort((a, b) => new Date(b.importedAt).getTime() - new Date(a.importedAt).getTime())
+    .slice(0, 5);
+
+  return (
+    <div className="mx-auto max-w-7xl p-8 space-y-8">
+      <div>
+        <h1 className="text-xl font-semibold tracking-tight">Sales Dashboard</h1>
+        <p className="text-sm text-muted-foreground mt-0.5">Overview of pipeline, activity, and recent deals</p>
+      </div>
+
+      {/* Module Nav Cards */}
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+        {[
+          { href: "/sales/activity", label: "Sales Activity", desc: "Track prospects and log weekly calls, emails, meetings, and demos", icon: "📊" },
+          { href: "/sales/deal-desk", label: "Deal Desk", desc: "Import quotes, review commissions, and manage payout milestones", icon: "💼" },
+          { href: "/sales/quotes", label: "Interactive Quote Portal", desc: "Share customer-facing HTML presentations with email-gated access", icon: "🔗" },
+        ].map(({ href, label, desc, icon }) => (
+          <Link key={href} href={href} className="group rounded-xl border bg-card p-6 hover:border-primary hover:shadow-sm transition-all">
+            <div className="text-2xl mb-3">{icon}</div>
+            <div className="font-semibold text-base group-hover:text-primary transition-colors">{label}</div>
+            <div className="text-sm text-muted-foreground mt-1 leading-snug">{desc}</div>
+            <div className="text-xs text-primary mt-3 font-medium">Open →</div>
+          </Link>
+        ))}
+      </div>
+
+      {/* KPI Cards */}
+      <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
+        {[
+          { label: "Total Quote Revenue", value: loading ? "—" : `$${(totalRevenue / 100).toLocaleString("en-US", { maximumFractionDigits: 0 })}`, sub: `${quotes.length} quotes` },
+          { label: "Active Pipeline", value: loading ? "—" : pipelineCount.toString(), sub: `${logos.length} total companies` },
+          { label: "Closed Won", value: loading ? "—" : closedWon.toString(), sub: "of tracked companies" },
+          { label: "Activities This Week", value: loading ? "—" : activityCount.toString(), sub: "logged this week" },
+        ].map(({ label, value, sub }) => (
+          <div key={label} className="rounded-xl border bg-card p-5">
+            <div className="text-xs text-muted-foreground">{label}</div>
+            <div className="text-2xl font-bold mt-1">{value}</div>
+            <div className="text-xs text-muted-foreground mt-1">{sub}</div>
+          </div>
+        ))}
+      </div>
+
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
+        {/* Recent Quotes */}
+        <div className="lg:col-span-2 space-y-3">
+          <div className="flex items-center justify-between">
+            <h2 className="text-sm font-semibold">Recent Quotes</h2>
+            <Link href="/sales/deal-desk" className="text-xs text-primary hover:underline">View all →</Link>
+          </div>
+          <div className="rounded-xl border bg-card overflow-hidden">
+            <table className="w-full text-sm">
+              <thead className="border-b bg-muted/30">
+                <tr>
+                  <th className="px-4 py-3 text-left text-xs text-muted-foreground">Project</th>
+                  <th className="px-4 py-3 text-left text-xs text-muted-foreground">Customer</th>
+                  <th className="px-4 py-3 text-right text-xs text-muted-foreground">Revenue</th>
+                  <th className="px-4 py-3 text-left text-xs text-muted-foreground">Status</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y">
+                {loading ? (
+                  <tr><td colSpan={4} className="px-4 py-8 text-center text-sm text-muted-foreground">Loading…</td></tr>
+                ) : recentQuotes.length === 0 ? (
+                  <tr><td colSpan={4} className="px-4 py-8 text-center text-sm text-muted-foreground">No quotes yet.</td></tr>
+                ) : recentQuotes.map((q) => {
+                  const f = calcFinancials(q.categories);
+                  return (
+                    <tr key={q.id} className="hover:bg-muted/20">
+                      <td className="px-4 py-3 font-medium">
+                        <Link href={`/sales/deal-desk/${q.id}`} className="hover:underline text-primary">{q.projectName}</Link>
+                      </td>
+                      <td className="px-4 py-3 text-muted-foreground">{q.customer}</td>
+                      <td className="px-4 py-3 text-right tabular-nums">${(f.revenueCents / 100).toLocaleString()}</td>
+                      <td className="px-4 py-3">
+                        <span className="inline-flex rounded-full bg-muted px-2 py-0.5 text-xs font-medium">{q.status}</span>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        {/* Tech News Feed */}
+        <div className="space-y-3">
+          <h2 className="text-sm font-semibold">Tech News</h2>
+          <div className="rounded-xl border bg-card divide-y overflow-hidden">
+            {news.length === 0 ? (
+              <div className="p-5 text-sm text-muted-foreground">Loading news…</div>
+            ) : news.map((item, i) => (
+              <a key={i} href={item.link} target="_blank" rel="noopener noreferrer" className="block p-4 hover:bg-muted/20 transition-colors">
+                <p className="text-sm font-medium line-clamp-2 leading-snug">{item.title}</p>
+                {item.pub && <p className="text-xs text-muted-foreground mt-1">{new Date(item.pub).toLocaleDateString()}</p>}
+              </a>
+            ))}
+          </div>
+          <p className="text-xs text-muted-foreground">Updated hourly · TechCrunch</p>
+        </div>
+      </div>
+
+      {/* Pipeline Stage Summary */}
+      {logos.length > 0 && (
+        <div className="space-y-3">
+          <div className="flex items-center justify-between">
+            <h2 className="text-sm font-semibold">Pipeline by Stage</h2>
+            <Link href="/sales/activity" className="text-xs text-primary hover:underline">Manage →</Link>
+          </div>
+          <div className="grid grid-cols-3 gap-3 sm:grid-cols-6">
+            {["Prospecting","Qualifying","Proposal","Negotiation","Closed Won","Closed Lost"].map((stage) => (
+              <div key={stage} className="rounded-lg border bg-card p-3 text-center">
+                <div className="text-xs text-muted-foreground">{stage}</div>
+                <div className="text-xl font-bold mt-1">{logos.filter((l) => l.stage === stage).length}</div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}

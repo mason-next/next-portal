@@ -1,9 +1,17 @@
+"use client";
+
 import { calcFinancials, fmtUSD, fmtPct } from "@/modules/deal-desk/lib/financial-calc";
+import { DealSankey } from "@/modules/deal-desk/components/DealSankey";
+import { UserPicker } from "@/components/shared/UserPicker";
+import { useDealDeskUser } from "@/modules/deal-desk/hooks/useDealDeskUser";
 import type { DealDeskQuote } from "@/types/deal-desk";
+import { quarterFromDate } from "@/types/deal-desk";
+import type { AppUser } from "@/types/user";
 import { cn } from "@/lib/utils";
 
 interface DealReportProps {
   quote: DealDeskQuote;
+  onUpdate?: (updated: DealDeskQuote) => void;
 }
 
 function Row({ label, value, bold, accent }: { label: string; value: string; bold?: boolean; accent?: boolean }) {
@@ -15,28 +23,83 @@ function Row({ label, value, bold, accent }: { label: string; value: string; bol
   );
 }
 
-export function DealReport({ quote }: DealReportProps) {
-  const f = calcFinancials(quote.categories);
+export function DealReport({ quote, onUpdate }: DealReportProps) {
+  const f = calcFinancials(quote.categories, quote.projectType);
+  const { isManagement } = useDealDeskUser();
+
+  function handleSalespersonChange(user: AppUser | null) {
+    if (!onUpdate) return;
+    onUpdate({ ...quote, salesperson: user?.name ?? "", salespersonId: user?.id });
+  }
 
   return (
     <div className="space-y-6">
       {/* Project info */}
       <div className="grid grid-cols-2 gap-x-8 gap-y-1 rounded-lg border bg-card p-5">
-        {[
-          ["Customer",       quote.customer],
-          ["Project",        quote.projectName],
-          ["Quote",          `${quote.quoteNumber} · ${quote.revision}`],
-          ["Opportunity",    quote.opportunityNumber || "—"],
-          ["Salesperson",    quote.salesperson || "—"],
-          ["Project Type",   quote.projectType],
-          ["Quarter",        quote.quarter],
-          ["Imported By",    quote.importedBy],
-        ].map(([label, value]) => (
+        {([
+          ["Customer",    quote.customer],
+          ["Project",     quote.projectName],
+          ["Quote",       `${quote.quoteNumber} · ${quote.revision}`],
+          ["Project Type",quote.projectType],
+        ] as [string, string][]).map(([label, value]) => (
           <div key={label} className="flex gap-2 py-1">
             <span className="text-xs text-muted-foreground w-28 shrink-0">{label}</span>
             <span className="text-sm font-medium">{value}</span>
           </div>
         ))}
+
+        {/* Opportunity number — editable */}
+        <div className="flex gap-2 py-1 items-center">
+          <span className="text-xs text-muted-foreground w-28 shrink-0">Opportunity #</span>
+          {isManagement && onUpdate ? (
+            <input
+              value={quote.opportunityNumber}
+              onChange={(e) => onUpdate({ ...quote, opportunityNumber: e.target.value })}
+              placeholder="Add opportunity number…"
+              className="flex-1 rounded-md border bg-background px-2.5 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+            />
+          ) : (
+            <span className="text-sm font-medium">{quote.opportunityNumber || "—"}</span>
+          )}
+        </div>
+
+        {/* Booking date — editable for management; quarter derived */}
+        <div className="flex gap-2 py-1 items-center">
+          <span className="text-xs text-muted-foreground w-28 shrink-0">Booking Date</span>
+          {isManagement && onUpdate ? (
+            <div className="flex items-center gap-2 flex-1 min-w-0">
+              <input
+                type="date"
+                value={quote.bookingDate ?? ""}
+                onChange={(e) => onUpdate({ ...quote, bookingDate: e.target.value, quarter: e.target.value ? quarterFromDate(e.target.value) : quote.quarter })}
+                className="rounded-md border bg-background px-2.5 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+              />
+              {quote.bookingDate && (
+                <span className="text-xs font-semibold text-muted-foreground">{quote.quarter}</span>
+              )}
+            </div>
+          ) : (
+            <span className="text-sm font-medium">
+              {quote.bookingDate ? `${quote.bookingDate} · ${quote.quarter}` : "—"}
+            </span>
+          )}
+        </div>
+
+        {/* Salesperson — UserPicker for management, plain text for others */}
+        <div className="flex gap-2 py-1 items-center">
+          <span className="text-xs text-muted-foreground w-28 shrink-0">Salesperson</span>
+          {isManagement && onUpdate ? (
+            <div className="flex-1 min-w-0">
+              <UserPicker
+                value={quote.salespersonId ?? ""}
+                onChange={handleSalespersonChange}
+                placeholder="Link salesperson…"
+              />
+            </div>
+          ) : (
+            <span className="text-sm font-medium">{quote.salesperson || "—"}</span>
+          )}
+        </div>
       </div>
 
       {/* Financial summary */}
@@ -99,32 +162,13 @@ export function DealReport({ quote }: DealReportProps) {
         </div>
       </div>
 
-      {/* P&L waterfall */}
-      <div className="rounded-lg border bg-card p-5">
-        <h3 className="text-sm font-semibold mb-3">Profit Waterfall</h3>
-        <div className="space-y-1">
-          {[
-            { label: "Revenue",                   cents: f.revenueCents,             pct: 100,                                            color: "bg-blue-500" },
-            { label: "Job Cost / COGS",           cents: f.costCents,                pct: (f.costCents / f.revenueCents) * 100,           color: "bg-orange-400" },
-            { label: "Gross Profit",              cents: f.grossProfitCents,         pct: f.grossMarginPct,                               color: "bg-emerald-500" },
-            { label: "Commission Pool",           cents: f.commissionPoolCents,      pct: (f.band.totalBps / 100),                        color: "bg-violet-400" },
-            { label: "Mason Share",               cents: f.masonShareCents,          pct: (f.masonShareCents / f.revenueCents) * 100,     color: "bg-cyan-500" },
-            { label: "Salaries & Overhead (12%)", cents: f.salariesOverheadCents,    pct: 12,                                             color: "bg-slate-400" },
-            { label: "Mason Profit",              cents: f.masonProfitCents,         pct: (f.masonProfitCents / f.revenueCents) * 100,    color: "bg-teal-500" },
-            { label: "Leadership Bonus",          cents: f.leadershipBonusCents,     pct: (f.leadershipBonusCents / f.revenueCents) * 100, color: "bg-amber-400" },
-            { label: "Mason Retained Profit",     cents: f.masonRetainedProfitCents, pct: (f.masonRetainedProfitCents / f.revenueCents) * 100, color: "bg-green-600" },
-          ].map((row) => (
-            <div key={row.label} className="flex items-center gap-3">
-              <div className="w-44 shrink-0 text-xs text-muted-foreground">{row.label}</div>
-              <div className="flex-1 h-5 bg-muted rounded overflow-hidden">
-                <div className={cn("h-full rounded", row.color)} style={{ width: `${Math.max(0.5, Math.min(100, row.pct))}%` }} />
-              </div>
-              <div className="w-28 text-right text-xs tabular-nums font-medium">{fmtUSD(row.cents)}</div>
-              <div className="w-12 text-right text-xs tabular-nums text-muted-foreground">{fmtPct(row.pct, 1)}</div>
-            </div>
-          ))}
+      {/* Profit flow Sankey — management only */}
+      {isManagement && (
+        <div className="rounded-lg border bg-card p-5">
+          <h3 className="text-sm font-semibold mb-4">Profit Distribution</h3>
+          <DealSankey f={f} team={quote.team} />
         </div>
-      </div>
+      )}
     </div>
   );
 }

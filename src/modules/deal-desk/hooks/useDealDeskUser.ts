@@ -1,24 +1,47 @@
 "use client";
 
-import { useCallback, useState } from "react";
-import { readGlobal, writeGlobal } from "@/lib/storage/local-store";
-import type { DealDeskUser } from "@/types/deal-desk";
+import { useCallback, useEffect, useState } from "react";
+import { useSession } from "@/lib/auth/client";
+import type { UserRole } from "@/types/user";
 
-const STORE_KEY = "deal-desk:user";
+const MANAGEMENT_ROLES: UserRole[] = [
+  "Administrator",
+  "Project Manager",
+  "Engineering Manager",
+  "Procurement Manager",
+];
 
-const DEFAULT_USER: DealDeskUser = { name: "", role: "management" };
+const LS_KEY = "deal-desk:preview-as-salesperson";
 
 export function useDealDeskUser() {
-  const [user, setUserState] = useState<DealDeskUser>(
-    () => readGlobal<DealDeskUser>(STORE_KEY) ?? DEFAULT_USER
-  );
+  const session = useSession();
+  const actuallyManagement = MANAGEMENT_ROLES.includes(session.role);
 
-  const setUser = useCallback((u: DealDeskUser) => {
-    writeGlobal(STORE_KEY, u);
-    setUserState(u);
+  const [previewAsSalesperson, setPreviewAsSalesperson] = useState(() => {
+    if (typeof window === "undefined") return false;
+    return localStorage.getItem(LS_KEY) === "1";
+  });
+
+  useEffect(() => {
+    localStorage.setItem(LS_KEY, previewAsSalesperson ? "1" : "0");
+  }, [previewAsSalesperson]);
+
+  const togglePreview = useCallback(() => {
+    setPreviewAsSalesperson((v) => !v);
   }, []);
 
-  const isManagement = user.role === "management";
+  // Effective management flag — management previewing as salesperson acts like one
+  const isManagement = actuallyManagement && !previewAsSalesperson;
 
-  return { user, setUser, isManagement };
+  return {
+    /** The logged-in user's name */
+    userName: session.name,
+    /** True if the user has a management role (and isn't previewing as salesperson) */
+    isManagement,
+    /** True if the logged-in user is actually management (regardless of preview) */
+    actuallyManagement,
+    /** Whether management is currently previewing the salesperson view */
+    previewAsSalesperson,
+    togglePreview,
+  };
 }

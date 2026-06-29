@@ -3,6 +3,7 @@ export const USER_ROLES = [
   "Project Manager",
   "Engineering Manager",
   "Procurement Manager",
+  "Salesperson",
   "Member",
   "Salesperson",
 ] as const;

@@ -24,7 +24,7 @@ export interface MemberPayoutRow {
 }
 
 export function calcProjectPayout(quote: DealDeskQuote): ProjectPayoutSummary {
-  const f = calcFinancials(quote.categories);
+  const f = calcFinancials(quote.categories, quote.projectType);
   const totalCommissionCents = f.commissionPoolCents;
   const billingPct = quote.billingCompletionPct ?? 0;
   const milestones = quote.milestones ?? [];
@@ -43,7 +43,7 @@ export function calcProjectPayout(quote: DealDeskQuote): ProjectPayoutSummary {
 }
 
 export function calcMemberPayouts(quote: DealDeskQuote): MemberPayoutRow[] {
-  const f = calcFinancials(quote.categories);
+  const f = calcFinancials(quote.categories, quote.projectType);
   const rev = f.revenueCents;
   const summary = calcProjectPayout(quote);
   const totalPool = summary.totalCommissionCents;

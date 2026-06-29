@@ -14,6 +14,7 @@ enum UserRole {
   ProjectManager      @map("Project Manager")
   EngineeringManager  @map("Engineering Manager")
   ProcurementManager  @map("Procurement Manager")
+  Salesperson
   Member
   Salesperson
 }
@@ -581,8 +582,10 @@ model DealDeskQuote {
   version           Int              @default(1)
   projectType       String
   salesperson       String
+  salespersonId     String?
   importedAt        DateTime
   importedBy        String
+  bookingDate       String?
   quarter           String
   status            DealStatus       @default(Pending)
   commissionStatus  CommissionStatus @default(Estimated)
@@ -600,6 +603,122 @@ model DealDeskQuote {
   payoutEvents         Json             @default("[]")
 
   @@map("deal_desk_quotes")
+}
+
+// ─── Sales Activity ───────────────────────────────────────────────────────────
+
+enum OppStage {
+  Prospecting
+  Qualifying
+  Proposal
+  Negotiation
+  ClosedWon  @map("Closed Won")
+  ClosedLost @map("Closed Lost")
+}
+
+enum ActivityType {
+  Call
+  Email
+  Meeting
+  Research
+  Demo
+  Proposal
+  Other
+}
+
+// A prospect/customer company
+model SalesCompany {
+  id         String    @id @default(cuid())
+  name       String
+  domain     String    @default("")
+  notes      String    @default("")
+  dealDeskId String?
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+
+  opportunities SalesOpportunity[]
+  activities    SalesActivity[]
+
+  @@map("sales_companies")
+}
+
+// A specific deal/opportunity at a company
+model SalesOpportunity {
+  id        String    @id @default(cuid())
+  companyId String
+  name      String
+  stage     OppStage  @default(Prospecting)
+  ownerId   String?
+  ownerName String    @default("")
+  value     Int       @default(0) // estimated value in cents
+  notes     String    @default("")
+  closeDate DateTime?
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+
+  company    SalesCompany   @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  activities SalesActivity[]
+
+  @@index([companyId])
+  @@map("sales_opportunities")
+}
+
+// A single logged activity entry
+model SalesActivity {
+  id            String       @id @default(cuid())
+  userId        String?
+  userName      String
+  companyId     String?
+  opportunityId String?
+  type          ActivityType
+  description   String       @default("")
+  contacts      Json         @default("[]") // [{name: string, title: string}]
+  aiGenerated   Boolean      @default(false)
+  weekStart     DateTime
+  createdAt     DateTime     @default(now())
+
+  company     SalesCompany?     @relation(fields: [companyId], references: [id], onDelete: SetNull)
+  opportunity SalesOpportunity? @relation(fields: [opportunityId], references: [id], onDelete: SetNull)
+
+  @@index([userId, weekStart])
+  @@index([weekStart])
+  @@index([companyId])
+  @@map("sales_activities")
+}
+
+// ─── Quote Portal ─────────────────────────────────────────────────────────────
+
+// Customer-facing HTML presentation quotes
+model QuotePresentation {
+  id           String   @id @default(cuid())
+  slug         String   @unique
+  title        String
+  customer     String
+  isActive     Boolean  @default(true)
+  // File storage: path relative to storage root (swapped to S3/Volume when confirmed)
+  htmlFile     String   @default("presentation.html") // relative path within the quote folder
+  storageKey   String   @default("") // future: S3/Volume key prefix for the quote folder
+  createdBy    String
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  accessLogs QuoteAccessLog[]
+
+  @@map("quote_presentations")
+}
+
+model QuoteAccessLog {
+  id          String   @id @default(cuid())
+  quoteId     String
+  email       String
+  ip          String   @default("")
+  userAgent   String   @default("")
+  accessedAt  DateTime @default(now())
+
+  quote QuotePresentation @relation(fields: [quoteId], references: [id], onDelete: Cascade)
+
+  @@index([quoteId, accessedAt(sort: Desc)])
+  @@map("quote_access_logs")
 }
 
 // ─── Settings ─────────────────────────────────────────────────────────────────
