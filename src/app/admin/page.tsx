@@ -1,7 +1,7 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { Building2, MapPin, Users } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
+import { Building2, Download, FileText, MapPin, Upload, Users, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { StatusBadge } from "@/components/shared/StatusBadge";
 import { UserAvatarImage } from "@/components/shared/AppShell/UserAvatarImage";
@@ -10,11 +10,19 @@ import { DefaultKickoffAttendeesCard } from "@/modules/admin/components/DefaultK
 import { UserFormModal } from "@/modules/admin/components/UserFormModal";
 import { SubcontractorFormModal } from "@/modules/admin/components/SubcontractorFormModal";
 import { getAllSubcontractors } from "@/lib/data/subcontractors";
+import {
+  TEMPLATE_NAMES,
+  downloadTemplate,
+  getTemplate,
+  removeTemplate,
+  storeTemplate,
+  type StoredTemplate,
+} from "@/lib/templateStore";
 import { cn } from "@/lib/utils";
 import type { AppUser } from "@/types/user";
 import type { Subcontractor } from "@/types/subcontractor";
 
-type Tab = "users" | "subcontractors";
+type Tab = "users" | "subcontractors" | "templates";
 
 function StarDisplay({ rating }: { rating: number | null }) {
   if (!rating) return <span className="text-xs text-muted-foreground">—</span>;
@@ -45,9 +53,19 @@ export default function AdminPage() {
           <Building2 className="size-4" />
           Subcontractors
         </TabButton>
+        <TabButton active={tab === "templates"} onClick={() => setTab("templates")}>
+          <FileText className="size-4" />
+          Templates
+        </TabButton>
       </div>
 
-      {tab === "users" ? <UsersTab /> : <SubcontractorsTab />}
+      {tab === "users" ? (
+        <UsersTab />
+      ) : tab === "subcontractors" ? (
+        <SubcontractorsTab />
+      ) : (
+        <TemplatesTab />
+      )}
     </div>
   );
 }
@@ -165,9 +183,8 @@ function SubcontractorsTab() {
   const [editing, setEditing] = useState<Subcontractor | null>(null);
   const [showForm, setShowForm] = useState(false);
 
-  async function load() {
-    const data = await getAllSubcontractors();
-    setSubs(data);
+  function load() {
+    getAllSubcontractors().then(setSubs);
   }
 
   useEffect(() => {
@@ -212,18 +229,13 @@ function SubcontractorsTab() {
                   !sub.isActive && "opacity-50"
                 )}
               >
-                {/* Icon */}
                 <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-muted">
                   <Building2 className="size-5 text-muted-foreground" />
                 </div>
-
-                {/* Name + trade */}
                 <div className="min-w-0 flex-1">
                   <div className="text-sm font-semibold">{sub.name}</div>
                   <div className="text-xs text-muted-foreground">{sub.trade || "—"}</div>
                 </div>
-
-                {/* Location + manpower */}
                 {sub.location ? (
                   <div className="flex items-center gap-1 text-xs text-muted-foreground">
                     <MapPin className="size-3" />
@@ -236,11 +248,7 @@ function SubcontractorsTab() {
                     {sub.manpower}
                   </div>
                 ) : null}
-
-                {/* Rating */}
                 <StarDisplay rating={sub.rating} />
-
-                {/* Status */}
                 {!sub.isActive ? <StatusBadge label="Inactive" tone="warning" /> : null}
               </button>
             </li>
@@ -263,5 +271,151 @@ function SubcontractorsTab() {
         />
       ) : null}
     </>
+  );
+}
+
+// ─── Templates tab ────────────────────────────────────────────────────────────
+
+function TemplatesTab() {
+  const [stored, setStored] = useState<Record<string, StoredTemplate | null>>(() => {
+    const data: Record<string, StoredTemplate | null> = {};
+    for (const name of TEMPLATE_NAMES) {
+      data[name] = getTemplate(name);
+    }
+    return data;
+  });
+
+  const handleUpload = async (name: string, file: File) => {
+    const t = await storeTemplate(name, file);
+    setStored((prev) => ({ ...prev, [name]: t }));
+  };
+
+  const handleRemove = (name: string) => {
+    removeTemplate(name);
+    setStored((prev) => ({ ...prev, [name]: null }));
+  };
+
+  const uploaded = TEMPLATE_NAMES.filter((n) => stored[n]);
+  const pending = TEMPLATE_NAMES.filter((n) => !stored[n]);
+
+  return (
+    <>
+      <div className="mb-6 flex items-center justify-between">
+        <div>
+          <h1 className="text-xl font-semibold tracking-tight">SOP Templates</h1>
+          <p className="text-sm text-muted-foreground">
+            Upload files here — links in the Process SOP map will download them.
+          </p>
+        </div>
+        <div className="text-sm text-muted-foreground">
+          {uploaded.length} / {TEMPLATE_NAMES.length} uploaded
+        </div>
+      </div>
+
+      <ul className="divide-y rounded-xl border bg-card">
+        {TEMPLATE_NAMES.map((name) => {
+          const t = stored[name];
+          return (
+            <TemplateRow
+              key={name}
+              name={name}
+              stored={t ?? null}
+              onUpload={(file) => handleUpload(name, file)}
+              onRemove={() => handleRemove(name)}
+              onDownload={() => downloadTemplate(name)}
+            />
+          );
+        })}
+      </ul>
+
+      {pending.length > 0 && (
+        <p className="mt-3 text-xs text-muted-foreground">
+          {pending.length} template{pending.length !== 1 ? "s" : ""} not yet uploaded:{" "}
+          {pending.join(", ")}.
+        </p>
+      )}
+    </>
+  );
+}
+
+function TemplateRow({
+  name,
+  stored,
+  onUpload,
+  onRemove,
+  onDownload,
+}: {
+  name: string;
+  stored: StoredTemplate | null;
+  onUpload: (file: File) => void;
+  onRemove: () => void;
+  onDownload: () => void;
+}) {
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  return (
+    <li className="flex items-center gap-3 px-5 py-3">
+      <div
+        className={cn(
+          "flex size-8 shrink-0 items-center justify-center rounded-lg",
+          stored ? "bg-primary/10 text-primary" : "bg-muted text-muted-foreground"
+        )}
+      >
+        <FileText className="size-4" />
+      </div>
+
+      <div className="min-w-0 flex-1">
+        <div className="text-sm font-medium">{name}</div>
+        {stored ? (
+          <div className="truncate text-xs text-muted-foreground">
+            {stored.fileName} &middot; {(stored.size / 1024).toFixed(0)} KB &middot;{" "}
+            {new Date(stored.uploadedAt).toLocaleDateString()}
+          </div>
+        ) : (
+          <div className="text-xs text-muted-foreground">No file uploaded</div>
+        )}
+      </div>
+
+      <div className="flex shrink-0 items-center gap-2">
+        {stored && (
+          <>
+            <button
+              type="button"
+              onClick={onDownload}
+              className="flex items-center gap-1 text-xs text-primary underline-offset-2 hover:underline"
+            >
+              <Download className="size-3" />
+              Download
+            </button>
+            <button
+              type="button"
+              onClick={onRemove}
+              className="flex items-center gap-1 text-xs text-destructive underline-offset-2 hover:underline"
+            >
+              <X className="size-3" />
+              Remove
+            </button>
+          </>
+        )}
+        <button
+          type="button"
+          onClick={() => inputRef.current?.click()}
+          className="flex items-center gap-1.5 rounded-md border px-2.5 py-1 text-xs font-medium transition-colors hover:bg-muted"
+        >
+          <Upload className="size-3" />
+          {stored ? "Replace" : "Upload"}
+        </button>
+        <input
+          ref={inputRef}
+          type="file"
+          className="hidden"
+          onChange={(e) => {
+            const file = e.target.files?.[0];
+            if (file) onUpload(file);
+            e.target.value = "";
+          }}
+        />
+      </div>
+    </li>
   );
 }
