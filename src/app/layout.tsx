@@ -21,7 +21,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "NEXT Portal",
+  title: "Mason NEXT Portal",
   description:
     "Internal operations platform for project execution, procurement, engineering, field operations, reporting, and customer communications.",
 };
