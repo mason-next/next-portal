@@ -2,10 +2,13 @@
   "name": "next-portal",
   "version": "0.1.0",
   "private": true,
+  "engines": {
+    "node": ">=20"
+  },
   "scripts": {
     "dev": "next dev",
     "build": "next build",
-    "start": "prisma migrate resolve --applied 20260627060000_add_welcome_letter_internal_kickoff_app_settings || true && prisma migrate deploy && prisma db seed && next start",
+    "start": "prisma migrate deploy && next start",
     "postinstall": "prisma generate",
     "lint": "eslint",
     "db:generate": "prisma generate",
