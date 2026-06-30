@@ -27,6 +27,7 @@ export interface Project {
   // Multi-person technician assignments (internal users + subcontractors).
   // Populated by getProject(); getProjects() returns [] to keep the list query lean.
   technicians: ProjectTechnicianEntry[];
+  technicianNotNeeded: boolean;
   targetCompletionDate: string | null;
   createdAt: string;
   updatedAt: string;

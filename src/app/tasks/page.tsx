@@ -9,6 +9,7 @@ import {
   ChevronRight,
   CircleDot,
   Clock,
+  GitBranch,
   ListChecks,
 } from "lucide-react";
 import { SkeletonList } from "@/components/shared/Skeleton";
@@ -18,6 +19,7 @@ import { cn } from "@/lib/utils";
 
 type Priority = "Low" | "Medium" | "High" | "Critical";
 type TaskStatus = "NotStarted" | "InProgress" | "Blocked" | "Complete" | "Cancelled";
+type StepStatus = "Not Started" | "In Progress" | "Complete" | "Not Needed";
 
 interface ApiTask {
   id: string;
@@ -29,6 +31,15 @@ interface ApiTask {
   project: { id: string; name: string };
   subtasks: { status: TaskStatus }[];
   _count: { subtasks: number; comments: number };
+}
+
+interface ApiStep {
+  id: string;
+  key: string;
+  name: string;
+  status: StepStatus;
+  dueDate: string | null;
+  project: { id: string; name: string };
 }
 
 interface ApiNotification {
@@ -90,25 +101,35 @@ function timeAgo(iso: string): string {
 
 export default function TasksPage() {
   const [tasks, setTasks] = useState<ApiTask[] | null>(null);
+  const [ownedSteps, setOwnedSteps] = useState<ApiStep[]>([]);
   const [notifications, setNotifications] = useState<ApiNotification[] | null>(null);
   const [tab, setTab] = useState<"tasks" | "followups">("tasks");
+  const [error, setError] = useState(false);
 
   useEffect(() => {
     fetch("/api/tasks/mine")
-      .then((r) => r.json())
-      .then(({ tasks, notifications }) => {
-        setTasks(tasks);
-        setNotifications(notifications);
+      .then((r) => {
+        if (!r.ok) throw new Error(r.statusText);
+        return r.json();
+      })
+      .then(({ tasks, notifications, ownedSteps }) => {
+        setTasks(tasks ?? []);
+        setOwnedSteps(ownedSteps ?? []);
+        setNotifications(notifications ?? []);
+      })
+      .catch(() => {
+        setError(true);
+        setTasks([]);
+        setNotifications([]);
       });
   }, []);
 
-  const loading = tasks === null;
-  const taskCount = tasks?.length ?? 0;
+  const loading = tasks === null && !error;
+  const taskCount = (tasks?.length ?? 0) + ownedSteps.length;
   const followCount = notifications?.length ?? 0;
 
   return (
     <div className="mx-auto max-w-3xl p-6 sm:p-8 space-y-6">
-      {/* Header */}
       <div>
         <h1 className="text-xl font-semibold tracking-tight flex items-center gap-2">
           <ListChecks className="size-5" />
@@ -119,7 +140,6 @@ export default function TasksPage() {
         </p>
       </div>
 
-      {/* Tab bar */}
       <div className="flex items-center gap-0 border-b">
         <TabBtn active={tab === "tasks"} onClick={() => setTab("tasks")}>
           <ListChecks className="size-4" />
@@ -141,11 +161,16 @@ export default function TasksPage() {
         </TabBtn>
       </div>
 
-      {/* Content */}
-      {loading ? (
+      {error ? (
+        <div className="rounded-xl border border-dashed py-14 text-center">
+          <AlertCircle className="mx-auto mb-3 size-8 text-muted-foreground/40" />
+          <p className="text-sm font-medium">Couldn&apos;t load tasks</p>
+          <p className="mt-1 text-xs text-muted-foreground">Refresh the page to try again.</p>
+        </div>
+      ) : loading ? (
         <SkeletonList count={5} />
       ) : tab === "tasks" ? (
-        <TasksTab tasks={tasks!} />
+        <TasksTab tasks={tasks!} ownedSteps={ownedSteps} />
       ) : (
         <FollowUpsTab notifications={notifications!} />
       )}
@@ -180,8 +205,8 @@ function TabBtn({
   );
 }
 
-function TasksTab({ tasks }: { tasks: ApiTask[] }) {
-  if (tasks.length === 0) {
+function TasksTab({ tasks, ownedSteps }: { tasks: ApiTask[]; ownedSteps: ApiStep[] }) {
+  if (tasks.length === 0 && ownedSteps.length === 0) {
     return (
       <div className="rounded-xl border border-dashed py-14 text-center">
         <CheckCircle2 className="mx-auto mb-3 size-8 text-muted-foreground/40" />
@@ -191,7 +216,7 @@ function TasksTab({ tasks }: { tasks: ApiTask[] }) {
     );
   }
 
-  // Group by project
+  // Group implementation tasks by project
   const byProject = tasks.reduce<Record<string, { name: string; tasks: ApiTask[] }>>(
     (acc, t) => {
       const key = t.project.id;
@@ -202,29 +227,89 @@ function TasksTab({ tasks }: { tasks: ApiTask[] }) {
     {}
   );
 
+  // Group owned workflow steps by project
+  const stepsByProject = ownedSteps.reduce<Record<string, { name: string; steps: ApiStep[] }>>(
+    (acc, s) => {
+      const key = s.project.id;
+      if (!acc[key]) acc[key] = { name: s.project.name, steps: [] };
+      acc[key].steps.push(s);
+      return acc;
+    },
+    {}
+  );
+
+  // Merge all project IDs preserving order
+  const allProjectIds = [...new Set([...Object.keys(byProject), ...Object.keys(stepsByProject)])];
+
   return (
     <div className="space-y-5">
-      {Object.entries(byProject).map(([projectId, group]) => (
-        <div key={projectId} className="rounded-xl border bg-card shadow-sm overflow-hidden">
-          <div className="flex items-center justify-between px-5 py-3 border-b bg-muted/20">
-            <Link
-              href={`/projects/${projectId}/implementation`}
-              className="text-sm font-semibold hover:underline underline-offset-2"
-            >
-              {group.name}
-            </Link>
-            <span className="text-xs text-muted-foreground">
-              {group.tasks.length} task{group.tasks.length !== 1 ? "s" : ""}
-            </span>
+      {allProjectIds.map((projectId) => {
+        const taskGroup = byProject[projectId];
+        const stepGroup = stepsByProject[projectId];
+        const projectName = taskGroup?.name ?? stepGroup?.name ?? "";
+        return (
+          <div key={projectId} className="rounded-xl border bg-card shadow-sm overflow-hidden">
+            <div className="flex items-center justify-between px-5 py-3 border-b bg-muted/20">
+              <Link
+                href={`/projects/${projectId}/implementation`}
+                className="text-sm font-semibold hover:underline underline-offset-2"
+              >
+                {projectName}
+              </Link>
+              <span className="text-xs text-muted-foreground">
+                {(taskGroup?.tasks.length ?? 0) + (stepGroup?.steps.length ?? 0)} item
+                {(taskGroup?.tasks.length ?? 0) + (stepGroup?.steps.length ?? 0) !== 1 ? "s" : ""}
+              </span>
+            </div>
+            <div className="divide-y">
+              {(stepGroup?.steps ?? []).map((step) => (
+                <StepRow key={step.id} step={step} projectId={projectId} />
+              ))}
+              {(taskGroup?.tasks ?? []).map((task) => (
+                <TaskRow key={task.id} task={task} />
+              ))}
+            </div>
           </div>
-          <div className="divide-y">
-            {group.tasks.map((task) => (
-              <TaskRow key={task.id} task={task} />
-            ))}
-          </div>
-        </div>
-      ))}
+        );
+      })}
     </div>
+  );
+}
+
+function StepRow({ step, projectId }: { step: ApiStep; projectId: string }) {
+  const due = formatDueDate(step.dueDate);
+  const isInProgress = step.status === "In Progress";
+  return (
+    <Link
+      href={`/projects/${projectId}`}
+      className="flex items-center gap-3 px-5 py-3.5 hover:bg-accent transition-colors"
+    >
+      <GitBranch className={cn("size-4 shrink-0", isInProgress ? "text-blue-500" : "text-muted-foreground")} />
+
+      <div className="flex-1 min-w-0">
+        <p className="text-sm font-medium truncate">{step.name}</p>
+        <div className="mt-0.5 flex items-center gap-2">
+          <span className="text-xs text-muted-foreground">{step.status}</span>
+          <span className="text-xs text-muted-foreground/50">·</span>
+          <span className="text-xs text-muted-foreground">Workflow step</span>
+        </div>
+      </div>
+
+      <div className="flex items-center gap-3 shrink-0">
+        {due && (
+          <span
+            className={cn(
+              "flex items-center gap-1 text-xs",
+              due.overdue ? "text-red-500 font-medium" : "text-muted-foreground"
+            )}
+          >
+            <Clock className="size-3" />
+            {due.label}
+          </span>
+        )}
+        <ChevronRight className="size-4 text-muted-foreground/50" />
+      </div>
+    </Link>
   );
 }
 

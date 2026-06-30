@@ -6,9 +6,11 @@ import { Button, buttonVariants } from "@/components/ui/button";
 import { Modal } from "@/components/shared/Modal";
 import { UserSelect } from "@/components/shared/UserSelect";
 import { useUsersContext } from "@/components/shared/AppShell/UsersProvider";
+import { useProjectContext } from "@/modules/project-command-center/hooks/ProjectContext";
 import { isModuleManagedStep, stepActionHref } from "@/modules/project-command-center/lib/workflow-steps";
 import { useWorkflowStepsContext } from "@/modules/project-command-center/hooks/WorkflowStepsContext";
 import { cn, formatDate } from "@/lib/utils";
+import { ROLE_NOT_NEEDED } from "@/lib/role-assignment";
 import { WORKFLOW_STEP_STATUSES, type WorkflowStep } from "@/types/workflow";
 
 const FIELD_INPUT_CLASS =
@@ -24,12 +26,27 @@ interface StepDetailModalProps {
 export function StepDetailModal({ projectId, step, onClose, onUpdateStep }: StepDetailModalProps) {
   const isModuleManaged = isModuleManagedStep(step.key);
   const { users } = useUsersContext();
+  const { project } = useProjectContext();
   const { refetch: refetchWorkflowSteps } = useWorkflowStepsContext();
   const [status, setStatus] = useState<WorkflowStep["status"]>(step.status);
   const [overrideEnabled, setOverrideEnabled] = useState(step.statusOverridden);
   const [ownerId, setOwnerId] = useState(step.ownerId);
   const [dueDate, setDueDate] = useState(step.dueDate ? step.dueDate.slice(0, 10) : "");
   const [submitting, setSubmitting] = useState(false);
+
+  // Only show users who are already assigned to this project (any role).
+  // Falls back to all users if the project has no role assignments yet.
+  const memberIds = new Set(
+    [
+      project?.fieldProjectManagerId,
+      project?.solutionsExecutiveId,
+      project?.solutionsEngineerId,
+      project?.seniorInsideId,
+      project?.insidePMId,
+      ...(project?.technicians ?? []).map((t) => t.userId),
+    ].filter((id): id is string => !!id && id !== ROLE_NOT_NEEDED)
+  );
+  const projectMembers = memberIds.size > 0 ? users.filter((u) => memberIds.has(u.id)) : users;
 
   async function handleSave() {
     setSubmitting(true);
@@ -86,7 +103,13 @@ export function StepDetailModal({ projectId, step, onClose, onUpdateStep }: Step
           )}
         </Field>
         <Field label="Owner">
-          <UserSelect users={users} value={ownerId} onChange={setOwnerId} />
+          {memberIds.size === 0 ? (
+            <p className="text-sm text-muted-foreground italic">
+              Assign team members to this project to set a step owner.
+            </p>
+          ) : (
+            <UserSelect users={projectMembers} value={ownerId} onChange={setOwnerId} />
+          )}
         </Field>
         <Field label="Due Date">
           <input

@@ -30,6 +30,7 @@ export function EditProjectOverviewModal({ project, onClose, onSaved }: EditProj
   const [solutionsEngineerId, setSolutionsEngineerId] = useState(project.solutionsEngineerId);
   const [solutionsExecutiveId, setSolutionsExecutiveId] = useState(project.solutionsExecutiveId);
   const [technicians, setTechnicians] = useState<ProjectTechnicianEntry[]>(project.technicians);
+  const [technicianNotNeeded, setTechnicianNotNeeded] = useState(project.technicianNotNeeded);
   const [targetCompletionDate, setTargetCompletionDate] = useState(
     project.targetCompletionDate ? project.targetCompletionDate.slice(0, 10) : ""
   );
@@ -46,6 +47,7 @@ export function EditProjectOverviewModal({ project, onClose, onSaved }: EditProj
         insidePMId,
         solutionsEngineerId,
         solutionsExecutiveId,
+        technicianNotNeeded,
         targetCompletionDate: targetCompletionDate || null,
       }),
       setProjectTechnicians(
@@ -53,7 +55,7 @@ export function EditProjectOverviewModal({ project, onClose, onSaved }: EditProj
         technicians.map((t) => ({ userId: t.userId, subcontractorId: t.subcontractorId }))
       ),
     ]);
-    onSaved({ ...updated, technicians });
+    onSaved({ ...updated, technicians, technicianNotNeeded });
   }
 
   return (
@@ -95,6 +97,18 @@ export function EditProjectOverviewModal({ project, onClose, onSaved }: EditProj
         <Field label="Solutions Executive">
           <UserSelect users={users} value={solutionsExecutiveId} onChange={setSolutionsExecutiveId} allowNotNeeded />
         </Field>
+        <Field label="Technicians" fullWidth>
+          <TechnicianMultiSelect
+            users={users}
+            value={technicians}
+            onChange={(entries) => {
+              setTechnicians(entries);
+              if (entries.length > 0) setTechnicianNotNeeded(false);
+            }}
+            notNeeded={technicianNotNeeded}
+            onNotNeededChange={setTechnicianNotNeeded}
+          />
+        </Field>
         <Field label="Target Completion">
           <input
             type="date"
@@ -102,9 +116,6 @@ export function EditProjectOverviewModal({ project, onClose, onSaved }: EditProj
             value={targetCompletionDate}
             onChange={(e) => setTargetCompletionDate(e.target.value)}
           />
-        </Field>
-        <Field label="Technicians" fullWidth>
-          <TechnicianMultiSelect users={users} value={technicians} onChange={setTechnicians} />
         </Field>
       </div>
 

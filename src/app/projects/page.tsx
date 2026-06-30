@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
@@ -9,7 +9,7 @@ import { ProgressBar } from "@/components/shared/ProgressBar";
 import { UserInlineLabel } from "@/components/shared/UserInlineLabel";
 import { useUsersContext } from "@/components/shared/AppShell/UsersProvider";
 import { getProjects } from "@/lib/data/projects";
-import { getWorkflowStepsWithProgress } from "@/modules/project-command-center/engine/module-progress";
+import { getWorkflowStepsForProjects } from "@/lib/data/workflow";
 import { NewProjectModal } from "@/components/shared/AppShell/NewProjectModal";
 import {
   calculateActualProgress,
@@ -31,6 +31,92 @@ const UNASSIGNED_PM = "unassigned";
 const FILTER_SELECT_CLASS =
   "h-9 rounded-md border border-input bg-background px-3 text-sm outline-none focus:border-primary";
 
+// ─── Date filter helpers ──────────────────────────────────────────────────────
+
+type DateFilterKey =
+  | "all"
+  | "this-week"
+  | "next-week"
+  | "this-month"
+  | "next-month"
+  | "this-quarter"
+  | "next-quarter"
+  | "this-year"
+  | "overdue"
+  | "no-date";
+
+const DATE_FILTER_LABELS: Record<DateFilterKey, string> = {
+  "all":          "All Dates",
+  "this-week":    "This Week",
+  "next-week":    "Next Week",
+  "this-month":   "This Month",
+  "next-month":   "Next Month",
+  "this-quarter": "This Quarter",
+  "next-quarter": "Next Quarter",
+  "this-year":    "This Year",
+  "overdue":      "Overdue",
+  "no-date":      "No Target Date",
+};
+
+function startOfDay(d: Date) {
+  return new Date(d.getFullYear(), d.getMonth(), d.getDate());
+}
+
+function matchesDateFilter(targetDate: string | null, key: DateFilterKey): boolean {
+  if (key === "all") return true;
+  if (key === "no-date") return targetDate === null;
+  if (targetDate === null) return false;
+
+  const now = new Date();
+  const today = startOfDay(now);
+  const target = startOfDay(new Date(targetDate));
+
+  const weekday = today.getDay(); // 0=Sun
+  const monday = new Date(today);
+  monday.setDate(today.getDate() - ((weekday + 6) % 7));
+
+  const monthStart = new Date(today.getFullYear(), today.getMonth(), 1);
+  const monthEnd   = new Date(today.getFullYear(), today.getMonth() + 1, 0);
+
+  const quarter = Math.floor(today.getMonth() / 3);
+  const quarterStart = new Date(today.getFullYear(), quarter * 3, 1);
+  const quarterEnd   = new Date(today.getFullYear(), quarter * 3 + 3, 0);
+
+  const yearStart = new Date(today.getFullYear(), 0, 1);
+  const yearEnd   = new Date(today.getFullYear(), 11, 31);
+
+  const inRange = (start: Date, end: Date) => target >= start && target <= end;
+
+  switch (key) {
+    case "this-week": {
+      const sun = new Date(monday); sun.setDate(monday.getDate() + 6);
+      return inRange(monday, sun);
+    }
+    case "next-week": {
+      const nextMon = new Date(monday); nextMon.setDate(monday.getDate() + 7);
+      const nextSun = new Date(nextMon); nextSun.setDate(nextMon.getDate() + 6);
+      return inRange(nextMon, nextSun);
+    }
+    case "this-month":   return inRange(monthStart, monthEnd);
+    case "next-month": {
+      const nm = new Date(today.getFullYear(), today.getMonth() + 1, 1);
+      const nme = new Date(today.getFullYear(), today.getMonth() + 2, 0);
+      return inRange(nm, nme);
+    }
+    case "this-quarter":  return inRange(quarterStart, quarterEnd);
+    case "next-quarter": {
+      const nqs = new Date(today.getFullYear(), (quarter + 1) * 3, 1);
+      const nqe = new Date(today.getFullYear(), (quarter + 1) * 3 + 3, 0);
+      return inRange(nqs, nqe);
+    }
+    case "this-year":  return inRange(yearStart, yearEnd);
+    case "overdue":    return target < today;
+    default:           return true;
+  }
+}
+
+// ─── Page ─────────────────────────────────────────────────────────────────────
+
 export default function ProjectsPage() {
   const router = useRouter();
   const { users } = useUsersContext();
@@ -41,9 +127,19 @@ export default function ProjectsPage() {
   const [pmFilter, setPmFilter] = useState("all");
   const [statusFilter, setStatusFilter] = useState("all");
   const [healthFilter, setHealthFilter] = useState("all");
+  const [dateFilter, setDateFilter] = useState<DateFilterKey>("all");
 
   useEffect(() => {
     queueMicrotask(() => setViewMode(readGlobal<ViewMode>(VIEW_MODE_KEY) ?? "list"));
+  }, []);
+
+  // Performance: load projects + all their steps in 2 parallel queries instead of N+1.
+  useEffect(() => {
+    getProjects().then(async (loaded) => {
+      setProjects(loaded);
+      const byProject = await getWorkflowStepsForProjects(loaded.map((p) => p.id));
+      setStepsByProject(byProject);
+    });
   }, []);
 
   function changeViewMode(mode: ViewMode) {
@@ -51,50 +147,61 @@ export default function ProjectsPage() {
     writeGlobal(VIEW_MODE_KEY, mode);
   }
 
-  useEffect(() => {
-    getProjects().then(async (loaded) => {
-      setProjects(loaded);
-      const entries = await Promise.all(
-        loaded.map(async (p) => [p.id, (await getWorkflowStepsWithProgress(p.id)).steps] as const)
-      );
-      setStepsByProject(Object.fromEntries(entries));
-    });
-  }, []);
+  // Memoize expensive derivations so they don't recompute on filter-state changes.
+  const userById = useMemo(() => new Map(users.map((u) => [u.id, u])), [users]);
 
-  const enriched = (projects ?? []).map((project) => {
-    const steps = stepsByProject[project.id] ?? [];
-    const status = deriveProjectStatus(steps);
-    const { health } = getProjectHealthSummary({
-      steps,
-      startDate: project.createdAt,
-      targetCompletionDate: project.targetCompletionDate,
-      now: new Date(),
-    });
-    const progress = calculateActualProgress(steps);
-    const pm = users.find((u) => u.id === project.fieldProjectManagerId) ?? null;
-    return { project, status, health, progress, pm };
-  });
-
-  const pmOptions = [...new Map(enriched.filter((e) => e.pm).map((e) => [e.pm!.id, e.pm!.name])).entries()].sort(
-    (a, b) => a[1].localeCompare(b[1])
+  const enriched = useMemo(
+    () =>
+      (projects ?? []).map((project) => {
+        const steps = stepsByProject[project.id] ?? [];
+        const status = deriveProjectStatus(steps);
+        const { health } = getProjectHealthSummary({
+          steps,
+          startDate: project.createdAt,
+          targetCompletionDate: project.targetCompletionDate,
+          now: new Date(),
+        });
+        const progress = calculateActualProgress(steps);
+        const pm = userById.get(project.fieldProjectManagerId ?? "") ?? null;
+        return { project, status, health, progress, pm };
+      }),
+    [projects, stepsByProject, userById]
   );
-  const hasUnassignedPm = enriched.some((e) => !e.pm);
-  const statusOptions = [...new Set(enriched.map((e) => e.status.label))].sort((a, b) => a.localeCompare(b));
 
-  const filtered = enriched.filter(({ status, health, pm }) => {
-    if (pmFilter === UNASSIGNED_PM && pm) return false;
-    if (pmFilter !== "all" && pmFilter !== UNASSIGNED_PM && pm?.id !== pmFilter) return false;
-    if (statusFilter !== "all" && status.label !== statusFilter) return false;
-    if (healthFilter !== "all" && health !== healthFilter) return false;
-    return true;
-  });
+  const pmOptions = useMemo(
+    () =>
+      [...new Map(enriched.filter((e) => e.pm).map((e) => [e.pm!.id, e.pm!.name])).entries()].sort(
+        (a, b) => a[1].localeCompare(b[1])
+      ),
+    [enriched]
+  );
+  const hasUnassignedPm = useMemo(() => enriched.some((e) => !e.pm), [enriched]);
+  const statusOptions = useMemo(
+    () => [...new Set(enriched.map((e) => e.status.label))].sort((a, b) => a.localeCompare(b)),
+    [enriched]
+  );
 
-  const filtersActive = pmFilter !== "all" || statusFilter !== "all" || healthFilter !== "all";
+  const filtered = useMemo(
+    () =>
+      enriched.filter(({ project, status, health, pm }) => {
+        if (pmFilter === UNASSIGNED_PM && pm) return false;
+        if (pmFilter !== "all" && pmFilter !== UNASSIGNED_PM && pm?.id !== pmFilter) return false;
+        if (statusFilter !== "all" && status.label !== statusFilter) return false;
+        if (healthFilter !== "all" && health !== healthFilter) return false;
+        if (!matchesDateFilter(project.targetCompletionDate, dateFilter)) return false;
+        return true;
+      }),
+    [enriched, pmFilter, statusFilter, healthFilter, dateFilter]
+  );
+
+  const filtersActive =
+    pmFilter !== "all" || statusFilter !== "all" || healthFilter !== "all" || dateFilter !== "all";
 
   function clearFilters() {
     setPmFilter("all");
     setStatusFilter("all");
     setHealthFilter("all");
+    setDateFilter("all");
   }
 
   return (
@@ -160,6 +267,17 @@ export default function ProjectsPage() {
             {PROJECT_HEALTH.map((health) => (
               <option key={health} value={health}>
                 {health}
+              </option>
+            ))}
+          </select>
+          <select
+            className={FILTER_SELECT_CLASS}
+            value={dateFilter}
+            onChange={(e) => setDateFilter(e.target.value as DateFilterKey)}
+          >
+            {(Object.keys(DATE_FILTER_LABELS) as DateFilterKey[]).map((key) => (
+              <option key={key} value={key}>
+                {DATE_FILTER_LABELS[key]}
               </option>
             ))}
           </select>

@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { X, Plus, Building2 } from "lucide-react";
+import { X, Plus, Building2, Ban } from "lucide-react";
 import { UserAvatarImage } from "@/components/shared/AppShell/UserAvatarImage";
 import { createSubcontractorQuick, getSubcontractors } from "@/lib/data/subcontractors";
 import { cn } from "@/lib/utils";
@@ -12,9 +12,17 @@ interface TechnicianMultiSelectProps {
   users: AppUser[];
   value: ProjectTechnicianEntry[];
   onChange: (entries: ProjectTechnicianEntry[]) => void;
+  notNeeded?: boolean;
+  onNotNeededChange?: (v: boolean) => void;
 }
 
-export function TechnicianMultiSelect({ users, value, onChange }: TechnicianMultiSelectProps) {
+export function TechnicianMultiSelect({
+  users,
+  value,
+  onChange,
+  notNeeded = false,
+  onNotNeededChange,
+}: TechnicianMultiSelectProps) {
   const [open, setOpen] = useState(false);
   const [subs, setSubs] = useState<Subcontractor[]>([]);
   const [addingNewSub, setAddingNewSub] = useState(false);
@@ -40,6 +48,12 @@ export function TechnicianMultiSelect({ users, value, onChange }: TechnicianMult
 
   const selectedUserIds = new Set(value.map((e) => e.userId).filter((id): id is string => id !== null));
   const selectedSubIds = new Set(value.map((e) => e.subcontractorId).filter((id): id is string => id !== null));
+
+  function setNotNeeded(v: boolean) {
+    onNotNeededChange?.(v);
+    if (v) onChange([]); // clear actual entries when marking not needed
+    else setOpen(true);  // open picker when switching back to normal
+  }
 
   function toggleUser(user: AppUser) {
     if (selectedUserIds.has(user.id)) {
@@ -106,6 +120,25 @@ export function TechnicianMultiSelect({ users, value, onChange }: TechnicianMult
     setCreating(false);
   }
 
+  // "Not Needed" active state: show badge + revert button
+  if (notNeeded) {
+    return (
+      <div className="flex items-center gap-2">
+        <span className="flex items-center gap-1.5 rounded-full bg-muted px-3 py-1 text-sm text-muted-foreground">
+          <Ban className="h-3.5 w-3.5" />
+          Not Needed
+        </span>
+        <button
+          type="button"
+          onClick={() => setNotNeeded(false)}
+          className="text-xs text-muted-foreground underline-offset-2 hover:text-foreground hover:underline"
+        >
+          Assign technicians
+        </button>
+      </div>
+    );
+  }
+
   return (
     <div ref={rootRef} className="relative">
       {value.length > 0 && (
@@ -144,6 +177,20 @@ export function TechnicianMultiSelect({ users, value, onChange }: TechnicianMult
 
       {open ? (
         <div className="absolute z-30 mt-1 max-h-72 w-full overflow-auto rounded-md border bg-card py-1 shadow-lg">
+          {/* Not Needed option */}
+          {onNotNeededChange && (
+            <div className="border-b pb-1 mb-1">
+              <button
+                type="button"
+                onClick={() => { setNotNeeded(true); setOpen(false); }}
+                className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-muted-foreground hover:bg-accent hover:text-foreground"
+              >
+                <Ban className="h-4 w-4 shrink-0" />
+                Not Needed
+              </button>
+            </div>
+          )}
+
           {users.length > 0 && (
             <div className="px-3 pb-1 pt-1 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
               Team

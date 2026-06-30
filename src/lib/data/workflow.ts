@@ -201,6 +201,25 @@ export async function getWorkflowSteps(projectId: string): Promise<WorkflowStep[
   return reconcileTemplateStepsDb(projectId, dbSteps.map(toStep));
 }
 
+// Batch-loads steps for many projects in 1 query — used by the Projects list page
+// to avoid N+1 fetching. Skips module progress reconciliation intentionally: the list
+// page only needs last-saved status for health/progress display, not live recalculation.
+export async function getWorkflowStepsForProjects(
+  projectIds: string[]
+): Promise<Record<string, WorkflowStep[]>> {
+  if (projectIds.length === 0) return {};
+  const rows = await db.workflowStep.findMany({
+    where: { projectId: { in: projectIds } },
+    orderBy: [{ sortOrder: "asc" }],
+  });
+  const result: Record<string, WorkflowStep[]> = {};
+  for (const row of rows) {
+    if (!result[row.projectId]) result[row.projectId] = [];
+    result[row.projectId].push(toStep(row));
+  }
+  return result;
+}
+
 // ─── Mutations ────────────────────────────────────────────────────────────────
 
 // completedDate is purely derived from status transitions — never set directly by callers.

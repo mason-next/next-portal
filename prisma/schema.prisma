@@ -211,6 +211,7 @@ model Project {
   projectManagerId      String?
   insidePMId            String?
   targetCompletionDate DateTime?
+  technicianNotNeeded  Boolean   @default(false)
   createdAt            DateTime  @default(now())
   updatedAt            DateTime  @updatedAt
 

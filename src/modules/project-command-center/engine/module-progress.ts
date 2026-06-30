@@ -30,10 +30,11 @@ export const MODULE_PROGRESS_PROVIDERS: Partial<Record<string, ModuleProgressPro
       project.seniorInsideId,
       project.insidePMId,
     ];
+    // "not-needed" is a truthy string so filter(Boolean) already counts it; only null/undefined skipped.
     const singleFilled = singleRoles.filter(Boolean).length;
-    const hasTech = project.technicians.length > 0;
+    const techFilled = project.technicians.length > 0 || project.technicianNotNeeded;
     const total = singleRoles.length + 1;
-    const assignedCount = singleFilled + (hasTech ? 1 : 0);
+    const assignedCount = singleFilled + (techFilled ? 1 : 0);
     const status: WorkflowStepStatus =
       assignedCount === 0 ? "Not Started" : assignedCount === total ? "Complete" : "In Progress";
     return { status, percent: Math.round((assignedCount / total) * 100) };

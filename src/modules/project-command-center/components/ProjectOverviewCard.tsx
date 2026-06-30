@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, type ReactNode } from "react";
-import { Building2 } from "lucide-react";
+import { Ban, Building2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { CollapsibleCard } from "@/components/shared/CollapsibleCard";
 import { EditProjectOverviewModal } from "@/components/shared/AppShell/EditProjectOverviewModal";
@@ -50,13 +50,13 @@ export function ProjectOverviewCard() {
         <Field label="Inside PM" value={roleLabel(project.insidePMId)} />
         <Field label="Solutions Engineer" value={roleLabel(project.solutionsEngineerId)} />
         <Field label="Solutions Executive" value={roleLabel(project.solutionsExecutiveId)} />
-        <Field label="Start Date" value={formatCalendarDate(project.createdAt)} />
-        <Field label="Target Completion" value={formatCalendarDate(project.targetCompletionDate)} />
         <Field
           label="Technicians"
-          value={<TechniciansList entries={project.technicians} />}
+          value={<TechniciansList entries={project.technicians} notNeeded={project.technicianNotNeeded} />}
           fullWidth={project.technicians.length > 2}
         />
+        <Field label="Start Date" value={formatCalendarDate(project.createdAt)} />
+        <Field label="Target Completion" value={formatCalendarDate(project.targetCompletionDate)} />
       </div>
 
       {showEdit ? (
@@ -74,7 +74,15 @@ export function ProjectOverviewCard() {
   );
 }
 
-function TechniciansList({ entries }: { entries: ProjectTechnicianEntry[] }) {
+function TechniciansList({ entries, notNeeded }: { entries: ProjectTechnicianEntry[]; notNeeded: boolean }) {
+  if (notNeeded) {
+    return (
+      <span className="inline-flex items-center gap-1.5 text-muted-foreground text-sm">
+        <Ban className="h-3.5 w-3.5" />
+        Not Needed
+      </span>
+    );
+  }
   if (entries.length === 0) return <span className="text-muted-foreground">—</span>;
   return (
     <div className="flex flex-wrap gap-x-4 gap-y-1">

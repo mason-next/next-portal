@@ -31,6 +31,7 @@ function toProject(p: PrismaProject): Project {
     seniorInsideId: p.seniorInsideId,
     insidePMId: p.insidePMId,
     technicians: [],
+    technicianNotNeeded: p.technicianNotNeeded,
     targetCompletionDate: p.targetCompletionDate?.toISOString() ?? null,
     createdAt: p.createdAt.toISOString(),
     updatedAt: p.updatedAt.toISOString(),
@@ -147,6 +148,7 @@ export async function updateProject(id: string, patch: Partial<Project>): Promis
   if ("fieldProjectManagerId" in patch) data.fieldProjectManagerId = patch.fieldProjectManagerId;
   if ("seniorInsideId" in patch)        data.seniorInsideId = patch.seniorInsideId;
   if ("insidePMId" in patch)            data.insidePMId = patch.insidePMId;
+  if ("technicianNotNeeded" in patch)  data.technicianNotNeeded = patch.technicianNotNeeded;
   if ("targetCompletionDate" in patch) {
     data.targetCompletionDate = patch.targetCompletionDate
       ? new Date(patch.targetCompletionDate)

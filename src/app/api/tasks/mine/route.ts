@@ -6,7 +6,7 @@ export async function GET() {
   const session = await getServerSession();
   if (!session) return new NextResponse("Unauthorized", { status: 401 });
 
-  const [tasks, notifications] = await Promise.all([
+  const [tasks, notifications, ownedSteps] = await Promise.all([
     db.implementationTask.findMany({
       where: {
         assigneeId: session.id,
@@ -26,7 +26,17 @@ export async function GET() {
       orderBy: { createdAt: "desc" },
       take: 50,
     }),
+    db.workflowStep.findMany({
+      where: {
+        ownerId: session.id,
+        status: { notIn: ["Complete", "NotNeeded"] },
+      },
+      include: {
+        project: { select: { id: true, name: true } },
+      },
+      orderBy: [{ dueDate: "asc" }, { updatedAt: "desc" }],
+    }),
   ]);
 
-  return NextResponse.json({ tasks, notifications });
+  return NextResponse.json({ tasks, notifications, ownedSteps });
 }
