@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import type { AppUser } from "@/types/user";
 import { cn } from "@/lib/utils";
 
@@ -30,11 +31,9 @@ export function UserAvatar({ user, size = 28 }: { user: AppUser; size?: number }
 // ── Picker ────────────────────────────────────────────────────────────────────
 
 interface UserPickerProps {
-  /** Controlled: the selected user's ID, or "" for none */
   value: string;
   onChange: (user: AppUser | null) => void;
   placeholder?: string;
-  /** Pass users explicitly, or leave undefined to auto-fetch from /api/users */
   users?: AppUser[];
 }
 
@@ -42,10 +41,11 @@ export function UserPicker({ value, onChange, placeholder = "Search users…", u
   const [users, setUsers] = useState<AppUser[]>(externalUsers ?? []);
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
-  const ref = useRef<HTMLDivElement>(null);
+  const triggerRef = useRef<HTMLButtonElement>(null);
+  const dropdownRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+  const [dropdownStyle, setDropdownStyle] = useState<React.CSSProperties>({});
 
-  // Auto-fetch if not provided
   useEffect(() => {
     if (externalUsers) { setUsers(externalUsers); return; }
     fetch("/api/users").then((r) => r.json()).then(setUsers).catch(() => {});
@@ -59,19 +59,96 @@ export function UserPicker({ value, onChange, placeholder = "Search users…", u
       )
     : users;
 
+  // Position the fixed dropdown relative to the trigger button
+  useLayoutEffect(() => {
+    if (!open || !triggerRef.current) return;
+    const rect = triggerRef.current.getBoundingClientRect();
+    const dropdownHeight = 280;
+    const spaceBelow = window.innerHeight - rect.bottom;
+    const openUpward = spaceBelow < dropdownHeight && rect.top > dropdownHeight;
+
+    setDropdownStyle({
+      position: "fixed",
+      left: rect.left,
+      width: rect.width,
+      zIndex: 9999,
+      ...(openUpward
+        ? { bottom: window.innerHeight - rect.top + 4 }
+        : { top: rect.bottom + 4 }),
+    });
+  }, [open]);
+
   useEffect(() => {
     function handle(e: MouseEvent) {
-      if (ref.current && !ref.current.contains(e.target as Node)) {
-        setOpen(false); setQuery("");
+      const target = e.target as Node;
+      if (
+        triggerRef.current && !triggerRef.current.contains(target) &&
+        dropdownRef.current && !dropdownRef.current.contains(target)
+      ) {
+        setOpen(false);
+        setQuery("");
       }
     }
     document.addEventListener("mousedown", handle);
     return () => document.removeEventListener("mousedown", handle);
   }, []);
 
+  const dropdown = open && typeof document !== "undefined" && (
+    <div
+      ref={dropdownRef}
+      style={dropdownStyle}
+      className="rounded-lg border bg-card shadow-xl overflow-hidden"
+    >
+      <div className="p-2 border-b">
+        <input
+          ref={inputRef}
+          type="text"
+          value={query}
+          onChange={(e) => setQuery(e.target.value)}
+          placeholder="Type a name…"
+          className="w-full rounded-md border bg-background px-2.5 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+        />
+      </div>
+      <div style={{ overflowY: "auto", maxHeight: 200 }}>
+        {filtered.length === 0 ? (
+          <div className="px-3 py-4 text-center text-sm text-muted-foreground">No users found</div>
+        ) : filtered.map((u) => (
+          <button
+            key={u.id}
+            type="button"
+            onClick={() => { onChange(u); setOpen(false); setQuery(""); }}
+            className={cn(
+              "w-full flex items-center gap-2.5 px-3 py-2 text-sm text-left hover:bg-muted/50 transition-colors",
+              u.id === value && "bg-primary/10 text-primary"
+            )}
+          >
+            <UserAvatar user={u} size={28} />
+            <div className="min-w-0">
+              <div className="font-medium truncate">{u.name}</div>
+              <div className="text-xs text-muted-foreground truncate">{u.title}</div>
+            </div>
+          </button>
+        ))}
+      </div>
+      <div className="border-t px-3 py-2">
+        <a
+          href="/admin"
+          target="_blank"
+          rel="noopener noreferrer"
+          onClick={() => { setOpen(false); setQuery(""); }}
+          className="flex items-center gap-1.5 text-xs text-primary hover:underline"
+        >
+          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="12" x2="12" y1="5" y2="19"/><line x1="5" x2="19" y1="12" y2="12"/></svg>
+          Add a new user in Admin ↗
+        </a>
+      </div>
+    </div>
+  );
+
   return (
-    <div ref={ref} style={{ position: "relative" }}>
+    <div style={{ position: "relative" }}>
       <button
+        ref={triggerRef}
         type="button"
         onClick={() => { setOpen((o) => !o); setTimeout(() => inputRef.current?.focus(), 50); }}
         className="w-full flex items-center gap-2 rounded-md border bg-background px-2.5 py-2 text-sm text-left hover:bg-muted/40 transition-colors"
@@ -82,64 +159,20 @@ export function UserPicker({ value, onChange, placeholder = "Search users…", u
             <div className="min-w-0 flex-1">
               <div className="font-medium truncate">{selected.name}</div>
             </div>
-            <button
-              type="button"
-              onClick={(e) => { e.stopPropagation(); onChange(null); }}
-              className="text-muted-foreground hover:text-foreground ml-auto flex-shrink-0 text-xs"
-            >✕</button>
+            <span
+              role="button"
+              tabIndex={0}
+              onPointerDown={(e) => { e.stopPropagation(); e.preventDefault(); onChange(null); }}
+              onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.stopPropagation(); onChange(null); } }}
+              className="text-muted-foreground hover:text-foreground ml-auto flex-shrink-0 text-xs cursor-pointer"
+            >✕</span>
           </>
         ) : (
           <span className="text-muted-foreground">{placeholder}</span>
         )}
       </button>
 
-      {open && (
-        <div className="absolute z-[200] left-0 right-0 top-full mt-1 rounded-lg border bg-card shadow-xl overflow-hidden" style={{ maxHeight: 280 }}>
-          <div className="p-2 border-b">
-            <input
-              ref={inputRef}
-              type="text"
-              value={query}
-              onChange={(e) => setQuery(e.target.value)}
-              placeholder="Type a name…"
-              className="w-full rounded-md border bg-background px-2.5 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
-            />
-          </div>
-          <div style={{ overflowY: "auto", maxHeight: 190 }}>
-            {filtered.length === 0 ? (
-              <div className="px-3 py-4 text-center text-sm text-muted-foreground">No users found</div>
-            ) : filtered.map((u) => (
-              <button
-                key={u.id}
-                type="button"
-                onClick={() => { onChange(u); setOpen(false); setQuery(""); }}
-                className={cn(
-                  "w-full flex items-center gap-2.5 px-3 py-2 text-sm text-left hover:bg-muted/50 transition-colors",
-                  u.id === value && "bg-primary/10 text-primary"
-                )}
-              >
-                <UserAvatar user={u} size={28} />
-                <div className="min-w-0">
-                  <div className="font-medium truncate">{u.name}</div>
-                  <div className="text-xs text-muted-foreground truncate">{u.title}</div>
-                </div>
-              </button>
-            ))}
-          </div>
-          <div className="border-t px-3 py-2">
-            <a
-              href="/admin"
-              target="_blank"
-              rel="noopener noreferrer"
-              onClick={() => { setOpen(false); setQuery(""); }}
-              className="flex items-center gap-1.5 text-xs text-primary hover:underline"
-            >
-              <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="12" x2="12" y1="5" y2="19"/><line x1="5" x2="19" y1="12" y2="12"/></svg>
-              Add a new user in Admin ↗
-            </a>
-          </div>
-        </div>
-      )}
+      {dropdown && createPortal(dropdown, document.body)}
     </div>
   );
 }
