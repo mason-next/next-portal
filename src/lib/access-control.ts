@@ -1,5 +1,3 @@
-"use server";
-
 import { getServerSession } from "@/lib/auth/server";
 
 export class ForbiddenError extends Error {
