@@ -61,7 +61,7 @@ test("@mention debug — capture all console errors and test full flow", async (
 
   // Look for suggestion popup — our implementation appends a div to body
   const bodyChildren = await page.evaluate(() => {
-    const divs = [...document.body.querySelectorAll("div[style*='position: absolute']")];
+    const divs = [...document.body.querySelectorAll<HTMLElement>("div[style*='position: absolute']")];
     return divs.map(d => ({
       visible: d.offsetParent !== null,
       innerHTML: d.innerHTML.substring(0, 300),
@@ -76,7 +76,7 @@ test("@mention debug — capture all console errors and test full flow", async (
   await page.waitForTimeout(1000);
 
   const bodyChildrenAfterJ = await page.evaluate(() => {
-    const divs = [...document.body.querySelectorAll("div[style*='position: absolute']")];
+    const divs = [...document.body.querySelectorAll<HTMLElement>("div[style*='position: absolute']")];
     return divs.map(d => ({
       visible: d.offsetParent !== null,
       innerHTML: d.innerHTML.substring(0, 300),
