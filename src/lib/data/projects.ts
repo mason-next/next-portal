@@ -8,6 +8,7 @@ import { getProjectTechnicians } from "@/lib/data/subcontractors";
 import { removeProjectScoped } from "@/lib/storage/local-store";
 import { getServerSession } from "@/lib/auth/server";
 import { requireEditPermission } from "@/lib/access-control";
+import type { Prisma } from "@prisma/client";
 import type { Project, NewProjectInput } from "@/types/project";
 import type { Project as PrismaProject } from "@prisma/client";
 
@@ -78,7 +79,7 @@ async function describeFieldValue(field: keyof Project, value: unknown): Promise
 
 // Builds a Prisma WHERE clause scoped to projects where the given userId appears
 // in any role field or in the project_technicians join table.
-function userAssignmentWhere(userId: string) {
+function userAssignmentWhere(userId: string): Prisma.ProjectWhereInput {
   return {
     OR: [
       { fieldProjectManagerId: userId },
@@ -90,7 +91,7 @@ function userAssignmentWhere(userId: string) {
       { projectManagerId: userId },
       { technicians: { some: { userId } } },
     ],
-  } as const;
+  };
 }
 
 export async function getProjects(options?: { filterUserId?: string }): Promise<Project[]> {
