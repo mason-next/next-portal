@@ -610,7 +610,7 @@ model DealDeskQuote {
 
 // ─── Sales Activity ───────────────────────────────────────────────────────────
 
-// OppStage: renamed from LogoStage in migration 20260627_companies_opps_restructure.
+// LogoStage mirrors the DB enum created in migration 20260627035245_add_sales_module.
 enum OppStage {
   Prospecting
   Qualifying
@@ -630,16 +630,14 @@ enum ActivityType {
   Other
 }
 
-// Replaced sales_logos with a proper relational model.
-// Created in migration 20260627_companies_opps_restructure.
 model SalesCompany {
-  id         String   @id @default(cuid())
+  id         String    @id @default(cuid())
   name       String
-  domain     String   @default("")
-  notes      String   @default("")
+  domain     String    @default("")
+  notes      String    @default("")
   dealDeskId String?
-  createdAt  DateTime @default(now())
-  updatedAt  DateTime @updatedAt
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
 
   opportunities SalesOpportunity[]
   activities    SalesActivity[]
@@ -660,7 +658,7 @@ model SalesOpportunity {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  company    SalesCompany  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  company    SalesCompany   @relation(fields: [companyId], references: [id], onDelete: Cascade)
   activities SalesActivity[]
 
   @@index([companyId])
@@ -680,7 +678,7 @@ model SalesActivity {
   weekStart     DateTime
   createdAt     DateTime     @default(now())
 
-  company     SalesCompany?     @relation(fields: [companyId],     references: [id], onDelete: SetNull)
+  company     SalesCompany?     @relation(fields: [companyId], references: [id], onDelete: SetNull)
   opportunity SalesOpportunity? @relation(fields: [opportunityId], references: [id], onDelete: SetNull)
 
   @@index([userId, weekStart])
