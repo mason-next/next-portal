@@ -3,6 +3,7 @@ import { Geist_Mono, Google_Sans_Flex } from "next/font/google";
 import { Header } from "@/components/shared/AppShell/Header";
 import { UsersProvider } from "@/components/shared/AppShell/UsersProvider";
 import { NotificationsProvider } from "@/modules/notifications/hooks/NotificationsContext";
+import { PermissionsProvider } from "@/lib/PermissionsContext";
 import { SessionProvider } from "@/lib/auth/client";
 import { getServerSession } from "@/lib/auth/server";
 import "./globals.css";
@@ -48,12 +49,14 @@ export default async function RootLayout({
     <html lang="en" className={htmlClass}>
       <body className="min-h-full flex flex-col">
         <SessionProvider user={session}>
-          <UsersProvider>
-            <NotificationsProvider>
-              <Header />
-              <main className="flex-1 bg-muted/30">{children}</main>
-            </NotificationsProvider>
-          </UsersProvider>
+          <PermissionsProvider>
+            <UsersProvider>
+              <NotificationsProvider>
+                <Header />
+                <main className="flex-1 bg-muted/30">{children}</main>
+              </NotificationsProvider>
+            </UsersProvider>
+          </PermissionsProvider>
         </SessionProvider>
       </body>
     </html>

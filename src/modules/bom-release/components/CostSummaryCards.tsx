@@ -23,7 +23,7 @@ export function CostSummaryCards({ summary, reviewedPercent, procurementPercent 
 
   const cards = [...moneyCards];
   if (reviewedPercent !== undefined) {
-    cards.push({ label: "Eng. Review", display: `${reviewedPercent}%`, tone: reviewedPercent === 100 ? "good" : undefined });
+    cards.push({ label: "BOM Released", display: `${reviewedPercent}%`, tone: reviewedPercent === 100 ? "good" : undefined });
   }
   if (procurementPercent !== undefined) {
     cards.push({ label: "Procurement", display: `${procurementPercent}%`, tone: procurementPercent === 100 ? "good" : undefined });

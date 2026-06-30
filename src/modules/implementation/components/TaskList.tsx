@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Skeleton } from "@/components/shared/Skeleton";
 import type { ImplementationTask } from "@/types/implementation";
 import type { AppUser } from "@/types/user";
 import { TaskListItem } from "./TaskListItem";
@@ -46,7 +47,15 @@ export function TaskList({ projectId, users }: TaskListProps) {
       </div>
 
       {isLoading ? (
-        <div className="py-6 text-center text-sm text-muted-foreground">Loading tasks…</div>
+        <div className="space-y-0.5">
+          {[1, 2, 3].map((i) => (
+            <div key={i} className="flex items-center gap-3 py-2.5 px-1">
+              <Skeleton className="h-4 w-4 rounded" />
+              <Skeleton className="h-4 flex-1" />
+              <Skeleton className="h-5 w-16 rounded-full" />
+            </div>
+          ))}
+        </div>
       ) : tasks!.length === 0 ? (
         <div className="rounded-lg border border-dashed py-8 text-center text-sm text-muted-foreground">
           No tasks yet.{" "}

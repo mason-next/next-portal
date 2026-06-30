@@ -1,9 +1,10 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { Building2, Download, FileText, MapPin, Upload, Users, X } from "lucide-react";
+import { Building2, Download, FileText, MapPin, ShieldCheck, Upload, Users, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { StatusBadge } from "@/components/shared/StatusBadge";
+import { Skeleton } from "@/components/shared/Skeleton";
 import { UserAvatarImage } from "@/components/shared/AppShell/UserAvatarImage";
 import { useUsersContext } from "@/components/shared/AppShell/UsersProvider";
 import { DefaultKickoffAttendeesCard } from "@/modules/admin/components/DefaultKickoffAttendeesCard";
@@ -18,11 +19,17 @@ import {
   storeTemplate,
   type StoredTemplate,
 } from "@/lib/templateStore";
+import {
+  DEFAULT_PERMISSIONS,
+  PERMISSION_FEATURES,
+  PERMISSION_FEATURE_LABELS,
+  type PermissionsConfig,
+} from "@/lib/permissions";
 import { cn } from "@/lib/utils";
 import type { AppUser } from "@/types/user";
 import type { Subcontractor } from "@/types/subcontractor";
 
-type Tab = "users" | "subcontractors" | "templates";
+type Tab = "users" | "subcontractors" | "templates" | "permissions";
 
 function StarDisplay({ rating }: { rating: number | null }) {
   if (!rating) return <span className="text-xs text-muted-foreground">—</span>;
@@ -57,14 +64,20 @@ export default function AdminPage() {
           <FileText className="size-4" />
           Templates
         </TabButton>
+        <TabButton active={tab === "permissions"} onClick={() => setTab("permissions")}>
+          <ShieldCheck className="size-4" />
+          Permissions
+        </TabButton>
       </div>
 
       {tab === "users" ? (
         <UsersTab />
       ) : tab === "subcontractors" ? (
         <SubcontractorsTab />
-      ) : (
+      ) : tab === "templates" ? (
         <TemplatesTab />
+      ) : (
+        <PermissionsTab />
       )}
     </div>
   );
@@ -122,7 +135,18 @@ function UsersTab() {
       </div>
 
       {isLoading ? (
-        <p className="text-sm text-muted-foreground">Loading users…</p>
+        <div className="rounded-xl border bg-card divide-y">
+          {[1, 2, 3].map((i) => (
+            <div key={i} className="flex items-center gap-3 px-5 py-4">
+              <Skeleton className="h-10 w-10 rounded-full shrink-0" />
+              <div className="flex-1 space-y-2">
+                <Skeleton className="h-4 w-32" />
+                <Skeleton className="h-3 w-24" />
+              </div>
+              <Skeleton className="h-6 w-20 rounded-full" />
+            </div>
+          ))}
+        </div>
       ) : users.length === 0 ? (
         <p className="text-sm text-muted-foreground">No users yet.</p>
       ) : (
@@ -334,6 +358,149 @@ function TemplatesTab() {
           {pending.join(", ")}.
         </p>
       )}
+    </>
+  );
+}
+
+// ─── Permissions tab ──────────────────────────────────────────────────────────
+
+const CONFIGURABLE_ACCOUNT_TYPES = ["Member", "Viewer"] as const;
+type ConfigurableType = (typeof CONFIGURABLE_ACCOUNT_TYPES)[number];
+
+function PermissionsTab() {
+  const [config, setConfig] = useState<PermissionsConfig | null>(null);
+  const [saving, setSaving] = useState(false);
+  const [saved, setSaved] = useState(false);
+
+  useEffect(() => {
+    fetch("/api/admin/permissions")
+      .then((r) => r.json())
+      .then(setConfig);
+  }, []);
+
+  function toggle(accountType: ConfigurableType, feature: (typeof PERMISSION_FEATURES)[number]) {
+    setConfig((prev) => {
+      if (!prev) return prev;
+      return {
+        ...prev,
+        [accountType]: {
+          ...prev[accountType],
+          [feature]: !prev[accountType][feature],
+        },
+      };
+    });
+    setSaved(false);
+  }
+
+  async function handleSave() {
+    if (!config) return;
+    setSaving(true);
+    await fetch("/api/admin/permissions", {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(config),
+    });
+    setSaving(false);
+    setSaved(true);
+  }
+
+  function handleReset() {
+    setConfig(DEFAULT_PERMISSIONS);
+    setSaved(false);
+  }
+
+  return (
+    <>
+      <div className="mb-6 flex items-center justify-between">
+        <div>
+          <h1 className="text-xl font-semibold tracking-tight">Permissions</h1>
+          <p className="text-sm text-muted-foreground">
+            Control which sections each account type can access. Administrators always have full access.
+          </p>
+        </div>
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={handleReset}
+            className="rounded-md border px-3 py-1.5 text-sm font-medium hover:bg-muted transition-colors"
+          >
+            Reset defaults
+          </button>
+          <Button onClick={handleSave} disabled={saving || !config}>
+            {saving ? "Saving…" : saved ? "Saved ✓" : "Save Changes"}
+          </Button>
+        </div>
+      </div>
+
+      {!config ? (
+        <div className="rounded-xl border bg-card divide-y">
+          {[1, 2, 3, 4, 5, 6].map((i) => (
+            <div key={i} className="flex items-center gap-4 px-5 py-4">
+              <Skeleton className="h-4 w-40" />
+              <div className="ml-auto flex gap-12">
+                <Skeleton className="h-5 w-10 rounded-full" />
+                <Skeleton className="h-5 w-10 rounded-full" />
+              </div>
+            </div>
+          ))}
+        </div>
+      ) : (
+        <div className="rounded-xl border bg-card overflow-hidden">
+          {/* Header row */}
+          <div className="flex items-center gap-4 px-5 py-3 border-b bg-muted/30">
+            <div className="flex-1 text-xs font-semibold text-muted-foreground uppercase tracking-wide">
+              Feature / Section
+            </div>
+            {CONFIGURABLE_ACCOUNT_TYPES.map((t) => (
+              <div key={t} className="w-24 text-center text-xs font-semibold text-muted-foreground uppercase tracking-wide">
+                {t}
+              </div>
+            ))}
+            <div className="w-24 text-center text-xs font-semibold text-muted-foreground uppercase tracking-wide">
+              Admin
+            </div>
+          </div>
+
+          {/* Feature rows */}
+          {PERMISSION_FEATURES.map((feature) => (
+            <div key={feature} className="flex items-center gap-4 px-5 py-3.5 border-b last:border-0 hover:bg-accent/30 transition-colors">
+              <div className="flex-1 text-sm font-medium">
+                {PERMISSION_FEATURE_LABELS[feature]}
+              </div>
+              {CONFIGURABLE_ACCOUNT_TYPES.map((accountType) => (
+                <div key={accountType} className="w-24 flex justify-center">
+                  <button
+                    type="button"
+                    onClick={() => toggle(accountType, feature)}
+                    aria-label={`Toggle ${feature} for ${accountType}`}
+                    className={cn(
+                      "relative inline-flex h-5 w-9 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-1",
+                      config[accountType][feature] ? "bg-primary" : "bg-muted-foreground/30"
+                    )}
+                  >
+                    <span
+                      className={cn(
+                        "inline-block h-3.5 w-3.5 transform rounded-full bg-white shadow transition-transform",
+                        config[accountType][feature] ? "translate-x-[18px]" : "translate-x-0.5"
+                      )}
+                    />
+                  </button>
+                </div>
+              ))}
+              {/* Admin always on */}
+              <div className="w-24 flex justify-center">
+                <span className="inline-flex h-5 w-9 items-center rounded-full bg-primary/30 cursor-not-allowed">
+                  <span className="inline-block h-3.5 w-3.5 translate-x-[18px] transform rounded-full bg-primary/60 shadow" />
+                </span>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      <p className="mt-3 text-xs text-muted-foreground">
+        Changes take effect on the user&apos;s next page load. Navigation items are hidden for restricted account types.
+      </p>
     </>
   );
 }
