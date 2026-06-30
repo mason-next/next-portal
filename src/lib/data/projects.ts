@@ -7,6 +7,7 @@ import { getUser } from "@/lib/data/users";
 import { getProjectTechnicians } from "@/lib/data/subcontractors";
 import { removeProjectScoped } from "@/lib/storage/local-store";
 import { getServerSession } from "@/lib/auth/server";
+import { requireEditPermission } from "@/lib/access-control";
 import type { Project, NewProjectInput } from "@/types/project";
 import type { Project as PrismaProject } from "@prisma/client";
 
@@ -75,17 +76,77 @@ async function describeFieldValue(field: keyof Project, value: unknown): Promise
 
 // ─── Queries ──────────────────────────────────────────────────────────────────
 
-export async function getProjects(): Promise<Project[]> {
+// Builds a Prisma WHERE clause scoped to projects where the given userId appears
+// in any role field or in the project_technicians join table.
+function userAssignmentWhere(userId: string) {
+  return {
+    OR: [
+      { fieldProjectManagerId: userId },
+      { solutionsExecutiveId: userId },
+      { solutionsEngineerId: userId },
+      { seniorInsideId: userId },
+      { insidePMId: userId },
+      { leadTechnicianId: userId },
+      { projectManagerId: userId },
+      { technicians: { some: { userId } } },
+    ],
+  } as const;
+}
+
+export async function getProjects(options?: { filterUserId?: string }): Promise<Project[]> {
+  const session = await getServerSession();
+
+  if (!session || session.accountType !== "Administrator") {
+    // Non-admin (Member or Viewer): scope to user's assigned projects
+    const userId = session?.id;
+    if (!userId) return [];
+    const rows = await db.project.findMany({
+      where: userAssignmentWhere(userId),
+      orderBy: { createdAt: "asc" },
+    });
+    return rows.map(toProject);
+  }
+
+  // Administrator
+  const filterUserId = options?.filterUserId;
+  if (filterUserId) {
+    const rows = await db.project.findMany({
+      where: userAssignmentWhere(filterUserId),
+      orderBy: { createdAt: "asc" },
+    });
+    return rows.map(toProject);
+  }
+
+  // Admin with no filter: all projects
   const rows = await db.project.findMany({ orderBy: { createdAt: "asc" } });
   return rows.map(toProject);
 }
 
 export async function getProject(id: string): Promise<Project | null> {
+  const session = await getServerSession();
   const [row, technicians] = await Promise.all([
     db.project.findUnique({ where: { id } }),
     getProjectTechnicians(id).catch(() => [] as Awaited<ReturnType<typeof getProjectTechnicians>>),
   ]);
-  return row ? { ...toProject(row), technicians } : null;
+
+  if (!row) return null;
+
+  // Non-admins can only view projects they're assigned to
+  if (session && session.accountType !== "Administrator") {
+    const userId = session.id;
+    const isAssigned =
+      row.fieldProjectManagerId === userId ||
+      row.solutionsExecutiveId === userId ||
+      row.solutionsEngineerId === userId ||
+      row.seniorInsideId === userId ||
+      row.insidePMId === userId ||
+      row.leadTechnicianId === userId ||
+      row.projectManagerId === userId ||
+      technicians.some((t: { userId: string | null }) => t.userId === userId);
+    if (!isAssigned) return null;
+  }
+
+  return { ...toProject(row), technicians };
 }
 
 // ─── Mutations ────────────────────────────────────────────────────────────────
@@ -130,6 +191,7 @@ export async function createProject(input: NewProjectInput): Promise<Project> {
 }
 
 export async function updateProject(id: string, patch: Partial<Project>): Promise<Project> {
+  await requireEditPermission();
   const current = await db.project.findUnique({ where: { id } });
   if (!current) throw new Error(`Project not found: ${id}`);
 
@@ -180,6 +242,7 @@ export async function updateProject(id: string, patch: Partial<Project>): Promis
 }
 
 export async function deleteProject(id: string): Promise<void> {
+  await requireEditPermission();
   // Cascade deletes in Postgres handle any already-migrated child records.
   // removeProjectScoped calls below are no-ops on the server (localStorage is
   // browser-only); the localStorage sub-keys become orphaned but harmless until

@@ -2,14 +2,20 @@ import { NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { getServerSession } from "@/lib/auth/server";
 
-export async function GET() {
+export async function GET(req: Request) {
   const session = await getServerSession();
   if (!session) return new NextResponse("Unauthorized", { status: 401 });
+
+  // Admins can pass ?userId=xxx to see another user's tasks
+  const url = new URL(req.url);
+  const queryUserId = url.searchParams.get("userId");
+  const targetUserId =
+    session.accountType === "Administrator" && queryUserId ? queryUserId : session.id;
 
   const [tasks, notifications, ownedSteps] = await Promise.all([
     db.implementationTask.findMany({
       where: {
-        assigneeId: session.id,
+        assigneeId: targetUserId,
         status: { notIn: ["Complete", "Cancelled"] },
         parentTaskId: null,
       },
@@ -22,13 +28,13 @@ export async function GET() {
       orderBy: [{ dueDate: "asc" }, { priority: "asc" }, { createdAt: "desc" }],
     }),
     db.notification.findMany({
-      where: { userId: session.id, isRead: false },
+      where: { userId: targetUserId, isRead: false },
       orderBy: { createdAt: "desc" },
       take: 50,
     }),
     db.workflowStep.findMany({
       where: {
-        ownerId: session.id,
+        ownerId: targetUserId,
         status: { notIn: ["Complete", "NotNeeded"] },
       },
       include: {

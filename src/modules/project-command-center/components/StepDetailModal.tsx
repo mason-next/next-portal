@@ -10,6 +10,7 @@ import { useProjectContext } from "@/modules/project-command-center/hooks/Projec
 import { isModuleManagedStep, stepActionHref } from "@/modules/project-command-center/lib/workflow-steps";
 import { useWorkflowStepsContext } from "@/modules/project-command-center/hooks/WorkflowStepsContext";
 import { cn, formatDate } from "@/lib/utils";
+import { useSession } from "@/lib/auth/client";
 import { ROLE_NOT_NEEDED } from "@/lib/role-assignment";
 import { WORKFLOW_STEP_STATUSES, type WorkflowStep } from "@/types/workflow";
 
@@ -24,6 +25,8 @@ interface StepDetailModalProps {
 }
 
 export function StepDetailModal({ projectId, step, onClose, onUpdateStep }: StepDetailModalProps) {
+  const session = useSession();
+  const canEdit = session.accountType !== "Viewer";
   const isModuleManaged = isModuleManagedStep(step.key);
   const { users } = useUsersContext();
   const { project } = useProjectContext();
@@ -71,22 +74,25 @@ export function StepDetailModal({ projectId, step, onClose, onUpdateStep }: Step
               <div className={cn(FIELD_INPUT_CLASS, "flex flex-1 items-center text-muted-foreground")}>
                 {step.status} — calculated automatically
               </div>
-              <Button type="button" variant="outline" size="sm" onClick={() => setOverrideEnabled(true)}>
-                Override
-              </Button>
+              {canEdit ? (
+                <Button type="button" variant="outline" size="sm" onClick={() => setOverrideEnabled(true)}>
+                  Override
+                </Button>
+              ) : null}
             </div>
           ) : (
             <div className="flex items-center gap-2">
               <select
                 className={cn(FIELD_INPUT_CLASS, "flex-1")}
                 value={status}
+                disabled={!canEdit}
                 onChange={(e) => setStatus(e.target.value as WorkflowStep["status"])}
               >
                 {WORKFLOW_STEP_STATUSES.map((s) => (
                   <option key={s}>{s}</option>
                 ))}
               </select>
-              {isModuleManaged ? (
+              {canEdit && isModuleManaged ? (
                 <Button
                   type="button"
                   variant="outline"
@@ -108,7 +114,9 @@ export function StepDetailModal({ projectId, step, onClose, onUpdateStep }: Step
               Assign team members to this project to set a step owner.
             </p>
           ) : (
-            <UserSelect users={projectMembers} value={ownerId} onChange={setOwnerId} />
+            <div className={!canEdit ? "pointer-events-none opacity-60" : undefined}>
+              <UserSelect users={projectMembers} value={ownerId} onChange={setOwnerId} />
+            </div>
           )}
         </Field>
         <Field label="Due Date">
@@ -116,6 +124,7 @@ export function StepDetailModal({ projectId, step, onClose, onUpdateStep }: Step
             type="date"
             className={FIELD_INPUT_CLASS}
             value={dueDate}
+            disabled={!canEdit}
             onChange={(e) => setDueDate(e.target.value)}
           />
         </Field>
@@ -143,9 +152,11 @@ export function StepDetailModal({ projectId, step, onClose, onUpdateStep }: Step
             Open {step.name}
           </Link>
         ) : null}
-        <Button onClick={handleSave} disabled={submitting}>
-          {submitting ? "Saving…" : "Save"}
-        </Button>
+        {canEdit ? (
+          <Button onClick={handleSave} disabled={submitting}>
+            {submitting ? "Saving…" : "Save"}
+          </Button>
+        ) : null}
       </div>
     </Modal>
   );

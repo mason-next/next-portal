@@ -14,6 +14,8 @@ import {
 } from "lucide-react";
 import { SkeletonList } from "@/components/shared/Skeleton";
 import { cn } from "@/lib/utils";
+import { useSession } from "@/lib/auth/client";
+import { useUsersContext } from "@/components/shared/AppShell/UsersProvider";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -99,7 +101,14 @@ function timeAgo(iso: string): string {
 
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
+const FILTER_SELECT_CLASS =
+  "h-9 rounded-md border border-input bg-background px-3 text-sm outline-none focus:border-primary";
+
 export default function TasksPage() {
+  const session = useSession();
+  const { users } = useUsersContext();
+  const isAdmin = session.accountType === "Administrator";
+  const [adminUserId, setAdminUserId] = useState<string | null>(null);
   const [tasks, setTasks] = useState<ApiTask[] | null>(null);
   const [ownedSteps, setOwnedSteps] = useState<ApiStep[]>([]);
   const [notifications, setNotifications] = useState<ApiNotification[] | null>(null);
@@ -107,7 +116,10 @@ export default function TasksPage() {
   const [error, setError] = useState(false);
 
   useEffect(() => {
-    fetch("/api/tasks/mine")
+    setTasks(null);
+    setError(false);
+    const url = isAdmin && adminUserId ? `/api/tasks/mine?userId=${adminUserId}` : "/api/tasks/mine";
+    fetch(url)
       .then((r) => {
         if (!r.ok) throw new Error(r.statusText);
         return r.json();
@@ -122,7 +134,7 @@ export default function TasksPage() {
         setTasks([]);
         setNotifications([]);
       });
-  }, []);
+  }, [adminUserId, isAdmin]);
 
   const loading = tasks === null && !error;
   const taskCount = (tasks?.length ?? 0) + ownedSteps.length;
@@ -139,6 +151,24 @@ export default function TasksPage() {
           Tasks assigned to you and follow-ups from activity mentions.
         </p>
       </div>
+
+      {isAdmin ? (
+        <div className="flex items-center gap-2">
+          <label className="text-sm text-muted-foreground">Filter by user:</label>
+          <select
+            className={FILTER_SELECT_CLASS}
+            value={adminUserId ?? ""}
+            onChange={(e) => setAdminUserId(e.target.value || null)}
+          >
+            <option value="">My tasks</option>
+            {users.filter((u) => u.isActive).map((u) => (
+              <option key={u.id} value={u.id}>
+                {u.name}
+              </option>
+            ))}
+          </select>
+        </div>
+      ) : null}
 
       <div className="flex items-center gap-0 border-b">
         <TabBtn active={tab === "tasks"} onClick={() => setTab("tasks")}>

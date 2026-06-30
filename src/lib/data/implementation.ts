@@ -9,6 +9,7 @@ import {
 } from "@prisma/client";
 import { db } from "@/lib/db";
 import { getServerSession } from "@/lib/auth/server";
+import { requireEditPermission } from "@/lib/access-control";
 import type {
   ImplementationTask,
   ImplementationTaskComment,
@@ -150,6 +151,7 @@ export async function createTask(
   projectId: string,
   input: CreateTaskInput
 ): Promise<ImplementationTask> {
+  await requireEditPermission();
   const session = await getServerSession();
   const maxOrder = await db.implementationTask.aggregate({
     where: { projectId, parentTaskId: input.parentTaskId ?? null },
@@ -183,6 +185,7 @@ export async function updateTask(
   taskId: string,
   input: UpdateTaskInput
 ): Promise<ImplementationTask> {
+  await requireEditPermission();
   const data: Parameters<typeof db.implementationTask.update>[0]["data"] = {};
   if (input.title !== undefined)           data.title           = input.title;
   if (input.description !== undefined)     data.description     = input.description;
@@ -212,6 +215,7 @@ export async function updateTask(
 }
 
 export async function deleteTask(taskId: string): Promise<void> {
+  await requireEditPermission();
   await db.implementationTask.delete({ where: { id: taskId } });
 }
 
@@ -220,6 +224,7 @@ export async function reorderTasks(
   parentTaskId: string | null,
   orderedIds: string[]
 ): Promise<void> {
+  await requireEditPermission();
   await db.$transaction(
     orderedIds.map((id, i) =>
       db.implementationTask.update({

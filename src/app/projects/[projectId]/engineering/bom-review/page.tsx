@@ -127,7 +127,15 @@ export default function BomReviewPage({
   }
 
   function handleToggleAll(checked: boolean) {
-    setSelected(checked ? new Set(rows?.map((row) => row.id)) : new Set());
+    setSelected((prev) => {
+      const next = new Set(prev);
+      if (checked) {
+        for (const row of visibleRows) next.add(row.id);
+      } else {
+        for (const row of visibleRows) next.delete(row.id);
+      }
+      return next;
+    });
   }
 
   // reorderRows() splices the full underlying row array by index, but DataTable only
@@ -143,14 +151,12 @@ export default function BomReviewPage({
 
   function handleBulkSetStatus(status: BomStatus) {
     bulkUpdateStatus([...selected], status);
-    setSelected(new Set());
   }
 
   async function handleBulkAddToLatestRelease() {
     const release = latestDraftRelease(releases) ?? (await createDraftRelease());
     bulkAssignRelease([...selected], release.id, release.releaseNumber);
     refetchReleases();
-    setSelected(new Set());
   }
 
   function handleDeleteRow(rowId: string) {
@@ -168,8 +174,13 @@ export default function BomReviewPage({
     if (!window.confirm(`Delete ${selected.size} selected row${selected.size === 1 ? "" : "s"}? This cannot be undone.`)) {
       return;
     }
-    deleteRows([...selected]);
-    setSelected(new Set());
+    const toDelete = [...selected];
+    deleteRows(toDelete);
+    setSelected((prev) => {
+      const next = new Set(prev);
+      for (const id of toDelete) next.delete(id);
+      return next;
+    });
   }
 
   async function handleAssignRelease(rowId: string, label: string) {

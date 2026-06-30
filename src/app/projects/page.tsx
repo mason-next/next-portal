@@ -8,6 +8,7 @@ import { StatusBadge } from "@/components/shared/StatusBadge";
 import { ProgressBar } from "@/components/shared/ProgressBar";
 import { UserInlineLabel } from "@/components/shared/UserInlineLabel";
 import { useUsersContext } from "@/components/shared/AppShell/UsersProvider";
+import { useSession } from "@/lib/auth/client";
 import { getProjects } from "@/lib/data/projects";
 import { getWorkflowStepsForProjects } from "@/lib/data/workflow";
 import { NewProjectModal } from "@/components/shared/AppShell/NewProjectModal";
@@ -119,7 +120,9 @@ function matchesDateFilter(targetDate: string | null, key: DateFilterKey): boole
 
 export default function ProjectsPage() {
   const router = useRouter();
+  const session = useSession();
   const { users } = useUsersContext();
+  const isAdmin = session.accountType === "Administrator";
   const [projects, setProjects] = useState<Project[] | null>(null);
   const [stepsByProject, setStepsByProject] = useState<Record<string, WorkflowStep[]>>({});
   const [showNewProject, setShowNewProject] = useState(false);
@@ -128,19 +131,23 @@ export default function ProjectsPage() {
   const [statusFilter, setStatusFilter] = useState("all");
   const [healthFilter, setHealthFilter] = useState("all");
   const [dateFilter, setDateFilter] = useState<DateFilterKey>("all");
+  const [adminFilterUserId, setAdminFilterUserId] = useState<string | null>(null);
 
   useEffect(() => {
     queueMicrotask(() => setViewMode(readGlobal<ViewMode>(VIEW_MODE_KEY) ?? "list"));
   }, []);
 
   // Performance: load projects + all their steps in 2 parallel queries instead of N+1.
+  // Re-fetches when the admin user filter changes.
   useEffect(() => {
-    getProjects().then(async (loaded) => {
+    setProjects(null);
+    const opts = isAdmin && adminFilterUserId ? { filterUserId: adminFilterUserId } : undefined;
+    getProjects(opts).then(async (loaded) => {
       setProjects(loaded);
       const byProject = await getWorkflowStepsForProjects(loaded.map((p) => p.id));
       setStepsByProject(byProject);
     });
-  }, []);
+  }, [adminFilterUserId, isAdmin]);
 
   function changeViewMode(mode: ViewMode) {
     setViewMode(mode);
@@ -195,13 +202,14 @@ export default function ProjectsPage() {
   );
 
   const filtersActive =
-    pmFilter !== "all" || statusFilter !== "all" || healthFilter !== "all" || dateFilter !== "all";
+    pmFilter !== "all" || statusFilter !== "all" || healthFilter !== "all" || dateFilter !== "all" || adminFilterUserId !== null;
 
   function clearFilters() {
     setPmFilter("all");
     setStatusFilter("all");
     setHealthFilter("all");
     setDateFilter("all");
+    setAdminFilterUserId(null);
   }
 
   return (
@@ -237,6 +245,20 @@ export default function ProjectsPage() {
 
       {projects !== null && projects.length > 0 ? (
         <div className="mb-4 flex flex-wrap items-center gap-2">
+          {isAdmin ? (
+            <select
+              className={FILTER_SELECT_CLASS}
+              value={adminFilterUserId ?? ""}
+              onChange={(e) => setAdminFilterUserId(e.target.value || null)}
+            >
+              <option value="">All projects</option>
+              {users.filter((u) => u.isActive).map((u) => (
+                <option key={u.id} value={u.id}>
+                  {u.name}
+                </option>
+              ))}
+            </select>
+          ) : null}
           <select className={FILTER_SELECT_CLASS} value={pmFilter} onChange={(e) => setPmFilter(e.target.value)}>
             <option value="all">All Project Managers</option>
             {hasUnassignedPm ? <option value={UNASSIGNED_PM}>Unassigned</option> : null}

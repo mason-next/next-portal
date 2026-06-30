@@ -16,6 +16,7 @@ import { HEALTH_TONE } from "@/modules/project-command-center/lib/project-health
 import { deriveProjectStatus, getProjectHealthSummary } from "@/modules/project-command-center/engine/workflow-engine";
 import { WorkflowStepsProvider, useWorkflowStepsContext } from "@/modules/project-command-center/hooks/WorkflowStepsContext";
 import { ProjectProvider, useProjectContext } from "@/modules/project-command-center/hooks/ProjectContext";
+import { useSession } from "@/lib/auth/client";
 
 export default function ProjectLayout({
   children,
@@ -61,6 +62,7 @@ function ProjectLayoutBody({
   children: React.ReactNode;
 }) {
   const router = useRouter();
+  const session = useSession();
   const { project, setProject } = useProjectContext();
   const { steps } = useWorkflowStepsContext();
   const { users } = useUsersContext();
@@ -69,6 +71,9 @@ function ProjectLayoutBody({
   const [showBrief, setShowBrief] = useState(false);
 
   if (!project) return null;
+
+  const canEdit = session.accountType !== "Viewer";
+  const isAdmin = session.accountType === "Administrator";
 
   const status = deriveProjectStatus(steps);
   const { health } = getProjectHealthSummary({
@@ -99,12 +104,16 @@ function ProjectLayoutBody({
             <Button variant="outline" onClick={() => setShowBrief(true)}>
               Project Brief Report
             </Button>
-            <Button variant="outline" onClick={() => setShowEdit(true)}>
-              Edit
-            </Button>
-            <Button variant="destructive" onClick={() => setShowDelete(true)}>
-              Delete
-            </Button>
+            {canEdit ? (
+              <Button variant="outline" onClick={() => setShowEdit(true)}>
+                Edit
+              </Button>
+            ) : null}
+            {isAdmin ? (
+              <Button variant="destructive" onClick={() => setShowDelete(true)}>
+                Delete
+              </Button>
+            ) : null}
           </>
         }
       />

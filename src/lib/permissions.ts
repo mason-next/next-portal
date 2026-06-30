@@ -27,7 +27,7 @@ export type PermissionsConfig = Record<AccountType, PermissionMap>;
 export const DEFAULT_PERMISSIONS: PermissionsConfig = {
   Administrator: { dashboard: true, projects: true, tasks: true, sales: true, reports: true, tools: true },
   Member:        { dashboard: true, projects: true, tasks: true, sales: true, reports: true, tools: true },
-  Viewer:        { dashboard: true, projects: false, tasks: false, sales: false, reports: true, tools: false },
+  Viewer:        { dashboard: true, projects: true,  tasks: true,  sales: false, reports: true, tools: false },
 };
 
 export const SETTINGS_KEY = "permissions";

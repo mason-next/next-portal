@@ -10,15 +10,18 @@ import { UserAvatarImage } from "@/components/shared/AppShell/UserAvatarImage";
 import { useUsersContext } from "@/components/shared/AppShell/UsersProvider";
 import { useProjectContext } from "@/modules/project-command-center/hooks/ProjectContext";
 import { useWorkflowStepsContext } from "@/modules/project-command-center/hooks/WorkflowStepsContext";
+import { useSession } from "@/lib/auth/client";
 import { formatCalendarDate, formatMoney } from "@/lib/utils";
 import { ROLE_NOT_NEEDED } from "@/lib/role-assignment";
 import type { ProjectTechnicianEntry } from "@/types/subcontractor";
 
 export function ProjectOverviewCard() {
+  const session = useSession();
   const { project, setProject } = useProjectContext();
   const { refetch: refetchWorkflowSteps } = useWorkflowStepsContext();
   const { users } = useUsersContext();
   const [showEdit, setShowEdit] = useState(false);
+  const canEdit = session.accountType !== "Viewer";
   const userById = (id: string | null) => users.find((u) => u.id === id) ?? null;
   const roleLabel = (id: string | null) =>
     id === ROLE_NOT_NEEDED ? (
@@ -34,9 +37,11 @@ export function ProjectOverviewCard() {
       title="Project Overview"
       storageKey="project-overview"
       headerExtra={
-        <Button variant="outline" size="sm" onClick={() => setShowEdit(true)}>
-          Edit
-        </Button>
+        canEdit ? (
+          <Button variant="outline" size="sm" onClick={() => setShowEdit(true)}>
+            Edit
+          </Button>
+        ) : undefined
       }
     >
       <div className="grid grid-cols-4 gap-6">

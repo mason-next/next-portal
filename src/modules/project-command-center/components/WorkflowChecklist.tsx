@@ -12,6 +12,7 @@ import { UserSelect } from "@/components/shared/UserSelect";
 import { EditProjectOverviewModal } from "@/components/shared/AppShell/EditProjectOverviewModal";
 import { useProjectContext } from "@/modules/project-command-center/hooks/ProjectContext";
 import { useWorkflowStepsContext } from "@/modules/project-command-center/hooks/WorkflowStepsContext";
+import { useSession } from "@/lib/auth/client";
 import { formatCalendarDate, formatDate } from "@/lib/utils";
 import { readGlobal, writeGlobal } from "@/lib/storage/local-store";
 import { StepDetailModal } from "./StepDetailModal";
@@ -46,6 +47,8 @@ export function WorkflowChecklist({
   onDeleteStep,
   percentByKey,
 }: WorkflowChecklistProps) {
+  const session = useSession();
+  const canEdit = session.accountType !== "Viewer";
   const { users } = useUsersContext();
   const { project, setProject } = useProjectContext();
   const { refetch: refetchWorkflowSteps } = useWorkflowStepsContext();
@@ -82,6 +85,7 @@ export function WorkflowChecklist({
   }
 
   function startEditingDueDate(e: SyntheticEvent, step: WorkflowStep) {
+    if (!canEdit) return;
     e.preventDefault();
     e.stopPropagation();
     setEditingDueDateKey(step.key);
@@ -94,6 +98,7 @@ export function WorkflowChecklist({
   }
 
   function startEditingStatus(e: SyntheticEvent, step: WorkflowStep) {
+    if (!canEdit) return;
     e.preventDefault();
     e.stopPropagation();
     setEditingStatusKey(step.key);
@@ -108,6 +113,7 @@ export function WorkflowChecklist({
   }
 
   function startEditingOwner(e: SyntheticEvent, step: WorkflowStep) {
+    if (!canEdit) return;
     e.preventDefault();
     e.stopPropagation();
     setEditingOwnerKey(step.key);
@@ -119,6 +125,7 @@ export function WorkflowChecklist({
   }
 
   function startEditingWeight(e: SyntheticEvent, step: WorkflowStep) {
+    if (!canEdit) return;
     e.preventDefault();
     e.stopPropagation();
     setEditingWeightKey(step.key);
@@ -138,7 +145,7 @@ export function WorkflowChecklist({
   return (
     <>
       <div className="mb-2 flex justify-end gap-3">
-        {canAddStep ? (
+        {canEdit && canAddStep ? (
           <button
             type="button"
             onClick={() => setShowAddModal(true)}
@@ -305,7 +312,7 @@ export function WorkflowChecklist({
                       ) : (
                         <span className="text-muted-foreground">—</span>
                       )}
-                      {step.isCustom ? (
+                      {canEdit && step.isCustom ? (
                         <button
                           type="button"
                           onClick={() => onDeleteStep(step.key)}

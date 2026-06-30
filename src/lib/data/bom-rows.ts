@@ -6,6 +6,7 @@ import {
   type BomAuditLog as PrismaAuditLog,
 } from "@prisma/client";
 import { db } from "@/lib/db";
+import { requireEditPermission } from "@/lib/access-control";
 import type { AuditEntry } from "@/types/audit";
 import type { BomRow } from "@/types/bom";
 
@@ -90,6 +91,7 @@ export async function getBomRows(projectId: string): Promise<BomRow[]> {
 // operation that changes multiple rows at once. Deletes all existing rows for
 // the project (cascade removes their audit logs), then recreates the full list.
 export async function saveBomRows(projectId: string, rows: BomRow[]): Promise<void> {
+  await requireEditPermission();
   await db.$transaction(
     async (tx) => {
       await tx.bomRow.deleteMany({ where: { projectId } });

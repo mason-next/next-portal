@@ -8,6 +8,7 @@ import {
 import { db } from "@/lib/db";
 import { logProjectActivity } from "@/lib/data/activity-log";
 import { getServerSession } from "@/lib/auth/server";
+import { requireEditPermission } from "@/lib/access-control";
 import { defaultWorkflowSteps } from "@/lib/mock/workflow.mock";
 import {
   redistributeWeights,
@@ -234,6 +235,7 @@ export async function updateWorkflowStep(
   key: string,
   patch: Partial<WorkflowStep>
 ): Promise<WorkflowStep> {
+  await requireEditPermission();
   const current = await db.workflowStep.findUnique({
     where: { projectId_key: { projectId, key } },
   });
@@ -298,6 +300,7 @@ export async function addWorkflowStep(
   legacyName?: string,
   legacyDueDate?: string | null
 ): Promise<WorkflowStep> {
+  await requireEditPermission();
   // Support legacy positional call: addWorkflowStep(projectId, section, name, dueDate)
   const normalized: AddWorkflowStepInput =
     typeof input === "string"
@@ -344,6 +347,7 @@ export async function addWorkflowStep(
 }
 
 export async function removeWorkflowStep(projectId: string, key: string): Promise<void> {
+  await requireEditPermission();
   const step = await db.workflowStep.findUnique({
     where: { projectId_key: { projectId, key } },
   });
