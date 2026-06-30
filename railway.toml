@@ -2,7 +2,7 @@
 builder = "nixpacks"
 
 [deploy]
-startCommand = "prisma migrate deploy && next start"
+startCommand = "prisma migrate resolve --rolled-back 20260629_fix_sales_schema 2>/dev/null || true && prisma migrate deploy && next start"
 healthcheckPath = "/login"
 healthcheckTimeout = 300
 restartPolicyType = "on_failure"
