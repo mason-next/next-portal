@@ -611,7 +611,7 @@ model DealDeskQuote {
 // ─── Sales Activity ───────────────────────────────────────────────────────────
 
 // LogoStage mirrors the DB enum created in migration 20260627035245_add_sales_module.
-enum LogoStage {
+enum OppStage {
   Prospecting
   Qualifying
   Proposal
@@ -630,40 +630,60 @@ enum ActivityType {
   Other
 }
 
-// Prospect/customer company tracked via activity board.
-// Maps to the sales_logos table created in migration 20260627035245_add_sales_module.
-model SalesLogo {
+model SalesCompany {
   id         String    @id @default(cuid())
-  company    String
+  name       String
   domain     String    @default("")
-  stage      LogoStage @default(Prospecting)
-  ownerId    String?
-  ownerName  String    @default("")
   notes      String    @default("")
   dealDeskId String?
   createdAt  DateTime  @default(now())
   updatedAt  DateTime  @updatedAt
 
+  opportunities SalesOpportunity[]
+  activities    SalesActivity[]
+
+  @@map("sales_companies")
+}
+
+model SalesOpportunity {
+  id        String   @id @default(cuid())
+  companyId String
+  name      String
+  stage     OppStage @default(Prospecting)
+  ownerId   String?
+  ownerName String   @default("")
+  value     Int      @default(0)
+  notes     String   @default("")
+  closeDate DateTime?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  company    SalesCompany   @relation(fields: [companyId], references: [id], onDelete: Cascade)
   activities SalesActivity[]
 
-  @@map("sales_logos")
+  @@index([companyId])
+  @@map("sales_opportunities")
 }
 
 model SalesActivity {
-  id           String       @id @default(cuid())
-  userId       String?
-  userName     String
-  logoId       String?
-  type         ActivityType
-  description  String       @default("")
-  weekStart    DateTime
-  durationMins Int          @default(0)
-  createdAt    DateTime     @default(now())
+  id            String       @id @default(cuid())
+  userId        String?
+  userName      String
+  companyId     String?
+  opportunityId String?
+  type          ActivityType
+  description   String       @default("")
+  contacts      Json         @default("[]")
+  aiGenerated   Boolean      @default(false)
+  weekStart     DateTime
+  createdAt     DateTime     @default(now())
 
-  logo SalesLogo? @relation(fields: [logoId], references: [id], onDelete: SetNull)
+  company     SalesCompany?     @relation(fields: [companyId], references: [id], onDelete: SetNull)
+  opportunity SalesOpportunity? @relation(fields: [opportunityId], references: [id], onDelete: SetNull)
 
   @@index([userId, weekStart])
   @@index([weekStart])
+  @@index([companyId])
   @@map("sales_activities")
 }
 
