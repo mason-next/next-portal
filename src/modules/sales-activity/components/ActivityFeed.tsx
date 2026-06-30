@@ -10,12 +10,22 @@ const TYPE_ICONS: Record<string, string> = {
   Demo: "💻", Proposal: "📄", Other: "📝",
 };
 
+const TYPE_BG: Record<string, string> = {
+  Call:     "bg-blue-50 text-blue-500 dark:bg-blue-900/30 dark:text-blue-400",
+  Email:    "bg-indigo-50 text-indigo-500 dark:bg-indigo-900/30 dark:text-indigo-400",
+  Meeting:  "bg-violet-50 text-violet-500 dark:bg-violet-900/30 dark:text-violet-400",
+  Research: "bg-amber-50 text-amber-500 dark:bg-amber-900/30 dark:text-amber-400",
+  Demo:     "bg-cyan-50 text-cyan-600 dark:bg-cyan-900/30 dark:text-cyan-400",
+  Proposal: "bg-emerald-50 text-emerald-600 dark:bg-emerald-900/30 dark:text-emerald-400",
+  Other:    "bg-slate-100 text-slate-500 dark:bg-slate-800 dark:text-slate-400",
+};
+
 function CompanyLogo({ domain, name }: { domain: string; name: string }) {
   const [err, setErr] = useState(false);
   if (!domain || err) {
     return (
-      <div className="w-5 h-5 rounded bg-muted/60 border flex items-center justify-center shrink-0">
-        <span className="text-[8px] font-bold text-muted-foreground leading-none">
+      <div className="w-[22px] h-[22px] rounded bg-muted/60 border flex items-center justify-center shrink-0">
+        <span className="text-[9px] font-bold text-muted-foreground leading-none">
           {name.slice(0, 2).toUpperCase()}
         </span>
       </div>
@@ -23,9 +33,9 @@ function CompanyLogo({ domain, name }: { domain: string; name: string }) {
   }
   return (
     <Image
-      src={`https://icons.duckduckgo.com/ip3/${domain.toLowerCase().trim()}.ico`}
-      alt={name} width={20} height={20}
-      className="w-5 h-5 rounded object-contain shrink-0"
+      src={`https://www.google.com/s2/favicons?domain=${domain.toLowerCase().trim()}&sz=64`}
+      alt={name} width={22} height={22}
+      className="w-[22px] h-[22px] rounded object-contain shrink-0"
       onError={() => setErr(true)} unoptimized
     />
   );
@@ -47,14 +57,14 @@ function FullNotes({ text }: { text: string }) {
         const bullet = line.match(/^[•\-]\s+(.+)/);
         if (bullet) {
           return (
-            <div key={i} className="flex items-start gap-1.5 text-xs text-muted-foreground">
-              <span className="text-muted-foreground/50 shrink-0 mt-px">•</span>
+            <div key={i} className="flex items-start gap-1.5 text-sm text-muted-foreground">
+              <span className="text-muted-foreground/40 shrink-0 mt-px">•</span>
               <span>{bullet[1]}</span>
             </div>
           );
         }
         if (!line.trim()) return null;
-        return <p key={i} className="text-xs text-muted-foreground">{line}</p>;
+        return <p key={i} className="text-sm text-muted-foreground">{line}</p>;
       })}
     </div>
   );
@@ -80,7 +90,7 @@ export function ActivityFeed({ activities, isManagement, onEdit, onDelete }: Act
 
   if (activities.length === 0) {
     return (
-      <div className="rounded-xl border bg-card p-6 text-center">
+      <div className="rounded-xl border bg-card p-10 text-center">
         <p className="text-sm text-muted-foreground">No activities logged.</p>
       </div>
     );
@@ -94,47 +104,78 @@ export function ActivityFeed({ activities, isManagement, onEdit, onDelete }: Act
           const { summary, detail } = parseDescription(a.description ?? "");
           const hasDetail = !!detail;
           const isExpanded = expandedIds.has(a.id);
-          const weekLabel = new Date(a.weekStart).toLocaleDateString("en-US", {
-            month: "short", day: "numeric", year: "numeric", timeZone: "UTC",
-          });
+          const dateLabel = a.weekStart
+            ? new Date(a.weekStart).toLocaleDateString("en-US", { month: "short", day: "numeric", timeZone: "UTC" })
+            : "";
 
           return (
-            <li key={a.id} className="group flex items-start gap-3 px-4 py-2.5 hover:bg-muted/20">
-              <span className="text-sm mt-0.5 shrink-0">{TYPE_ICONS[a.type] ?? "📝"}</span>
+            <li key={a.id} className="group flex items-start gap-3 px-4 py-3.5 hover:bg-muted/20 transition-colors">
 
+              {/* Type icon block */}
+              <div className={`flex-shrink-0 w-9 h-9 rounded-lg flex items-center justify-center text-base ${TYPE_BG[a.type] ?? "bg-slate-100 text-slate-500"}`}>
+                {TYPE_ICONS[a.type] ?? "📝"}
+              </div>
+
+              {/* Content */}
               <div className="flex-1 min-w-0">
-                {/* Meta row */}
-                <div className="flex items-center gap-1.5 flex-wrap text-xs">
-                  <span className="font-medium text-sm">{a.type}</span>
+
+                {/* Row 1: type · company · spacer · meta · actions */}
+                <div className="flex items-center gap-2 min-w-0">
+                  <span className="text-sm font-semibold shrink-0">{a.type}</span>
+
                   {co ? (
-                    <span className="inline-flex items-center gap-1 text-muted-foreground">
-                      ·
+                    <div className="flex items-center gap-1.5 min-w-0 overflow-hidden">
+                      <span className="text-muted-foreground/40 shrink-0">·</span>
                       <CompanyLogo domain={co.domain} name={co.name} />
-                      <span className="font-medium text-foreground">{co.name}</span>
+                      <span className="text-sm font-medium truncate">{co.name}</span>
                       {a.opportunity && a.opportunity.name !== co.name && (
-                        <span className="text-muted-foreground/70">/ {a.opportunity.name}</span>
+                        <span className="text-xs text-muted-foreground shrink-0 truncate">/ {a.opportunity.name}</span>
                       )}
-                    </span>
+                    </div>
                   ) : (
-                    <span className="text-muted-foreground">· General</span>
+                    <span className="text-sm text-muted-foreground shrink-0">· General</span>
                   )}
-                  {isManagement && a.userName && (
-                    <span className="text-muted-foreground">· {a.userName}</span>
-                  )}
-                  <span className="text-muted-foreground/50">· Week of {weekLabel}</span>
+
                   {a.aiGenerated && (
-                    <span className="rounded-full bg-violet-100 text-violet-700 px-1.5 py-px font-medium">AI</span>
+                    <span className="rounded-full bg-violet-100 text-violet-700 dark:bg-violet-900/30 dark:text-violet-400 px-1.5 py-px text-[10px] font-semibold shrink-0">AI</span>
                   )}
+
+                  <div className="flex-1" />
+
+                  {/* Right-aligned meta */}
+                  <div className="flex items-center gap-3 shrink-0">
+                    {isManagement && a.userName && (
+                      <span className="text-xs text-muted-foreground hidden sm:inline">{a.userName}</span>
+                    )}
+                    <span className="text-xs text-muted-foreground/50 tabular-nums">{dateLabel}</span>
+
+                    {/* Hover actions */}
+                    <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
+                      {onEdit && (
+                        <button type="button" onClick={() => onEdit(a)}
+                          className="rounded px-2 py-0.5 text-xs text-muted-foreground hover:text-foreground hover:bg-muted transition-colors">
+                          Edit
+                        </button>
+                      )}
+                      {onDelete && (
+                        <button type="button"
+                          onClick={() => confirm("Delete this activity?") && onDelete(a.id)}
+                          className="rounded px-2 py-0.5 text-xs text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors ml-0.5">
+                          ✕
+                        </button>
+                      )}
+                    </div>
+                  </div>
                 </div>
 
-                {/* Summary */}
+                {/* Row 2: summary */}
                 {summary && (
-                  <p className="text-xs text-muted-foreground mt-0.5 leading-relaxed line-clamp-2">{summary}</p>
+                  <p className="text-sm text-muted-foreground mt-1 leading-relaxed line-clamp-2">{summary}</p>
                 )}
 
-                {/* Full notes */}
+                {/* Expanded notes */}
                 {isExpanded && hasDetail && (
-                  <div className="mt-1.5 border-l-2 border-muted/50 pl-3 space-y-1">
+                  <div className="mt-2 border-l-2 border-muted/50 pl-3 space-y-1">
                     <FullNotes text={detail} />
                   </div>
                 )}
@@ -143,7 +184,7 @@ export function ActivityFeed({ activities, isManagement, onEdit, onDelete }: Act
                   <button
                     type="button"
                     onClick={() => toggleExpand(a.id)}
-                    className="mt-0.5 text-[11px] text-primary/70 hover:text-primary font-medium transition-colors"
+                    className="mt-1 text-[11px] text-primary/70 hover:text-primary font-medium transition-colors"
                   >
                     {isExpanded ? "Hide notes ↑" : "View full notes ↓"}
                   </button>
@@ -151,31 +192,14 @@ export function ActivityFeed({ activities, isManagement, onEdit, onDelete }: Act
 
                 {/* Contacts */}
                 {a.contacts.length > 0 && (
-                  <div className="flex flex-wrap gap-1 mt-1">
+                  <div className="flex flex-wrap gap-1 mt-2">
                     {a.contacts.map((c, i) => (
-                      <span key={i} className="inline-flex items-center gap-1 rounded-full bg-muted px-2 py-px text-xs">
+                      <span key={i} className="inline-flex items-center gap-1 rounded-full bg-muted px-2.5 py-0.5 text-xs">
                         <span className="font-medium">{c.name}</span>
                         {c.title && <span className="text-muted-foreground">· {c.title}</span>}
                       </span>
                     ))}
                   </div>
-                )}
-              </div>
-
-              {/* Action buttons */}
-              <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity shrink-0 mt-0.5">
-                {onEdit && (
-                  <button type="button" onClick={() => onEdit(a)}
-                    className="text-xs text-muted-foreground hover:text-foreground px-1 py-0.5 rounded hover:bg-muted">
-                    Edit
-                  </button>
-                )}
-                {onDelete && (
-                  <button type="button"
-                    onClick={() => confirm("Delete this activity?") && onDelete(a.id)}
-                    className="text-xs text-muted-foreground hover:text-destructive px-1 py-0.5 rounded hover:bg-muted">
-                    ✕
-                  </button>
                 )}
               </div>
             </li>
@@ -195,13 +219,13 @@ export function ActivitySummaryCards({ summary, isManagement }: ActivitySummaryC
   if (!summary) return null;
   return (
     <div className="rounded-xl border bg-card shadow-sm px-4 py-3 flex flex-wrap items-center gap-x-5 gap-y-2">
-      <div>
+      <div className="flex items-center gap-1.5">
         <span className="text-xs text-muted-foreground">Total</span>
-        <span className="ml-1.5 text-sm font-bold">{summary.totalActivities}</span>
+        <span className="text-sm font-bold">{summary.totalActivities}</span>
       </div>
       <div className="flex items-center gap-2 flex-wrap">
         {ACTIVITY_TYPES.map((t) => (summary.byType[t] ?? 0) > 0 && (
-          <span key={t} className="text-xs rounded-full bg-muted px-2 py-0.5">
+          <span key={t} className={`inline-flex items-center gap-1 text-xs rounded-full px-2.5 py-0.5 font-medium ${TYPE_BG[t] ?? "bg-muted text-muted-foreground"}`}>
             {TYPE_ICONS[t]} {t} · {summary.byType[t]}
           </span>
         ))}

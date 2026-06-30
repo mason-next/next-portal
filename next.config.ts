@@ -4,7 +4,7 @@ const nextConfig: NextConfig = {
   serverExternalPackages: ["@prisma/client", "prisma"],
   images: {
     remotePatterns: [
-      { protocol: "https", hostname: "icons.duckduckgo.com" },
+      { protocol: "https", hostname: "www.google.com" },
     ],
   },
 };

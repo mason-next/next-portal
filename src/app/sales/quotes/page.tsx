@@ -3,7 +3,6 @@
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useQuotePortal } from "@/modules/quote-portal/lib/useQuotePortal";
-import { UploadButton } from "@/modules/quote-portal/components/UploadButton";
 import { CURRENT_USER } from "@/lib/current-user";
 import type { QuotePresentation } from "@/types/sales";
 
@@ -25,13 +24,18 @@ function makeEmailLink(q: QuotePresentation, origin: string) {
 
 // ── 3-dots dropdown ───────────────────────────────────────────────────────────
 
-function DotsMenu({ q, toggle, remove }: {
+function DotsMenu({ q, toggle, remove, onUploaded }: {
   q: QuotePresentation;
   toggle: (id: string) => Promise<void>;
   remove: (id: string) => Promise<void>;
+  onUploaded: () => void;
 }) {
   const [open, setOpen] = useState(false);
+  const [uploading, setUploading] = useState<"zip" | "pdf" | null>(null);
+  const [uploadError, setUploadError] = useState("");
   const ref = useRef<HTMLDivElement>(null);
+  const zipRef = useRef<HTMLInputElement>(null);
+  const pdfRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     function handler(e: MouseEvent) {
@@ -41,17 +45,76 @@ function DotsMenu({ q, toggle, remove }: {
     return () => document.removeEventListener("mousedown", handler);
   }, []);
 
+  useEffect(() => {
+    if (!uploadError) return;
+    const t = setTimeout(() => setUploadError(""), 4000);
+    return () => clearTimeout(t);
+  }, [uploadError]);
+
+  async function upload(formData: FormData, type: "zip" | "pdf") {
+    setUploading(type); setUploadError("");
+    try {
+      const res = await fetch(`/api/quotes/${q.id}/upload`, { method: "POST", body: formData });
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}));
+        throw new Error((body as { error?: string }).error ?? "Upload failed");
+      }
+      onUploaded();
+    } catch (err) {
+      setUploadError(err instanceof Error ? err.message : "Upload failed");
+    } finally {
+      setUploading(null);
+    }
+  }
+
+  function handleZip(file: File) {
+    if (!file.name.endsWith(".zip")) { setUploadError("Please select a .zip file."); return; }
+    const form = new FormData(); form.append("zip_file", file);
+    upload(form, "zip");
+  }
+
+  function handlePdf(file: File) {
+    if (!file.name.endsWith(".pdf")) { setUploadError("Please select a .pdf file."); return; }
+    const form = new FormData(); form.append("pdf_file", file);
+    upload(form, "pdf");
+  }
+
   return (
     <div ref={ref} className="relative">
       <button
         onClick={() => setOpen((o) => !o)}
-        className="flex items-center justify-center w-8 h-8 rounded-md text-muted-foreground hover:text-foreground hover:bg-muted/60 transition-colors"
+        disabled={uploading !== null}
+        className="flex items-center justify-center w-8 h-8 rounded-md text-muted-foreground hover:text-foreground hover:bg-muted/60 transition-colors disabled:opacity-50"
         title="More options"
       >
-        ⋯
+        {uploading ? (
+          <svg className="animate-spin" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg>
+        ) : (
+          <span>⋯</span>
+        )}
       </button>
+
+      {uploadError && (
+        <div className="absolute right-0 top-full mt-1 z-50 min-w-[200px] rounded-lg border border-destructive/30 bg-destructive/10 px-3 py-2 text-xs text-destructive shadow">
+          {uploadError}
+        </div>
+      )}
+
       {open && (
-        <div className="absolute right-0 top-full mt-1 z-50 min-w-[140px] rounded-lg border bg-card shadow-lg py-1">
+        <div className="absolute right-0 top-full mt-1 z-50 min-w-[160px] rounded-lg border bg-card shadow-lg py-1">
+          <button
+            className="w-full text-left px-3 py-2 text-sm hover:bg-muted/50 transition-colors"
+            onClick={() => { setOpen(false); zipRef.current?.click(); }}
+          >
+            {q.storageKey ? "Replace ZIP" : "Upload ZIP"}
+          </button>
+          <button
+            className="w-full text-left px-3 py-2 text-sm hover:bg-muted/50 transition-colors"
+            onClick={() => { setOpen(false); pdfRef.current?.click(); }}
+          >
+            Upload PDF
+          </button>
+          <div className="my-1 border-t" />
           <button
             className="w-full text-left px-3 py-2 text-sm hover:bg-muted/50 transition-colors"
             onClick={async () => { setOpen(false); await toggle(q.id); }}
@@ -72,6 +135,11 @@ function DotsMenu({ q, toggle, remove }: {
           </button>
         </div>
       )}
+
+      <input ref={zipRef} type="file" accept=".zip" className="hidden"
+        onChange={(e) => { const f = e.target.files?.[0]; if (f) handleZip(f); e.target.value = ""; }} />
+      <input ref={pdfRef} type="file" accept=".pdf" className="hidden"
+        onChange={(e) => { const f = e.target.files?.[0]; if (f) handlePdf(f); e.target.value = ""; }} />
     </div>
   );
 }
@@ -335,7 +403,6 @@ export default function InteractiveQuotePortalPage() {
                 <th className="px-5 py-3 text-left text-xs font-medium text-muted-foreground">Presentation</th>
                 <th className="px-4 py-3 text-left text-xs font-medium text-muted-foreground">Customer</th>
                 <th className="px-4 py-3 text-left text-xs font-medium text-muted-foreground">Actions</th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-muted-foreground">Files</th>
                 <th className="px-4 py-3 text-center text-xs font-medium text-muted-foreground">Views</th>
                 <th className="px-4 py-3 text-left text-xs font-medium text-muted-foreground">Last Access</th>
                 <th className="px-4 py-3 text-left text-xs font-medium text-muted-foreground">Status</th>
@@ -371,9 +438,6 @@ export default function InteractiveQuotePortalPage() {
                       </Link>
                     </div>
                   </td>
-                  <td className="px-4 py-4">
-                    <UploadButton quoteId={q.id} hasFile={!!q.storageKey} onUploaded={bump} />
-                  </td>
                   <td className="px-4 py-4 tabular-nums text-center text-muted-foreground">{q.totalViews ?? 0}</td>
                   <td className="px-4 py-4 text-xs text-muted-foreground">
                     {q.lastAccessed ? new Date(q.lastAccessed).toLocaleDateString() : "—"}
@@ -384,7 +448,7 @@ export default function InteractiveQuotePortalPage() {
                     </span>
                   </td>
                   <td className="px-4 py-4">
-                    <DotsMenu q={q} toggle={toggle} remove={remove} />
+                    <DotsMenu q={q} toggle={toggle} remove={remove} onUploaded={bump} />
                   </td>
                 </tr>
               ))}
