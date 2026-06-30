@@ -47,6 +47,7 @@ const THIS_YEAR = new Date().getFullYear();
 
 type ActivityRange = "week" | "month" | "quarter" | "all";
 type OppRange = "next30" | "next90" | "nextyear" | "thisyear" | "custom" | "all";
+type SortBy = "stage" | "pipeline" | "won_ytd" | "last_activity" | "company" | "activities";
 
 const ACTIVITY_RANGE_LABELS: Record<ActivityRange, string> = {
   week:    "This week",
@@ -56,12 +57,21 @@ const ACTIVITY_RANGE_LABELS: Record<ActivityRange, string> = {
 };
 
 const OPP_RANGE_LABELS: Record<OppRange, string> = {
-  next30:   "30 days",
-  next90:   "90 days",
-  nextyear: "12 months",
-  thisyear: `${THIS_YEAR}`,
-  custom:   "Custom",
+  next30:   "Next 30 days",
+  next90:   "Next 90 days",
+  nextyear: "Next 12 months",
+  thisyear: `This year (${THIS_YEAR})`,
+  custom:   "Custom range",
   all:      "All time",
+};
+
+const SORT_LABELS: Record<SortBy, string> = {
+  stage:         "Stage",
+  pipeline:      "Pipeline value",
+  won_ytd:       "Won YTD",
+  last_activity: "Last activity",
+  company:       "Company name",
+  activities:    "Activity count",
 };
 
 function getActivityRangeStart(range: ActivityRange): Date | null {
@@ -161,11 +171,14 @@ function PrintIcon() {
 
 export function SalesPulseReport({ companies, activities, isManagement }: SalesPulseReportProps) {
   const [collapsedIds, setCollapsedIds] = useState<Set<string>>(new Set());
+  const [expandedActIds, setExpandedActIds] = useState<Set<string>>(new Set());
   const [activityRange, setActivityRange] = useState<ActivityRange>("all");
   const [oppRange, setOppRange] = useState<OppRange>("all");
   const [customFrom, setCustomFrom] = useState("");
   const [customTo, setCustomTo] = useState("");
   const [personFilter, setPersonFilter] = useState<string>("");
+  const [companyFilter, setCompanyFilter] = useState<string>("");
+  const [sortBy, setSortBy] = useState<SortBy>("stage");
   const [allUsers, setAllUsers] = useState<AppUser[]>([]);
 
   useEffect(() => {
@@ -312,20 +325,37 @@ export function SalesPulseReport({ companies, activities, isManagement }: SalesP
       })
       .filter((p) => p.activeOpps.length > 0 || p.wonOpps.length > 0 || p.lostOpps.length > 0 || p.activities.length > 0)
       .sort((a, b) => {
-        const aPri = STAGE_PRIORITY[a.topStage] ?? 9;
-        const bPri = STAGE_PRIORITY[b.topStage] ?? 9;
-        if (aPri !== bPri) return aPri - bPri;
-        const aDate = a.lastActivity ? new Date(a.lastActivity).getTime() : 0;
-        const bDate = b.lastActivity ? new Date(b.lastActivity).getTime() : 0;
-        return bDate - aDate;
+        switch (sortBy) {
+          case "pipeline":      return b.openValue - a.openValue;
+          case "won_ytd":       return b.ytdWonValue - a.ytdWonValue;
+          case "last_activity": {
+            const ad = a.lastActivity ? new Date(a.lastActivity).getTime() : 0;
+            const bd = b.lastActivity ? new Date(b.lastActivity).getTime() : 0;
+            return bd - ad;
+          }
+          case "company":      return a.company.name.localeCompare(b.company.name);
+          case "activities":   return b.activities.length - a.activities.length;
+          default: { // stage
+            const aPri = STAGE_PRIORITY[a.topStage] ?? 9;
+            const bPri = STAGE_PRIORITY[b.topStage] ?? 9;
+            if (aPri !== bPri) return aPri - bPri;
+            const aDate = a.lastActivity ? new Date(a.lastActivity).getTime() : 0;
+            const bDate = b.lastActivity ? new Date(b.lastActivity).getTime() : 0;
+            return bDate - aDate;
+          }
+        }
       });
-  }, [companies, filteredActivities, oppRange, customFrom, customTo, personFilter]);
+  }, [companies, filteredActivities, oppRange, customFrom, customTo, personFilter, sortBy]);
 
-  const totalOpenValue  = pulses.reduce((s, p) => s + p.openValue, 0);
-  const totalWonValue   = pulses.reduce((s, p) => s + p.wonValue, 0);
-  const totalYTD        = pulses.reduce((s, p) => s + p.ytdWonValue, 0);
-  const activeOppCount  = pulses.reduce((s, p) => s + p.activeOpps.length, 0);
-  const activityCount   = pulses.reduce((s, p) => s + p.activities.length, 0);
+  const filteredPulses = companyFilter
+    ? pulses.filter((p) => p.company.id === companyFilter)
+    : pulses;
+
+  const totalOpenValue  = filteredPulses.reduce((s, p) => s + p.openValue, 0);
+  const totalWonValue   = filteredPulses.reduce((s, p) => s + p.wonValue, 0);
+  const totalYTD        = filteredPulses.reduce((s, p) => s + p.ytdWonValue, 0);
+  const activeOppCount  = filteredPulses.reduce((s, p) => s + p.activeOpps.length, 0);
+  const activityCount   = filteredPulses.reduce((s, p) => s + p.activities.length, 0);
 
   if (companies.length === 0) {
     return (
@@ -335,74 +365,88 @@ export function SalesPulseReport({ companies, activities, isManagement }: SalesP
     );
   }
 
-  const hasFilters = oppRange !== "all" || activityRange !== "all" || personFilter !== "" || customFrom !== "" || customTo !== "";
+  const hasFilters = oppRange !== "all" || activityRange !== "all" || personFilter !== "" || companyFilter !== "" || customFrom !== "" || customTo !== "";
 
   return (
     <div id="sales-pulse-root" className="space-y-4">
 
       {/* ── Filter row ── */}
       <div className="no-print space-y-2">
-        <div className="flex items-center gap-3 flex-wrap">
+        <div className="flex items-center gap-2 flex-wrap">
 
           {/* Close date */}
-          <div className="flex items-center gap-2">
-            <span className="text-xs font-medium text-muted-foreground shrink-0">Close date</span>
-            <div className="flex rounded-lg border bg-muted/40 p-0.5 gap-0.5">
-              {(["next30", "next90", "nextyear", "thisyear", "custom", "all"] as OppRange[]).map((r) => (
-                <button key={r} onClick={() => setOppRange(r)}
-                  className={`px-2.5 py-1 rounded-md text-xs font-medium transition-colors ${
-                    oppRange === r ? "bg-background text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"
-                  }`}
-                >
-                  {OPP_RANGE_LABELS[r]}
-                </button>
-              ))}
-            </div>
-          </div>
+          <select
+            value={oppRange}
+            onChange={(e) => setOppRange(e.target.value as OppRange)}
+            className="rounded-lg border bg-background px-2.5 py-1.5 text-xs font-medium focus:outline-none focus:ring-2 focus:ring-ring h-[30px]"
+          >
+            <option value="all">Close date: All time</option>
+            {(["next30", "next90", "nextyear", "thisyear", "custom"] as OppRange[]).map((r) => (
+              <option key={r} value={r}>{OPP_RANGE_LABELS[r]}</option>
+            ))}
+          </select>
 
           {/* Activity range */}
-          <div className="flex items-center gap-2">
-            <span className="text-xs font-medium text-muted-foreground shrink-0">Activities</span>
-            <div className="flex rounded-lg border bg-muted/40 p-0.5 gap-0.5">
-              {(["week", "month", "quarter", "all"] as ActivityRange[]).map((r) => (
-                <button key={r} onClick={() => setActivityRange(r)}
-                  className={`px-2.5 py-1 rounded-md text-xs font-medium transition-colors ${
-                    activityRange === r ? "bg-background text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"
-                  }`}
-                >
-                  {ACTIVITY_RANGE_LABELS[r]}
-                </button>
+          <select
+            value={activityRange}
+            onChange={(e) => setActivityRange(e.target.value as ActivityRange)}
+            className="rounded-lg border bg-background px-2.5 py-1.5 text-xs font-medium focus:outline-none focus:ring-2 focus:ring-ring h-[30px]"
+          >
+            <option value="all">Activities: All time</option>
+            {(["week", "month", "quarter"] as ActivityRange[]).map((r) => (
+              <option key={r} value={r}>{ACTIVITY_RANGE_LABELS[r]}</option>
+            ))}
+          </select>
+
+          {/* Company filter */}
+          {pulses.length > 1 && (
+            <select
+              value={companyFilter}
+              onChange={(e) => setCompanyFilter(e.target.value)}
+              className="rounded-lg border bg-background px-2.5 py-1.5 text-xs font-medium focus:outline-none focus:ring-2 focus:ring-ring h-[30px]"
+            >
+              <option value="">All companies</option>
+              {pulses.map((p) => (
+                <option key={p.company.id} value={p.company.id}>{p.company.name}</option>
               ))}
-            </div>
-          </div>
+            </select>
+          )}
 
           {/* Rep filter */}
           {isManagement && salesReps.length > 0 && (
-            <div className="flex items-center gap-2">
-              <span className="text-xs font-medium text-muted-foreground shrink-0">Rep</span>
-              <select
-                value={personFilter}
-                onChange={(e) => setPersonFilter(e.target.value)}
-                className="rounded-lg border bg-background px-3 py-1 text-xs font-medium focus:outline-none focus:ring-2 focus:ring-ring h-[28px]"
-              >
-                <option value="">All reps</option>
-                {salesReps.map((u) => <option key={u.id} value={u.name}>{u.name}</option>)}
-              </select>
-            </div>
+            <select
+              value={personFilter}
+              onChange={(e) => setPersonFilter(e.target.value)}
+              className="rounded-lg border bg-background px-2.5 py-1.5 text-xs font-medium focus:outline-none focus:ring-2 focus:ring-ring h-[30px]"
+            >
+              <option value="">All reps</option>
+              {salesReps.map((u) => <option key={u.id} value={u.name}>{u.name}</option>)}
+            </select>
           )}
+
+          {/* Sort */}
+          <select
+            value={sortBy}
+            onChange={(e) => setSortBy(e.target.value as SortBy)}
+            className="rounded-lg border bg-background px-2.5 py-1.5 text-xs font-medium focus:outline-none focus:ring-2 focus:ring-ring h-[30px]"
+          >
+            {(Object.keys(SORT_LABELS) as SortBy[]).map((k) => (
+              <option key={k} value={k}>Sort: {SORT_LABELS[k]}</option>
+            ))}
+          </select>
 
           {/* Right side */}
           <div className="flex items-center gap-3 ml-auto">
             {hasFilters && (
               <button
-                onClick={() => { setOppRange("all"); setActivityRange("all"); setPersonFilter(""); setCustomFrom(""); setCustomTo(""); }}
+                onClick={() => { setOppRange("all"); setActivityRange("all"); setPersonFilter(""); setCompanyFilter(""); setCustomFrom(""); setCustomTo(""); }}
                 className="text-xs text-muted-foreground hover:text-foreground underline underline-offset-2"
               >
-                Clear
+                Clear filters
               </button>
             )}
             <span className="text-xs text-muted-foreground">
-              {pulses.length} account{pulses.length !== 1 ? "s" : ""} · {activityCount} activit{activityCount !== 1 ? "ies" : "y"}
+              {filteredPulses.length} account{filteredPulses.length !== 1 ? "s" : ""} · {activityCount} activit{activityCount !== 1 ? "ies" : "y"}
             </span>
             <button
               onClick={printReport}
@@ -414,15 +458,15 @@ export function SalesPulseReport({ companies, activities, isManagement }: SalesP
           </div>
         </div>
 
-        {/* Custom date range */}
+        {/* Custom date range — secondary row */}
         {oppRange === "custom" && (
           <div className="flex items-center gap-2">
             <span className="text-xs text-muted-foreground">From</span>
             <input type="date" value={customFrom} onChange={(e) => setCustomFrom(e.target.value)}
-              className="rounded-md border bg-background px-2 py-1 text-xs focus:outline-none focus:ring-2 focus:ring-ring" />
+              className="rounded-md border bg-background px-2 py-1 text-xs focus:outline-none focus:ring-2 focus:ring-ring h-[30px]" />
             <span className="text-xs text-muted-foreground">to</span>
             <input type="date" value={customTo} onChange={(e) => setCustomTo(e.target.value)}
-              className="rounded-md border bg-background px-2 py-1 text-xs focus:outline-none focus:ring-2 focus:ring-ring" />
+              className="rounded-md border bg-background px-2 py-1 text-xs focus:outline-none focus:ring-2 focus:ring-ring h-[30px]" />
           </div>
         )}
       </div>
@@ -444,16 +488,19 @@ export function SalesPulseReport({ companies, activities, isManagement }: SalesP
         ))}
       </div>
 
-      {pulses.length === 0 && (
+      {filteredPulses.length === 0 && (
         <div className="rounded-xl border bg-card p-8 text-center">
           <p className="text-sm text-muted-foreground">No activity matches the current filters.</p>
         </div>
       )}
 
       {/* ── Company cards ── */}
-      {pulses.map(({ company, activeOpps, wonOpps, lostOpps, activities: acts, contacts, openValue, wonValue, ytdWonValue, lastActivity, topStage }) => {
-        const isOpen     = !collapsedIds.has(company.id);
-        const recentActs = [...acts].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()).slice(0, 5);
+      {filteredPulses.map(({ company, activeOpps, wonOpps, lostOpps, activities: acts, contacts, openValue, wonValue, ytdWonValue, lastActivity, topStage }) => {
+        const isOpen       = !collapsedIds.has(company.id);
+        const actsExpanded = expandedActIds.has(company.id);
+        const sortedActs   = [...acts].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+        const recentActs   = actsExpanded ? sortedActs : sortedActs.slice(0, 1);
+        const hiddenActCount = sortedActs.length - 1;
         const totalDeals = wonOpps.length + lostOpps.length;
         const winRate    = totalDeals > 0 ? Math.round((wonOpps.length / totalDeals) * 100) : null;
         const pipelineTotal = fmt(openValue);
@@ -626,7 +673,7 @@ export function SalesPulseReport({ companies, activities, isManagement }: SalesP
                 )}
 
                 {/* Recent Activity */}
-                {recentActs.length > 0 && (
+                {sortedActs.length > 0 && (
                   <div>
                     <p className="pulse-section-hdr text-xs font-semibold text-muted-foreground uppercase tracking-wide px-4 pt-3 pb-2">Recent Activity</p>
                     <ul className="divide-y">
@@ -658,6 +705,19 @@ export function SalesPulseReport({ companies, activities, isManagement }: SalesP
                         </li>
                       ))}
                     </ul>
+                    {hiddenActCount > 0 && (
+                      <button
+                        type="button"
+                        onClick={() => setExpandedActIds((prev) => {
+                          const next = new Set(prev);
+                          actsExpanded ? next.delete(company.id) : next.add(company.id);
+                          return next;
+                        })}
+                        className="no-print w-full text-xs text-primary hover:text-primary/80 font-medium py-2 border-t text-center hover:bg-muted/20 transition-colors"
+                      >
+                        {actsExpanded ? "Show less ↑" : `+ ${hiddenActCount} more activit${hiddenActCount === 1 ? "y" : "ies"}`}
+                      </button>
+                    )}
                   </div>
                 )}
 
