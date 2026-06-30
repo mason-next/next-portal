@@ -1,4 +1,4 @@
-export const LOGO_STAGES = [
+export const OPP_STAGES = [
   "Prospecting",
   "Qualifying",
   "Proposal",
@@ -6,7 +6,7 @@ export const LOGO_STAGES = [
   "Closed Won",
   "Closed Lost",
 ] as const;
-export type LogoStage = (typeof LOGO_STAGES)[number];
+export type OppStage = (typeof OPP_STAGES)[number];
 
 export const ACTIVITY_TYPES = [
   "Call",
@@ -19,30 +19,59 @@ export const ACTIVITY_TYPES = [
 ] as const;
 export type ActivityType = (typeof ACTIVITY_TYPES)[number];
 
-export interface SalesLogo {
+export interface SalesContact {
+  name: string;
+  title: string;
+}
+
+export interface SalesCompany {
   id: string;
-  company: string;
+  name: string;
   domain: string;
-  stage: LogoStage;
-  ownerId: string | null;
-  ownerName: string;
   notes: string;
   dealDeskId: string | null;
   createdAt: string;
   updatedAt: string;
+  opportunities?: SalesOpportunity[];
+}
+
+export interface SalesOpportunity {
+  id: string;
+  companyId: string;
+  name: string;
+  stage: OppStage;
+  ownerId: string | null;
+  ownerName: string;
+  value: number; // cents
+  notes: string;
+  closeDate: string | null;
+  createdAt: string;
+  updatedAt: string;
+  company?: Pick<SalesCompany, "id" | "name" | "domain">;
 }
 
 export interface SalesActivity {
   id: string;
   userId: string | null;
   userName: string;
-  logoId: string | null;
+  companyId: string | null;
+  opportunityId: string | null;
   type: ActivityType;
   description: string;
-  weekStart: string; // ISO Monday of the week
-  durationMins: number;
+  contacts: SalesContact[];
+  aiGenerated: boolean;
+  weekStart: string;
   createdAt: string;
-  logo?: Pick<SalesLogo, "id" | "company" | "domain"> | null;
+  company?: Pick<SalesCompany, "id" | "name" | "domain"> | null;
+  opportunity?: (Pick<SalesOpportunity, "id" | "name"> & {
+    company: Pick<SalesCompany, "id" | "name" | "domain">;
+  }) | null;
+}
+
+export interface ActivitySummary {
+  totalActivities: number;
+  byType: Record<string, number>;
+  byPerson: Record<string, number>;
 }
 
 export interface QuotePresentation {
@@ -56,7 +85,6 @@ export interface QuotePresentation {
   createdBy: string;
   createdAt: string;
   updatedAt: string;
-  // aggregated
   uniqueVisitors?: number;
   totalViews?: number;
   lastAccessed?: string | null;
@@ -71,10 +99,9 @@ export interface QuoteAccessLog {
   accessedAt: string;
 }
 
-// Returns the ISO date string for the Monday of the week containing `date`
 export function getWeekStart(date: Date = new Date()): string {
   const d = new Date(date);
-  const day = d.getUTCDay(); // 0=Sun
+  const day = d.getUTCDay();
   const diff = day === 0 ? -6 : 1 - day;
   d.setUTCDate(d.getUTCDate() + diff);
   d.setUTCHours(0, 0, 0, 0);
@@ -88,16 +115,16 @@ export function formatWeekLabel(weekStart: string): string {
   return `${d.toLocaleDateString("en-US", { month: "short", day: "numeric", timeZone: "UTC" })} – ${end.toLocaleDateString("en-US", { month: "short", day: "numeric", timeZone: "UTC" })}`;
 }
 
-const STAGE_ORDER: Record<LogoStage, number> = {
+const STAGE_ORDER: Record<OppStage, number> = {
   Prospecting: 0, Qualifying: 1, Proposal: 2,
   Negotiation: 3, "Closed Won": 4, "Closed Lost": 5,
 };
-export interface ActivitySummary {
-  byType: Record<string, number>;
-  byPerson: Record<string, number>;
-  totalMins: number;
-}
 
-export function sortByStage(a: SalesLogo, b: SalesLogo): number {
+export function sortByStage(a: SalesOpportunity, b: SalesOpportunity): number {
   return STAGE_ORDER[a.stage] - STAGE_ORDER[b.stage];
 }
+
+// Kept for backward compat references
+export type SalesLogo = SalesCompany;
+export const LOGO_STAGES = OPP_STAGES;
+export type LogoStage = OppStage;
