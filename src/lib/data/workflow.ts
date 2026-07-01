@@ -12,6 +12,7 @@ import { requireEditPermission } from "@/lib/access-control";
 import { defaultWorkflowSteps } from "@/lib/mock/workflow.mock";
 import {
   redistributeWeights,
+  shouldIncludeStepForTypes,
   WORKFLOW_STEP_TEMPLATE,
 } from "@/modules/project-command-center/lib/workflow-steps";
 import type { ProjectSectionKey, WorkflowStep, WorkflowStepStatus } from "@/types/workflow";
@@ -92,6 +93,31 @@ function toDbCreate(s: WorkflowStep) {
   };
 }
 
+// ─── Auto-assign step owners ──────────────────────────────────────────────────
+
+// Maps each template step's defaultOwnerRole to the actual userId from the project,
+// only if the step is currently unassigned.
+type ProjectRoleSnapshot = {
+  seniorInsideId: string | null;
+  insidePMId: string | null;
+  fieldProjectManagerId: string | null;
+  solutionsEngineerId: string | null;
+  solutionsExecutiveId: string | null;
+};
+
+function autoAssignStepOwners(
+  steps: WorkflowStep[],
+  roles: ProjectRoleSnapshot
+): WorkflowStep[] {
+  return steps.map((s) => {
+    if (s.ownerId !== null) return s; // already assigned
+    const entry = WORKFLOW_STEP_TEMPLATE.find((t) => t.key === s.key);
+    if (!entry?.defaultOwnerRole) return s;
+    const userId = roles[entry.defaultOwnerRole] ?? null;
+    return userId ? { ...s, ownerId: userId } : s;
+  });
+}
+
 // ─── Weight redistribution ────────────────────────────────────────────────────
 
 // Recomputes the even-split weight budget for non-overridden steps in the section
@@ -122,13 +148,17 @@ async function redistributeWeightsDb(projectId: string, section: ProjectSectionK
 // are never touched. Persists changes to the DB and returns the updated step list.
 async function reconcileTemplateStepsDb(
   projectId: string,
-  steps: WorkflowStep[]
+  steps: WorkflowStep[],
+  projectTypes: string[] = []
 ): Promise<WorkflowStep[]> {
   const templateKeys = new Set<string>(WORKFLOW_STEP_TEMPLATE.map((e) => e.key));
   const toRemove = steps.filter((s) => !s.isCustom && !templateKeys.has(s.key));
 
   const existingKeys = new Set(steps.map((s) => s.key));
-  const toAdd = WORKFLOW_STEP_TEMPLATE.filter((e) => !existingKeys.has(e.key));
+  // Only add template steps that apply to this project's types
+  const toAdd = WORKFLOW_STEP_TEMPLATE.filter(
+    (e) => !existingKeys.has(e.key) && shouldIncludeStepForTypes(e.key, projectTypes)
+  );
 
   if (toRemove.length === 0 && toAdd.length === 0) return steps;
 
@@ -191,15 +221,34 @@ export async function getWorkflowSteps(projectId: string): Promise<WorkflowStep[
   if (dbSteps.length === 0) {
     const project = await db.project.findUnique({
       where: { id: projectId },
-      select: { createdAt: true },
+      select: {
+        createdAt: true,
+        projectTypes: true,
+        seniorInsideId: true,
+        insidePMId: true,
+        fieldProjectManagerId: true,
+        solutionsEngineerId: true,
+        solutionsExecutiveId: true,
+      },
     });
     if (!project) throw new Error(`Project not found: ${projectId}`);
-    const defaults = defaultWorkflowSteps(projectId, project.createdAt.toISOString());
-    await db.workflowStep.createMany({ data: defaults.map(toDbCreate) });
-    return defaults;
+
+    const types = (project as unknown as { projectTypes?: string[] }).projectTypes ?? [];
+    const defaults = defaultWorkflowSteps(projectId, project.createdAt.toISOString(), types);
+    const withOwners = autoAssignStepOwners(defaults, project as unknown as ProjectRoleSnapshot);
+
+    await db.workflowStep.createMany({ data: withOwners.map(toDbCreate) });
+    return withOwners;
   }
 
-  return reconcileTemplateStepsDb(projectId, dbSteps.map(toStep));
+  // Load project types for reconciliation
+  const project = await db.project.findUnique({
+    where: { id: projectId },
+    select: { projectTypes: true },
+  });
+  const types = (project as unknown as { projectTypes?: string[] } | null)?.projectTypes ?? [];
+
+  return reconcileTemplateStepsDb(projectId, dbSteps.map(toStep), types);
 }
 
 // Batch-loads steps for many projects in 1 query — used by the Projects list page
@@ -361,4 +410,31 @@ export async function removeWorkflowStep(projectId: string, key: string): Promis
   });
 
   await redistributeWeightsDb(projectId, section);
+}
+
+// ─── Role change auto-assign ──────────────────────────────────────────────────
+
+// Called from updateProject when a role field changes.
+// Assigns any unowned step whose defaultOwnerRole maps to that field.
+export async function autoAssignStepsForRoleChange(
+  projectId: string,
+  roleField: string,
+  newUserId: string | null
+): Promise<void> {
+  // Find steps with this defaultOwnerRole that are currently unassigned
+  const matchingKeys = WORKFLOW_STEP_TEMPLATE
+    .filter((t) => t.defaultOwnerRole === roleField)
+    .map((t) => t.key);
+
+  if (matchingKeys.length === 0) return;
+
+  // Only update steps that are currently unassigned (ownerId is null)
+  await db.workflowStep.updateMany({
+    where: {
+      projectId,
+      key: { in: matchingKeys },
+      ownerId: null,
+    },
+    data: { ownerId: newUserId },
+  });
 }

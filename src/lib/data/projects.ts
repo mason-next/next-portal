@@ -8,6 +8,7 @@ import { getProjectTechnicians } from "@/lib/data/subcontractors";
 import { removeProjectScoped } from "@/lib/storage/local-store";
 import { getServerSession } from "@/lib/auth/server";
 import { requireEditPermission } from "@/lib/access-control";
+import { autoAssignStepsForRoleChange } from "@/lib/data/workflow";
 import type { Prisma } from "@prisma/client";
 import type { Project, NewProjectInput } from "@/types/project";
 import type { Project as PrismaProject } from "@prisma/client";
@@ -34,6 +35,7 @@ function toProject(p: PrismaProject): Project {
     insidePMId: p.insidePMId,
     technicians: [],
     technicianNotNeeded: p.technicianNotNeeded,
+    projectTypes: (p as unknown as { projectTypes: string[] }).projectTypes ?? [],
     targetCompletionDate: p.targetCompletionDate?.toISOString() ?? null,
     createdAt: p.createdAt.toISOString(),
     updatedAt: p.updatedAt.toISOString(),
@@ -186,6 +188,7 @@ export async function createProject(input: NewProjectInput): Promise<Project> {
       grossProfit: 0,
       seniorInsideId: defaultSeniorInsideId,
       insidePMId: defaultInsidePMId,
+      projectTypes: input.projectTypes ?? [],
     },
   });
   return toProject(row);
@@ -220,6 +223,22 @@ export async function updateProject(id: string, patch: Partial<Project>): Promis
 
   const updated = await db.project.update({ where: { id }, data });
   const result = toProject(updated);
+
+  // Auto-assign workflow steps when role fields change
+  const ROLE_FIELDS = [
+    "seniorInsideId",
+    "insidePMId",
+    "fieldProjectManagerId",
+    "solutionsEngineerId",
+    "solutionsExecutiveId",
+  ] as const;
+
+  for (const field of ROLE_FIELDS) {
+    if (field in patch && patch[field as keyof Project] !== current[field as keyof PrismaProject]) {
+      const newVal = patch[field as keyof Project] as string | null | undefined;
+      await autoAssignStepsForRoleChange(id, field, newVal ?? null).catch(() => null);
+    }
+  }
 
   const session = await getServerSession();
   const changedFields = (Object.keys(patch) as (keyof Project)[]).filter(

@@ -212,6 +212,7 @@ model Project {
   insidePMId            String?
   targetCompletionDate DateTime?
   technicianNotNeeded  Boolean   @default(false)
+  projectTypes         String[]  @default([])
   createdAt            DateTime  @default(now())
   updatedAt            DateTime  @updatedAt
 
@@ -272,8 +273,9 @@ model WorkflowStep {
   completionRule   String             @default("manual")
   updatedAt        DateTime           @updatedAt
 
-  project Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
-  owner   User?   @relation("StepOwner", fields: [ownerId], references: [id], onDelete: SetNull)
+  project             Project              @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  owner               User?                @relation("StepOwner", fields: [ownerId], references: [id], onDelete: SetNull)
+  implementationTasks ImplementationTask[] @relation("TaskWorkflowStep")
 
   @@unique([projectId, key])
   @@index([projectId, sortOrder])
@@ -529,6 +531,7 @@ model ImplementationTask {
   parentTaskId    String?
   notes           String                   @default("")
   tags            String[]                 @default([])
+  workflowStepId  String?
   createdAt       DateTime                 @default(now())
   updatedAt       DateTime                 @updatedAt
 
@@ -540,6 +543,7 @@ model ImplementationTask {
   dependencies ImplementationTaskDep[] @relation("DepTask")
   dependents   ImplementationTaskDep[] @relation("DepPre")
   comments     ImplementationTaskComment[]
+  workflowStep WorkflowStep? @relation("TaskWorkflowStep", fields: [workflowStepId], references: [id], onDelete: SetNull)
 
   @@index([projectId, sortOrder])
   @@index([projectId, parentTaskId])

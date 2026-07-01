@@ -1,5 +1,9 @@
 import { SAMPLE_PROJECT } from "@/lib/mock/projects.mock";
-import { redistributeWeights, WORKFLOW_STEP_TEMPLATE } from "@/modules/project-command-center/lib/workflow-steps";
+import {
+  redistributeWeights,
+  shouldIncludeStepForTypes,
+  WORKFLOW_STEP_TEMPLATE,
+} from "@/modules/project-command-center/lib/workflow-steps";
 import { PROJECT_SECTION_KEYS, type WorkflowStep, type WorkflowStepKey } from "@/types/workflow";
 
 // These are bootstrap milestones reached elsewhere (a deal closing, a project record being
@@ -49,13 +53,19 @@ function withSeededWeights(steps: WorkflowStep[]): WorkflowStep[] {
 
 // Every project has, by definition, already had these two happen — seed them Complete
 // rather than Not Started so a brand-new project's checklist doesn't look broken.
-export function defaultWorkflowSteps(projectId: string, createdAt: string): WorkflowStep[] {
-  const raw = WORKFLOW_STEP_TEMPLATE.map(({ key }) => {
-    if (key === "opportunityWon" || key === "projectCreated") {
-      return step(projectId, key, "Complete", null, createdAt, createdAt, createdAt);
-    }
-    return step(projectId, key, "Not Started", null, null, null, createdAt);
-  });
+export function defaultWorkflowSteps(
+  projectId: string,
+  createdAt: string,
+  projectTypes: string[] = []
+): WorkflowStep[] {
+  const raw = WORKFLOW_STEP_TEMPLATE
+    .filter(({ key }) => shouldIncludeStepForTypes(key, projectTypes))
+    .map(({ key }) => {
+      if (key === "opportunityWon" || key === "projectCreated") {
+        return step(projectId, key, "Complete", null, createdAt, createdAt, createdAt);
+      }
+      return step(projectId, key, "Not Started", null, null, null, createdAt);
+    });
   return withSeededWeights(raw);
 }
 

@@ -1,19 +1,39 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { X, Plus, Trash2 } from "lucide-react";
+import { X, Plus, Trash2, AlertCircle, Link2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { UserSelect } from "@/components/shared/UserSelect";
-import type { ImplementationTask, ImplementationTaskComment, CreateTaskInput, UpdateTaskInput, ImplementationTaskStatus, TaskPriority } from "@/types/implementation";
+import type {
+  ImplementationTask,
+  ImplementationTaskComment,
+  CreateTaskInput,
+  UpdateTaskInput,
+  ImplementationTaskStatus,
+  TaskPriority,
+  TaskDependencyRef,
+} from "@/types/implementation";
 import { TASK_STATUSES, TASK_PRIORITIES } from "@/types/implementation";
 import type { AppUser } from "@/types/user";
+import type { WorkflowStep } from "@/types/workflow";
 import { TASK_STATUS_TONE, TASK_PRIORITY_TONE } from "@/modules/implementation/lib/task-display";
-import { getTaskComments, addTaskComment, deleteTaskComment } from "@/lib/data/implementation";
+import {
+  getTaskComments,
+  addTaskComment,
+  deleteTaskComment,
+} from "@/lib/data/implementation";
+import {
+  getTaskDependencies,
+  addTaskDependency,
+  removeTaskDependency,
+} from "@/lib/data/task-deps";
 
 interface TaskDrawerProps {
   task: ImplementationTask | null;
   users: AppUser[];
+  availableSteps: WorkflowStep[];
+  allTasks: ImplementationTask[];
   onClose: () => void;
   onSave: (taskId: string, input: UpdateTaskInput) => Promise<void>;
   onCreate: (input: CreateTaskInput) => Promise<void>;
@@ -27,6 +47,7 @@ interface FormState {
   priority: TaskPriority;
   percentComplete: number;
   assigneeId: string | null;
+  workflowStepId: string | null;
   startDate: string;
   dueDate: string;
   notes: string;
@@ -40,6 +61,7 @@ function toFormState(task: ImplementationTask): FormState {
     priority: task.priority,
     percentComplete: task.percentComplete,
     assigneeId: task.assigneeId,
+    workflowStepId: task.workflowStepId,
     startDate: task.startDate ? task.startDate.slice(0, 10) : "",
     dueDate: task.dueDate ? task.dueDate.slice(0, 10) : "",
     notes: task.notes,
@@ -53,18 +75,29 @@ const EMPTY_FORM: FormState = {
   priority: "Medium",
   percentComplete: 0,
   assigneeId: null,
+  workflowStepId: null,
   startDate: "",
   dueDate: "",
   notes: "",
 };
 
-export function TaskDrawer({ task, users, onClose, onSave, onCreate, onDelete }: TaskDrawerProps) {
+export function TaskDrawer({
+  task,
+  users,
+  availableSteps,
+  allTasks,
+  onClose,
+  onSave,
+  onCreate,
+  onDelete,
+}: TaskDrawerProps) {
   const isCreate = task === null;
-  // form state is initialized from task on each mount; TaskList passes a key prop so
-  // switching tasks forces a remount rather than relying on a sync setState in effect.
   const [form, setForm] = useState<FormState>(() => (task ? toFormState(task) : EMPTY_FORM));
   const [comments, setComments] = useState<ImplementationTaskComment[]>([]);
   const [commentText, setCommentText] = useState("");
+  const [deps, setDeps] = useState<TaskDependencyRef[]>([]);
+  const [addingDep, setAddingDep] = useState(false);
+  const [depPickerId, setDepPickerId] = useState<string>("");
   const [saving, setSaving] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [addingComment, setAddingComment] = useState(false);
@@ -74,6 +107,7 @@ export function TaskDrawer({ task, users, onClose, onSave, onCreate, onDelete }:
   useEffect(() => {
     if (!isCreate && taskId) {
       getTaskComments(taskId).then(setComments);
+      getTaskDependencies(taskId).then(setDeps);
     }
   }, [taskId, isCreate]);
 
@@ -97,31 +131,23 @@ export function TaskDrawer({ task, users, onClose, onSave, onCreate, onDelete }:
     if (!form.title.trim()) return;
     setSaving(true);
     try {
+      const payload = {
+        title: form.title.trim(),
+        description: form.description,
+        status: form.status,
+        priority: form.priority,
+        percentComplete: form.percentComplete,
+        assigneeId: form.assigneeId,
+        workflowStepId: form.workflowStepId,
+        startDate: form.startDate || null,
+        dueDate: form.dueDate || null,
+        notes: form.notes,
+      };
       if (isCreate) {
-        await onCreate({
-          title: form.title.trim(),
-          description: form.description,
-          status: form.status,
-          priority: form.priority,
-          percentComplete: form.percentComplete,
-          assigneeId: form.assigneeId,
-          startDate: form.startDate || null,
-          dueDate: form.dueDate || null,
-          notes: form.notes,
-        });
+        await onCreate(payload);
         onClose();
       } else if (task) {
-        await onSave(task.id, {
-          title: form.title.trim(),
-          description: form.description,
-          status: form.status,
-          priority: form.priority,
-          percentComplete: form.percentComplete,
-          assigneeId: form.assigneeId,
-          startDate: form.startDate || null,
-          dueDate: form.dueDate || null,
-          notes: form.notes,
-        });
+        await onSave(task.id, payload);
       }
     } finally {
       setSaving(false);
@@ -160,6 +186,35 @@ export function TaskDrawer({ task, users, onClose, onSave, onCreate, onDelete }:
     setComments((prev) => prev.filter((c) => c.id !== commentId));
   }
 
+  async function handleAddDep() {
+    if (!task || !depPickerId) return;
+    const result = await addTaskDependency(task.id, depPickerId);
+    if (!result.ok) {
+      alert(result.error ?? "Could not add dependency.");
+      return;
+    }
+    const refreshed = await getTaskDependencies(task.id);
+    setDeps(refreshed);
+    setDepPickerId("");
+    setAddingDep(false);
+  }
+
+  async function handleRemoveDep(dependsOnId: string) {
+    if (!task) return;
+    await removeTaskDependency(task.id, dependsOnId);
+    setDeps((prev) => prev.filter((d) => d.dependsOnId !== dependsOnId));
+  }
+
+  // Tasks eligible to be added as a dependency: same project, not self, not already a dep
+  const existingDepIds = new Set(deps.map((d) => d.dependsOnId));
+  const depCandidates = allTasks.filter(
+    (t) => t.id !== task?.id && !existingDepIds.has(t.id)
+  );
+
+  const hasUnmetDeps = deps.some(
+    (d) => d.dependsOnStatus !== "Complete" && d.dependsOnStatus !== "Cancelled"
+  );
+
   return (
     <>
       {/* Backdrop */}
@@ -177,6 +232,14 @@ export function TaskDrawer({ task, users, onClose, onSave, onCreate, onDelete }:
 
         {/* Body */}
         <div className="flex-1 overflow-y-auto px-6 py-5 space-y-5">
+          {/* Blocked-by warning */}
+          {!isCreate && hasUnmetDeps && (
+            <div className="flex items-start gap-2 rounded-md border border-amber-200 bg-amber-50 px-3 py-2.5 text-sm text-amber-800 dark:border-amber-800/40 dark:bg-amber-900/20 dark:text-amber-300">
+              <AlertCircle className="mt-0.5 size-4 shrink-0" />
+              <span>This task has unmet dependencies. Complete the blocking tasks before starting this one.</span>
+            </div>
+          )}
+
           {/* Title */}
           <div>
             <label className="mb-1.5 block text-xs font-medium text-muted-foreground">Title</label>
@@ -223,6 +286,23 @@ export function TaskDrawer({ task, users, onClose, onSave, onCreate, onDelete }:
               </select>
             </div>
           </div>
+
+          {/* Workflow Step */}
+          {availableSteps.length > 0 && (
+            <div>
+              <label className="mb-1.5 block text-xs font-medium text-muted-foreground">Workflow Step</label>
+              <select
+                value={form.workflowStepId ?? ""}
+                onChange={(e) => set("workflowStepId", e.target.value || null)}
+                className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm outline-none focus:border-primary"
+              >
+                <option value="">— Not linked —</option>
+                {availableSteps.map((s) => (
+                  <option key={s.id} value={s.id}>{s.name}</option>
+                ))}
+              </select>
+            </div>
+          )}
 
           {/* Assignee */}
           <div>
@@ -297,6 +377,81 @@ export function TaskDrawer({ task, users, onClose, onSave, onCreate, onDelete }:
               className="w-full resize-none rounded-md border border-input bg-background px-3 py-2 text-sm outline-none focus:border-primary"
             />
           </div>
+
+          {/* Dependencies — only for existing tasks */}
+          {!isCreate && (
+            <div>
+              <div className="mb-2 flex items-center justify-between">
+                <div className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                  <Link2 className="mr-1 inline size-3" />
+                  Blocked By ({deps.length})
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setAddingDep((v) => !v)}
+                  className="text-xs text-primary hover:underline underline-offset-2"
+                >
+                  {addingDep ? "Cancel" : "+ Add"}
+                </button>
+              </div>
+
+              {addingDep && (
+                <div className="mb-2 flex gap-2">
+                  <select
+                    value={depPickerId}
+                    onChange={(e) => setDepPickerId(e.target.value)}
+                    className="flex-1 rounded-md border border-input bg-background px-3 py-1.5 text-sm outline-none focus:border-primary"
+                  >
+                    <option value="">Select a task…</option>
+                    {depCandidates.map((t) => (
+                      <option key={t.id} value={t.id}>{t.title}</option>
+                    ))}
+                  </select>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={handleAddDep}
+                    disabled={!depPickerId}
+                  >
+                    Add
+                  </Button>
+                </div>
+              )}
+
+              {deps.length === 0 ? (
+                <p className="text-xs text-muted-foreground">No dependencies.</p>
+              ) : (
+                <div className="space-y-1.5">
+                  {deps.map((d) => {
+                    const isBlocking = d.dependsOnStatus !== "Complete" && d.dependsOnStatus !== "Cancelled";
+                    return (
+                      <div
+                        key={d.depId}
+                        className={cn(
+                          "flex items-center justify-between rounded-md border px-3 py-2 text-sm",
+                          isBlocking ? "border-amber-200 bg-amber-50 dark:border-amber-800/40 dark:bg-amber-900/10" : "border-border bg-muted/30"
+                        )}
+                      >
+                        <div className="min-w-0 flex-1">
+                          <span className="truncate font-medium">{d.dependsOnTitle}</span>
+                          <span className={cn("ml-2 text-xs", isBlocking ? "text-amber-700 dark:text-amber-400" : "text-emerald-600 dark:text-emerald-400")}>
+                            {d.dependsOnStatus}
+                          </span>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => handleRemoveDep(d.dependsOnId)}
+                          className="ml-2 shrink-0 text-muted-foreground hover:text-destructive"
+                        >
+                          <X className="size-3.5" />
+                        </button>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          )}
 
           {/* Comments — only for existing tasks */}
           {!isCreate && (
