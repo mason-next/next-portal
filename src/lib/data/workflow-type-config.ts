@@ -1,5 +1,6 @@
 "use server";
 
+import { Prisma } from "@prisma/client";
 import { db } from "@/lib/db";
 import { requireAdmin } from "@/lib/access-control";
 import {
@@ -28,9 +29,10 @@ export async function getProjectTypeConfig(): Promise<ProjectTypeWorkflowConfig>
 
 export async function saveProjectTypeConfig(config: ProjectTypeWorkflowConfig): Promise<void> {
   await requireAdmin();
+  const value = config as unknown as Prisma.InputJsonValue;
   await db.appSetting.upsert({
     where: { key: SETTINGS_KEY },
-    create: { key: SETTINGS_KEY, value: config },
-    update: { value: config },
+    create: { key: SETTINGS_KEY, value },
+    update: { value },
   });
 }
