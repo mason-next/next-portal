@@ -39,7 +39,7 @@ export default function LoginPage() {
     <div className="flex min-h-screen items-center justify-center bg-muted/30 px-4">
       <div className="w-full max-w-sm">
         <div className="mb-8 flex justify-center">
-          <Image src="/NEXT-logo.png" alt="NEXT Portal" width={4698} height={1615} className="h-8 w-auto" priority />
+          <Image src="/mason-logo.png" alt="NEXT Portal" width={4698} height={1615} className="h-8 w-auto" priority />
         </div>
 
         <div className="rounded-xl border bg-background p-8 shadow-sm">
