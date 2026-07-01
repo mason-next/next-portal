@@ -13,8 +13,11 @@ import { defaultWorkflowSteps } from "@/lib/mock/workflow.mock";
 import {
   redistributeWeights,
   shouldIncludeStepForTypes,
+  shouldIncludeStepForTypesWithConfig,
+  DEFAULT_PROJECT_TYPE_CONFIG,
   WORKFLOW_STEP_TEMPLATE,
 } from "@/modules/project-command-center/lib/workflow-steps";
+import { getProjectTypeConfig } from "@/lib/data/workflow-type-config";
 import type { ProjectSectionKey, WorkflowStep, WorkflowStepStatus } from "@/types/workflow";
 
 // ─── Enum converters ──────────────────────────────────────────────────────────
@@ -149,7 +152,8 @@ async function redistributeWeightsDb(projectId: string, section: ProjectSectionK
 async function reconcileTemplateStepsDb(
   projectId: string,
   steps: WorkflowStep[],
-  projectTypes: string[] = []
+  projectTypes: string[] = [],
+  config: import("@/modules/project-command-center/lib/workflow-steps").ProjectTypeWorkflowConfig = DEFAULT_PROJECT_TYPE_CONFIG
 ): Promise<WorkflowStep[]> {
   const templateKeys = new Set<string>(WORKFLOW_STEP_TEMPLATE.map((e) => e.key));
   const toRemove = steps.filter((s) => !s.isCustom && !templateKeys.has(s.key));
@@ -157,7 +161,7 @@ async function reconcileTemplateStepsDb(
   const existingKeys = new Set(steps.map((s) => s.key));
   // Only add template steps that apply to this project's types
   const toAdd = WORKFLOW_STEP_TEMPLATE.filter(
-    (e) => !existingKeys.has(e.key) && shouldIncludeStepForTypes(e.key, projectTypes)
+    (e) => !existingKeys.has(e.key) && shouldIncludeStepForTypesWithConfig(e.key, projectTypes, config)
   );
 
   if (toRemove.length === 0 && toAdd.length === 0) return steps;
@@ -247,8 +251,9 @@ export async function getWorkflowSteps(projectId: string): Promise<WorkflowStep[
     select: { projectTypes: true },
   });
   const types = (project as unknown as { projectTypes?: string[] } | null)?.projectTypes ?? [];
+  const config = await getProjectTypeConfig();
 
-  return reconcileTemplateStepsDb(projectId, dbSteps.map(toStep), types);
+  return reconcileTemplateStepsDb(projectId, dbSteps.map(toStep), types, config);
 }
 
 // Batch-loads steps for many projects in 1 query — used by the Projects list page
@@ -410,6 +415,91 @@ export async function removeWorkflowStep(projectId: string, key: string): Promis
   });
 
   await redistributeWeightsDb(projectId, section);
+}
+
+// ─── Bulk auto-assign ─────────────────────────────────────────────────────────
+
+export interface BulkAutoAssignResult {
+  assigned: { key: string; name: string; ownerName: string }[];
+  skippedAlreadyOwned: { key: string; name: string }[];
+  skippedNoRole: { key: string; name: string }[];
+}
+
+export async function bulkAutoAssignSteps(
+  projectId: string,
+  overwriteExisting: boolean
+): Promise<BulkAutoAssignResult> {
+  await requireEditPermission();
+
+  const [project, dbSteps] = await Promise.all([
+    db.project.findUnique({
+      where: { id: projectId },
+      select: {
+        seniorInsideId: true,
+        insidePMId: true,
+        fieldProjectManagerId: true,
+        solutionsEngineerId: true,
+        solutionsExecutiveId: true,
+      },
+    }),
+    db.workflowStep.findMany({
+      where: { projectId },
+      select: { key: true, name: true, ownerId: true },
+    }),
+  ]);
+
+  if (!project) throw new Error("Project not found");
+
+  // Load user names for the result summary
+  const roleUserIds = [
+    project.seniorInsideId,
+    project.insidePMId,
+    project.fieldProjectManagerId,
+    project.solutionsEngineerId,
+    project.solutionsExecutiveId,
+  ].filter((id): id is string => !!id);
+
+  const users: { id: string; name: string | null }[] = roleUserIds.length > 0
+    ? await db.user.findMany({
+        where: { id: { in: roleUserIds } },
+        select: { id: true, name: true },
+      })
+    : [];
+  const userNameById = new Map<string, string>(users.map((u) => [u.id, u.name ?? u.id]));
+
+  const assigned: BulkAutoAssignResult["assigned"] = [];
+  const skippedAlreadyOwned: BulkAutoAssignResult["skippedAlreadyOwned"] = [];
+  const skippedNoRole: BulkAutoAssignResult["skippedNoRole"] = [];
+
+  for (const step of dbSteps) {
+    const entry = WORKFLOW_STEP_TEMPLATE.find((t) => t.key === step.key);
+    if (!entry?.defaultOwnerRole) continue;
+
+    const roleField = entry.defaultOwnerRole as keyof typeof project;
+    const targetUserId = (project[roleField] as string | null) ?? null;
+
+    if (step.ownerId && !overwriteExisting) {
+      skippedAlreadyOwned.push({ key: step.key, name: step.name });
+      continue;
+    }
+
+    if (!targetUserId) {
+      skippedNoRole.push({ key: step.key, name: step.name });
+      continue;
+    }
+
+    await db.workflowStep.update({
+      where: { projectId_key: { projectId, key: step.key } },
+      data: { ownerId: targetUserId },
+    });
+    assigned.push({
+      key: step.key,
+      name: step.name,
+      ownerName: userNameById.get(targetUserId) ?? targetUserId,
+    });
+  }
+
+  return { assigned, skippedAlreadyOwned, skippedNoRole };
 }
 
 // ─── Role change auto-assign ──────────────────────────────────────────────────

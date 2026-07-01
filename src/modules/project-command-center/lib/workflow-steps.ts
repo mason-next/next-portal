@@ -166,3 +166,39 @@ const MODULE_MANAGED_STEPS = new Set<string>([
 export function isModuleManagedStep(key: string): boolean {
   return MODULE_MANAGED_STEPS.has(key);
 }
+
+// ─── Data-driven project type config ─────────────────────────────────────────
+
+// Stored in AppSetting and editable via admin UI.
+// exclusions[stepKey] = array of project types that EXCLUDE this step.
+// A step is excluded from a project if ALL of the project's types are in exclusions[stepKey].
+export interface ProjectTypeWorkflowConfig {
+  exclusions: Record<string, string[]>;
+}
+
+// Default mirrors the current hardcoded BOX_SALE_EXCLUDED_STEPS behavior.
+export const DEFAULT_PROJECT_TYPE_CONFIG: ProjectTypeWorkflowConfig = {
+  exclusions: {
+    sendWelcomeLetter:        ["Box Sale"],
+    scheduleInternalKickoff:  ["Box Sale"],
+    scheduleTechnicalKickoff: ["Box Sale"],
+    cadReview:                ["Box Sale"],
+    installation:             ["Box Sale"],
+    programming:              ["Box Sale"],
+    commissioning:            ["Box Sale"],
+  },
+};
+
+// Config-aware version of shouldIncludeStepForTypes.
+// config is optional for backward compat; falls back to the legacy BOX_SALE_EXCLUDED_STEPS check.
+export function shouldIncludeStepForTypesWithConfig(
+  stepKey: string,
+  projectTypes: string[],
+  config: ProjectTypeWorkflowConfig
+): boolean {
+  if (projectTypes.length === 0) return true;
+  const excludedBy = config.exclusions[stepKey] ?? [];
+  if (excludedBy.length === 0) return true;
+  // Excluded only when ALL project types are in the exclusion list
+  return !projectTypes.every((t) => excludedBy.includes(t));
+}
