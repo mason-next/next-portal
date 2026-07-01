@@ -10,7 +10,7 @@ export function ProjectTabNav({ projectId }: { projectId: string }) {
   const base = `/projects/${projectId}`;
 
   return (
-    <nav className="flex items-center gap-1 border-b">
+    <nav className="flex items-center gap-1 border-b overflow-x-auto scrollbar-none -mx-4 px-4 sm:mx-0 sm:px-0">
       {PROJECT_SECTIONS.map(({ key, label, href }) => {
         const fullHref = `${base}${href}`;
         const active = href === "" ? pathname === base : pathname.startsWith(fullHref);

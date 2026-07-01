@@ -84,7 +84,7 @@ function ProjectLayoutBody({
   });
 
   return (
-    <div className="space-y-6 p-8">
+    <div className="space-y-4 p-4 sm:space-y-6 sm:p-8">
       <nav className="flex items-center gap-1.5 text-sm text-muted-foreground">
         <Link href="/projects" className="hover:text-foreground">
           Projects

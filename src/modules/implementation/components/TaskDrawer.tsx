@@ -221,9 +221,9 @@ export function TaskDrawer({
       <div className="fixed inset-0 z-30 bg-black/30" onClick={onClose} />
 
       {/* Panel */}
-      <div className="fixed inset-y-0 right-0 z-40 flex w-full max-w-xl flex-col bg-card shadow-xl animate-in slide-in-from-right-8 duration-200">
+      <div className="fixed inset-y-0 right-0 z-40 flex w-full sm:max-w-xl flex-col bg-card shadow-xl animate-in slide-in-from-right-8 duration-200">
         {/* Header */}
-        <div className="flex items-center justify-between border-b px-6 py-4">
+        <div className="flex items-center justify-between border-b px-4 py-4 sm:px-6">
           <h2 className="text-base font-semibold">{isCreate ? "New Task" : "Edit Task"}</h2>
           <button type="button" onClick={onClose} className="text-muted-foreground hover:text-foreground">
             <X className="size-5" />
@@ -231,7 +231,7 @@ export function TaskDrawer({
         </div>
 
         {/* Body */}
-        <div className="flex-1 overflow-y-auto px-6 py-5 space-y-5">
+        <div className="flex-1 overflow-y-auto px-4 py-4 sm:px-6 sm:py-5 space-y-5">
           {/* Blocked-by warning */}
           {!isCreate && hasUnmetDeps && (
             <div className="flex items-start gap-2 rounded-md border border-amber-200 bg-amber-50 px-3 py-2.5 text-sm text-amber-800 dark:border-amber-800/40 dark:bg-amber-900/20 dark:text-amber-300">
@@ -503,7 +503,7 @@ export function TaskDrawer({
         </div>
 
         {/* Footer */}
-        <div className="flex items-center justify-between border-t px-6 py-4">
+        <div className="flex items-center justify-between border-t px-4 py-3 sm:px-6 sm:py-4">
           {!isCreate ? (
             <Button
               variant="ghost"
