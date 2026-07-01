@@ -1,7 +1,8 @@
 "use client";
 
 import { useState, type ReactNode } from "react";
-import { Ban, Building2 } from "lucide-react";
+import { Ban, Building2, Users } from "lucide-react";
+import { bulkAutoAssignSteps, type BulkAutoAssignResult } from "@/lib/data/workflow";
 import { Button } from "@/components/ui/button";
 import { CollapsibleCard } from "@/components/shared/CollapsibleCard";
 import { EditProjectOverviewModal } from "@/components/shared/AppShell/EditProjectOverviewModal";
@@ -21,6 +22,10 @@ export function ProjectOverviewCard() {
   const { refetch: refetchWorkflowSteps } = useWorkflowStepsContext();
   const { users } = useUsersContext();
   const [showEdit, setShowEdit] = useState(false);
+  const [showAutoAssign, setShowAutoAssign] = useState(false);
+  const [autoAssignResult, setAutoAssignResult] = useState<BulkAutoAssignResult | null>(null);
+  const [autoAssignRunning, setAutoAssignRunning] = useState(false);
+  const [overwriteExisting, setOverwriteExisting] = useState(false);
   const canEdit = session.accountType !== "Viewer";
   const userById = (id: string | null) => users.find((u) => u.id === id) ?? null;
   const roleLabel = (id: string | null) =>
@@ -30,6 +35,20 @@ export function ProjectOverviewCard() {
       <UserInlineLabel user={userById(id)} />
     );
 
+  async function handleAutoAssign() {
+    if (!project) return;
+    setAutoAssignRunning(true);
+    try {
+      const result = await bulkAutoAssignSteps(project.id, overwriteExisting);
+      setAutoAssignResult(result);
+      refetchWorkflowSteps();
+    } catch (err) {
+      console.error("[AutoAssign] failed:", err);
+    } finally {
+      setAutoAssignRunning(false);
+    }
+  }
+
   if (!project) return null;
 
   return (
@@ -38,9 +57,19 @@ export function ProjectOverviewCard() {
       storageKey="project-overview"
       headerExtra={
         canEdit ? (
-          <Button variant="outline" size="sm" onClick={() => setShowEdit(true)}>
-            Edit
-          </Button>
+          <div className="flex items-center gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => { setShowAutoAssign(true); setAutoAssignResult(null); setOverwriteExisting(false); }}
+            >
+              <Users className="mr-1.5 size-3.5" />
+              Auto-Assign Steps
+            </Button>
+            <Button variant="outline" size="sm" onClick={() => setShowEdit(true)}>
+              Edit
+            </Button>
+          </div>
         ) : undefined
       }
     >
@@ -63,6 +92,94 @@ export function ProjectOverviewCard() {
         <Field label="Start Date" value={formatCalendarDate(project.createdAt)} />
         <Field label="Target Completion" value={formatCalendarDate(project.targetCompletionDate)} />
       </div>
+
+      {showAutoAssign ? (
+        <div className="mt-4 rounded-lg border bg-muted/30 p-4">
+          <div className="mb-3 flex items-center justify-between">
+            <h3 className="text-sm font-semibold">Auto-Assign Workflow Steps</h3>
+            <button
+              type="button"
+              onClick={() => setShowAutoAssign(false)}
+              className="text-muted-foreground hover:text-foreground"
+            >
+              ✕
+            </button>
+          </div>
+          {autoAssignResult === null ? (
+            <>
+              <p className="mb-3 text-sm text-muted-foreground">
+                Assigns each unowned workflow step to the matching team member based on their role.
+              </p>
+              <label className="mb-4 flex cursor-pointer items-center gap-2 text-sm">
+                <input
+                  type="checkbox"
+                  className="size-4 accent-primary"
+                  checked={overwriteExisting}
+                  onChange={(e) => setOverwriteExisting(e.target.checked)}
+                />
+                Also overwrite steps that already have an owner
+              </label>
+              <div className="flex items-center gap-2">
+                <Button size="sm" onClick={handleAutoAssign} disabled={autoAssignRunning}>
+                  {autoAssignRunning ? "Running…" : "Run Auto-Assign"}
+                </Button>
+                <Button variant="outline" size="sm" onClick={() => setShowAutoAssign(false)}>
+                  Cancel
+                </Button>
+              </div>
+            </>
+          ) : (
+            <div className="space-y-3 text-sm">
+              {autoAssignResult.assigned.length > 0 && (
+                <div>
+                  <p className="mb-1.5 font-medium text-emerald-700 dark:text-emerald-400">
+                    ✓ {autoAssignResult.assigned.length} step{autoAssignResult.assigned.length !== 1 ? "s" : ""} assigned
+                  </p>
+                  <ul className="space-y-0.5 pl-2 text-muted-foreground">
+                    {autoAssignResult.assigned.map((s) => (
+                      <li key={s.key}>
+                        {s.name} → <span className="font-medium text-foreground">{s.ownerName}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+              {autoAssignResult.skippedAlreadyOwned.length > 0 && (
+                <div>
+                  <p className="mb-1.5 font-medium text-amber-700 dark:text-amber-400">
+                    ↷ {autoAssignResult.skippedAlreadyOwned.length} skipped — already owned
+                  </p>
+                  <ul className="space-y-0.5 pl-2 text-muted-foreground">
+                    {autoAssignResult.skippedAlreadyOwned.map((s) => (
+                      <li key={s.key}>{s.name}</li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+              {autoAssignResult.skippedNoRole.length > 0 && (
+                <div>
+                  <p className="mb-1.5 font-medium text-muted-foreground">
+                    — {autoAssignResult.skippedNoRole.length} skipped — no matching role on project
+                  </p>
+                  <ul className="space-y-0.5 pl-2 text-muted-foreground">
+                    {autoAssignResult.skippedNoRole.map((s) => (
+                      <li key={s.key}>{s.name}</li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+              {autoAssignResult.assigned.length === 0 &&
+               autoAssignResult.skippedAlreadyOwned.length === 0 &&
+               autoAssignResult.skippedNoRole.length === 0 && (
+                <p className="text-muted-foreground">No template steps with role assignments found.</p>
+              )}
+              <Button variant="outline" size="sm" onClick={() => { setAutoAssignResult(null); }}>
+                Run again
+              </Button>
+            </div>
+          )}
+        </div>
+      ) : null}
 
       {showEdit ? (
         <EditProjectOverviewModal
