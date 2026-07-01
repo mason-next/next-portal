@@ -5,6 +5,10 @@ import { DEFAULT_PERMISSIONS, SETTINGS_KEY } from "@/lib/permissions";
 import type { PermissionsConfig } from "@/lib/permissions";
 
 export async function GET() {
+  const session = await getServerSession();
+  if (!session || session.accountType !== "Administrator") {
+    return new NextResponse("Forbidden", { status: 403 });
+  }
   const row = await db.appSetting.findUnique({ where: { key: SETTINGS_KEY } });
   const config: PermissionsConfig = row ? (row.value as PermissionsConfig) : DEFAULT_PERMISSIONS;
   return NextResponse.json(config);

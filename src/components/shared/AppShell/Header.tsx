@@ -28,13 +28,15 @@ export function Header() {
         <Nav />
       </div>
       <div className="flex items-center gap-3">
-        <Link
-          href="/admin"
-          title="Admin Settings"
-          className="flex h-8 w-8 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
-        >
-          <Settings className="size-4" />
-        </Link>
+        {session.accountType !== "Viewer" ? (
+          <Link
+            href="/admin"
+            title="Admin Settings"
+            className="flex h-8 w-8 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+          >
+            <Settings className="size-4" />
+          </Link>
+        ) : null}
         <NotificationBell />
         <UserAvatar />
         <span className="text-sm font-medium">{session.name}</span>

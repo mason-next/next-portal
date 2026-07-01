@@ -7,6 +7,7 @@ import { StatusBadge } from "@/components/shared/StatusBadge";
 import { Skeleton } from "@/components/shared/Skeleton";
 import { UserAvatarImage } from "@/components/shared/AppShell/UserAvatarImage";
 import { useUsersContext } from "@/components/shared/AppShell/UsersProvider";
+import { useSession } from "@/lib/auth/client";
 import { DefaultKickoffAttendeesCard } from "@/modules/admin/components/DefaultKickoffAttendeesCard";
 import { UserFormModal } from "@/modules/admin/components/UserFormModal";
 import { SubcontractorFormModal } from "@/modules/admin/components/SubcontractorFormModal";
@@ -46,6 +47,9 @@ function StarDisplay({ rating }: { rating: number | null }) {
 }
 
 export default function AdminPage() {
+  const session = useSession();
+  const isAdmin = session.accountType === "Administrator";
+  const isMember = session.accountType === "Member";
   const [tab, setTab] = useState<Tab>("users");
 
   return (
@@ -60,18 +64,22 @@ export default function AdminPage() {
           <Building2 className="size-4" />
           Subcontractors
         </TabButton>
-        <TabButton active={tab === "templates"} onClick={() => setTab("templates")}>
-          <FileText className="size-4" />
-          Templates
-        </TabButton>
-        <TabButton active={tab === "permissions"} onClick={() => setTab("permissions")}>
-          <ShieldCheck className="size-4" />
-          Permissions
-        </TabButton>
+        {isAdmin ? (
+          <>
+            <TabButton active={tab === "templates"} onClick={() => setTab("templates")}>
+              <FileText className="size-4" />
+              Templates
+            </TabButton>
+            <TabButton active={tab === "permissions"} onClick={() => setTab("permissions")}>
+              <ShieldCheck className="size-4" />
+              Permissions
+            </TabButton>
+          </>
+        ) : null}
       </div>
 
       {tab === "users" ? (
-        <UsersTab />
+        <UsersTab isAdmin={isAdmin} selfId={isMember ? session.id : undefined} />
       ) : tab === "subcontractors" ? (
         <SubcontractorsTab />
       ) : tab === "templates" ? (
@@ -110,10 +118,13 @@ function TabButton({
 
 // ─── Users tab ────────────────────────────────────────────────────────────────
 
-function UsersTab() {
+function UsersTab({ isAdmin, selfId }: { isAdmin: boolean; selfId?: string }) {
   const { users, isLoading, refetch } = useUsersContext();
   const [editingUser, setEditingUser] = useState<AppUser | null>(null);
   const [showForm, setShowForm] = useState(false);
+
+  // Members see only themselves; admins see all
+  const displayUsers = selfId ? users.filter((u) => u.id === selfId) : users;
 
   return (
     <>
@@ -121,17 +132,21 @@ function UsersTab() {
         <div>
           <h1 className="text-xl font-semibold tracking-tight">Users</h1>
           <p className="text-sm text-muted-foreground">
-            Manage the people who can be assigned to projects and workflow steps.
+            {isAdmin
+              ? "Manage the people who can be assigned to projects and workflow steps."
+              : "Your account details."}
           </p>
         </div>
-        <Button
-          onClick={() => {
-            setEditingUser(null);
-            setShowForm(true);
-          }}
-        >
-          New User
-        </Button>
+        {isAdmin ? (
+          <Button
+            onClick={() => {
+              setEditingUser(null);
+              setShowForm(true);
+            }}
+          >
+            New User
+          </Button>
+        ) : null}
       </div>
 
       {isLoading ? (
@@ -147,23 +162,13 @@ function UsersTab() {
             </div>
           ))}
         </div>
-      ) : users.length === 0 ? (
+      ) : displayUsers.length === 0 ? (
         <p className="text-sm text-muted-foreground">No users yet.</p>
       ) : (
         <ul className="divide-y rounded-xl border bg-card">
-          {users.map((user) => (
-            <li key={user.id}>
-              <button
-                type="button"
-                onClick={() => {
-                  setEditingUser(user);
-                  setShowForm(true);
-                }}
-                className={cn(
-                  "flex w-full items-center gap-3 px-5 py-4 text-left hover:bg-accent",
-                  !user.isActive && "opacity-50"
-                )}
-              >
+          {displayUsers.map((user) => {
+            const rowContent = (
+              <>
                 <UserAvatarImage name={user.name} avatarUrl={user.avatarUrl} size={40} />
                 <div className="min-w-0 flex-1">
                   <div className="text-sm font-semibold">{user.name}</div>
@@ -172,17 +177,43 @@ function UsersTab() {
                 <StatusBadge label={user.accountType} tone={user.accountType === "Administrator" ? "info" : "neutral"} />
                 {!user.isActive ? <StatusBadge label="Inactive" tone="warning" /> : null}
                 <div className="text-xs text-muted-foreground">{user.email}</div>
-              </button>
-            </li>
-          ))}
+              </>
+            );
+
+            return (
+              <li key={user.id}>
+                {isAdmin ? (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setEditingUser(user);
+                      setShowForm(true);
+                    }}
+                    className={cn(
+                      "flex w-full items-center gap-3 px-5 py-4 text-left hover:bg-accent",
+                      !user.isActive && "opacity-50"
+                    )}
+                  >
+                    {rowContent}
+                  </button>
+                ) : (
+                  <div className={cn("flex w-full items-center gap-3 px-5 py-4", !user.isActive && "opacity-50")}>
+                    {rowContent}
+                  </div>
+                )}
+              </li>
+            );
+          })}
         </ul>
       )}
 
-      <div className="mt-8">
-        <DefaultKickoffAttendeesCard />
-      </div>
+      {isAdmin ? (
+        <div className="mt-8">
+          <DefaultKickoffAttendeesCard />
+        </div>
+      ) : null}
 
-      {showForm ? (
+      {isAdmin && showForm ? (
         <UserFormModal
           user={editingUser}
           onClose={() => setShowForm(false)}

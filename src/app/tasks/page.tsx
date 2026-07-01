@@ -31,6 +31,7 @@ interface ApiTask {
   dueDate: string | null;
   percentComplete: number;
   project: { id: string; name: string };
+  assignee?: { id: string; name: string } | null;
   subtasks: { status: TaskStatus }[];
   _count: { subtasks: number; comments: number };
 }
@@ -42,6 +43,7 @@ interface ApiStep {
   status: StepStatus;
   dueDate: string | null;
   project: { id: string; name: string };
+  owner?: { id: string; name: string } | null;
 }
 
 interface ApiNotification {
@@ -115,10 +117,18 @@ export default function TasksPage() {
   const [tab, setTab] = useState<"tasks" | "followups">("tasks");
   const [error, setError] = useState(false);
 
+  const isAllTeam = isAdmin && adminUserId === "__all__";
+
+  useEffect(() => {
+    if (isAllTeam && tab === "followups") setTab("tasks");
+  }, [isAllTeam, tab]);
+
   useEffect(() => {
     setTasks(null);
     setError(false);
-    const url = isAdmin && adminUserId ? `/api/tasks/mine?userId=${adminUserId}` : "/api/tasks/mine";
+    let url = "/api/tasks/mine";
+    if (isAdmin && adminUserId === "__all__") url = "/api/tasks/mine?userId=all";
+    else if (isAdmin && adminUserId) url = `/api/tasks/mine?userId=${adminUserId}`;
     fetch(url)
       .then((r) => {
         if (!r.ok) throw new Error(r.statusText);
@@ -145,22 +155,25 @@ export default function TasksPage() {
       <div>
         <h1 className="text-xl font-semibold tracking-tight flex items-center gap-2">
           <ListChecks className="size-5" />
-          My Tasks
+          {isAllTeam ? "All Team Tasks" : "My Tasks"}
         </h1>
         <p className="mt-1 text-sm text-muted-foreground">
-          Tasks assigned to you and follow-ups from activity mentions.
+          {isAllTeam
+            ? "Active tasks and workflow steps across your whole team."
+            : "Tasks assigned to you and follow-ups from activity mentions."}
         </p>
       </div>
 
       {isAdmin ? (
         <div className="flex items-center gap-2">
-          <label className="text-sm text-muted-foreground">Filter by user:</label>
+          <label className="text-sm text-muted-foreground">View:</label>
           <select
             className={FILTER_SELECT_CLASS}
             value={adminUserId ?? ""}
             onChange={(e) => setAdminUserId(e.target.value || null)}
           >
             <option value="">My tasks</option>
+            <option value="__all__">All team tasks</option>
             {users.filter((u) => u.isActive).map((u) => (
               <option key={u.id} value={u.id}>
                 {u.name}
@@ -170,26 +183,28 @@ export default function TasksPage() {
         </div>
       ) : null}
 
-      <div className="flex items-center gap-0 border-b">
-        <TabBtn active={tab === "tasks"} onClick={() => setTab("tasks")}>
-          <ListChecks className="size-4" />
-          Assigned Tasks
-          {!loading && taskCount > 0 && (
-            <span className="ml-1.5 rounded-full bg-primary/10 px-1.5 py-px text-[10px] font-semibold text-primary">
-              {taskCount}
-            </span>
-          )}
-        </TabBtn>
-        <TabBtn active={tab === "followups"} onClick={() => setTab("followups")}>
-          <Bell className="size-4" />
-          Follow-Ups
-          {!loading && followCount > 0 && (
-            <span className="ml-1.5 rounded-full bg-amber-100 px-1.5 py-px text-[10px] font-semibold text-amber-700 dark:bg-amber-900/30 dark:text-amber-400">
-              {followCount}
-            </span>
-          )}
-        </TabBtn>
-      </div>
+      {!isAllTeam ? (
+        <div className="flex items-center gap-0 border-b">
+          <TabBtn active={tab === "tasks"} onClick={() => setTab("tasks")}>
+            <ListChecks className="size-4" />
+            Assigned Tasks
+            {!loading && taskCount > 0 && (
+              <span className="ml-1.5 rounded-full bg-primary/10 px-1.5 py-px text-[10px] font-semibold text-primary">
+                {taskCount}
+              </span>
+            )}
+          </TabBtn>
+          <TabBtn active={tab === "followups"} onClick={() => setTab("followups")}>
+            <Bell className="size-4" />
+            Follow-Ups
+            {!loading && followCount > 0 && (
+              <span className="ml-1.5 rounded-full bg-amber-100 px-1.5 py-px text-[10px] font-semibold text-amber-700 dark:bg-amber-900/30 dark:text-amber-400">
+                {followCount}
+              </span>
+            )}
+          </TabBtn>
+        </div>
+      ) : null}
 
       {error ? (
         <div className="rounded-xl border border-dashed py-14 text-center">
@@ -199,8 +214,8 @@ export default function TasksPage() {
         </div>
       ) : loading ? (
         <SkeletonList count={5} />
-      ) : tab === "tasks" ? (
-        <TasksTab tasks={tasks!} ownedSteps={ownedSteps} />
+      ) : tab === "tasks" || isAllTeam ? (
+        <TasksTab tasks={tasks!} ownedSteps={ownedSteps} showAssignee={isAllTeam} />
       ) : (
         <FollowUpsTab notifications={notifications!} />
       )}
@@ -235,13 +250,23 @@ function TabBtn({
   );
 }
 
-function TasksTab({ tasks, ownedSteps }: { tasks: ApiTask[]; ownedSteps: ApiStep[] }) {
+function TasksTab({
+  tasks,
+  ownedSteps,
+  showAssignee,
+}: {
+  tasks: ApiTask[];
+  ownedSteps: ApiStep[];
+  showAssignee?: boolean;
+}) {
   if (tasks.length === 0 && ownedSteps.length === 0) {
     return (
       <div className="rounded-xl border border-dashed py-14 text-center">
         <CheckCircle2 className="mx-auto mb-3 size-8 text-muted-foreground/40" />
         <p className="text-sm font-medium">All caught up!</p>
-        <p className="mt-1 text-xs text-muted-foreground">No tasks assigned to you right now.</p>
+        <p className="mt-1 text-xs text-muted-foreground">
+          {showAssignee ? "No active tasks across the team." : "No tasks assigned to you right now."}
+        </p>
       </div>
     );
   }
@@ -293,10 +318,10 @@ function TasksTab({ tasks, ownedSteps }: { tasks: ApiTask[]; ownedSteps: ApiStep
             </div>
             <div className="divide-y">
               {(stepGroup?.steps ?? []).map((step) => (
-                <StepRow key={step.id} step={step} projectId={projectId} />
+                <StepRow key={step.id} step={step} projectId={projectId} showOwner={showAssignee} />
               ))}
               {(taskGroup?.tasks ?? []).map((task) => (
-                <TaskRow key={task.id} task={task} />
+                <TaskRow key={task.id} task={task} showAssignee={showAssignee} />
               ))}
             </div>
           </div>
@@ -306,7 +331,15 @@ function TasksTab({ tasks, ownedSteps }: { tasks: ApiTask[]; ownedSteps: ApiStep
   );
 }
 
-function StepRow({ step, projectId }: { step: ApiStep; projectId: string }) {
+function StepRow({
+  step,
+  projectId,
+  showOwner,
+}: {
+  step: ApiStep;
+  projectId: string;
+  showOwner?: boolean;
+}) {
   const due = formatDueDate(step.dueDate);
   const isInProgress = step.status === "In Progress";
   return (
@@ -322,6 +355,12 @@ function StepRow({ step, projectId }: { step: ApiStep; projectId: string }) {
           <span className="text-xs text-muted-foreground">{step.status}</span>
           <span className="text-xs text-muted-foreground/50">·</span>
           <span className="text-xs text-muted-foreground">Workflow step</span>
+          {showOwner && step.owner ? (
+            <>
+              <span className="text-xs text-muted-foreground/50">·</span>
+              <span className="text-xs text-muted-foreground">{step.owner.name}</span>
+            </>
+          ) : null}
         </div>
       </div>
 
@@ -343,7 +382,7 @@ function StepRow({ step, projectId }: { step: ApiStep; projectId: string }) {
   );
 }
 
-function TaskRow({ task }: { task: ApiTask }) {
+function TaskRow({ task, showAssignee }: { task: ApiTask; showAssignee?: boolean }) {
   const due = formatDueDate(task.dueDate);
   const completedSubs = task.subtasks.filter((s) => s.status === "Complete").length;
 
@@ -358,6 +397,12 @@ function TaskRow({ task }: { task: ApiTask }) {
         <p className="text-sm font-medium truncate">{task.title}</p>
         <div className="mt-0.5 flex items-center gap-2 flex-wrap">
           <span className="text-xs text-muted-foreground">{STATUS_LABEL[task.status]}</span>
+          {showAssignee && task.assignee ? (
+            <>
+              <span className="text-xs text-muted-foreground/50">·</span>
+              <span className="text-xs text-muted-foreground">{task.assignee.name}</span>
+            </>
+          ) : null}
           {task._count.subtasks > 0 && (
             <span className="text-xs text-muted-foreground">
               {completedSubs}/{task._count.subtasks} subtasks
