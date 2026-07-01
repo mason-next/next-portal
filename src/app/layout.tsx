@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Geist_Mono, Google_Sans_Flex } from "next/font/google";
 import { Header } from "@/components/shared/AppShell/Header";
 import { UsersProvider } from "@/components/shared/AppShell/UsersProvider";
@@ -27,6 +27,11 @@ export const metadata: Metadata = {
     "Internal operations platform for project execution, procurement, engineering, field operations, reporting, and customer communications.",
 };
 
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+};
+
 export default async function RootLayout({
   children,
 }: Readonly<{
@@ -47,7 +52,7 @@ export default async function RootLayout({
 
   return (
     <html lang="en" className={htmlClass}>
-      <body className="min-h-full flex flex-col">
+      <body className="min-h-full flex flex-col overflow-x-hidden">
         <SessionProvider user={session}>
           <PermissionsProvider>
             <UsersProvider>

@@ -162,7 +162,7 @@ export function WorkflowChecklist({
           {showWeight ? "Hide weight column" : "Show weight column"}
         </button>
       </div>
-      <div className="overflow-hidden rounded-xl border bg-card">
+      <div className="overflow-x-auto rounded-xl border bg-card">
         <table className="w-full border-collapse text-sm">
           <thead>
             <tr className="bg-muted text-left text-muted-foreground">

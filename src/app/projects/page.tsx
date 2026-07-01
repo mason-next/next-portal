@@ -213,11 +213,11 @@ export default function ProjectsPage() {
   }
 
   return (
-    <div className={cn("p-8", viewMode === "kanban" ? "w-full" : "mx-auto max-w-5xl")}>
-      <div className="mb-6 flex items-center justify-between">
-        <h1 className="text-xl font-semibold tracking-tight">Projects</h1>
+    <div className={cn("p-4 sm:p-8", viewMode === "kanban" ? "w-full" : "mx-auto max-w-5xl")}>
+      <div className="mb-4 sm:mb-6 flex items-center justify-between gap-2">
+        <h1 className="text-lg sm:text-xl font-semibold tracking-tight">Projects</h1>
         <div className="flex items-center gap-2">
-          <div className="flex items-center rounded-md border p-0.5">
+          <div className="hidden sm:flex items-center rounded-md border p-0.5">
             <button
               type="button"
               onClick={() => changeViewMode("list")}
@@ -239,7 +239,7 @@ export default function ProjectsPage() {
               Kanban
             </button>
           </div>
-          <Button onClick={() => setShowNewProject(true)}>New Project</Button>
+          <Button onClick={() => setShowNewProject(true)} size="sm">New Project</Button>
         </div>
       </div>
 
@@ -334,29 +334,33 @@ export default function ProjectsPage() {
               <li key={project.id}>
                 <Link
                   href={`/projects/${project.id}`}
-                  className="block rounded-lg border bg-card p-5 transition-colors hover:bg-accent"
+                  className="block rounded-lg border bg-card p-4 sm:p-5 transition-colors hover:bg-accent"
                 >
-                  <div className="flex items-center justify-between gap-6">
-                    <div className="min-w-0">
-                      <div className="text-sm font-semibold">{project.name}</div>
-                      <div className="text-xs text-muted-foreground">
-                        {project.projectNumber} · {project.customerName}
+                  <div className="flex flex-col gap-2">
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="min-w-0">
+                        <div className="text-sm font-semibold leading-snug">{project.name}</div>
+                        <div className="text-xs text-muted-foreground">
+                          {project.projectNumber} · {project.customerName}
+                        </div>
                       </div>
-                    </div>
-                    <div className="flex items-center gap-4">
-                      <div className="w-32">
-                        <div className="mb-1 text-right text-xs text-muted-foreground">{Math.round(progress)}%</div>
-                        <ProgressBar percent={progress} />
-                      </div>
-                      <div className="flex items-center gap-2">
+                      <div className="flex items-center gap-1.5 shrink-0">
                         <StatusBadge label={status.label} tone={status.isComplete ? "success" : "neutral"} />
                         <StatusBadge label={health} tone={HEALTH_TONE[health]} />
                       </div>
                     </div>
-                  </div>
-                  <div className="mt-3 flex items-center justify-between border-t pt-3 text-xs text-muted-foreground">
-                    <span>Target Completion: {formatCalendarDate(project.targetCompletionDate)}</span>
-                    <UserInlineLabel user={pm} />
+                    <div className="flex items-center gap-4">
+                      <div className="flex-1">
+                        <div className="mb-1 flex items-center justify-between text-xs text-muted-foreground">
+                          <span><UserInlineLabel user={pm} /></span>
+                          <span>{Math.round(progress)}%</span>
+                        </div>
+                        <ProgressBar percent={progress} />
+                      </div>
+                    </div>
+                    <div className="text-xs text-muted-foreground">
+                      Target: {formatCalendarDate(project.targetCompletionDate)}
+                    </div>
                   </div>
                 </Link>
               </li>

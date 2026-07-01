@@ -44,7 +44,7 @@ export function ProjectOverviewCard() {
         ) : undefined
       }
     >
-      <div className="grid grid-cols-4 gap-6">
+      <div className="grid grid-cols-2 gap-4 sm:grid-cols-4 sm:gap-6">
         <Field label="Contract Value" value={formatMoney(project.contractValue)} />
         <Field label="Gross Profit" value={formatMoney(project.grossProfit)} />
         <Field

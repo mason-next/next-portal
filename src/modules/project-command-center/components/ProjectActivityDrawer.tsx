@@ -194,7 +194,7 @@ export function ProjectActivityDrawer({ projectId }: { projectId: string }) {
       <button
         type="button"
         onClick={handleOpen}
-        className="fixed bottom-6 right-6 z-30 flex h-14 w-14 items-center justify-center rounded-full bg-foreground text-background shadow-lg transition-transform hover:scale-105"
+        className="fixed bottom-4 right-4 sm:bottom-6 sm:right-6 z-30 flex h-14 w-14 items-center justify-center rounded-full bg-foreground text-background shadow-lg transition-transform hover:scale-105"
         title="Project activity"
       >
         <Activity className="h-6 w-6" />
@@ -215,7 +215,7 @@ export function ProjectActivityDrawer({ projectId }: { projectId: string }) {
 
       <div
         className={cn(
-          "fixed inset-y-0 right-0 z-40 flex w-full max-w-md flex-col border-l bg-card shadow-2xl transition-transform duration-200 ease-out",
+          "fixed inset-y-0 right-0 z-40 flex w-full sm:max-w-md flex-col border-l bg-card shadow-2xl transition-transform duration-200 ease-out",
           open ? "translate-x-0" : "translate-x-full"
         )}
         role="dialog"

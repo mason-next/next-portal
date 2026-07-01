@@ -20,22 +20,24 @@ export function ProjectHeaderCard({
   actions,
 }: ProjectHeaderCardProps) {
   return (
-    <div className="flex items-center justify-between rounded-xl border bg-card p-5 shadow-sm">
-      <div className="grid grid-cols-6 gap-6">
-        <Field label="Project" value={name} />
-        <Field label="Project #" value={projectNumber} />
-        <Field label="Customer" value={customerName} />
-        <Field label="Site Address" value={siteAddress || "—"} />
-        <div>
-          <div className="mb-1 text-xs text-muted-foreground">Status</div>
-          {stateBadge}
+    <div className="flex flex-col gap-4 rounded-xl border bg-card p-4 sm:p-5 shadow-sm">
+      <div className="flex flex-col gap-4 sm:gap-6 min-w-0 flex-1">
+        <div className="grid grid-cols-2 gap-x-4 gap-y-3 sm:grid-cols-3 lg:grid-cols-6">
+          <Field label="Project" value={name} />
+          <Field label="Project #" value={projectNumber} />
+          <Field label="Customer" value={customerName} />
+          <Field label="Site Address" value={siteAddress || "—"} />
+          <div>
+            <div className="mb-1 text-xs text-muted-foreground">Status</div>
+            {stateBadge}
+          </div>
+          <div>
+            <div className="mb-1 text-xs text-muted-foreground">Health</div>
+            {healthBadge}
+          </div>
         </div>
-        <div>
-          <div className="mb-1 text-xs text-muted-foreground">Health</div>
-          {healthBadge}
-        </div>
+        {actions ? <div className="flex flex-wrap items-center gap-2">{actions}</div> : null}
       </div>
-      {actions ? <div className="flex items-center gap-3">{actions}</div> : null}
     </div>
   );
 }

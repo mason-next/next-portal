@@ -151,7 +151,7 @@ export default function TasksPage() {
   const followCount = notifications?.length ?? 0;
 
   return (
-    <div className="mx-auto max-w-3xl p-6 sm:p-8 space-y-6">
+    <div className="mx-auto max-w-3xl p-4 sm:p-8 space-y-6">
       <div>
         <h1 className="text-xl font-semibold tracking-tight flex items-center gap-2">
           <ListChecks className="size-5" />
