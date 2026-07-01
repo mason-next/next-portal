@@ -28,6 +28,7 @@ export interface Project {
   // Populated by getProject(); getProjects() returns [] to keep the list query lean.
   technicians: ProjectTechnicianEntry[];
   technicianNotNeeded: boolean;
+  projectTypes: string[];
   targetCompletionDate: string | null;
   createdAt: string;
   updatedAt: string;
@@ -39,4 +40,5 @@ export interface NewProjectInput {
   customerName: string;
   siteAddress: string;
   coordinatorGroup: string;
+  projectTypes: string[];
 }

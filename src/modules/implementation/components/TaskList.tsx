@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/shared/Skeleton";
 import type { ImplementationTask } from "@/types/implementation";
 import type { AppUser } from "@/types/user";
+import type { WorkflowStep } from "@/types/workflow";
 import { TaskListItem } from "./TaskListItem";
 import { TaskDrawer } from "./TaskDrawer";
 import { useImplementationTasks } from "@/modules/implementation/hooks/useImplementationTasks";
@@ -13,9 +14,10 @@ import { useImplementationTasks } from "@/modules/implementation/hooks/useImplem
 interface TaskListProps {
   projectId: string;
   users: AppUser[];
+  availableSteps?: WorkflowStep[];
 }
 
-export function TaskList({ projectId, users }: TaskListProps) {
+export function TaskList({ projectId, users, availableSteps = [] }: TaskListProps) {
   const { tasks, isLoading, addTask, editTask, removeTask } = useImplementationTasks(projectId);
   const [drawerTask, setDrawerTask] = useState<ImplementationTask | "new" | null>(null);
 
@@ -86,6 +88,8 @@ export function TaskList({ projectId, users }: TaskListProps) {
           key={openTask?.id ?? "new"}
           task={openTask}
           users={users}
+          availableSteps={availableSteps}
+          allTasks={tasks ?? []}
           onClose={() => setDrawerTask(null)}
           onSave={async (id, input) => {
             await editTask(id, input);

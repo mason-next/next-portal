@@ -32,6 +32,9 @@ export interface ImplementationTask {
   subtaskCount: number;
   completedSubtaskCount: number;
   commentCount: number;
+  workflowStepId: string | null;
+  workflowStepName: string | null;
+  dependencyCount: number;
   createdAt: string;
   updatedAt: string;
 }
@@ -54,6 +57,7 @@ export interface CreateTaskInput {
   priority?: TaskPriority;
   percentComplete?: number;
   assigneeId?: string | null;
+  workflowStepId?: string | null;
   startDate?: string | null;
   dueDate?: string | null;
   parentTaskId?: string | null;
@@ -63,4 +67,12 @@ export interface CreateTaskInput {
 
 export interface UpdateTaskInput extends Partial<CreateTaskInput> {
   completedAt?: string | null;
+}
+
+export interface TaskDependencyRef {
+  depId: string;      // ImplementationTaskDep.id
+  taskId: string;
+  dependsOnId: string;
+  dependsOnTitle: string;
+  dependsOnStatus: ImplementationTaskStatus;
 }

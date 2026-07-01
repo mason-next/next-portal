@@ -16,6 +16,7 @@ export const SAMPLE_PROJECT: Project = {
   insidePMId: "user-alex-behan",
   technicians: [],
   technicianNotNeeded: false,
+  projectTypes: ["Structured Cabling", "Security", "Audio / Visual"],
   targetCompletionDate: "2026-06-30T00:00:00.000Z",
   createdAt: "2026-01-01T00:00:00.000Z",
   updatedAt: "2026-01-01T00:00:00.000Z",

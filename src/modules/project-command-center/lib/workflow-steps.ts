@@ -4,11 +4,45 @@ import type { ProjectSectionKey, WorkflowStep, WorkflowStepKey, WorkflowStepStat
 export type { ProjectSectionKey };
 export { PROJECT_SECTION_KEYS } from "@/types/workflow";
 
+export const PROJECT_TYPES = ["Box Sale", "Structured Cabling", "Security", "Audio / Visual"] as const;
+export type ProjectType = typeof PROJECT_TYPES[number];
+
+// Role fields on Project that can be auto-assigned to workflow steps
+export type StepOwnerRole =
+  | "seniorInsideId"
+  | "insidePMId"
+  | "fieldProjectManagerId"
+  | "solutionsEngineerId"
+  | "solutionsExecutiveId";
+
 export interface WorkflowStepTemplateEntry {
   key: WorkflowStepKey;
   name: string;
   sortOrder: number;
   section: ProjectSectionKey;
+  defaultOwnerRole?: StepOwnerRole;
+}
+
+// Steps that do NOT apply to Box Sale projects.
+// Any project with at least one full-service type (Structured Cabling, Security, Audio / Visual)
+// includes all steps. An all-Box Sale project skips these.
+export const BOX_SALE_EXCLUDED_STEPS = new Set<string>([
+  "sendWelcomeLetter",
+  "scheduleInternalKickoff",
+  "scheduleTechnicalKickoff",
+  "cadReview",
+  "installation",
+  "programming",
+  "commissioning",
+]);
+
+// Returns true if this step should be included for the given project types.
+// Empty array = no types set = all steps included (default/legacy behavior).
+export function shouldIncludeStepForTypes(stepKey: string, projectTypes: string[]): boolean {
+  if (projectTypes.length === 0) return true;
+  const hasFullService = projectTypes.some((t) => t !== "Box Sale");
+  if (hasFullService) return true;
+  return !BOX_SALE_EXCLUDED_STEPS.has(stepKey);
 }
 
 // Canonical source of truth for name/sortOrder/section, used to seed a project's real
@@ -18,19 +52,19 @@ export interface WorkflowStepTemplateEntry {
 // computed at seed time (and on every add/remove/edit) by redistributeWeights below, split
 // evenly across each section's PHASE_WEIGHT budget unless a step's weight is overridden.
 export const WORKFLOW_STEP_TEMPLATE: WorkflowStepTemplateEntry[] = [
-  { key: "opportunityWon", name: "Opportunity Won", sortOrder: 1, section: "setup" },
-  { key: "projectCreated", name: "Project Created", sortOrder: 2, section: "setup" },
-  { key: "assignTeam", name: "Assign Team", sortOrder: 3, section: "setup" },
-  { key: "sendWelcomeLetter", name: "Send Welcome Letter", sortOrder: 4, section: "setup" },
-  { key: "scheduleInternalKickoff", name: "Schedule Internal Kickoff", sortOrder: 5, section: "setup" },
-  { key: "scheduleTechnicalKickoff", name: "Schedule Technical Kickoff", sortOrder: 6, section: "setup" },
-  { key: "cadReview", name: "CAD Review", sortOrder: 7, section: "engineering" },
-  { key: "bomReview", name: "BOM Review", sortOrder: 8, section: "engineering" },
-  { key: "equipmentTracking", name: "Equipment Tracking", sortOrder: 9, section: "procurement" },
-  { key: "installation", name: "Installation", sortOrder: 10, section: "implementation" },
-  { key: "programming", name: "Programming", sortOrder: 11, section: "implementation" },
-  { key: "commissioning", name: "Commissioning", sortOrder: 12, section: "implementation" },
-  { key: "closeout", name: "Closeout", sortOrder: 13, section: "closeout" },
+  { key: "opportunityWon",           name: "Opportunity Won",            sortOrder: 1,  section: "setup" },
+  { key: "projectCreated",           name: "Project Created",            sortOrder: 2,  section: "setup" },
+  { key: "assignTeam",               name: "Assign Team",                sortOrder: 3,  section: "setup",           defaultOwnerRole: "seniorInsideId" },
+  { key: "sendWelcomeLetter",        name: "Send Welcome Letter",        sortOrder: 4,  section: "setup",           defaultOwnerRole: "seniorInsideId" },
+  { key: "scheduleInternalKickoff",  name: "Schedule Internal Kickoff",  sortOrder: 5,  section: "setup",           defaultOwnerRole: "insidePMId" },
+  { key: "scheduleTechnicalKickoff", name: "Schedule Technical Kickoff", sortOrder: 6,  section: "setup",           defaultOwnerRole: "solutionsEngineerId" },
+  { key: "cadReview",                name: "CAD Review",                 sortOrder: 7,  section: "engineering",     defaultOwnerRole: "solutionsEngineerId" },
+  { key: "bomReview",                name: "BOM Review",                 sortOrder: 8,  section: "engineering",     defaultOwnerRole: "solutionsEngineerId" },
+  { key: "equipmentTracking",        name: "Equipment Tracking",         sortOrder: 9,  section: "procurement",     defaultOwnerRole: "insidePMId" },
+  { key: "installation",             name: "Installation",               sortOrder: 10, section: "implementation",  defaultOwnerRole: "fieldProjectManagerId" },
+  { key: "programming",              name: "Programming",                sortOrder: 11, section: "implementation",  defaultOwnerRole: "fieldProjectManagerId" },
+  { key: "commissioning",            name: "Commissioning",              sortOrder: 12, section: "implementation",  defaultOwnerRole: "fieldProjectManagerId" },
+  { key: "closeout",                 name: "Closeout",                   sortOrder: 13, section: "closeout",        defaultOwnerRole: "seniorInsideId" },
 ];
 
 // Each phase's fixed weight budget — independent of how many steps currently exist in it.

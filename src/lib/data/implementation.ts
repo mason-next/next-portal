@@ -55,15 +55,17 @@ const APP_PRIORITY: Record<TaskPriority, PrismaPriority> = {
 
 type PrismaTaskWithCounts = PrismaTask & {
   assignee: Pick<User, "name"> | null;
+  workflowStep: { id: string; name: string } | null;
   _count: {
     subtasks: number;
     comments: number;
+    dependencies: number;
   };
   subtasks: { status: PrismaStatus }[];
 };
 
 function toTask(p: PrismaTaskWithCounts): ImplementationTask {
-  const completedSubs = p.subtasks.filter((s) => s.status === "Complete").length;
+  const completedSubs = p.subtasks.filter((s: { status: string }) => s.status === "Complete").length;
   return {
     id: p.id,
     projectId: p.projectId,
@@ -85,6 +87,9 @@ function toTask(p: PrismaTaskWithCounts): ImplementationTask {
     subtaskCount: p._count.subtasks,
     completedSubtaskCount: completedSubs,
     commentCount: p._count.comments,
+    workflowStepId: (p as unknown as { workflowStepId: string | null }).workflowStepId ?? null,
+    workflowStepName: (p as unknown as { workflowStep: { name: string } | null }).workflowStep?.name ?? null,
+    dependencyCount: (p._count as unknown as { dependencies?: number }).dependencies ?? 0,
     createdAt: p.createdAt.toISOString(),
     updatedAt: p.updatedAt.toISOString(),
   };
@@ -105,8 +110,9 @@ function toComment(p: PrismaComment): ImplementationTaskComment {
 
 const TASK_INCLUDE = {
   assignee: { select: { name: true } },
+  workflowStep: { select: { id: true, name: true } },
   subtasks: { select: { status: true } },
-  _count: { select: { subtasks: true, comments: true } },
+  _count: { select: { subtasks: true, comments: true, dependencies: true } },
 } as const;
 
 // ─── Queries ──────────────────────────────────────────────────────────────────
@@ -175,6 +181,7 @@ export async function createTask(
       notes: input.notes ?? "",
       tags: input.tags ?? [],
       sortOrder: nextOrder,
+      workflowStepId: input.workflowStepId ?? null,
     },
     include: TASK_INCLUDE,
   });
@@ -195,6 +202,7 @@ export async function updateTask(
   if (input.notes !== undefined)           data.notes           = input.notes;
   if (input.tags !== undefined)            data.tags            = input.tags;
   if ("assigneeId" in input)               data.assigneeId      = input.assigneeId ?? null;
+  if ("workflowStepId" in input)           data.workflowStepId  = input.workflowStepId ?? null;
   if ("startDate" in input)                data.startDate       = input.startDate ? new Date(input.startDate) : null;
   if ("dueDate" in input)                  data.dueDate         = input.dueDate   ? new Date(input.dueDate)   : null;
   if ("completedAt" in input)              data.completedAt     = input.completedAt ? new Date(input.completedAt) : null;

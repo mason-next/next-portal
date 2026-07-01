@@ -4,6 +4,7 @@ import { useState, type ReactNode } from "react";
 import { Button } from "@/components/ui/button";
 import { Modal } from "@/components/shared/Modal";
 import { createProject } from "@/lib/data/projects";
+import { PROJECT_TYPES } from "@/modules/project-command-center/lib/workflow-steps";
 import type { Project } from "@/types/project";
 
 const FIELD_INPUT_CLASS =
@@ -20,12 +21,29 @@ export function NewProjectModal({ onClose, onCreated }: NewProjectModalProps) {
   const [customerName, setCustomerName] = useState("");
   const [siteAddress, setSiteAddress] = useState("");
   const [coordinatorGroup, setCoordinatorGroup] = useState("Project Coordination Team");
+  const [projectTypes, setProjectTypes] = useState<string[]>([]);
   const [submitting, setSubmitting] = useState(false);
 
+  function toggleType(type: string) {
+    setProjectTypes((prev) =>
+      prev.includes(type) ? prev.filter((t) => t !== type) : [...prev, type]
+    );
+  }
+
+  const canSubmit = name.trim() && projectTypes.length > 0;
+
   async function handleCreate() {
+    if (!canSubmit) return;
     setSubmitting(true);
     try {
-      const project = await createProject({ name, projectNumber, customerName, siteAddress, coordinatorGroup });
+      const project = await createProject({
+        name: name.trim(),
+        projectNumber,
+        customerName,
+        siteAddress,
+        coordinatorGroup,
+        projectTypes,
+      });
       onCreated(project);
     } catch (err) {
       console.error("[NewProjectModal] createProject failed:", err);
@@ -82,13 +100,41 @@ export function NewProjectModal({ onClose, onCreated }: NewProjectModalProps) {
             <option>NEXT Operations</option>
           </select>
         </Field>
+        <div>
+          <div className="mb-1.5 text-xs font-semibold text-muted-foreground">
+            Project Type <span className="text-destructive">*</span>
+          </div>
+          <div className="grid grid-cols-2 gap-1.5">
+            {PROJECT_TYPES.map((type) => (
+              <label
+                key={type}
+                className={`flex cursor-pointer items-center gap-2 rounded-md border px-3 py-2 text-sm transition-colors ${
+                  projectTypes.includes(type)
+                    ? "border-primary bg-primary/5 text-foreground"
+                    : "border-input text-muted-foreground hover:border-muted-foreground"
+                }`}
+              >
+                <input
+                  type="checkbox"
+                  className="size-3.5 accent-primary"
+                  checked={projectTypes.includes(type)}
+                  onChange={() => toggleType(type)}
+                />
+                {type}
+              </label>
+            ))}
+          </div>
+          {projectTypes.length === 0 && (
+            <p className="mt-1 text-xs text-destructive">Select at least one project type.</p>
+          )}
+        </div>
       </div>
 
       <div className="mt-6 flex justify-end gap-2">
         <Button variant="outline" onClick={onClose} disabled={submitting}>
           Cancel
         </Button>
-        <Button onClick={handleCreate} disabled={submitting || !name}>
+        <Button onClick={handleCreate} disabled={submitting || !canSubmit}>
           {submitting ? "Creating…" : "Create Project"}
         </Button>
       </div>

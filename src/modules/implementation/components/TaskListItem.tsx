@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { ChevronDown, ChevronRight, MessageSquare, Layers } from "lucide-react";
+import { ChevronDown, ChevronRight, MessageSquare, Layers, Link2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { UserAvatarImage } from "@/components/shared/AppShell/UserAvatarImage";
 import { ProgressBar } from "@/components/shared/ProgressBar";
@@ -95,6 +95,13 @@ export function TaskListItem({ task, users, depth = 0, onOpen, onToggleComplete 
           {task.title}
         </button>
 
+        {/* Workflow step name */}
+        {task.workflowStepName && (
+          <span className="hidden sm:block text-xs text-muted-foreground/70 truncate max-w-24">
+            ↳ {task.workflowStepName}
+          </span>
+        )}
+
         {/* Progress bar — only show if has subtasks or % set */}
         {progress > 0 && progress < 100 && (
           <div className="hidden sm:block w-16">
@@ -116,6 +123,17 @@ export function TaskListItem({ task, users, depth = 0, onOpen, onToggleComplete 
         {task.dueDate && (
           <span className={cn("hidden sm:block text-xs tabular-nums", overdue ? "text-red-600 font-medium" : "text-muted-foreground")}>
             {formatDate(task.dueDate)}
+          </span>
+        )}
+
+        {/* Dependency count */}
+        {task.dependencyCount > 0 && (
+          <span className={cn(
+            "flex items-center gap-1 text-xs",
+            task.status === "Blocked" ? "text-amber-600 dark:text-amber-400" : "text-muted-foreground"
+          )}>
+            <Link2 className="size-3" />
+            {task.dependencyCount}
           </span>
         )}
 
