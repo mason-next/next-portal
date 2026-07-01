@@ -155,7 +155,7 @@ export default function TasksPage() {
       <div>
         <h1 className="text-xl font-semibold tracking-tight flex items-center gap-2">
           <ListChecks className="size-5" />
-          {isAllTeam ? "All Team Tasks" : "My Tasks"}
+          {isAllTeam ? "All Team Tasks" : "Tasks"}
         </h1>
         <p className="mt-1 text-sm text-muted-foreground">
           {isAllTeam
