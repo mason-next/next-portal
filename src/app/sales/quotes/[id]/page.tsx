@@ -1,10 +1,121 @@
 "use client";
 
-import { use, useEffect, useState } from "react";
+import { use, useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useQuotePortal } from "@/modules/quote-portal/lib/useQuotePortal";
 import type { QuoteAccessLog } from "@/types/sales";
+
+// ── File management (3-dot menu) ──────────────────────────────────────────────
+
+function FileDotsMenu({ quoteId, onUpdated }: { quoteId: string; onUpdated: () => void }) {
+  const [open, setOpen] = useState(false);
+  const [uploading, setUploading] = useState<"zip" | "pdf" | null>(null);
+  const [error, setError] = useState("");
+  const [status, setStatus] = useState<{ hasZip: boolean; pdfFiles: string[] } | null>(null);
+  const ref = useRef<HTMLDivElement>(null);
+  const zipRef = useRef<HTMLInputElement>(null);
+  const pdfRef = useRef<HTMLInputElement>(null);
+
+  const loadStatus = useCallback(() => {
+    fetch(`/api/quotes/${quoteId}/files`)
+      .then((r) => r.json())
+      .then(setStatus)
+      .catch(() => {});
+  }, [quoteId]);
+
+  useEffect(() => { loadStatus(); }, [loadStatus]);
+
+  useEffect(() => {
+    if (!error) return;
+    const t = setTimeout(() => setError(""), 4000);
+    return () => clearTimeout(t);
+  }, [error]);
+
+  useEffect(() => {
+    function handler(e: MouseEvent) {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+    }
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, []);
+
+  async function upload(formData: FormData, type: "zip" | "pdf") {
+    setUploading(type); setError("");
+    try {
+      const res = await fetch(`/api/quotes/${quoteId}/upload`, { method: "POST", body: formData });
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}));
+        throw new Error((body as { error?: string }).error ?? "Upload failed");
+      }
+      loadStatus();
+      onUpdated();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Upload failed");
+    } finally {
+      setUploading(null);
+    }
+  }
+
+  function handleZip(file: File) {
+    if (!file.name.endsWith(".zip")) { setError("Please select a .zip file."); return; }
+    const form = new FormData(); form.append("zip_file", file);
+    upload(form, "zip");
+  }
+
+  function handlePdf(file: File) {
+    if (!file.name.endsWith(".pdf")) { setError("Please select a .pdf file."); return; }
+    const form = new FormData(); form.append("pdf_file", file);
+    upload(form, "pdf");
+  }
+
+  return (
+    <div ref={ref} className="relative">
+      <button
+        onClick={() => setOpen((o) => !o)}
+        disabled={uploading !== null}
+        className="flex items-center justify-center w-9 h-9 rounded-md border text-muted-foreground hover:text-foreground hover:bg-muted/60 transition-colors disabled:opacity-50"
+        title="More options"
+      >
+        {uploading ? (
+          <svg className="animate-spin" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg>
+        ) : (
+          <svg width="4" height="16" viewBox="0 0 4 16" fill="currentColor"><circle cx="2" cy="2" r="1.5"/><circle cx="2" cy="8" r="1.5"/><circle cx="2" cy="14" r="1.5"/></svg>
+        )}
+      </button>
+
+      {error && (
+        <div className="absolute right-0 top-full mt-1 z-50 min-w-[220px] rounded-lg border border-destructive/30 bg-destructive/10 px-3 py-2 text-xs text-destructive shadow">
+          {error}
+        </div>
+      )}
+
+      {open && (
+        <div className="absolute right-0 top-full mt-1 z-50 min-w-[170px] rounded-lg border bg-card shadow-lg py-1">
+          <button
+            className="w-full text-left px-3 py-2 text-sm hover:bg-muted/50 transition-colors flex items-center gap-2"
+            onClick={() => { setOpen(false); zipRef.current?.click(); }}
+          >
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+            {status?.hasZip ? "Replace ZIP" : "Upload ZIP"}
+          </button>
+          <button
+            className="w-full text-left px-3 py-2 text-sm hover:bg-muted/50 transition-colors flex items-center gap-2"
+            onClick={() => { setOpen(false); pdfRef.current?.click(); }}
+          >
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+            {status?.pdfFiles?.length ? "Replace PDF" : "Upload PDF"}
+          </button>
+        </div>
+      )}
+
+      <input ref={zipRef} type="file" accept=".zip" className="hidden"
+        onChange={(e) => { const f = e.target.files?.[0]; if (f) handleZip(f); e.target.value = ""; }} />
+      <input ref={pdfRef} type="file" accept=".pdf" className="hidden"
+        onChange={(e) => { const f = e.target.files?.[0]; if (f) handlePdf(f); e.target.value = ""; }} />
+    </div>
+  );
+}
 
 // ── User-agent parser ─────────────────────────────────────────────────────────
 
@@ -70,7 +181,7 @@ function CopyBtn({ value, label }: { value: string; label: string }) {
 export default function QuoteDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
   const router = useRouter();
-  const { quotes, isLoading, getLogs, toggle } = useQuotePortal();
+  const { quotes, isLoading, getLogs, toggle, bump } = useQuotePortal();
   const [logs, setLogs] = useState<QuoteAccessLog[]>([]);
   const [logsLoading, setLogsLoading] = useState(true);
   const [toggling, setToggling] = useState(false);
@@ -177,6 +288,7 @@ export default function QuoteDetailPage({ params }: { params: Promise<{ id: stri
             >
               {toggling ? "…" : quote.isActive ? "Deactivate" : "Activate"}
             </button>
+            <FileDotsMenu quoteId={id} onUpdated={bump} />
           </div>
         </div>
       </div>
