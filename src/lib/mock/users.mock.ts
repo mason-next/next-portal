@@ -1,9 +1,26 @@
-import type { AppUser } from "@/types/user";
+import type { AppUser, UserCertification } from "@/types/user";
 
 const SEEDED_AT = "2026-01-01T00:00:00.000Z";
 
+const DEFAULTS: {
+  department: string;
+  location: string;
+  region: string;
+  emergencyContact: string;
+  adminNotes: string;
+  certifications: UserCertification[];
+} = {
+  department: "",
+  location: "",
+  region: "",
+  emergencyContact: "",
+  adminNotes: "",
+  certifications: [],
+};
+
 export const SAMPLE_USERS: AppUser[] = [
   {
+    ...DEFAULTS,
     id: "user-dana-whitfield",
     name: "Dana Whitfield",
     title: "Project Manager",
@@ -17,6 +34,7 @@ export const SAMPLE_USERS: AppUser[] = [
     updatedAt: SEEDED_AT,
   },
   {
+    ...DEFAULTS,
     id: "user-marcus-reed",
     name: "Marcus Reed",
     title: "Solutions Executive",
@@ -30,6 +48,7 @@ export const SAMPLE_USERS: AppUser[] = [
     updatedAt: SEEDED_AT,
   },
   {
+    ...DEFAULTS,
     id: "user-priya-subramaniam",
     name: "Priya Subramaniam",
     title: "Solutions Engineer",
@@ -43,6 +62,7 @@ export const SAMPLE_USERS: AppUser[] = [
     updatedAt: SEEDED_AT,
   },
   {
+    ...DEFAULTS,
     id: "user-carlos-ibarra",
     name: "Carlos Ibarra",
     title: "Lead Technician",
@@ -56,6 +76,7 @@ export const SAMPLE_USERS: AppUser[] = [
     updatedAt: SEEDED_AT,
   },
   {
+    ...DEFAULTS,
     id: "user-juan-lazo",
     name: "Juan Lazo",
     title: "Administrator",
@@ -69,6 +90,7 @@ export const SAMPLE_USERS: AppUser[] = [
     updatedAt: SEEDED_AT,
   },
   {
+    ...DEFAULTS,
     id: "user-sandra-verissimo",
     name: "Sandra Verissimo",
     title: "Sr. Inside Project Manager",
@@ -82,6 +104,7 @@ export const SAMPLE_USERS: AppUser[] = [
     updatedAt: SEEDED_AT,
   },
   {
+    ...DEFAULTS,
     id: "user-alex-behan",
     name: "Alex Behan",
     title: "Inside Project Manager",

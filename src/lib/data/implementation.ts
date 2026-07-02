@@ -66,9 +66,11 @@ type PrismaTaskWithCounts = PrismaTask & {
 
 function toTask(p: PrismaTaskWithCounts): ImplementationTask {
   const completedSubs = p.subtasks.filter((s: { status: string }) => s.status === "Complete").length;
+  const pAny = p as unknown as { isPersonal?: boolean; projectId: string | null; workflowStepId: string | null; workflowStep: { name: string } | null };
   return {
     id: p.id,
-    projectId: p.projectId,
+    projectId: pAny.projectId ?? null,
+    isPersonal: pAny.isPersonal ?? false,
     title: p.title,
     description: p.description,
     status: PRISMA_STATUS[p.status],
@@ -87,8 +89,8 @@ function toTask(p: PrismaTaskWithCounts): ImplementationTask {
     subtaskCount: p._count.subtasks,
     completedSubtaskCount: completedSubs,
     commentCount: p._count.comments,
-    workflowStepId: (p as unknown as { workflowStepId: string | null }).workflowStepId ?? null,
-    workflowStepName: (p as unknown as { workflowStep: { name: string } | null }).workflowStep?.name ?? null,
+    workflowStepId: pAny.workflowStepId ?? null,
+    workflowStepName: pAny.workflowStep?.name ?? null,
     dependencyCount: (p._count as unknown as { dependencies?: number }).dependencies ?? 0,
     createdAt: p.createdAt.toISOString(),
     updatedAt: p.updatedAt.toISOString(),
@@ -154,20 +156,27 @@ export async function getTaskComments(taskId: string): Promise<ImplementationTas
 // ─── Mutations ────────────────────────────────────────────────────────────────
 
 export async function createTask(
-  projectId: string,
   input: CreateTaskInput
 ): Promise<ImplementationTask> {
   await requireEditPermission();
   const session = await getServerSession();
+  const projectId = input.projectId ?? null;
+  const isPersonal = input.isPersonal ?? !projectId;
+
+  const whereClause = projectId
+    ? { projectId, parentTaskId: input.parentTaskId ?? null }
+    : { assigneeId: session?.id ?? undefined, parentTaskId: null as string | null };
+
   const maxOrder = await db.implementationTask.aggregate({
-    where: { projectId, parentTaskId: input.parentTaskId ?? null },
+    where: whereClause,
     _max: { sortOrder: true },
   });
   const nextOrder = (maxOrder._max.sortOrder ?? -1) + 1;
 
-  const row = await db.implementationTask.create({
+  const row = await (db.implementationTask.create as (args: unknown) => Promise<PrismaTaskWithCounts>)({
     data: {
-      projectId,
+      ...(projectId ? { projectId } : {}),
+      isPersonal,
       title: input.title,
       description: input.description ?? "",
       status: input.status ? APP_STATUS[input.status] : "NotStarted",

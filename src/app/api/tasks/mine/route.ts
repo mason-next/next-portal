@@ -13,7 +13,7 @@ export async function GET(req: Request) {
   if (isAllTeam) {
     const [tasks, ownedSteps] = await Promise.all([
       db.implementationTask.findMany({
-        where: { status: { notIn: ["Complete", "Cancelled"] }, parentTaskId: null },
+        where: { status: { notIn: ["Complete", "Cancelled"] }, parentTaskId: null, projectId: { not: null } },
         include: {
           project: { select: { id: true, name: true } },
           assignee: { select: { id: true, name: true } },
@@ -37,15 +37,32 @@ export async function GET(req: Request) {
   const targetUserId =
     session.accountType === "Administrator" && queryUserId ? queryUserId : session.id;
 
-  const [tasks, notifications, ownedSteps] = await Promise.all([
+  const taskInclude = {
+    project: { select: { id: true, name: true } },
+    assignee: { select: { name: true } },
+    subtasks: { select: { status: true } },
+    _count: { select: { subtasks: true, comments: true } },
+  };
+
+  const [projectTasks, personalTasks, notifications, ownedSteps] = await Promise.all([
     db.implementationTask.findMany({
       where: {
         assigneeId: targetUserId,
         status: { notIn: ["Complete", "Cancelled"] },
         parentTaskId: null,
+        projectId: { not: null },
+      },
+      include: taskInclude,
+      orderBy: [{ dueDate: "asc" }, { priority: "asc" }, { createdAt: "desc" }],
+    }),
+    (db.implementationTask.findMany as (args: unknown) => Promise<unknown[]>)({
+      where: {
+        assigneeId: targetUserId,
+        status: { notIn: ["Complete", "Cancelled"] },
+        parentTaskId: null,
+        isPersonal: true,
       },
       include: {
-        project: { select: { id: true, name: true } },
         assignee: { select: { name: true } },
         subtasks: { select: { status: true } },
         _count: { select: { subtasks: true, comments: true } },
@@ -68,6 +85,14 @@ export async function GET(req: Request) {
       orderBy: [{ dueDate: "asc" }, { updatedAt: "desc" }],
     }),
   ]);
+
+  // Attach synthetic project stub to personal tasks
+  const personalTasksMapped = personalTasks.map((t: unknown) => ({
+    ...(t as Record<string, unknown>),
+    project: { id: "personal", name: "Personal" },
+  }));
+
+  const tasks = [...projectTasks, ...personalTasksMapped];
 
   return NextResponse.json({ tasks, notifications, ownedSteps });
 }

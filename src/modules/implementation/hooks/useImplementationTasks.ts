@@ -24,7 +24,7 @@ export function useImplementationTasks(projectId: string) {
 
   const addTask = useCallback(
     async (input: CreateTaskInput) => {
-      const created = await createTask(projectId, input);
+      const created = await createTask({ ...input, projectId });
       startTransition(() => {
         setTasks((prev) => (prev ? [...prev, created] : [created]));
       });

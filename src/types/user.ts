@@ -34,6 +34,15 @@ export const ROLE_TYPE_LABELS: Record<RoleType, string> = {
   Other: "Other",
 };
 
+export interface UserCertification {
+  id: string;
+  userId: string;
+  name: string;
+  issuingOrg: string;
+  expirationDate: string | null;
+  notes: string;
+}
+
 export interface AppUser {
   id: string;
   name: string;
@@ -44,6 +53,12 @@ export interface AppUser {
   accountType: AccountType;
   roleType: RoleType;
   isActive: boolean;
+  department: string;
+  location: string;
+  region: string;
+  emergencyContact: string;
+  adminNotes: string;
+  certifications: UserCertification[];
   createdAt: string;
   updatedAt: string;
 }
@@ -57,4 +72,9 @@ export interface NewUserInput {
   accountType: AccountType;
   roleType: RoleType;
   isActive: boolean;
+  department?: string;
+  location?: string;
+  region?: string;
+  emergencyContact?: string;
+  adminNotes?: string;
 }

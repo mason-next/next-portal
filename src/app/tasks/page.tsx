@@ -11,8 +11,11 @@ import {
   Clock,
   GitBranch,
   ListChecks,
+  Plus,
 } from "lucide-react";
 import { SkeletonList } from "@/components/shared/Skeleton";
+import { Modal } from "@/components/shared/Modal";
+import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { useSession } from "@/lib/auth/client";
 import { useUsersContext } from "@/components/shared/AppShell/UsersProvider";
@@ -110,14 +113,17 @@ export default function TasksPage() {
   const session = useSession();
   const { users } = useUsersContext();
   const isAdmin = session.accountType === "Administrator";
+  const isViewer = session.accountType === "Viewer";
   const [adminUserId, setAdminUserId] = useState<string | null>(null);
   const [tasks, setTasks] = useState<ApiTask[] | null>(null);
   const [ownedSteps, setOwnedSteps] = useState<ApiStep[]>([]);
   const [notifications, setNotifications] = useState<ApiNotification[] | null>(null);
   const [tab, setTab] = useState<"tasks" | "followups">("tasks");
   const [error, setError] = useState(false);
+  const [showCreate, setShowCreate] = useState(false);
 
   const isAllTeam = isAdmin && adminUserId === "__all__";
+  const [reloadKey, setReloadKey] = useState(0);
 
   useEffect(() => {
     if (isAllTeam && tab === "followups") setTab("tasks");
@@ -134,35 +140,59 @@ export default function TasksPage() {
         if (!r.ok) throw new Error(r.statusText);
         return r.json();
       })
-      .then(({ tasks, notifications, ownedSteps }) => {
-        setTasks(tasks ?? []);
-        setOwnedSteps(ownedSteps ?? []);
-        setNotifications(notifications ?? []);
+      .then(({ tasks: t, notifications: n, ownedSteps: s }) => {
+        setTasks(t ?? []);
+        setOwnedSteps(s ?? []);
+        setNotifications(n ?? []);
       })
       .catch(() => {
         setError(true);
         setTasks([]);
         setNotifications([]);
       });
-  }, [adminUserId, isAdmin]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [adminUserId, isAdmin, reloadKey]);
 
   const loading = tasks === null && !error;
   const taskCount = (tasks?.length ?? 0) + ownedSteps.length;
   const followCount = notifications?.length ?? 0;
 
+  function reload() {
+    setReloadKey((k) => k + 1);
+  }
+
   return (
     <div className="mx-auto max-w-3xl p-4 sm:p-8 space-y-6">
-      <div>
-        <h1 className="text-xl font-semibold tracking-tight flex items-center gap-2">
-          <ListChecks className="size-5" />
-          {isAllTeam ? "All Team Tasks" : "Tasks"}
-        </h1>
-        <p className="mt-1 text-sm text-muted-foreground">
-          {isAllTeam
-            ? "Active tasks and workflow steps across your whole team."
-            : "Tasks assigned to you and follow-ups from activity mentions."}
-        </p>
+      <div className="flex items-start justify-between gap-4">
+        <div>
+          <h1 className="text-xl font-semibold tracking-tight flex items-center gap-2">
+            <ListChecks className="size-5" />
+            {isAllTeam ? "All Team Tasks" : "Tasks"}
+          </h1>
+          <p className="mt-1 text-sm text-muted-foreground">
+            {isAllTeam
+              ? "Active tasks and workflow steps across your whole team."
+              : "Tasks assigned to you and follow-ups from activity mentions."}
+          </p>
+        </div>
+        {!isViewer && (
+          <Button
+            size="sm"
+            className="shrink-0"
+            onClick={() => setShowCreate(true)}
+          >
+            <Plus className="size-4 mr-1" />
+            New Task
+          </Button>
+        )}
       </div>
+
+      {showCreate && (
+        <CreateTaskModal
+          onClose={() => setShowCreate(false)}
+          onCreated={reload}
+        />
+      )}
 
       {isAdmin ? (
         <div className="flex items-center gap-2">
@@ -385,10 +415,12 @@ function StepRow({
 function TaskRow({ task, showAssignee }: { task: ApiTask; showAssignee?: boolean }) {
   const due = formatDueDate(task.dueDate);
   const completedSubs = task.subtasks.filter((s) => s.status === "Complete").length;
+  const isPersonal = task.project.id === "personal";
+  const href = isPersonal ? "#" : `/projects/${task.project.id}/implementation`;
 
   return (
     <Link
-      href={`/projects/${task.project.id}/implementation`}
+      href={href}
       className="flex items-center gap-3 px-5 py-3.5 hover:bg-accent transition-colors"
     >
       <span className="shrink-0">{STATUS_ICON[task.status]}</span>
@@ -521,5 +553,175 @@ function FollowUpRow({
         <CheckCircle2 className="size-4" />
       </button>
     </div>
+  );
+}
+
+// ─── Create Task Modal ────────────────────────────────────────────────────────
+
+const FIELD_CLASS =
+  "mt-1 h-9 w-full rounded-md border px-3 text-sm outline-none focus:border-primary bg-background";
+
+function CreateTaskModal({
+  onClose,
+  onCreated,
+}: {
+  onClose: () => void;
+  onCreated: () => void;
+}) {
+  const session = useSession();
+  const { users } = useUsersContext();
+  const [title, setTitle] = useState("");
+  const [projects, setProjects] = useState<{ id: string; name: string }[]>([]);
+  const [projectId, setProjectId] = useState<string>("");
+  const [steps, setSteps] = useState<{ id: string; name: string }[]>([]);
+  const [stepId, setStepId] = useState<string>("");
+  const [assigneeId, setAssigneeId] = useState(session.id);
+  const [priority, setPriority] = useState<"Low" | "Medium" | "High" | "Critical">("Medium");
+  const [dueDate, setDueDate] = useState("");
+  const [description, setDescription] = useState("");
+  const [submitting, setSubmitting] = useState(false);
+
+  useEffect(() => {
+    fetch("/api/projects/list")
+      .then((r) => r.json())
+      .then((data) => setProjects(data ?? []))
+      .catch(() => {});
+  }, []);
+
+  useEffect(() => {
+    setStepId("");
+    setSteps([]);
+    if (!projectId) return;
+    fetch(`/api/projects/${projectId}/steps`)
+      .then((r) => r.json())
+      .then((data) => setSteps(data ?? []))
+      .catch(() => {});
+  }, [projectId]);
+
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    if (!title.trim()) return;
+    setSubmitting(true);
+    try {
+      await fetch("/api/tasks/create", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          title: title.trim(),
+          description,
+          projectId: projectId || null,
+          workflowStepId: stepId || null,
+          assigneeId,
+          priority,
+          dueDate: dueDate || null,
+        }),
+      });
+      onCreated();
+      onClose();
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
+  return (
+    <Modal open onClose={onClose}>
+      <h2 className="mb-4 text-lg font-semibold">New Task</h2>
+      <form onSubmit={handleSubmit} className="space-y-4">
+        <label className="block">
+          <span className="text-xs font-semibold text-muted-foreground">Title *</span>
+          <input
+            className={FIELD_CLASS}
+            value={title}
+            onChange={(e) => setTitle(e.target.value)}
+            required
+            autoFocus
+          />
+        </label>
+
+        <label className="block">
+          <span className="text-xs font-semibold text-muted-foreground">Project</span>
+          <select
+            className={FIELD_CLASS}
+            value={projectId}
+            onChange={(e) => setProjectId(e.target.value)}
+          >
+            <option value="">Personal task (no project)</option>
+            {projects.map((p) => (
+              <option key={p.id} value={p.id}>{p.name}</option>
+            ))}
+          </select>
+        </label>
+
+        {steps.length > 0 && (
+          <label className="block">
+            <span className="text-xs font-semibold text-muted-foreground">Link to Workflow Step</span>
+            <select
+              className={FIELD_CLASS}
+              value={stepId}
+              onChange={(e) => setStepId(e.target.value)}
+            >
+              <option value="">None</option>
+              {steps.map((s) => (
+                <option key={s.id} value={s.id}>{s.name}</option>
+              ))}
+            </select>
+          </label>
+        )}
+
+        <div className="grid grid-cols-2 gap-3">
+          <label className="block">
+            <span className="text-xs font-semibold text-muted-foreground">Priority</span>
+            <select
+              className={FIELD_CLASS}
+              value={priority}
+              onChange={(e) => setPriority(e.target.value as typeof priority)}
+            >
+              {(["Low", "Medium", "High", "Critical"] as const).map((p) => (
+                <option key={p} value={p}>{p}</option>
+              ))}
+            </select>
+          </label>
+          <label className="block">
+            <span className="text-xs font-semibold text-muted-foreground">Due Date</span>
+            <input
+              type="date"
+              className={FIELD_CLASS}
+              value={dueDate}
+              onChange={(e) => setDueDate(e.target.value)}
+            />
+          </label>
+        </div>
+
+        <label className="block">
+          <span className="text-xs font-semibold text-muted-foreground">Assign To</span>
+          <select
+            className={FIELD_CLASS}
+            value={assigneeId}
+            onChange={(e) => setAssigneeId(e.target.value)}
+          >
+            {users.filter((u) => u.isActive).map((u) => (
+              <option key={u.id} value={u.id}>{u.name}</option>
+            ))}
+          </select>
+        </label>
+
+        <label className="block">
+          <span className="text-xs font-semibold text-muted-foreground">Description</span>
+          <textarea
+            className="mt-1 w-full rounded-md border px-3 py-2 text-sm outline-none focus:border-primary bg-background"
+            rows={3}
+            value={description}
+            onChange={(e) => setDescription(e.target.value)}
+          />
+        </label>
+
+        <div className="flex justify-end gap-2 pt-2">
+          <Button variant="outline" type="button" onClick={onClose}>Cancel</Button>
+          <Button type="submit" disabled={submitting || !title.trim()}>
+            {submitting ? "Creating…" : "Create Task"}
+          </Button>
+        </div>
+      </form>
+    </Modal>
   );
 }
