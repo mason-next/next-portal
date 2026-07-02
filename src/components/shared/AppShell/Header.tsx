@@ -102,7 +102,7 @@ export function Header() {
         {/* Left: logo */}
         <div className="flex items-center gap-8">
           <Link href="/projects" className="text-sm font-semibold tracking-tight">
-            <Image src="/mason-logo.png" alt="NEXT Portal" width={2910} height={386} className="h-7 w-auto md:h-8" priority />
+            <Image src="/mason-logo.png" alt="NEXT Portal" width={2910} height={386} className="h-4 w-auto" priority />
           </Link>
           {/* Desktop nav — hidden on mobile */}
           <div className="hidden md:block">
@@ -163,7 +163,7 @@ export function Header() {
         {/* Drawer header */}
         <div className="flex h-16 items-center justify-between border-b px-4">
           <Link href="/projects" onClick={() => setMenuOpen(false)}>
-            <Image src="/mason-logo.png" alt="NEXT Portal" width={2910} height={386} className="h-7 w-auto" priority />
+            <Image src="/mason-logo.png" alt="NEXT Portal" width={2910} height={386} className="h-4 w-auto" priority />
           </Link>
           <button
             type="button"
