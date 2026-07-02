@@ -173,7 +173,7 @@ export async function createTask(
   });
   const nextOrder = (maxOrder._max.sortOrder ?? -1) + 1;
 
-  const row = await (db.implementationTask.create as (args: unknown) => Promise<PrismaTaskWithCounts>)({
+  const row = await db.implementationTask.create({
     data: {
       ...(projectId ? { projectId } : {}),
       isPersonal,
@@ -191,10 +191,10 @@ export async function createTask(
       tags: input.tags ?? [],
       sortOrder: nextOrder,
       workflowStepId: input.workflowStepId ?? null,
-    },
+    } as Parameters<typeof db.implementationTask.create>[0]["data"],
     include: TASK_INCLUDE,
   });
-  return toTask(row);
+  return toTask(row as unknown as PrismaTaskWithCounts);
 }
 
 export async function updateTask(
