@@ -13,7 +13,8 @@ export type TaskPriority = (typeof TASK_PRIORITIES)[number];
 
 export interface ImplementationTask {
   id: string;
-  projectId: string;
+  projectId: string | null;
+  isPersonal: boolean;
   title: string;
   description: string;
   status: ImplementationTaskStatus;
@@ -63,6 +64,8 @@ export interface CreateTaskInput {
   parentTaskId?: string | null;
   notes?: string;
   tags?: string[];
+  projectId?: string | null;
+  isPersonal?: boolean;
 }
 
 export interface UpdateTaskInput extends Partial<CreateTaskInput> {

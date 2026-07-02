@@ -154,18 +154,23 @@ enum TaskPriority {
 // ─── Users ───────────────────────────────────────────────────────────────────
 
 model User {
-  id           String      @id
-  name         String
-  title        String
-  email        String      @unique
-  phone        String      @default("")
-  avatarUrl    String?
-  accountType  AccountType @default(Member)
-  roleType     RoleType    @default(Other)
-  isActive     Boolean     @default(true)
-  passwordHash String?
-  createdAt    DateTime    @default(now())
-  updatedAt    DateTime    @updatedAt
+  id               String      @id
+  name             String
+  title            String
+  email            String      @unique
+  phone            String      @default("")
+  avatarUrl        String?
+  accountType      AccountType @default(Member)
+  roleType         RoleType    @default(Other)
+  isActive         Boolean     @default(true)
+  passwordHash     String?
+  department       String      @default("")
+  location         String      @default("")
+  region           String      @default("")
+  emergencyContact String      @default("")
+  adminNotes       String      @default("")
+  createdAt        DateTime    @default(now())
+  updatedAt        DateTime    @updatedAt
 
   projectMembers        ProjectMember[]
   workflowSteps         WorkflowStep[]              @relation("StepOwner")
@@ -176,6 +181,7 @@ model User {
   createdImplTasks      ImplementationTask[]        @relation("ImplTaskCreatedBy")
   implTaskComments      ImplementationTaskComment[] @relation("ImplTaskCommentAuthor")
   technicianAssignments ProjectTechnician[]         @relation("ProjectTechUser")
+  certifications        UserCertification[]
 
   @@map("users")
 }
@@ -521,7 +527,8 @@ model InternalKickoff {
 
 model ImplementationTask {
   id              String                   @id @default(cuid())
-  projectId       String
+  projectId       String?
+  isPersonal      Boolean                  @default(false)
   title           String
   description     String                   @default("")
   status          ImplementationTaskStatus @default(NotStarted)
@@ -540,7 +547,7 @@ model ImplementationTask {
   createdAt       DateTime                 @default(now())
   updatedAt       DateTime                 @updatedAt
 
-  project     Project            @relation(fields: [projectId],   references: [id], onDelete: Cascade)
+  project     Project?           @relation(fields: [projectId],   references: [id], onDelete: SetNull)
   assignee    User?              @relation("ImplTaskAssignee",   fields: [assigneeId],  references: [id], onDelete: SetNull)
   createdBy   User?              @relation("ImplTaskCreatedBy",  fields: [createdById], references: [id], onDelete: SetNull)
   parentTask  ImplementationTask?  @relation("TaskSubtasks",     fields: [parentTaskId], references: [id], onDelete: Cascade)
@@ -740,4 +747,48 @@ model AppSetting {
   updatedAt DateTime @updatedAt
 
   @@map("app_settings")
+}
+
+// ─── User Certifications ──────────────────────────────────────────────────────
+
+model UserCertification {
+  id             String    @id @default(cuid())
+  userId         String
+  name           String
+  issuingOrg     String    @default("")
+  expirationDate DateTime?
+  notes          String    @default("")
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("user_certifications")
+}
+
+// ─── Licenses ─────────────────────────────────────────────────────────────────
+
+enum LicenseStatus {
+  Active
+  Expiring
+  Expired
+  Suspended
+}
+
+model License {
+  id                  String        @id @default(cuid())
+  state               String        @default("")
+  licenseType         String
+  licenseNumber       String        @default("")
+  holderName          String        @default("")
+  renewalDate         DateTime?
+  renewalRequirements String        @default("")
+  status              LicenseStatus @default(Active)
+  notes               String        @default("")
+  attachments         Json          @default("[]")
+  createdAt           DateTime      @default(now())
+  updatedAt           DateTime      @updatedAt
+
+  @@map("licenses")
 }
