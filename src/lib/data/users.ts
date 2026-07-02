@@ -25,40 +25,34 @@ const ACCOUNT_TYPE_TO_DB: Record<AccountType, PrismaAccountType> = {
   Viewer: PrismaAccountType.Viewer,
 };
 
-const ROLE_TYPE_FROM_DB: Record<PrismaRoleType, RoleType> = {
-  [PrismaRoleType.Engineer]: "Engineer",
-  [PrismaRoleType.Salesperson]: "Salesperson",
-  [PrismaRoleType.ProjectManager]: "ProjectManager",
-  [PrismaRoleType.Technician]: "Technician",
-  [PrismaRoleType.Operations]: "Operations",
-  [PrismaRoleType.Finance]: "Finance",
-  [PrismaRoleType.Executive]: "Executive",
-  [PrismaRoleType.Other]: "Other",
-  // New values added post-migration; cast until Prisma client regenerates on Railway.
-  ["HR" as PrismaRoleType]: "HR",
-  ["FieldTechnician" as PrismaRoleType]: "FieldTechnician",
-  ["Customer" as PrismaRoleType]: "Customer",
-  ["Vendor" as PrismaRoleType]: "Vendor",
-  ["Subcontractor" as PrismaRoleType]: "Subcontractor",
+// String-keyed maps avoid Record<PrismaRoleType, ...> exhaustiveness errors when
+// the local Prisma client is behind the schema (new enum values won't exist in the
+// generated client until after `prisma generate` runs post-migration on Railway).
+const ROLE_TYPE_BY_STRING: Record<string, RoleType> = {
+  Engineer: "Engineer",
+  Salesperson: "Salesperson",
+  ProjectManager: "ProjectManager",
+  Technician: "Technician",
+  Operations: "Operations",
+  Finance: "Finance",
+  Executive: "Executive",
+  Other: "Other",
+  HR: "HR",
+  FieldTechnician: "FieldTechnician",
+  Customer: "Customer",
+  Vendor: "Vendor",
+  Subcontractor: "Subcontractor",
 };
 
-const ROLE_TYPE_TO_DB: Record<RoleType, PrismaRoleType> = {
-  Engineer: PrismaRoleType.Engineer,
-  Salesperson: PrismaRoleType.Salesperson,
-  ProjectManager: PrismaRoleType.ProjectManager,
-  Technician: PrismaRoleType.Technician,
-  Operations: PrismaRoleType.Operations,
-  Finance: PrismaRoleType.Finance,
-  Executive: PrismaRoleType.Executive,
-  Other: PrismaRoleType.Other,
-  // New values: Prisma client will have these after prisma generate runs post-migration.
-  // Cast to PrismaRoleType so the type checker is satisfied in the interim.
-  HR: "HR" as PrismaRoleType,
-  FieldTechnician: "FieldTechnician" as PrismaRoleType,
-  Customer: "Customer" as PrismaRoleType,
-  Vendor: "Vendor" as PrismaRoleType,
-  Subcontractor: "Subcontractor" as PrismaRoleType,
-};
+function fromDbRoleType(r: PrismaRoleType): RoleType {
+  return ROLE_TYPE_BY_STRING[r as string] ?? "Other";
+}
+
+// RoleType string values match Prisma enum member names exactly (no @map in schema),
+// so a direct cast is safe and doesn't break when new values are added.
+function toDbRoleType(r: RoleType): PrismaRoleType {
+  return r as unknown as PrismaRoleType;
+}
 
 // ─── Type mapper ──────────────────────────────────────────────────────────────
 
@@ -71,7 +65,7 @@ function toAppUser(p: PrismaUser): AppUser {
     phone: p.phone,
     avatarUrl: p.avatarUrl,
     accountType: ACCOUNT_TYPE_FROM_DB[p.accountType] ?? "Member",
-    roleType: ROLE_TYPE_FROM_DB[p.roleType] ?? "Other",
+    roleType: fromDbRoleType(p.roleType),
     isActive: p.isActive,
     createdAt: p.createdAt.toISOString(),
     updatedAt: p.updatedAt.toISOString(),
@@ -102,7 +96,7 @@ export async function createUser(input: NewUserInput): Promise<AppUser> {
       phone: input.phone,
       avatarUrl: input.avatarUrl,
       accountType: ACCOUNT_TYPE_TO_DB[input.accountType],
-      roleType: ROLE_TYPE_TO_DB[input.roleType],
+      roleType: toDbRoleType(input.roleType),
       isActive: input.isActive,
     },
   });
@@ -117,7 +111,7 @@ export async function updateUser(id: string, patch: Partial<AppUser>): Promise<A
   if ("phone" in patch)       data.phone = patch.phone ?? "";
   if ("avatarUrl" in patch)   data.avatarUrl = patch.avatarUrl ?? null;
   if ("accountType" in patch && patch.accountType) data.accountType = ACCOUNT_TYPE_TO_DB[patch.accountType];
-  if ("roleType" in patch && patch.roleType)       data.roleType = ROLE_TYPE_TO_DB[patch.roleType];
+  if ("roleType" in patch && patch.roleType)       data.roleType = toDbRoleType(patch.roleType);
   if ("isActive" in patch)    data.isActive = patch.isActive;
 
   const row = await db.user.update({ where: { id }, data });
