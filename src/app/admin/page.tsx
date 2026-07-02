@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { Building2, Download, FileText, Layers, MapPin, ShieldCheck, Upload, Users, X } from "lucide-react";
+import { Building2, Download, FileText, Layers, MapPin, ShieldCheck, Upload, UserCheck, Users, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { StatusBadge } from "@/components/shared/StatusBadge";
 import { Skeleton } from "@/components/shared/Skeleton";
@@ -10,6 +10,7 @@ import { useUsersContext } from "@/components/shared/AppShell/UsersProvider";
 import { useSession } from "@/lib/auth/client";
 import { DefaultKickoffAttendeesCard } from "@/modules/admin/components/DefaultKickoffAttendeesCard";
 import { WorkflowTemplateTab } from "@/modules/admin/components/WorkflowTemplateTab";
+import { RolesTab } from "@/modules/admin/components/RolesTab";
 import { UserFormModal } from "@/modules/admin/components/UserFormModal";
 import { SubcontractorFormModal } from "@/modules/admin/components/SubcontractorFormModal";
 import { getAllSubcontractors } from "@/lib/data/subcontractors";
@@ -28,10 +29,11 @@ import {
   type PermissionsConfig,
 } from "@/lib/permissions";
 import { cn } from "@/lib/utils";
+import { ROLE_TYPE_LABELS } from "@/types/user";
 import type { AppUser } from "@/types/user";
 import type { Subcontractor } from "@/types/subcontractor";
 
-type Tab = "users" | "subcontractors" | "templates" | "permissions" | "workflow";
+type Tab = "users" | "subcontractors" | "templates" | "permissions" | "workflow" | "roles";
 
 function StarDisplay({ rating }: { rating: number | null }) {
   if (!rating) return <span className="text-xs text-muted-foreground">—</span>;
@@ -79,6 +81,10 @@ export default function AdminPage() {
               <Layers className="size-4" />
               Workflow
             </TabButton>
+            <TabButton active={tab === "roles"} onClick={() => setTab("roles")}>
+              <UserCheck className="size-4" />
+              Roles
+            </TabButton>
           </>
         ) : null}
       </div>
@@ -91,6 +97,8 @@ export default function AdminPage() {
         <TemplatesTab />
       ) : tab === "workflow" ? (
         <WorkflowTemplateTab />
+      ) : tab === "roles" ? (
+        <RolesTab />
       ) : (
         <PermissionsTab />
       )}
@@ -180,6 +188,7 @@ function UsersTab({ isAdmin, selfId }: { isAdmin: boolean; selfId?: string }) {
                 <div className="min-w-0 flex-1">
                   <div className="text-sm font-semibold">{user.name}</div>
                   <div className="text-xs text-muted-foreground">{user.title || "—"}</div>
+                  <div className="text-xs text-muted-foreground">{ROLE_TYPE_LABELS[user.roleType]}</div>
                 </div>
                 <StatusBadge label={user.accountType} tone={user.accountType === "Administrator" ? "info" : "neutral"} />
                 {!user.isActive ? <StatusBadge label="Inactive" tone="warning" /> : null}

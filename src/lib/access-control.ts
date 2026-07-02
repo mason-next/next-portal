@@ -1,4 +1,9 @@
 import { getServerSession } from "@/lib/auth/server";
+import {
+  hasModulePermission,
+  type ModuleKey,
+  type ModuleAction,
+} from "@/lib/module-permissions";
 
 export class ForbiddenError extends Error {
   constructor(message = "You don't have permission to perform this action") {
@@ -20,4 +25,16 @@ export async function requireAdmin(): Promise<void> {
   const session = await getServerSession();
   if (!session) throw new ForbiddenError("You must be signed in to perform this action");
   if (session.accountType !== "Administrator") throw new ForbiddenError("Administrator access required");
+}
+
+// Throws ForbiddenError if the session user cannot perform the given action on the given module.
+export async function requireModuleAction(
+  module: ModuleKey,
+  action: ModuleAction
+): Promise<void> {
+  const session = await getServerSession();
+  if (!session) throw new ForbiddenError("You must be signed in to perform this action");
+  if (!hasModulePermission(session.accountType, session.roleType, module, action)) {
+    throw new ForbiddenError(`You do not have permission to ${action} in ${module}`);
+  }
 }
