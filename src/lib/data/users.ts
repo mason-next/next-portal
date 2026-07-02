@@ -34,6 +34,12 @@ const ROLE_TYPE_FROM_DB: Record<PrismaRoleType, RoleType> = {
   [PrismaRoleType.Finance]: "Finance",
   [PrismaRoleType.Executive]: "Executive",
   [PrismaRoleType.Other]: "Other",
+  // New values added post-migration; cast until Prisma client regenerates on Railway.
+  ["HR" as PrismaRoleType]: "HR",
+  ["FieldTechnician" as PrismaRoleType]: "FieldTechnician",
+  ["Customer" as PrismaRoleType]: "Customer",
+  ["Vendor" as PrismaRoleType]: "Vendor",
+  ["Subcontractor" as PrismaRoleType]: "Subcontractor",
 };
 
 const ROLE_TYPE_TO_DB: Record<RoleType, PrismaRoleType> = {
