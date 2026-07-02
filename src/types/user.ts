@@ -9,18 +9,28 @@ export const ROLE_TYPES = [
   "Operations",
   "Finance",
   "Executive",
+  "HR",
+  "FieldTechnician",
+  "Customer",
+  "Vendor",
+  "Subcontractor",
   "Other",
 ] as const;
 export type RoleType = (typeof ROLE_TYPES)[number];
 
 export const ROLE_TYPE_LABELS: Record<RoleType, string> = {
-  Engineer: "Engineer",
-  Salesperson: "Salesperson",
-  ProjectManager: "Project Manager",
-  Technician: "Technician",
+  Engineer: "Engineering",
+  Salesperson: "Sales",
+  ProjectManager: "Project Management",
+  Technician: "Field Technician",
   Operations: "Operations",
   Finance: "Finance",
-  Executive: "Executive",
+  Executive: "Executive / Management",
+  HR: "HR",
+  FieldTechnician: "Field Technician (External)",
+  Customer: "Customer",
+  Vendor: "Vendor",
+  Subcontractor: "Subcontractor",
   Other: "Other",
 };
 

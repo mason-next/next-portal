@@ -25,6 +25,11 @@ enum RoleType {
   Operations
   Finance
   Executive
+  HR
+  FieldTechnician
+  Customer
+  Vendor
+  Subcontractor
   Other
 }
 

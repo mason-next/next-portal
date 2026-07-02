@@ -23,6 +23,7 @@ interface SessionPayload extends JWTPayload {
   name: string;
   email: string;
   accountType?: string;
+  roleType?: string;
   // kept for backwards-compat: old sessions issued before the refactor carry `role`.
   role?: string;
 }
@@ -34,6 +35,7 @@ export async function signSession(user: SessionUser): Promise<string> {
     name: user.name,
     email: user.email,
     accountType: user.accountType,
+    roleType: user.roleType,
   })
     .setProtectedHeader({ alg: "HS256" })
     .setIssuedAt()
@@ -53,11 +55,15 @@ export async function verifySession(token: string): Promise<SessionUser | null> 
 
     if (!rawAccountType) return null;
 
+    // Default to "Other" for old sessions that predate roleType in the JWT.
+    const rawRoleType: string = payload.roleType ?? "Other";
+
     return {
       id: payload.id,
       name: payload.name,
       email: payload.email,
       accountType: rawAccountType as AccountType,
+      roleType: rawRoleType as import("@/types/user").RoleType,
     };
   } catch {
     return null;

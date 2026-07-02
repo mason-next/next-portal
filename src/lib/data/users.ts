@@ -45,6 +45,13 @@ const ROLE_TYPE_TO_DB: Record<RoleType, PrismaRoleType> = {
   Finance: PrismaRoleType.Finance,
   Executive: PrismaRoleType.Executive,
   Other: PrismaRoleType.Other,
+  // New values: Prisma client will have these after prisma generate runs post-migration.
+  // Cast to PrismaRoleType so the type checker is satisfied in the interim.
+  HR: "HR" as PrismaRoleType,
+  FieldTechnician: "FieldTechnician" as PrismaRoleType,
+  Customer: "Customer" as PrismaRoleType,
+  Vendor: "Vendor" as PrismaRoleType,
+  Subcontractor: "Subcontractor" as PrismaRoleType,
 };
 
 // ─── Type mapper ──────────────────────────────────────────────────────────────
