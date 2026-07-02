@@ -1,7 +1,7 @@
 "use server";
 
 import { requireAdmin } from "@/lib/access-control";
-import type { License, CreateLicenseInput } from "@/types/license";
+import type { License, CreateLicenseInput, LicenseAttachment } from "@/types/license";
 
 // The Prisma client doesn't know about the License model yet (not regenerated locally),
 // so we cast through `db` using the any pattern established elsewhere in the codebase.
@@ -17,6 +17,7 @@ type PrismaLicense = {
   renewalRequirements: string;
   status: string;
   notes: string;
+  attachments: unknown;
   createdAt: Date;
   updatedAt: Date;
 };
@@ -32,6 +33,14 @@ function licenseDb(): LicenseDb {
   return (db as unknown as { license: LicenseDb }).license;
 }
 
+function parseAttachments(raw: unknown): LicenseAttachment[] {
+  if (!Array.isArray(raw)) return [];
+  return raw.filter(
+    (a): a is LicenseAttachment =>
+      a && typeof a === "object" && typeof a.storedName === "string"
+  );
+}
+
 function toLicense(p: PrismaLicense): License {
   return {
     id: p.id,
@@ -43,6 +52,7 @@ function toLicense(p: PrismaLicense): License {
     renewalRequirements: p.renewalRequirements,
     status: p.status as License["status"],
     notes: p.notes,
+    attachments: parseAttachments(p.attachments),
     createdAt: p.createdAt.toISOString(),
     updatedAt: p.updatedAt.toISOString(),
   };

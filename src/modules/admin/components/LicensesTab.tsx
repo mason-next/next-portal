@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Modal } from "@/components/shared/Modal";
 import { Skeleton } from "@/components/shared/Skeleton";
@@ -13,6 +13,7 @@ import {
 import {
   LICENSE_STATUSES,
   type License,
+  type LicenseAttachment,
   type CreateLicenseInput,
   type LicenseStatus,
 } from "@/types/license";
@@ -82,6 +83,45 @@ function LicenseFormModal({
   );
   const [saving, setSaving] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  const [attachments, setAttachments] = useState<LicenseAttachment[]>(
+    license?.attachments ?? []
+  );
+  const [uploading, setUploading] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  async function handleUpload(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file || !license) return;
+    e.target.value = "";
+    setUploading(true);
+    try {
+      const fd = new FormData();
+      fd.append("file", file);
+      const res = await fetch(`/api/licenses/${license.id}/attachments`, {
+        method: "POST",
+        body: fd,
+      });
+      if (!res.ok) throw new Error(await res.text());
+      const added: LicenseAttachment = await res.json();
+      setAttachments((prev) => [...prev, added]);
+    } catch (err) {
+      console.error("Upload failed:", err);
+    } finally {
+      setUploading(false);
+    }
+  }
+
+  async function handleDeleteAttachment(storedName: string) {
+    if (!license) return;
+    try {
+      await fetch(`/api/licenses/${license.id}/attachments/${storedName}`, {
+        method: "DELETE",
+      });
+      setAttachments((prev) => prev.filter((a) => a.storedName !== storedName));
+    } catch (err) {
+      console.error("Delete attachment failed:", err);
+    }
+  }
 
   function set<K extends keyof CreateLicenseInput>(key: K, value: CreateLicenseInput[K]) {
     setForm((prev) => ({ ...prev, [key]: value }));
@@ -202,6 +242,59 @@ function LicenseFormModal({
             onChange={(e) => set("notes", e.target.value)}
           />
         </label>
+
+        {/* Attachments */}
+        <div>
+          <div className="mb-1.5 flex items-center justify-between">
+            <span className="text-xs font-semibold text-muted-foreground">Attachments</span>
+            {license && (
+              <button
+                type="button"
+                onClick={() => fileInputRef.current?.click()}
+                disabled={uploading}
+                className="text-xs text-primary hover:underline disabled:opacity-50"
+              >
+                {uploading ? "Uploading…" : "+ Upload file"}
+              </button>
+            )}
+          </div>
+          {!license ? (
+            <p className="text-xs text-muted-foreground">Save the license first, then add attachments.</p>
+          ) : attachments.length === 0 ? (
+            <p className="text-xs text-muted-foreground">No attachments yet.</p>
+          ) : (
+            <ul className="space-y-1">
+              {attachments.map((a) => (
+                <li
+                  key={a.storedName}
+                  className="flex items-center justify-between gap-2 rounded-md border bg-muted/30 px-3 py-1.5"
+                >
+                  <a
+                    href={`/api/licenses/${license.id}/attachments/${a.storedName}`}
+                    download={a.originalName}
+                    className="truncate text-xs text-primary hover:underline"
+                  >
+                    {a.originalName}
+                  </a>
+                  <button
+                    type="button"
+                    onClick={() => handleDeleteAttachment(a.storedName)}
+                    className="shrink-0 text-xs text-muted-foreground hover:text-destructive"
+                  >
+                    Remove
+                  </button>
+                </li>
+              ))}
+            </ul>
+          )}
+          <input
+            ref={fileInputRef}
+            type="file"
+            className="hidden"
+            accept=".pdf,.jpg,.jpeg,.png,.heic,.doc,.docx"
+            onChange={handleUpload}
+          />
+        </div>
       </div>
 
       <div className="mt-6 flex justify-end gap-2">
