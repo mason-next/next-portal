@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
@@ -12,6 +12,7 @@ import { useSession } from "@/lib/auth/client";
 import { getProjects } from "@/lib/data/projects";
 import { getWorkflowStepsForProjects } from "@/lib/data/workflow";
 import { NewProjectModal } from "@/components/shared/AppShell/NewProjectModal";
+import { BulkImportModal } from "@/components/shared/AppShell/BulkImportModal";
 import {
   calculateActualProgress,
   deriveProjectStatus,
@@ -126,6 +127,7 @@ export default function ProjectsPage() {
   const [projects, setProjects] = useState<Project[] | null>(null);
   const [stepsByProject, setStepsByProject] = useState<Record<string, WorkflowStep[]>>({});
   const [showNewProject, setShowNewProject] = useState(false);
+  const [showBulkImport, setShowBulkImport] = useState(false);
   const [viewMode, setViewMode] = useState<ViewMode>("list");
   const [pmFilter, setPmFilter] = useState("all");
   const [statusFilter, setStatusFilter] = useState("all");
@@ -138,16 +140,18 @@ export default function ProjectsPage() {
   }, []);
 
   // Performance: load projects + all their steps in 2 parallel queries instead of N+1.
-  // Re-fetches when the admin user filter changes.
-  useEffect(() => {
+  const loadProjects = useCallback(async () => {
     setProjects(null);
     const opts = isAdmin && adminFilterUserId ? { filterUserId: adminFilterUserId } : undefined;
-    getProjects(opts).then(async (loaded) => {
-      setProjects(loaded);
-      const byProject = await getWorkflowStepsForProjects(loaded.map((p) => p.id));
-      setStepsByProject(byProject);
-    });
+    const loaded = await getProjects(opts);
+    setProjects(loaded);
+    const byProject = await getWorkflowStepsForProjects(loaded.map((p) => p.id));
+    setStepsByProject(byProject);
   }, [adminFilterUserId, isAdmin]);
+
+  useEffect(() => {
+    loadProjects();
+  }, [loadProjects]);
 
   function changeViewMode(mode: ViewMode) {
     setViewMode(mode);
@@ -239,6 +243,11 @@ export default function ProjectsPage() {
               Kanban
             </button>
           </div>
+          {isAdmin && (
+            <Button variant="outline" size="sm" onClick={() => setShowBulkImport(true)}>
+              Bulk Import
+            </Button>
+          )}
           <Button onClick={() => setShowNewProject(true)} size="sm">New Project</Button>
         </div>
       </div>
@@ -373,6 +382,12 @@ export default function ProjectsPage() {
         <NewProjectModal
           onClose={() => setShowNewProject(false)}
           onCreated={(project) => router.push(`/projects/${project.id}`)}
+        />
+      ) : null}
+      {showBulkImport ? (
+        <BulkImportModal
+          onClose={() => setShowBulkImport(false)}
+          onDone={() => { setShowBulkImport(false); void loadProjects(); }}
         />
       ) : null}
     </div>
