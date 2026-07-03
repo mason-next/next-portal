@@ -4,64 +4,78 @@ import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/shared/Skeleton";
 import {
-  DEFAULT_PERMISSIONS,
-  PERMISSION_FEATURES,
-  PERMISSION_FEATURE_LABELS,
-  type PermissionsConfig,
-} from "@/lib/permissions";
-import {
-  DEFAULT_ROLE_MODULE_PERMISSIONS,
+  DEFAULT_ROLE_PERMISSIONS,
+  MODULE_KEYS,
   MODULE_LABELS,
+  PERM_LEVELS,
+  PERM_LEVEL_LABELS,
   type ModuleKey,
+  type ModulePermLevel,
+  type RolePermissionsConfig,
 } from "@/lib/module-permissions";
 import { ROLE_TYPES, ROLE_TYPE_LABELS, type RoleType } from "@/types/user";
 import { cn } from "@/lib/utils";
 
-const CONFIGURABLE_ACCOUNT_TYPES = ["Member", "Viewer"] as const;
-type ConfigurableType = (typeof CONFIGURABLE_ACCOUNT_TYPES)[number];
+// ─── Account Type explanation cards ───────────────────────────────────────────
 
-// Group modules by category (mirrors RolesTab)
-const MODULE_GROUPS: { label: string; modules: ModuleKey[] }[] = [
-  { label: "Platform", modules: ["dashboard", "reports", "tools"] },
+const ACCOUNT_TYPE_INFO = [
   {
-    label: "Operations / Project Management",
-    modules: ["projects", "tasks", "schedule", "rfis", "submittals", "closeout"],
+    type: "Viewer",
+    color: "bg-muted/50 border-muted-foreground/20",
+    badge: "bg-muted text-muted-foreground",
+    description: "Can see content they have access to. Cannot create, edit, or delete anything.",
   },
   {
-    label: "Sales",
-    modules: ["crm", "opportunities", "quotes", "customers", "salesPulse"],
+    type: "Member",
+    color: "bg-blue-50 border-blue-200 dark:bg-blue-900/10 dark:border-blue-800/30",
+    badge: "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300",
+    description: "Can see and edit items they own or are assigned to. Access is shaped by their Role.",
   },
   {
-    label: "Engineering",
-    modules: ["designQueue", "drawings", "technicalReviews", "equipmentLists", "programming", "commissioning"],
-  },
-  {
-    label: "Finance",
-    modules: ["billing", "invoices", "purchaseOrders", "commissions", "jobCost", "profitability"],
+    type: "Administrator",
+    color: "bg-primary/5 border-primary/20",
+    badge: "bg-primary/10 text-primary",
+    description: "Full access to everything on the platform. Overrides all Role permissions.",
   },
 ];
 
+// ─── Level button colors ───────────────────────────────────────────────────────
+
+const LEVEL_STYLES: Record<ModulePermLevel, { active: string; idle: string }> = {
+  none:          { active: "bg-muted text-foreground border-border",                                idle: "hover:bg-muted/50" },
+  viewer:        { active: "bg-sky-100 text-sky-700 border-sky-300 dark:bg-sky-900/30 dark:text-sky-300 dark:border-sky-700",   idle: "hover:bg-sky-50 dark:hover:bg-sky-900/10" },
+  member:        { active: "bg-emerald-100 text-emerald-700 border-emerald-300 dark:bg-emerald-900/30 dark:text-emerald-300 dark:border-emerald-700", idle: "hover:bg-emerald-50 dark:hover:bg-emerald-900/10" },
+  administrator: { active: "bg-primary/10 text-primary border-primary/30",                         idle: "hover:bg-primary/5" },
+};
+
+// ─── Main component ───────────────────────────────────────────────────────────
+
 export function PermissionsTab() {
-  const [config, setConfig] = useState<PermissionsConfig | null>(null);
+  const [config, setConfig] = useState<RolePermissionsConfig | null>(null);
+  const [selectedRole, setSelectedRole] = useState<RoleType>("Sales");
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
-  const [selectedRole, setSelectedRole] = useState<RoleType>("ProjectManager");
 
   useEffect(() => {
-    fetch("/api/admin/permissions")
+    fetch("/api/admin/role-permissions")
       .then((r) => r.json())
-      .then(setConfig);
+      .then((data: RolePermissionsConfig) => {
+        // Merge defaults with loaded config so all roles/modules have a value
+        const merged: RolePermissionsConfig = {};
+        for (const role of ROLE_TYPES) {
+          merged[role] = { ...DEFAULT_ROLE_PERMISSIONS[role as string], ...(data[role] ?? {}) } as Record<ModuleKey, ModulePermLevel>;
+        }
+        setConfig(merged);
+      })
+      .catch(() => setConfig({ ...DEFAULT_ROLE_PERMISSIONS } as RolePermissionsConfig));
   }, []);
 
-  function toggle(accountType: ConfigurableType, feature: (typeof PERMISSION_FEATURES)[number]) {
+  function setLevel(role: RoleType, module: ModuleKey, level: ModulePermLevel) {
     setConfig((prev) => {
       if (!prev) return prev;
       return {
         ...prev,
-        [accountType]: {
-          ...prev[accountType],
-          [feature]: !prev[accountType][feature],
-        },
+        [role]: { ...prev[role], [module]: level },
       };
     });
     setSaved(false);
@@ -70,31 +84,53 @@ export function PermissionsTab() {
   async function handleSave() {
     if (!config) return;
     setSaving(true);
-    await fetch("/api/admin/permissions", {
-      method: "PUT",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(config),
-    });
-    setSaving(false);
-    setSaved(true);
+    try {
+      await fetch("/api/admin/role-permissions", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(config),
+      });
+      setSaved(true);
+    } finally {
+      setSaving(false);
+    }
   }
 
   function handleReset() {
-    setConfig(DEFAULT_PERMISSIONS);
+    setConfig({ ...DEFAULT_ROLE_PERMISSIONS } as RolePermissionsConfig);
     setSaved(false);
   }
 
-  const rolePerms = DEFAULT_ROLE_MODULE_PERMISSIONS[selectedRole];
+  const rolePerms = config?.[selectedRole];
 
   return (
     <div className="space-y-10">
-      {/* ── Section 1: Nav Access by Account Type ── */}
+
+      {/* ── Section 1: Account Type explanation ── */}
+      <section>
+        <h2 className="mb-1 text-lg font-semibold tracking-tight">Account Types</h2>
+        <p className="mb-4 text-sm text-muted-foreground">
+          Account Type is the broad access cap. Administrators always have full access regardless of Role.
+        </p>
+        <div className="grid gap-3 sm:grid-cols-3">
+          {ACCOUNT_TYPE_INFO.map(({ type, color, badge, description }) => (
+            <div key={type} className={cn("rounded-xl border p-4", color)}>
+              <span className={cn("mb-2 inline-flex rounded-full px-2.5 py-0.5 text-xs font-semibold", badge)}>
+                {type}
+              </span>
+              <p className="mt-2 text-sm text-foreground/80">{description}</p>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      {/* ── Section 2: Role permissions matrix ── */}
       <section>
         <div className="mb-4 flex items-center justify-between">
           <div>
-            <h2 className="text-lg font-semibold tracking-tight">Nav Access by Account Type</h2>
+            <h2 className="text-lg font-semibold tracking-tight">Role Permissions</h2>
             <p className="mt-0.5 text-sm text-muted-foreground">
-              Control which sections each account type can access. Administrators always have full access.
+              Configure what each Role can do per feature. Account Type caps take precedence.
             </p>
           </div>
           <div className="flex items-center gap-2">
@@ -111,92 +147,8 @@ export function PermissionsTab() {
           </div>
         </div>
 
-        {!config ? (
-          <div className="rounded-xl border bg-card divide-y">
-            {[1, 2, 3, 4, 5, 6].map((i) => (
-              <div key={i} className="flex items-center gap-4 px-5 py-4">
-                <Skeleton className="h-4 w-40" />
-                <div className="ml-auto flex gap-12">
-                  <Skeleton className="h-5 w-10 rounded-full" />
-                  <Skeleton className="h-5 w-10 rounded-full" />
-                </div>
-              </div>
-            ))}
-          </div>
-        ) : (
-          <div className="rounded-xl border bg-card overflow-hidden">
-            {/* Header row */}
-            <div className="flex items-center gap-4 px-5 py-3 border-b bg-muted/30">
-              <div className="flex-1 text-xs font-semibold text-muted-foreground uppercase tracking-wide">
-                Feature / Section
-              </div>
-              {CONFIGURABLE_ACCOUNT_TYPES.map((t) => (
-                <div key={t} className="w-24 text-center text-xs font-semibold text-muted-foreground uppercase tracking-wide">
-                  {t}
-                </div>
-              ))}
-              <div className="w-24 text-center text-xs font-semibold text-muted-foreground uppercase tracking-wide">
-                Admin
-              </div>
-            </div>
-
-            {/* Feature rows */}
-            {PERMISSION_FEATURES.map((feature) => (
-              <div
-                key={feature}
-                className="flex items-center gap-4 px-5 py-3.5 border-b last:border-0 hover:bg-accent/30 transition-colors"
-              >
-                <div className="flex-1 text-sm font-medium">
-                  {PERMISSION_FEATURE_LABELS[feature]}
-                </div>
-                {CONFIGURABLE_ACCOUNT_TYPES.map((accountType) => (
-                  <div key={accountType} className="w-24 flex justify-center">
-                    <button
-                      type="button"
-                      onClick={() => toggle(accountType, feature)}
-                      aria-label={`Toggle ${feature} for ${accountType}`}
-                      className={cn(
-                        "relative inline-flex h-5 w-9 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-1",
-                        config[accountType][feature] ? "bg-primary" : "bg-muted-foreground/30"
-                      )}
-                    >
-                      <span
-                        className={cn(
-                          "inline-block h-3.5 w-3.5 transform rounded-full bg-white shadow transition-transform",
-                          config[accountType][feature] ? "translate-x-[18px]" : "translate-x-0.5"
-                        )}
-                      />
-                    </button>
-                  </div>
-                ))}
-                {/* Admin always on */}
-                <div className="w-24 flex justify-center">
-                  <span className="inline-flex h-5 w-9 items-center rounded-full bg-primary/30 cursor-not-allowed">
-                    <span className="inline-block h-3.5 w-3.5 translate-x-[18px] transform rounded-full bg-primary/60 shadow" />
-                  </span>
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
-
-        <p className="mt-3 text-xs text-muted-foreground">
-          Changes take effect on the user&apos;s next page load. Navigation items are hidden for restricted account types.
-        </p>
-      </section>
-
-      {/* ── Section 2: Module Permissions by Role ── */}
-      <section>
-        <div className="mb-4">
-          <h2 className="text-lg font-semibold tracking-tight">Module Permissions by Role</h2>
-          <p className="mt-0.5 text-sm text-muted-foreground">
-            Default module permissions for each Role Type. Account Type caps what actions are
-            effective: Administrators get full access; Viewers are capped to view + comment only.
-          </p>
-        </div>
-
-        {/* Role selector */}
-        <div className="mb-4 flex flex-wrap gap-2">
+        {/* Role tabs */}
+        <div className="mb-4 flex flex-wrap gap-1.5">
           {ROLE_TYPES.map((role) => (
             <button
               key={role}
@@ -214,56 +166,69 @@ export function PermissionsTab() {
           ))}
         </div>
 
-        {/* Module permission table for selected role */}
-        <div className="space-y-4">
-          {MODULE_GROUPS.map(({ label, modules }) => {
-            const groupModules = modules.filter((m) => rolePerms[m] && rolePerms[m]!.length > 0);
-            if (groupModules.length === 0) return null;
-            return (
-              <div key={label} className="overflow-hidden rounded-lg border">
-                <div className="border-b bg-muted/40 px-4 py-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                  {label}
+        {/* Module × level matrix */}
+        {!config ? (
+          <div className="space-y-2">
+            {[1, 2, 3, 4, 5].map((i) => (
+              <Skeleton key={i} className="h-12 rounded-lg" />
+            ))}
+          </div>
+        ) : (
+          <div className="overflow-hidden rounded-xl border bg-card">
+            {/* Header */}
+            <div className="grid grid-cols-[1fr_repeat(4,auto)] items-center gap-2 border-b bg-muted/30 px-5 py-2.5">
+              <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                Feature / Module
+              </span>
+              {PERM_LEVELS.map((lvl) => (
+                <span
+                  key={lvl}
+                  className="w-24 text-center text-xs font-semibold uppercase tracking-wide text-muted-foreground"
+                >
+                  {PERM_LEVEL_LABELS[lvl]}
+                </span>
+              ))}
+            </div>
+
+            {MODULE_KEYS.map((mod) => {
+              const current: ModulePermLevel = (rolePerms?.[mod] ?? "none") as ModulePermLevel;
+              return (
+                <div
+                  key={mod}
+                  className="grid grid-cols-[1fr_repeat(4,auto)] items-center gap-2 border-b px-5 py-3 last:border-0 hover:bg-accent/30 transition-colors"
+                >
+                  <span className="text-sm font-medium">{MODULE_LABELS[mod]}</span>
+                  {PERM_LEVELS.map((lvl) => {
+                    const isActive = current === lvl;
+                    return (
+                      <div key={lvl} className="flex w-24 justify-center">
+                        <button
+                          type="button"
+                          onClick={() => setLevel(selectedRole, mod, lvl)}
+                          className={cn(
+                            "rounded-md border px-3 py-1 text-xs font-medium transition-colors",
+                            isActive
+                              ? LEVEL_STYLES[lvl].active
+                              : cn("border-transparent text-muted-foreground", LEVEL_STYLES[lvl].idle)
+                          )}
+                        >
+                          {PERM_LEVEL_LABELS[lvl]}
+                        </button>
+                      </div>
+                    );
+                  })}
                 </div>
-                <table className="w-full text-sm">
-                  <tbody>
-                    {groupModules.map((mod) => {
-                      const actions = rolePerms[mod] ?? [];
-                      return (
-                        <tr key={mod} className="border-b last:border-0 hover:bg-muted/10">
-                          <td className="px-4 py-3 font-medium">{MODULE_LABELS[mod]}</td>
-                          <td className="px-4 py-3">
-                            <div className="flex flex-wrap gap-1.5">
-                              {actions.map((action) => (
-                                <span
-                                  key={action}
-                                  className="inline-flex items-center rounded-md bg-primary/10 px-2 py-0.5 text-xs font-medium text-primary"
-                                >
-                                  {action}
-                                </span>
-                              ))}
-                            </div>
-                          </td>
-                        </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
-              </div>
-            );
-          })}
+              );
+            })}
+          </div>
+        )}
 
-          {Object.values(rolePerms).every((v) => !v || v.length === 0) && (
-            <p className="text-sm text-muted-foreground">
-              No module permissions defined for this role.
-            </p>
-          )}
-        </div>
-
-        <div className="mt-4 rounded-lg border border-blue-200 bg-blue-50 p-4 text-sm text-blue-800 dark:border-blue-800/30 dark:bg-blue-900/10 dark:text-blue-300">
-          <strong>How it works:</strong> Role Type sets which modules a user can access and what
-          actions they can take. Account Type caps those permissions — Administrators always get
-          full access, Viewers are always limited to view + comment regardless of Role Type.
-        </div>
+        <p className="mt-3 text-xs text-muted-foreground">
+          <strong>None</strong> — no access.&nbsp;
+          <strong>Viewer</strong> — read + comment.&nbsp;
+          <strong>Member</strong> — full use of the feature.&nbsp;
+          <strong>Administrator</strong> — full use + manage settings.
+        </p>
       </section>
     </div>
   );

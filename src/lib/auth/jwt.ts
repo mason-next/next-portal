@@ -55,8 +55,8 @@ export async function verifySession(token: string): Promise<SessionUser | null> 
 
     if (!rawAccountType) return null;
 
-    // Default to "Other" for old sessions that predate roleType in the JWT.
-    const rawRoleType: string = payload.roleType ?? "Other";
+    // Default to "Management" for old sessions that predate roleType in the JWT.
+    const rawRoleType: string = payload.roleType ?? "Management";
 
     return {
       id: payload.id,

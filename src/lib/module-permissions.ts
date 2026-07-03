@@ -1,21 +1,40 @@
 import type { AccountType, RoleType } from "@/types/user";
 
-// ─── Module & Action definitions ─────────────────────────────────────────────
+// ─── Module definitions ───────────────────────────────────────────────────────
 
 export const MODULE_KEYS = [
-  // Platform
-  "dashboard", "reports", "tools",
-  // Operations / PM
-  "projects", "tasks", "schedule", "rfis", "submittals", "closeout",
-  // Sales
-  "crm", "opportunities", "quotes", "customers", "salesPulse",
-  // Engineering
-  "designQueue", "drawings", "technicalReviews", "equipmentLists", "programming", "commissioning",
-  // Finance
-  "billing", "invoices", "purchaseOrders", "commissions", "jobCost", "profitability",
+  "dashboard",
+  "projects",
+  "tasks",
+  "bom",
+  "serviceCalculator",
+  "activity",
+  "users",
+  "subcontractors",
+  "templates",
+  "licenses",
+  "adminSettings",
+  "permissions",
 ] as const;
 
 export type ModuleKey = (typeof MODULE_KEYS)[number];
+
+export const MODULE_LABELS: Record<ModuleKey, string> = {
+  dashboard:         "Dashboard",
+  projects:          "Projects",
+  tasks:             "Tasks",
+  bom:               "BOM",
+  serviceCalculator: "Service Calculator",
+  activity:          "Activity / Comments",
+  users:             "Users",
+  subcontractors:    "Subcontractors",
+  templates:         "Templates",
+  licenses:          "Licenses",
+  adminSettings:     "Admin Settings",
+  permissions:       "Permissions",
+};
+
+// ─── Action definitions (for enforcement) ─────────────────────────────────────
 
 export const MODULE_ACTIONS = [
   "view", "create", "edit", "delete", "comment",
@@ -24,192 +43,119 @@ export const MODULE_ACTIONS = [
 
 export type ModuleAction = (typeof MODULE_ACTIONS)[number];
 
-export const MODULE_LABELS: Record<ModuleKey, string> = {
-  dashboard: "Dashboard",
-  reports: "Reports",
-  tools: "Tools & Process",
-  projects: "Projects",
-  tasks: "Tasks",
-  schedule: "Schedule",
-  rfis: "RFIs",
-  submittals: "Submittals",
-  closeout: "Closeout",
-  crm: "CRM",
-  opportunities: "Opportunities",
-  quotes: "Quotes",
-  customers: "Customers",
-  salesPulse: "Sales Pulse",
-  designQueue: "Design Queue",
-  drawings: "Drawings",
-  technicalReviews: "Technical Reviews",
-  equipmentLists: "Equipment Lists",
-  programming: "Programming",
-  commissioning: "Commissioning",
-  billing: "Billing",
-  invoices: "Invoices",
-  purchaseOrders: "Purchase Orders",
-  commissions: "Commissions",
-  jobCost: "Job Cost",
-  profitability: "Profitability",
+// ─── Permission level ─────────────────────────────────────────────────────────
+
+export type ModulePermLevel = "none" | "viewer" | "member" | "administrator";
+
+export const PERM_LEVELS: ModulePermLevel[] = ["none", "viewer", "member", "administrator"];
+
+export const PERM_LEVEL_LABELS: Record<ModulePermLevel, string> = {
+  none:          "None",
+  viewer:        "Viewer",
+  member:        "Member",
+  administrator: "Administrator",
 };
 
-// ─── Default permissions by role ─────────────────────────────────────────────
+export type RolePermissionsConfig = Record<string, Record<ModuleKey, ModulePermLevel>>;
 
-type RolePerms = Partial<Record<ModuleKey, ModuleAction[]>>;
+// ─── Default permissions by role ──────────────────────────────────────────────
 
-export const DEFAULT_ROLE_MODULE_PERMISSIONS: Record<RoleType, RolePerms> = {
-  Executive: {
-    dashboard: ["view", "export"],
-    reports: ["view", "export"],
-    tools: ["view"],
-    projects: ["view", "comment", "export"],
-    tasks: ["view", "comment"],
-    schedule: ["view"],
-    rfis: ["view", "comment"],
-    submittals: ["view", "comment"],
-    closeout: ["view", "comment"],
-    crm: ["view", "export"],
-    opportunities: ["view", "comment", "export"],
-    quotes: ["view", "approve", "export"],
-    customers: ["view", "comment"],
-    salesPulse: ["view", "export"],
-    designQueue: ["view"],
-    drawings: ["view"],
-    technicalReviews: ["view", "approve"],
-    equipmentLists: ["view"],
-    programming: ["view"],
-    commissioning: ["view", "approve"],
-    billing: ["view", "approve", "export"],
-    invoices: ["view", "approve", "export"],
-    purchaseOrders: ["view", "approve"],
-    commissions: ["view", "approve", "export"],
-    jobCost: ["view", "export"],
-    profitability: ["view", "export"],
+export const DEFAULT_ROLE_PERMISSIONS: RolePermissionsConfig = {
+  Sales: {
+    dashboard: "member", projects: "viewer", tasks: "member",
+    bom: "viewer", serviceCalculator: "member", activity: "member",
+    users: "none", subcontractors: "none", templates: "viewer",
+    licenses: "none", adminSettings: "none", permissions: "none",
   },
-  Salesperson: {
-    dashboard: ["view"],
-    reports: ["view", "export"],
-    tools: ["view"],
-    crm: ["view", "create", "edit", "comment"],
-    opportunities: ["view", "create", "edit", "comment", "assign"],
-    quotes: ["view", "create", "edit", "approve"],
-    customers: ["view", "create", "edit", "comment"],
-    salesPulse: ["view", "comment"],
+  Engineering: {
+    dashboard: "member", projects: "member", tasks: "member",
+    bom: "member", serviceCalculator: "member", activity: "member",
+    users: "none", subcontractors: "none", templates: "viewer",
+    licenses: "none", adminSettings: "none", permissions: "none",
   },
-  Engineer: {
-    dashboard: ["view"],
-    reports: ["view"],
-    projects: ["view", "comment"],
-    tasks: ["view", "create", "edit", "comment", "assign"],
-    designQueue: ["view", "create", "edit", "assign", "comment"],
-    drawings: ["view", "upload", "edit", "comment"],
-    technicalReviews: ["view", "create", "edit", "approve", "comment"],
-    equipmentLists: ["view", "create", "edit", "comment"],
-    programming: ["view", "create", "edit", "comment"],
-    commissioning: ["view", "create", "edit", "approve", "comment"],
+  ProjectManagement: {
+    dashboard: "member", projects: "administrator", tasks: "member",
+    bom: "member", serviceCalculator: "viewer", activity: "member",
+    users: "viewer", subcontractors: "member", templates: "viewer",
+    licenses: "viewer", adminSettings: "none", permissions: "none",
   },
-  ProjectManager: {
-    dashboard: ["view"],
-    reports: ["view", "export"],
-    tools: ["view"],
-    projects: ["view", "create", "edit", "assign", "comment"],
-    tasks: ["view", "create", "edit", "assign", "comment"],
-    schedule: ["view", "create", "edit", "comment"],
-    rfis: ["view", "create", "edit", "comment"],
-    submittals: ["view", "create", "edit", "approve", "comment"],
-    closeout: ["view", "create", "edit", "upload", "comment"],
-    equipmentLists: ["view", "comment"],
+  Management: {
+    dashboard: "administrator", projects: "administrator", tasks: "member",
+    bom: "viewer", serviceCalculator: "viewer", activity: "member",
+    users: "member", subcontractors: "member", templates: "member",
+    licenses: "member", adminSettings: "none", permissions: "none",
   },
-  Operations: {
-    dashboard: ["view"],
-    reports: ["view"],
-    projects: ["view", "edit", "comment"],
-    tasks: ["view", "create", "edit", "assign", "comment"],
-    schedule: ["view", "create", "edit"],
-    equipmentLists: ["view", "edit"],
-    tools: ["view"],
+  Installation: {
+    dashboard: "viewer", projects: "viewer", tasks: "member",
+    bom: "viewer", serviceCalculator: "none", activity: "member",
+    users: "none", subcontractors: "none", templates: "viewer",
+    licenses: "none", adminSettings: "none", permissions: "none",
   },
   Finance: {
-    dashboard: ["view"],
-    reports: ["view", "export"],
-    billing: ["view", "create", "edit", "approve"],
-    invoices: ["view", "create", "edit", "approve", "export"],
-    purchaseOrders: ["view", "create", "edit", "approve"],
-    commissions: ["view", "create", "edit", "approve"],
-    jobCost: ["view", "edit", "export"],
-    profitability: ["view", "export"],
-    projects: ["view"],
-  },
-  HR: {
-    dashboard: ["view"],
-    reports: ["view"],
-  },
-  Technician: {
-    dashboard: ["view"],
-    projects: ["view", "comment"],
-    tasks: ["view", "create", "edit", "comment"],
-    programming: ["view", "create", "edit", "comment"],
-    commissioning: ["view", "create", "edit", "comment"],
-  },
-  FieldTechnician: {
-    dashboard: ["view"],
-    projects: ["view", "comment"],
-    tasks: ["view", "create", "edit", "comment"],
-    programming: ["view", "create", "edit", "comment"],
-    commissioning: ["view", "create", "edit", "comment"],
+    dashboard: "viewer", projects: "viewer", tasks: "viewer",
+    bom: "viewer", serviceCalculator: "none", activity: "viewer",
+    users: "none", subcontractors: "none", templates: "none",
+    licenses: "viewer", adminSettings: "none", permissions: "none",
   },
   Customer: {
-    dashboard: ["view"],
-    projects: ["view", "comment"],
-    reports: ["view"],
-    submittals: ["view", "comment"],
-  },
-  Vendor: {
-    dashboard: ["view"],
-    projects: ["view"],
-    equipmentLists: ["view"],
+    dashboard: "viewer", projects: "viewer", tasks: "viewer",
+    bom: "none", serviceCalculator: "none", activity: "viewer",
+    users: "none", subcontractors: "none", templates: "none",
+    licenses: "none", adminSettings: "none", permissions: "none",
   },
   Subcontractor: {
-    dashboard: ["view"],
-    projects: ["view", "comment"],
-    tasks: ["view", "comment"],
-    schedule: ["view"],
-  },
-  Other: {
-    dashboard: ["view"],
-    projects: ["view", "comment"],
-    tasks: ["view", "comment"],
+    dashboard: "viewer", projects: "viewer", tasks: "viewer",
+    bom: "none", serviceCalculator: "none", activity: "viewer",
+    users: "none", subcontractors: "none", templates: "none",
+    licenses: "none", adminSettings: "none", permissions: "none",
   },
 };
 
-// ─── Permission resolution ────────────────────────────────────────────────────
+// ─── Resolution helpers ───────────────────────────────────────────────────────
 
-// Viewer account type caps all permissions to view + comment only.
-const VIEWER_ALLOWED_ACTIONS = new Set<ModuleAction>(["view", "comment"]);
+export function levelToActions(level: ModulePermLevel): ModuleAction[] {
+  switch (level) {
+    case "none":          return [];
+    case "viewer":        return ["view", "comment"];
+    case "member":        return ["view", "create", "edit", "comment", "upload", "assign"];
+    case "administrator": return [...MODULE_ACTIONS];
+  }
+}
+
+export function getEffectiveLevel(
+  accountType: AccountType,
+  roleType: RoleType,
+  module: ModuleKey,
+  config?: RolePermissionsConfig
+): ModulePermLevel {
+  if (accountType === "Administrator") return "administrator";
+
+  const perms = (config ?? DEFAULT_ROLE_PERMISSIONS)[roleType as string];
+  const roleLevel: ModulePermLevel = perms?.[module] ?? "none";
+
+  if (accountType === "Viewer") {
+    // Viewer cap: never exceed viewer
+    if (roleLevel === "administrator" || roleLevel === "member") return "viewer";
+  }
+
+  return roleLevel;
+}
 
 export function getEffectivePermissions(
   accountType: AccountType,
   roleType: RoleType,
-  module: ModuleKey
+  module: ModuleKey,
+  config?: RolePermissionsConfig
 ): ModuleAction[] {
-  // Administrators get all actions on all modules
-  if (accountType === "Administrator") return [...MODULE_ACTIONS];
-
-  const rolePerms = DEFAULT_ROLE_MODULE_PERMISSIONS[roleType]?.[module] ?? [];
-
-  // Viewer cap: strip anything not in the allowed set
-  if (accountType === "Viewer") {
-    return rolePerms.filter((a) => VIEWER_ALLOWED_ACTIONS.has(a));
-  }
-
-  return rolePerms;
+  return levelToActions(getEffectiveLevel(accountType, roleType, module, config));
 }
 
 export function hasModulePermission(
   accountType: AccountType,
   roleType: RoleType,
   module: ModuleKey,
-  action: ModuleAction
+  action: ModuleAction,
+  config?: RolePermissionsConfig
 ): boolean {
-  return getEffectivePermissions(accountType, roleType, module).includes(action);
+  return getEffectivePermissions(accountType, roleType, module, config).includes(action);
 }

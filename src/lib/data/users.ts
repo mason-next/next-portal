@@ -29,22 +29,29 @@ const ACCOUNT_TYPE_TO_DB: Record<AccountType, PrismaAccountType> = {
 };
 
 // String-keyed maps avoid Record<PrismaRoleType, ...> exhaustiveness errors when
-// the local Prisma client is behind the schema (new enum values won't exist in the
-// generated client until after `prisma generate` runs post-migration on Railway).
+// the local Prisma client is behind the schema. Includes both current and legacy
+// values so old DB rows are still handled gracefully after migration.
 const ROLE_TYPE_BY_STRING: Record<string, RoleType> = {
-  Engineer: "Engineer",
-  Salesperson: "Salesperson",
-  ProjectManager: "ProjectManager",
-  Technician: "Technician",
-  Operations: "Operations",
+  // Current values
+  Sales: "Sales",
+  Engineering: "Engineering",
+  ProjectManagement: "ProjectManagement",
+  Management: "Management",
+  Installation: "Installation",
   Finance: "Finance",
-  Executive: "Executive",
-  Other: "Other",
-  HR: "HR",
-  FieldTechnician: "FieldTechnician",
   Customer: "Customer",
-  Vendor: "Vendor",
   Subcontractor: "Subcontractor",
+  // Legacy → current mappings (post-migration fallback)
+  Engineer: "Engineering",
+  Salesperson: "Sales",
+  ProjectManager: "ProjectManagement",
+  Technician: "Installation",
+  Operations: "Management",
+  Executive: "Management",
+  HR: "Management",
+  FieldTechnician: "Installation",
+  Vendor: "Subcontractor",
+  Other: "Management",
 };
 
 function fromDbRoleType(r: PrismaRoleType): RoleType {
@@ -83,11 +90,8 @@ function toCert(c: { id: string; userId: string; name: string; issuingOrg: strin
 
 function toAppUser(p: PrismaUserWithCerts): AppUser {
   const pAny = p as unknown as {
-    department?: string;
     location?: string;
-    region?: string;
     emergencyContact?: string;
-    adminNotes?: string;
   };
   return {
     id: p.id,
@@ -99,11 +103,8 @@ function toAppUser(p: PrismaUserWithCerts): AppUser {
     accountType: ACCOUNT_TYPE_FROM_DB[p.accountType] ?? "Member",
     roleType: fromDbRoleType(p.roleType),
     isActive: p.isActive,
-    department: pAny.department ?? "",
     location: pAny.location ?? "",
-    region: pAny.region ?? "",
     emergencyContact: pAny.emergencyContact ?? "",
-    adminNotes: pAny.adminNotes ?? "",
     certifications: (p.certifications ?? []).map(toCert),
     createdAt: p.createdAt.toISOString(),
     updatedAt: p.updatedAt.toISOString(),
@@ -142,11 +143,8 @@ export async function createUser(input: NewUserInput): Promise<AppUser> {
       accountType: ACCOUNT_TYPE_TO_DB[input.accountType],
       roleType: toDbRoleType(input.roleType),
       isActive: input.isActive,
-      department: input.department ?? "",
       location: input.location ?? "",
-      region: input.region ?? "",
       emergencyContact: input.emergencyContact ?? "",
-      adminNotes: input.adminNotes ?? "",
     },
     include: { certifications: true },
   });
@@ -163,11 +161,8 @@ export async function updateUser(id: string, patch: Partial<AppUser>): Promise<A
   if ("accountType" in patch && patch.accountType) data.accountType = ACCOUNT_TYPE_TO_DB[patch.accountType];
   if ("roleType" in patch && patch.roleType)       data.roleType = toDbRoleType(patch.roleType);
   if ("isActive" in patch)         data.isActive = patch.isActive;
-  if ("department" in patch)       data.department = patch.department ?? "";
   if ("location" in patch)         data.location = patch.location ?? "";
-  if ("region" in patch)           data.region = patch.region ?? "";
   if ("emergencyContact" in patch) data.emergencyContact = patch.emergencyContact ?? "";
-  if ("adminNotes" in patch)       data.adminNotes = patch.adminNotes ?? "";
 
   const row = await (db.user.update as (args: unknown) => Promise<PrismaUserWithCerts>)({
     where: { id },

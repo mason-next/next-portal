@@ -301,8 +301,12 @@ function TasksTab({
     );
   }
 
-  // Group implementation tasks by project
-  const byProject = tasks.reduce<Record<string, { name: string; tasks: ApiTask[] }>>(
+  // Split personal tasks from project tasks
+  const personalTasks = tasks.filter((t) => t.project.id === "personal");
+  const projectTasks  = tasks.filter((t) => t.project.id !== "personal");
+
+  // Group project tasks by project
+  const byProject = projectTasks.reduce<Record<string, { name: string; tasks: ApiTask[] }>>(
     (acc, t) => {
       const key = t.project.id;
       if (!acc[key]) acc[key] = { name: t.project.name, tasks: [] };
@@ -323,11 +327,30 @@ function TasksTab({
     {}
   );
 
-  // Merge all project IDs preserving order
   const allProjectIds = [...new Set([...Object.keys(byProject), ...Object.keys(stepsByProject)])];
 
   return (
     <div className="space-y-5">
+      {/* Personal tasks — always first, distinct indigo header */}
+      {personalTasks.length > 0 && (
+        <div className="rounded-xl border border-indigo-200 bg-card shadow-sm overflow-hidden dark:border-indigo-800/40">
+          <div className="flex items-center justify-between px-5 py-3 border-b border-indigo-200 bg-indigo-50 dark:border-indigo-800/40 dark:bg-indigo-950/30">
+            <span className="text-sm font-semibold text-indigo-800 dark:text-indigo-300">
+              Personal Tasks
+            </span>
+            <span className="text-xs text-indigo-600 dark:text-indigo-400">
+              {personalTasks.length} item{personalTasks.length !== 1 ? "s" : ""}
+            </span>
+          </div>
+          <div className="divide-y">
+            {personalTasks.map((task) => (
+              <TaskRow key={task.id} task={task} showAssignee={showAssignee} />
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Project task groups */}
       {allProjectIds.map((projectId) => {
         const taskGroup = byProject[projectId];
         const stepGroup = stepsByProject[projectId];

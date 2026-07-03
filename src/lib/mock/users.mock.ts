@@ -3,18 +3,12 @@ import type { AppUser, UserCertification } from "@/types/user";
 const SEEDED_AT = "2026-01-01T00:00:00.000Z";
 
 const DEFAULTS: {
-  department: string;
   location: string;
-  region: string;
   emergencyContact: string;
-  adminNotes: string;
   certifications: UserCertification[];
 } = {
-  department: "",
   location: "",
-  region: "",
   emergencyContact: "",
-  adminNotes: "",
   certifications: [],
 };
 
@@ -28,7 +22,7 @@ export const SAMPLE_USERS: AppUser[] = [
     phone: "(555) 201-4471",
     avatarUrl: null,
     accountType: "Member",
-    roleType: "ProjectManager",
+    roleType: "ProjectManagement",
     isActive: true,
     createdAt: SEEDED_AT,
     updatedAt: SEEDED_AT,
@@ -42,7 +36,7 @@ export const SAMPLE_USERS: AppUser[] = [
     phone: "(555) 201-7732",
     avatarUrl: null,
     accountType: "Member",
-    roleType: "Salesperson",
+    roleType: "Sales",
     isActive: true,
     createdAt: SEEDED_AT,
     updatedAt: SEEDED_AT,
@@ -56,7 +50,7 @@ export const SAMPLE_USERS: AppUser[] = [
     phone: "(555) 201-9015",
     avatarUrl: null,
     accountType: "Member",
-    roleType: "Engineer",
+    roleType: "Engineering",
     isActive: true,
     createdAt: SEEDED_AT,
     updatedAt: SEEDED_AT,
@@ -70,7 +64,7 @@ export const SAMPLE_USERS: AppUser[] = [
     phone: "(555) 201-3360",
     avatarUrl: null,
     accountType: "Member",
-    roleType: "Technician",
+    roleType: "Installation",
     isActive: true,
     createdAt: SEEDED_AT,
     updatedAt: SEEDED_AT,
@@ -84,7 +78,7 @@ export const SAMPLE_USERS: AppUser[] = [
     phone: "(555) 201-1100",
     avatarUrl: null,
     accountType: "Administrator",
-    roleType: "Executive",
+    roleType: "Management",
     isActive: true,
     createdAt: SEEDED_AT,
     updatedAt: SEEDED_AT,
@@ -98,7 +92,7 @@ export const SAMPLE_USERS: AppUser[] = [
     phone: "(555) 201-5588",
     avatarUrl: null,
     accountType: "Member",
-    roleType: "ProjectManager",
+    roleType: "ProjectManagement",
     isActive: true,
     createdAt: SEEDED_AT,
     updatedAt: SEEDED_AT,
@@ -112,7 +106,7 @@ export const SAMPLE_USERS: AppUser[] = [
     phone: "(555) 201-6694",
     avatarUrl: null,
     accountType: "Member",
-    roleType: "ProjectManager",
+    roleType: "ProjectManagement",
     isActive: true,
     createdAt: SEEDED_AT,
     updatedAt: SEEDED_AT,

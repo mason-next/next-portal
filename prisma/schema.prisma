@@ -18,18 +18,25 @@ enum AccountType {
 
 // Controls functional group / reporting / filtering — not permissions.
 enum RoleType {
+  // Current values
+  Sales
+  Engineering
+  ProjectManagement
+  Management
+  Installation
+  Finance
+  Customer
+  Subcontractor
+  // Legacy values (deprecated — kept so old rows remain valid)
   Engineer
   Salesperson
   ProjectManager
   Technician
   Operations
-  Finance
   Executive
   HR
   FieldTechnician
-  Customer
   Vendor
-  Subcontractor
   Other
 }
 

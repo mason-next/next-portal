@@ -27,6 +27,93 @@ import { cn } from "@/lib/utils";
 const FIELD_INPUT_CLASS =
   "h-9 w-full rounded-md border border-input bg-background px-3 text-sm outline-none focus:border-primary";
 
+// ─── City search (Nominatim / OSM) ───────────────────────────────────────────
+
+function CitySearchInput({
+  value,
+  onChange,
+}: {
+  value: string;
+  onChange: (v: string) => void;
+}) {
+  const [query, setQuery] = useState(value);
+  const [suggestions, setSuggestions] = useState<string[]>([]);
+  const [open, setOpen] = useState(false);
+  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  function handleInput(val: string) {
+    setQuery(val);
+    onChange(val);
+    if (timerRef.current) clearTimeout(timerRef.current);
+    if (val.length < 2) {
+      setSuggestions([]);
+      setOpen(false);
+      return;
+    }
+    timerRef.current = setTimeout(async () => {
+      try {
+        const res = await fetch(
+          `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(val)}&limit=8&addressdetails=1`,
+          { headers: { "Accept-Language": "en" } }
+        );
+        const data: Array<{ address?: Record<string, string>; display_name: string }> =
+          await res.json();
+        const names = data
+          .map((r) => {
+            const a = r.address ?? {};
+            const city = a.city || a.town || a.village || a.county || r.display_name.split(",")[0];
+            const state = a.state ?? "";
+            const cc = (a.country_code ?? "").toUpperCase();
+            return cc === "US" ? `${city}, ${state}` : state ? `${city}, ${state}, ${cc}` : `${city}, ${cc}`;
+          })
+          .filter(Boolean);
+        setSuggestions([...new Set(names)]);
+        setOpen(true);
+      } catch {
+        setSuggestions([]);
+      }
+    }, 450);
+  }
+
+  function select(name: string) {
+    setQuery(name);
+    onChange(name);
+    setSuggestions([]);
+    setOpen(false);
+  }
+
+  return (
+    <div className="relative">
+      <input
+        className={FIELD_INPUT_CLASS}
+        value={query}
+        onChange={(e) => handleInput(e.target.value)}
+        onBlur={() => setTimeout(() => setOpen(false), 150)}
+        onFocus={() => suggestions.length > 0 && setOpen(true)}
+        placeholder="Search city or market area…"
+        autoComplete="off"
+      />
+      {open && suggestions.length > 0 && (
+        <ul className="absolute z-50 mt-1 w-full rounded-md border bg-popover py-1 shadow-md">
+          {suggestions.map((s) => (
+            <li key={s}>
+              <button
+                type="button"
+                className="w-full px-3 py-2 text-left text-sm hover:bg-muted transition-colors"
+                onMouseDown={() => select(s)}
+              >
+                {s}
+              </button>
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+  );
+}
+
+// ─── Modal ────────────────────────────────────────────────────────────────────
+
 interface UserFormModalProps {
   user: AppUser | null;
   onClose: () => void;
@@ -39,24 +126,17 @@ export function UserFormModal({ user, onClose, onSaved, onDeleted }: UserFormMod
   const isAdmin = session.accountType === "Administrator";
   const isSelf = user?.id === session.id;
 
-  // Core fields
   const [name, setName] = useState(user?.name ?? "");
   const [title, setTitle] = useState(user?.title ?? "");
   const [email, setEmail] = useState(user?.email ?? "");
   const [phone, setPhone] = useState(user?.phone ?? "");
   const [avatarUrl, setAvatarUrl] = useState<string | null>(user?.avatarUrl ?? null);
   const [accountType, setAccountType] = useState<AccountType>(user?.accountType ?? "Member");
-  const [roleType, setRoleType] = useState<RoleType>(user?.roleType ?? "Other");
+  const [roleType, setRoleType] = useState<RoleType>(user?.roleType ?? "Sales");
   const [isActive, setIsActive] = useState(user?.isActive ?? true);
-
-  // Profile fields
-  const [department, setDepartment] = useState(user?.department ?? "");
   const [location, setLocation] = useState(user?.location ?? "");
-  const [region, setRegion] = useState(user?.region ?? "");
   const [emergencyContact, setEmergencyContact] = useState(user?.emergencyContact ?? "");
-  const [adminNotes, setAdminNotes] = useState(user?.adminNotes ?? "");
 
-  // Password change
   const [showPassword, setShowPassword] = useState(false);
   const [currentPassword, setCurrentPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
@@ -64,7 +144,6 @@ export function UserFormModal({ user, onClose, onSaved, onDeleted }: UserFormMod
   const [passwordError, setPasswordError] = useState("");
   const [passwordSaving, setPasswordSaving] = useState(false);
 
-  // Certifications
   const [certs, setCerts] = useState<UserCertification[]>(user?.certifications ?? []);
   const [showAddCert, setShowAddCert] = useState(false);
   const [certName, setCertName] = useState("");
@@ -99,34 +178,14 @@ export function UserFormModal({ user, onClose, onSaved, onDeleted }: UserFormMod
     try {
       const saved = user
         ? await updateUser(user.id, {
-            name,
-            title,
-            email,
-            phone,
-            avatarUrl,
-            accountType,
-            roleType,
-            isActive,
-            department,
-            location,
-            region,
-            emergencyContact,
-            adminNotes,
+            name, title, email, phone, avatarUrl,
+            accountType, roleType, isActive,
+            location, emergencyContact,
           })
         : await createUser({
-            name,
-            title,
-            email,
-            phone,
-            avatarUrl,
-            accountType,
-            roleType,
-            isActive,
-            department,
-            location,
-            region,
-            emergencyContact,
-            adminNotes,
+            name, title, email, phone, avatarUrl,
+            accountType, roleType, isActive,
+            location, emergencyContact,
           });
       onSaved(saved);
     } finally {
@@ -239,14 +298,8 @@ export function UserFormModal({ user, onClose, onSaved, onDeleted }: UserFormMod
         <Field label="Phone">
           <input type="tel" className={FIELD_INPUT_CLASS} value={phone} onChange={(e) => setPhone(e.target.value)} />
         </Field>
-        <Field label="Department">
-          <input className={FIELD_INPUT_CLASS} value={department} onChange={(e) => setDepartment(e.target.value)} />
-        </Field>
-        <Field label="Location">
-          <input className={FIELD_INPUT_CLASS} value={location} onChange={(e) => setLocation(e.target.value)} />
-        </Field>
-        <Field label="Region">
-          <input className={FIELD_INPUT_CLASS} value={region} onChange={(e) => setRegion(e.target.value)} />
+        <Field label="Primary Market / City">
+          <CitySearchInput value={location} onChange={setLocation} />
         </Field>
         <Field label="Emergency Contact">
           <input className={FIELD_INPUT_CLASS} value={emergencyContact} onChange={(e) => setEmergencyContact(e.target.value)} />
@@ -271,20 +324,6 @@ export function UserFormModal({ user, onClose, onSaved, onDeleted }: UserFormMod
         <input type="checkbox" className="h-4 w-4" checked={isActive} onChange={(e) => setIsActive(e.target.checked)} />
         Active
       </label>
-
-      {/* Admin Notes (admin-only) */}
-      {isAdmin && (
-        <div className="mt-4">
-          <Field label="Admin Notes (internal only)">
-            <textarea
-              className="mt-1 w-full rounded-md border border-input bg-background px-3 py-2 text-sm outline-none focus:border-primary"
-              rows={2}
-              value={adminNotes}
-              onChange={(e) => setAdminNotes(e.target.value)}
-            />
-          </Field>
-        </div>
-      )}
 
       {/* Password section */}
       {user && canChangePassword && (
@@ -401,9 +440,7 @@ export function UserFormModal({ user, onClose, onSaved, onDeleted }: UserFormMod
                   <button
                     type="button"
                     onClick={() => handleRemoveCert(c.id)}
-                    className={cn(
-                      "ml-2 text-xs text-destructive hover:underline"
-                    )}
+                    className={cn("ml-2 text-xs text-destructive hover:underline")}
                   >
                     Remove
                   </button>
