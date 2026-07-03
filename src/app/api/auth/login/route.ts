@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { verifyPassword } from "@/lib/auth/password";
 import { signSession, SESSION_COOKIE } from "@/lib/auth/jwt";
+import { toSessionRoleType } from "@/lib/auth/role-mapper";
 import type { SessionUser } from "@/lib/auth/types";
 
 const COOKIE_MAX_AGE = 60 * 60 * 24 * 30; // 30 days
@@ -34,7 +35,7 @@ export async function POST(request: Request) {
       name: user.name,
       email: user.email,
       accountType: user.accountType,
-      roleType: user.roleType,
+      roleType: toSessionRoleType(user.roleType as string),
     };
 
     const token = await signSession(sessionUser);

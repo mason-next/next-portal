@@ -1,6 +1,7 @@
 import { SignJWT, jwtVerify, type JWTPayload } from "jose";
 import type { SessionUser } from "./types";
 import type { AccountType } from "@/types/user";
+import { toSessionRoleType } from "./role-mapper";
 
 const SESSION_COOKIE = "next-portal-session";
 const EXPIRY_DAYS = 30;
@@ -55,15 +56,15 @@ export async function verifySession(token: string): Promise<SessionUser | null> 
 
     if (!rawAccountType) return null;
 
-    // Default to "Management" for old sessions that predate roleType in the JWT.
-    const rawRoleType: string = payload.roleType ?? "Management";
+    // Normalize roleType — handles both new values and legacy DB/JWT values.
+    const roleType = toSessionRoleType(payload.roleType ?? "Management");
 
     return {
       id: payload.id,
       name: payload.name,
       email: payload.email,
       accountType: rawAccountType as AccountType,
-      roleType: rawRoleType as import("@/types/user").RoleType,
+      roleType,
     };
   } catch {
     return null;
