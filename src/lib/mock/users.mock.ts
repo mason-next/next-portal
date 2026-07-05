@@ -5,10 +5,12 @@ const SEEDED_AT = "2026-01-01T00:00:00.000Z";
 const DEFAULTS: {
   location: string;
   emergencyContact: string;
+  mustChangePassword: boolean;
   certifications: UserCertification[];
 } = {
   location: "",
   emergencyContact: "",
+  mustChangePassword: false,
   certifications: [],
 };
 

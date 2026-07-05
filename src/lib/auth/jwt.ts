@@ -25,19 +25,22 @@ interface SessionPayload extends JWTPayload {
   email: string;
   accountType?: string;
   roleType?: string;
+  mustChangePassword?: boolean;
   // kept for backwards-compat: old sessions issued before the refactor carry `role`.
   role?: string;
 }
 
 export async function signSession(user: SessionUser): Promise<string> {
   const exp = Math.floor(Date.now() / 1000) + EXPIRY_DAYS * 86400;
-  return new SignJWT({
+  const payload: Record<string, unknown> = {
     id: user.id,
     name: user.name,
     email: user.email,
     accountType: user.accountType,
     roleType: user.roleType,
-  })
+  };
+  if (user.mustChangePassword) payload.mustChangePassword = true;
+  return new SignJWT(payload)
     .setProtectedHeader({ alg: "HS256" })
     .setIssuedAt()
     .setExpirationTime(exp)
@@ -65,6 +68,7 @@ export async function verifySession(token: string): Promise<SessionUser | null> 
       email: payload.email,
       accountType: rawAccountType as AccountType,
       roleType,
+      mustChangePassword: payload.mustChangePassword === true,
     };
   } catch {
     return null;

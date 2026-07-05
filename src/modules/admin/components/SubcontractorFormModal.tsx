@@ -5,6 +5,7 @@ import { Star } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Modal } from "@/components/shared/Modal";
 import { createSubcontractor, deleteSubcontractor, updateSubcontractor } from "@/lib/data/subcontractors";
+import { formatPhone } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import type { NewSubcontractorInput, Subcontractor } from "@/types/subcontractor";
 
@@ -28,7 +29,7 @@ export function SubcontractorFormModal({ sub, onClose, onSaved, onDeleted }: Sub
     sub
       ? {
           name: sub.name, trade: sub.trade, contactName: sub.contactName,
-          contactEmail: sub.contactEmail, contactPhone: sub.contactPhone,
+          contactEmail: sub.contactEmail, contactPhone: formatPhone(sub.contactPhone),
           location: sub.location, manpower: sub.manpower,
           geographicalReach: sub.geographicalReach, rating: sub.rating,
           notes: sub.notes, isActive: sub.isActive,
@@ -115,7 +116,7 @@ export function SubcontractorFormModal({ sub, onClose, onSaved, onDeleted }: Sub
               type="tel"
               className={FIELD_INPUT_CLASS}
               value={form.contactPhone}
-              onChange={(e) => set("contactPhone", e.target.value)}
+              onChange={(e) => set("contactPhone", formatPhone(e.target.value))}
             />
           </Field>
         </div>

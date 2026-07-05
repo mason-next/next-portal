@@ -6,4 +6,6 @@ export interface SessionUser {
   email: string;
   accountType: AccountType;
   roleType: RoleType;
+  /** True when the user must change their password before accessing the app. */
+  mustChangePassword?: boolean;
 }

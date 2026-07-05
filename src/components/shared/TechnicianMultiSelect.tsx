@@ -36,14 +36,14 @@ export function TechnicianMultiSelect({
 
   useEffect(() => {
     if (!open) return;
-    function onClickOutside(e: MouseEvent) {
+    function onOutside(e: PointerEvent) {
       if (rootRef.current && !rootRef.current.contains(e.target as Node)) {
         setOpen(false);
         setAddingNewSub(false);
       }
     }
-    document.addEventListener("mousedown", onClickOutside);
-    return () => document.removeEventListener("mousedown", onClickOutside);
+    document.addEventListener("pointerdown", onOutside);
+    return () => document.removeEventListener("pointerdown", onOutside);
   }, [open]);
 
   const selectedUserIds = new Set(value.map((e) => e.userId).filter((id): id is string => id !== null));
@@ -166,31 +166,30 @@ export function TechnicianMultiSelect({
         </div>
       )}
 
-      <button
-        type="button"
-        onClick={() => setOpen((o) => !o)}
-        className="flex h-9 w-full items-center gap-2 rounded-md border border-input bg-background px-3 text-sm text-muted-foreground outline-none hover:border-primary focus:border-primary"
-      >
-        <Plus className="h-4 w-4 shrink-0" />
-        Add technician or subcontractor…
-      </button>
+      {/* Trigger row — "Add…" button + "Not Needed" toggle side by side */}
+      <div className="flex items-center gap-2">
+        <button
+          type="button"
+          onClick={() => setOpen((o) => !o)}
+          className="flex h-9 flex-1 items-center gap-2 rounded-md border border-input bg-background px-3 text-sm text-muted-foreground outline-none hover:border-primary focus:border-primary"
+        >
+          <Plus className="h-4 w-4 shrink-0" />
+          Add technician or subcontractor…
+        </button>
+        {onNotNeededChange && (
+          <button
+            type="button"
+            onClick={() => { setNotNeeded(true); setOpen(false); }}
+            className="flex h-9 shrink-0 items-center gap-1.5 rounded-md border border-input px-3 text-sm text-muted-foreground hover:bg-accent hover:text-foreground"
+          >
+            <Ban className="h-3.5 w-3.5" />
+            Not Needed
+          </button>
+        )}
+      </div>
 
       {open ? (
         <div className="absolute z-30 mt-1 max-h-72 w-full overflow-auto rounded-md border bg-card py-1 shadow-lg">
-          {/* Not Needed option */}
-          {onNotNeededChange && (
-            <div className="border-b pb-1 mb-1">
-              <button
-                type="button"
-                onClick={() => { setNotNeeded(true); setOpen(false); }}
-                className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-muted-foreground hover:bg-accent hover:text-foreground"
-              >
-                <Ban className="h-4 w-4 shrink-0" />
-                Not Needed
-              </button>
-            </div>
-          )}
-
           {users.length > 0 && (
             <div className="px-3 pb-1 pt-1 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
               Team

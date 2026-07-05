@@ -36,6 +36,7 @@ export async function POST(request: Request) {
       email: user.email,
       accountType: user.accountType,
       roleType: toSessionRoleType(user.roleType as string),
+      mustChangePassword: (user as { mustChangePassword?: boolean }).mustChangePassword === true,
     };
 
     const token = await signSession(sessionUser);

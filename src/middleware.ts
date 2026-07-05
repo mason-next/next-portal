@@ -15,14 +15,18 @@ function getSecret(): Uint8Array {
   return new TextEncoder().encode(secret);
 }
 
-async function hasValidSession(request: NextRequest): Promise<boolean> {
+interface SessionSnapshot {
+  mustChangePassword?: boolean;
+}
+
+async function getSession(request: NextRequest): Promise<SessionSnapshot | null> {
   const token = request.cookies.get(SESSION_COOKIE)?.value;
-  if (!token) return false;
+  if (!token) return null;
   try {
-    await jwtVerify(token, getSecret());
-    return true;
+    const { payload } = await jwtVerify(token, getSecret());
+    return { mustChangePassword: payload.mustChangePassword === true };
   } catch {
-    return false;
+    return null;
   }
 }
 
@@ -32,18 +36,27 @@ export async function middleware(request: NextRequest) {
   const isPublic = PUBLIC_PATHS.some((p) => pathname.startsWith(p));
 
   if (isPublic) {
-    // If already authenticated, redirect away from login
-    if (pathname === "/login" && (await hasValidSession(request))) {
-      return NextResponse.redirect(new URL("/projects", request.url));
+    // Redirect authenticated users away from /login (unless they need to change password).
+    if (pathname === "/login") {
+      const session = await getSession(request);
+      if (session && !session.mustChangePassword) {
+        return NextResponse.redirect(new URL("/projects", request.url));
+      }
     }
     return NextResponse.next();
   }
 
-  // Protected route — require valid session
-  if (!(await hasValidSession(request))) {
+  // Protected route: require a valid session.
+  const session = await getSession(request);
+  if (!session) {
     const loginUrl = new URL("/login", request.url);
     loginUrl.searchParams.set("next", pathname);
     return NextResponse.redirect(loginUrl);
+  }
+
+  // If the user must change their password, gate them to /change-password only.
+  if (session.mustChangePassword && pathname !== "/change-password") {
+    return NextResponse.redirect(new URL("/change-password", request.url));
   }
 
   return NextResponse.next();

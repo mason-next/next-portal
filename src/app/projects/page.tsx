@@ -21,6 +21,7 @@ import {
 import { HEALTH_TONE } from "@/modules/project-command-center/lib/project-health";
 import { formatCalendarDate, cn } from "@/lib/utils";
 import { readGlobal, writeGlobal } from "@/lib/storage/local-store";
+import { usePersistentFilter } from "@/lib/storage/use-persistent-filter";
 import { ProjectsKanbanBoard } from "@/modules/project-command-center/components/ProjectsKanbanBoard";
 import { PROJECT_HEALTH } from "@/types/project";
 import type { Project } from "@/types/project";
@@ -129,11 +130,11 @@ export default function ProjectsPage() {
   const [showNewProject, setShowNewProject] = useState(false);
   const [showBulkImport, setShowBulkImport] = useState(false);
   const [viewMode, setViewMode] = useState<ViewMode>("list");
-  const [pmFilter, setPmFilter] = useState("all");
-  const [statusFilter, setStatusFilter] = useState("all");
-  const [healthFilter, setHealthFilter] = useState("all");
-  const [dateFilter, setDateFilter] = useState<DateFilterKey>("all");
-  const [adminFilterUserId, setAdminFilterUserId] = useState<string | null>(null);
+  const [pmFilter, setPmFilter] = usePersistentFilter("projects:pmFilter", "all");
+  const [statusFilter, setStatusFilter] = usePersistentFilter("projects:statusFilter", "all");
+  const [healthFilter, setHealthFilter] = usePersistentFilter("projects:healthFilter", "all");
+  const [dateFilter, setDateFilter] = usePersistentFilter<DateFilterKey>("projects:dateFilter", "all");
+  const [adminFilterUserId, setAdminFilterUserId] = usePersistentFilter<string | null>("projects:adminFilterUserId", null);
 
   useEffect(() => {
     queueMicrotask(() => setViewMode(readGlobal<ViewMode>(VIEW_MODE_KEY) ?? "list"));

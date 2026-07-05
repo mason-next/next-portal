@@ -19,6 +19,7 @@ import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { useSession } from "@/lib/auth/client";
 import { useUsersContext } from "@/components/shared/AppShell/UsersProvider";
+import { usePersistentFilter } from "@/lib/storage/use-persistent-filter";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -114,11 +115,11 @@ export default function TasksPage() {
   const { users } = useUsersContext();
   const isAdmin = session.accountType === "Administrator";
   const isViewer = session.accountType === "Viewer";
-  const [adminUserId, setAdminUserId] = useState<string | null>(null);
+  const [adminUserId, setAdminUserId] = usePersistentFilter<string | null>("tasks:adminUserId", null);
   const [tasks, setTasks] = useState<ApiTask[] | null>(null);
   const [ownedSteps, setOwnedSteps] = useState<ApiStep[]>([]);
   const [notifications, setNotifications] = useState<ApiNotification[] | null>(null);
-  const [tab, setTab] = useState<"tasks" | "followups">("tasks");
+  const [tab, setTab] = usePersistentFilter<"tasks" | "followups">("tasks:tab", "tasks");
   const [error, setError] = useState(false);
   const [showCreate, setShowCreate] = useState(false);
 

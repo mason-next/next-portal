@@ -92,6 +92,7 @@ function toAppUser(p: PrismaUserWithCerts): AppUser {
   const pAny = p as unknown as {
     location?: string;
     emergencyContact?: string;
+    mustChangePassword?: boolean;
   };
   return {
     id: p.id,
@@ -103,6 +104,7 @@ function toAppUser(p: PrismaUserWithCerts): AppUser {
     accountType: ACCOUNT_TYPE_FROM_DB[p.accountType] ?? "Member",
     roleType: fromDbRoleType(p.roleType),
     isActive: p.isActive,
+    mustChangePassword: pAny.mustChangePassword ?? false,
     location: pAny.location ?? "",
     emergencyContact: pAny.emergencyContact ?? "",
     certifications: (p.certifications ?? []).map(toCert),
@@ -143,6 +145,7 @@ export async function createUser(input: NewUserInput): Promise<AppUser> {
       accountType: ACCOUNT_TYPE_TO_DB[input.accountType],
       roleType: toDbRoleType(input.roleType),
       isActive: input.isActive,
+      mustChangePassword: input.mustChangePassword ?? true,
       location: input.location ?? "",
       emergencyContact: input.emergencyContact ?? "",
     },
@@ -160,8 +163,9 @@ export async function updateUser(id: string, patch: Partial<AppUser>): Promise<A
   if ("avatarUrl" in patch)        data.avatarUrl = patch.avatarUrl ?? null;
   if ("accountType" in patch && patch.accountType) data.accountType = ACCOUNT_TYPE_TO_DB[patch.accountType];
   if ("roleType" in patch && patch.roleType)       data.roleType = toDbRoleType(patch.roleType);
-  if ("isActive" in patch)         data.isActive = patch.isActive;
-  if ("location" in patch)         data.location = patch.location ?? "";
+  if ("isActive" in patch)           data.isActive = patch.isActive;
+  if ("mustChangePassword" in patch) data.mustChangePassword = patch.mustChangePassword;
+  if ("location" in patch)           data.location = patch.location ?? "";
   if ("emergencyContact" in patch) data.emergencyContact = patch.emergencyContact ?? "";
 
   const row = await (db.user.update as (args: unknown) => Promise<PrismaUserWithCerts>)({

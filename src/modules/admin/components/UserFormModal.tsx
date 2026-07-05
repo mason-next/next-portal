@@ -23,6 +23,7 @@ import {
 } from "@/types/user";
 import { useSession } from "@/lib/auth/client";
 import { cn } from "@/lib/utils";
+import { formatPhone } from "@/lib/format";
 
 const FIELD_INPUT_CLASS =
   "h-9 w-full rounded-md border border-input bg-background px-3 text-sm outline-none focus:border-primary";
@@ -112,6 +113,133 @@ function CitySearchInput({
   );
 }
 
+// ─── Certification presets ────────────────────────────────────────────────────
+
+const CERT_PRESETS: { name: string; org: string }[] = [
+  // AVIXA
+  { name: "AVIXA CTS", org: "AVIXA" },
+  { name: "AVIXA CTS-I", org: "AVIXA" },
+  { name: "AVIXA CTS-D", org: "AVIXA" },
+  // Extron
+  { name: "Extron AV Associate", org: "Extron" },
+  { name: "Extron EAVA", org: "Extron" },
+  { name: "Extron Control Professional", org: "Extron" },
+  { name: "Extron XTP Systems Specialist", org: "Extron" },
+  { name: "Extron IP Link Control Professional", org: "Extron" },
+  // Crestron
+  { name: "Crestron Masters", org: "Crestron" },
+  { name: "Crestron Certified Programmer", org: "Crestron" },
+  // Q-SYS / QSC
+  { name: "Q-SYS Level 1 Certified", org: "QSC" },
+  { name: "Q-SYS Level 2 Certified", org: "QSC" },
+  // Biamp
+  { name: "Biamp Tesira Certification", org: "Biamp" },
+  { name: "Biamp Devio Certification", org: "Biamp" },
+  // Dante / Audinate
+  { name: "Dante Level 1", org: "Audinate" },
+  { name: "Dante Level 2", org: "Audinate" },
+  { name: "Dante Level 3", org: "Audinate" },
+  // Shure
+  { name: "Shure Integrated Systems Certification", org: "Shure" },
+  // AMX / Harman
+  { name: "AMX Certified Programmer", org: "AMX / Harman" },
+  // Zoom
+  { name: "Zoom Certified Integrator", org: "Zoom" },
+  // Microsoft
+  { name: "Microsoft Teams Rooms Specialist", org: "Microsoft" },
+  // Samsung
+  { name: "Samsung WAD Certification", org: "Samsung" },
+  // HDBaseT
+  { name: "HDBaseT Certified", org: "HDBaseT Alliance" },
+  // Lutron
+  { name: "Lutron Commercial Lighting Certification", org: "Lutron" },
+  { name: "Lutron Residential Certification", org: "Lutron" },
+  // Legrand / Da-Lite
+  { name: "Legrand AV Installer", org: "Legrand AV" },
+  // BICSI
+  { name: "BICSI Installer 1 – Copper", org: "BICSI" },
+  { name: "BICSI Installer 2 – Copper", org: "BICSI" },
+  { name: "BICSI Installer 2 – Optical Fiber", org: "BICSI" },
+  { name: "BICSI Technician", org: "BICSI" },
+  { name: "BICSI RCDD", org: "BICSI" },
+  // OSHA
+  { name: "OSHA 10", org: "OSHA" },
+  { name: "OSHA 30", org: "OSHA" },
+  // CompTIA
+  { name: "CompTIA Network+", org: "CompTIA" },
+  { name: "CompTIA Security+", org: "CompTIA" },
+  { name: "CompTIA A+", org: "CompTIA" },
+  // Cisco
+  { name: "Cisco CCNA", org: "Cisco" },
+  { name: "Cisco CCNP", org: "Cisco" },
+  // Safety
+  { name: "First Aid / CPR", org: "Red Cross / AHA" },
+  { name: "Fall Protection", org: "" },
+  { name: "Aerial Lift / Scissor Lift", org: "" },
+  { name: "Forklift Certification", org: "" },
+  // Driving
+  { name: "Commercial Driver's License (CDL)", org: "" },
+  // Low-voltage
+  { name: "Low-Voltage License", org: "" },
+  { name: "Panduit UTD Certification", org: "Panduit" },
+];
+
+function CertNameCombobox({
+  value,
+  onChange,
+  onOrgChange,
+}: {
+  value: string;
+  onChange: (v: string) => void;
+  onOrgChange: (v: string) => void;
+}) {
+  const [open, setOpen] = useState(false);
+
+  const filtered = value.trim().length === 0
+    ? CERT_PRESETS
+    : CERT_PRESETS.filter((p) =>
+        p.name.toLowerCase().includes(value.toLowerCase()) ||
+        p.org.toLowerCase().includes(value.toLowerCase())
+      );
+
+  function select(preset: { name: string; org: string }) {
+    onChange(preset.name);
+    if (preset.org) onOrgChange(preset.org);
+    setOpen(false);
+  }
+
+  return (
+    <div className="relative">
+      <input
+        className={FIELD_INPUT_CLASS}
+        value={value}
+        onChange={(e) => { onChange(e.target.value); setOpen(true); }}
+        onFocus={() => setOpen(true)}
+        onBlur={() => setTimeout(() => setOpen(false), 200)}
+        placeholder="Search or type a certification…"
+        autoFocus
+        autoComplete="off"
+      />
+      {open && filtered.length > 0 && (
+        <ul className="absolute z-50 mt-1 max-h-48 w-full overflow-auto rounded-md border bg-popover py-1 shadow-md">
+          {filtered.map((p) => (
+            <li key={p.name}>
+              <button
+                type="button"
+                className="flex w-full items-center justify-between px-3 py-2 text-left text-sm transition-colors hover:bg-muted"
+                onMouseDown={() => select(p)}
+              >
+                <span>{p.name}</span>
+                {p.org && <span className="ml-3 shrink-0 text-xs text-muted-foreground">{p.org}</span>}
+              </button>
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+  );
+}
+
 // ─── Modal ────────────────────────────────────────────────────────────────────
 
 interface UserFormModalProps {
@@ -129,11 +257,14 @@ export function UserFormModal({ user, onClose, onSaved, onDeleted }: UserFormMod
   const [name, setName] = useState(user?.name ?? "");
   const [title, setTitle] = useState(user?.title ?? "");
   const [email, setEmail] = useState(user?.email ?? "");
-  const [phone, setPhone] = useState(user?.phone ?? "");
+  const [phone, setPhone] = useState(formatPhone(user?.phone ?? ""));
   const [avatarUrl, setAvatarUrl] = useState<string | null>(user?.avatarUrl ?? null);
   const [accountType, setAccountType] = useState<AccountType>(user?.accountType ?? "Member");
   const [roleType, setRoleType] = useState<RoleType>(user?.roleType ?? "Sales");
   const [isActive, setIsActive] = useState(user?.isActive ?? true);
+  const [mustChangePassword, setMustChangePassword] = useState(
+    user ? (user.mustChangePassword ?? false) : true
+  );
   const [location, setLocation] = useState(user?.location ?? "");
   const [emergencyContact, setEmergencyContact] = useState(user?.emergencyContact ?? "");
 
@@ -179,12 +310,12 @@ export function UserFormModal({ user, onClose, onSaved, onDeleted }: UserFormMod
       const saved = user
         ? await updateUser(user.id, {
             name, title, email, phone, avatarUrl,
-            accountType, roleType, isActive,
+            accountType, roleType, isActive, mustChangePassword,
             location, emergencyContact,
           })
         : await createUser({
             name, title, email, phone, avatarUrl,
-            accountType, roleType, isActive,
+            accountType, roleType, isActive, mustChangePassword,
             location, emergencyContact,
           });
       onSaved(saved);
@@ -296,7 +427,7 @@ export function UserFormModal({ user, onClose, onSaved, onDeleted }: UserFormMod
           <input type="email" className={FIELD_INPUT_CLASS} value={email} onChange={(e) => setEmail(e.target.value)} />
         </Field>
         <Field label="Phone">
-          <input type="tel" className={FIELD_INPUT_CLASS} value={phone} onChange={(e) => setPhone(e.target.value)} />
+          <input type="tel" className={FIELD_INPUT_CLASS} value={phone} onChange={(e) => setPhone(formatPhone(e.target.value))} />
         </Field>
         <Field label="Primary Market / City">
           <CitySearchInput value={location} onChange={setLocation} />
@@ -324,6 +455,17 @@ export function UserFormModal({ user, onClose, onSaved, onDeleted }: UserFormMod
         <input type="checkbox" className="h-4 w-4" checked={isActive} onChange={(e) => setIsActive(e.target.checked)} />
         Active
       </label>
+      {isAdmin && (
+        <label className="mt-2 flex items-center gap-2 text-sm">
+          <input
+            type="checkbox"
+            className="h-4 w-4"
+            checked={mustChangePassword}
+            onChange={(e) => setMustChangePassword(e.target.checked)}
+          />
+          Require password change on next login
+        </label>
+      )}
 
       {/* Password section */}
       {user && canChangePassword && (
@@ -401,7 +543,11 @@ export function UserFormModal({ user, onClose, onSaved, onDeleted }: UserFormMod
           {showAddCert && (
             <div className="mb-3 rounded-lg border p-3 space-y-2">
               <Field label="Certification Name">
-                <input className={FIELD_INPUT_CLASS} value={certName} onChange={(e) => setCertName(e.target.value)} autoFocus />
+                <CertNameCombobox
+                  value={certName}
+                  onChange={setCertName}
+                  onOrgChange={setCertOrg}
+                />
               </Field>
               <div className="grid grid-cols-2 gap-2">
                 <Field label="Issuing Organization">

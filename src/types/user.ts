@@ -43,6 +43,7 @@ export interface AppUser {
   accountType: AccountType;
   roleType: RoleType;
   isActive: boolean;
+  mustChangePassword: boolean;
   location: string;
   emergencyContact: string;
   certifications: UserCertification[];
@@ -59,6 +60,7 @@ export interface NewUserInput {
   accountType: AccountType;
   roleType: RoleType;
   isActive: boolean;
+  mustChangePassword?: boolean;
   location?: string;
   emergencyContact?: string;
 }
