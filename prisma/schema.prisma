@@ -290,6 +290,7 @@ model WorkflowStep {
   statusOverridden Boolean            @default(false)
   weightOverridden Boolean            @default(false)
   isCustom         Boolean            @default(false)
+  isExcluded       Boolean            @default(false) @map("is_excluded")
   description      String             @default("")
   dependsOnKeys    String[]           @default([])
   completionRule   String             @default("manual")

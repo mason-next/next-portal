@@ -5,7 +5,7 @@ import { ChevronDown, ChevronRight, MessageSquare, Layers, Link2 } from "lucide-
 import { cn } from "@/lib/utils";
 import { UserAvatarImage } from "@/components/shared/AppShell/UserAvatarImage";
 import { ProgressBar } from "@/components/shared/ProgressBar";
-import type { ImplementationTask } from "@/types/implementation";
+import type { ImplementationTask, ImplementationTaskStatus } from "@/types/implementation";
 import type { AppUser } from "@/types/user";
 import { TASK_STATUS_TONE, TASK_PRIORITY_TONE, isOverdue, taskProgress } from "@/modules/implementation/lib/task-display";
 import { getSubtasks } from "@/lib/data/implementation";
@@ -169,7 +169,14 @@ export function TaskListItem({ task, users, depth = 0, onOpen, onToggleComplete 
               users={users}
               depth={(depth ?? 0) + 1}
               onOpen={onOpen}
-              onToggleComplete={onToggleComplete}
+              onToggleComplete={async (toggled) => {
+                const nextStatus: ImplementationTaskStatus =
+                  toggled.status === "Complete" ? "Not Started" : "Complete";
+                setSubtasks((prev) =>
+                  prev.map((s) => (s.id === toggled.id ? { ...s, status: nextStatus } : s))
+                );
+                await onToggleComplete(toggled);
+              }}
             />
           ))}
         </div>

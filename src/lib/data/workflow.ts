@@ -67,6 +67,7 @@ function toStep(p: PrismaStep): WorkflowStep {
     statusOverridden: p.statusOverridden,
     weightOverridden: p.weightOverridden,
     isCustom: p.isCustom,
+    isExcluded: (p as unknown as { isExcluded?: boolean }).isExcluded ?? false,
     description: p.description,
     dependsOnKeys: p.dependsOnKeys,
     completionRule: (p.completionRule === "module" ? "module" : "manual") as "manual" | "module",
@@ -127,9 +128,10 @@ function autoAssignStepOwners(
 // Recomputes the even-split weight budget for non-overridden steps in the section
 // and persists the new values. Called after any add/remove/weight-change.
 async function redistributeWeightsDb(projectId: string, section: ProjectSectionKey): Promise<void> {
-  const dbSteps = await db.workflowStep.findMany({
+  const allDbSteps = await db.workflowStep.findMany({
     where: { projectId, section: SECTION_TO_DB[section] },
   });
+  const dbSteps = allDbSteps.filter((s) => !(s as unknown as { isExcluded?: boolean }).isExcluded);
   const appSteps = dbSteps.map(toStep);
   const redistributed = redistributeWeights(appSteps, section);
 
@@ -165,7 +167,7 @@ async function reconcileTemplateStepsDb(
     (e) => !existingKeys.has(e.key) && shouldIncludeStepForTypesWithConfig(e.key, projectTypes, config)
   );
 
-  if (toRemove.length === 0 && toAdd.length === 0) return steps;
+  if (toRemove.length === 0 && toAdd.length === 0) return steps.filter((s) => !s.isExcluded);
 
   if (toRemove.length > 0) {
     await db.workflowStep.deleteMany({
@@ -211,7 +213,7 @@ async function reconcileTemplateStepsDb(
     where: { projectId },
     orderBy: { sortOrder: "asc" },
   });
-  return refreshed.map(toStep);
+  return refreshed.map(toStep).filter((s) => !s.isExcluded);
 }
 
 // ─── Queries ──────────────────────────────────────────────────────────────────
@@ -410,9 +412,20 @@ export async function removeWorkflowStep(projectId: string, key: string): Promis
 
   const section = step.section as unknown as ProjectSectionKey;
 
-  await db.workflowStep.delete({
-    where: { projectId_key: { projectId, key } },
-  });
+  if (step.isCustom) {
+    // Custom (user-added) steps are truly deleted since they're never re-seeded.
+    await db.workflowStep.delete({
+      where: { projectId_key: { projectId, key } },
+    });
+  } else {
+    // Template steps are soft-deleted: marked excluded so reconcileTemplateStepsDb
+    // won't re-add them on the next fetch.
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    await (db as any).workflowStep.update({
+      where: { projectId_key: { projectId, key } },
+      data: { isExcluded: true },
+    });
+  }
 
   await redistributeWeightsDb(projectId, section);
 }

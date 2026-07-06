@@ -6,6 +6,8 @@ import { PhaseProgressBadge } from "@/modules/project-command-center/components/
 import { stepsForSection } from "@/modules/project-command-center/lib/workflow-steps";
 import { calculatePhaseProgress } from "@/modules/project-command-center/engine/workflow-engine";
 import { useWorkflowStepsContext } from "@/modules/project-command-center/hooks/WorkflowStepsContext";
+import { useUsersContext } from "@/components/shared/AppShell/UsersProvider";
+import { TaskList } from "@/modules/implementation/components/TaskList";
 
 export default function ProjectSetupPage({
   params,
@@ -14,30 +16,39 @@ export default function ProjectSetupPage({
 }) {
   const { projectId } = use(params);
   const { steps, percentByKey, isLoading, updateStep, addStep, deleteStep } = useWorkflowStepsContext();
+  const { users } = useUsersContext();
 
   if (isLoading) {
     return <div className="p-6 text-sm text-muted-foreground">Loading…</div>;
   }
 
   return (
-    <div className="space-y-4">
-      <div className="flex items-start justify-between">
-        <div>
-          <div className="text-sm font-semibold">Setup</div>
-          <p className="text-sm text-muted-foreground">
-            Stand up the project: assign the team, send the welcome letter, and schedule kickoffs.
-          </p>
+    <div className="space-y-6">
+      <div>
+        <div className="mb-4 flex items-start justify-between">
+          <div>
+            <div className="text-sm font-semibold">Setup</div>
+            <p className="text-sm text-muted-foreground">
+              Stand up the project: assign the team, send the welcome letter, and schedule kickoffs.
+            </p>
+          </div>
+          <PhaseProgressBadge percent={calculatePhaseProgress(steps, "setup")} />
         </div>
-        <PhaseProgressBadge percent={calculatePhaseProgress(steps, "setup")} />
+        <WorkflowChecklist
+          projectId={projectId}
+          section="setup"
+          steps={stepsForSection(steps, "setup")}
+          onUpdateStep={updateStep}
+          onAddStep={addStep}
+          onDeleteStep={deleteStep}
+          percentByKey={percentByKey}
+        />
       </div>
-      <WorkflowChecklist
+
+      <TaskList
         projectId={projectId}
-        section="setup"
-        steps={stepsForSection(steps, "setup")}
-        onUpdateStep={updateStep}
-        onAddStep={addStep}
-        onDeleteStep={deleteStep}
-        percentByKey={percentByKey}
+        users={users}
+        availableSteps={stepsForSection(steps, "setup")}
       />
     </div>
   );

@@ -61,8 +61,11 @@ export interface WorkflowStep {
   // True once a user has manually set this step's weight — tells redistributeWeights to
   // leave it alone and split the section's remaining budget across the other steps instead.
   weightOverridden: boolean;
-  // True for user-added steps (see addWorkflowStep) — only these can be deleted.
+  // True for user-added steps (see addWorkflowStep).
   isCustom: boolean;
+  // True when the user explicitly removes a built-in template step. The DB record is
+  // kept so reconcileTemplateStepsDb won't re-seed it; it's filtered out before returning.
+  isExcluded?: boolean;
   description: string;
   // Keys of other WorkflowSteps that must be Complete or Not Needed before this step is available.
   dependsOnKeys: string[];
