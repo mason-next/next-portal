@@ -173,6 +173,7 @@ export function TaskDrawer({
         onClose();
       } else if (task) {
         await onSave(task.id, payload);
+        onClose();
       }
     } catch (err) {
       setSaveError(err instanceof Error ? err.message : "Failed to save task. Please try again.");

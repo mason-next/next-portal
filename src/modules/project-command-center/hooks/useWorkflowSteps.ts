@@ -15,9 +15,13 @@ export function useWorkflowSteps(projectId: string) {
 
   useEffect(() => {
     let active = true;
-    getWorkflowStepsWithProgress(projectId).then(({ steps, percentByKey }) => {
-      if (active) setLoaded({ projectId, steps, percentByKey });
-    });
+    getWorkflowStepsWithProgress(projectId)
+      .then(({ steps, percentByKey }) => {
+        if (active) setLoaded({ projectId, steps, percentByKey });
+      })
+      .catch(() => {
+        if (active) setLoaded({ projectId, steps: [], percentByKey: {} });
+      });
     return () => {
       active = false;
     };

@@ -76,7 +76,7 @@ export async function getWorkflowStepsWithProgress(
     steps.map(async (step) => {
       const provider = MODULE_PROGRESS_PROVIDERS[step.key];
       if (!provider || step.statusOverridden) return step;
-      const result = await provider(projectId);
+      const result = await provider(projectId).catch(() => null);
       if (!result) return step;
       percentByKey[step.key] = result.percent;
       if (result.status === step.status) return step;

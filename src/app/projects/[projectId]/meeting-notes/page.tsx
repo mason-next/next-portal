@@ -263,12 +263,14 @@ function NoteFormModal({
   const [attendees, setAttendees]     = useState(note?.attendees ?? "");
   const [body, setBody]               = useState(note?.body ?? "");
   const [actionItems, setActionItems] = useState(note?.actionItems ?? "");
-  const [saving, setSaving]           = useState(false);
+  const [saving, setSaving]         = useState(false);
+  const [saveError, setSaveError]   = useState<string | null>(null);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (!title.trim()) return;
     setSaving(true);
+    setSaveError(null);
     try {
       const payload = { title: title.trim(), meetingDate, attendees, body, actionItems };
       const url = isEdit
@@ -282,7 +284,11 @@ function NoteFormModal({
       if (res.ok) {
         const saved: MeetingNote = await res.json();
         onSaved(saved);
+      } else {
+        setSaveError("Failed to save. Please try again.");
       }
+    } catch {
+      setSaveError("Failed to save. Please try again.");
     } finally {
       setSaving(false);
     }
@@ -352,6 +358,9 @@ function NoteFormModal({
           />
         </label>
 
+        {saveError && (
+          <p className="text-sm text-red-600">{saveError}</p>
+        )}
         <div className="flex justify-end gap-2 pt-1">
           <Button variant="outline" type="button" onClick={onClose}>Cancel</Button>
           <Button type="submit" disabled={saving || !title.trim()}>
