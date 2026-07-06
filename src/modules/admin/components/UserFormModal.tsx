@@ -115,74 +115,53 @@ function CitySearchInput({
 
 // ─── Certification presets ────────────────────────────────────────────────────
 
-const CERT_PRESETS: { name: string; org: string }[] = [
-  // AVIXA
-  { name: "AVIXA CTS", org: "AVIXA" },
-  { name: "AVIXA CTS-I", org: "AVIXA" },
-  { name: "AVIXA CTS-D", org: "AVIXA" },
-  // Extron
-  { name: "Extron AV Associate", org: "Extron" },
-  { name: "Extron EAVA", org: "Extron" },
-  { name: "Extron Control Professional", org: "Extron" },
-  { name: "Extron XTP Systems Specialist", org: "Extron" },
-  { name: "Extron IP Link Control Professional", org: "Extron" },
-  // Crestron
-  { name: "Crestron Masters", org: "Crestron" },
-  { name: "Crestron Certified Programmer", org: "Crestron" },
-  // Q-SYS / QSC
-  { name: "Q-SYS Level 1 Certified", org: "QSC" },
-  { name: "Q-SYS Level 2 Certified", org: "QSC" },
-  // Biamp
-  { name: "Biamp Tesira Certification", org: "Biamp" },
-  { name: "Biamp Devio Certification", org: "Biamp" },
-  // Dante / Audinate
-  { name: "Dante Level 1", org: "Audinate" },
-  { name: "Dante Level 2", org: "Audinate" },
-  { name: "Dante Level 3", org: "Audinate" },
-  // Shure
-  { name: "Shure Integrated Systems Certification", org: "Shure" },
-  // AMX / Harman
+const CERT_PRESETS: { name: string; org: string }[] = ([
+  { name: "Aerial Lift / Scissor Lift", org: "" },
   { name: "AMX Certified Programmer", org: "AMX / Harman" },
-  // Zoom
-  { name: "Zoom Certified Integrator", org: "Zoom" },
-  // Microsoft
-  { name: "Microsoft Teams Rooms Specialist", org: "Microsoft" },
-  // Samsung
-  { name: "Samsung WAD Certification", org: "Samsung" },
-  // HDBaseT
-  { name: "HDBaseT Certified", org: "HDBaseT Alliance" },
-  // Lutron
-  { name: "Lutron Commercial Lighting Certification", org: "Lutron" },
-  { name: "Lutron Residential Certification", org: "Lutron" },
-  // Legrand / Da-Lite
-  { name: "Legrand AV Installer", org: "Legrand AV" },
-  // BICSI
+  { name: "AVIXA CTS", org: "AVIXA" },
+  { name: "AVIXA CTS-D", org: "AVIXA" },
+  { name: "AVIXA CTS-I", org: "AVIXA" },
+  { name: "Biamp Devio Certification", org: "Biamp" },
+  { name: "Biamp Tesira Certification", org: "Biamp" },
   { name: "BICSI Installer 1 – Copper", org: "BICSI" },
   { name: "BICSI Installer 2 – Copper", org: "BICSI" },
   { name: "BICSI Installer 2 – Optical Fiber", org: "BICSI" },
-  { name: "BICSI Technician", org: "BICSI" },
   { name: "BICSI RCDD", org: "BICSI" },
-  // OSHA
-  { name: "OSHA 10", org: "OSHA" },
-  { name: "OSHA 30", org: "OSHA" },
-  // CompTIA
-  { name: "CompTIA Network+", org: "CompTIA" },
-  { name: "CompTIA Security+", org: "CompTIA" },
-  { name: "CompTIA A+", org: "CompTIA" },
-  // Cisco
+  { name: "BICSI Technician", org: "BICSI" },
   { name: "Cisco CCNA", org: "Cisco" },
   { name: "Cisco CCNP", org: "Cisco" },
-  // Safety
-  { name: "First Aid / CPR", org: "Red Cross / AHA" },
-  { name: "Fall Protection", org: "" },
-  { name: "Aerial Lift / Scissor Lift", org: "" },
-  { name: "Forklift Certification", org: "" },
-  // Driving
   { name: "Commercial Driver's License (CDL)", org: "" },
-  // Low-voltage
+  { name: "CompTIA A+", org: "CompTIA" },
+  { name: "CompTIA Network+", org: "CompTIA" },
+  { name: "CompTIA Security+", org: "CompTIA" },
+  { name: "Crestron Certified Programmer", org: "Crestron" },
+  { name: "Crestron Masters", org: "Crestron" },
+  { name: "Dante Level 1", org: "Audinate" },
+  { name: "Dante Level 2", org: "Audinate" },
+  { name: "Dante Level 3", org: "Audinate" },
+  { name: "Extron AV Associate", org: "Extron" },
+  { name: "Extron Control Professional", org: "Extron" },
+  { name: "Extron EAVA", org: "Extron" },
+  { name: "Extron IP Link Control Professional", org: "Extron" },
+  { name: "Extron XTP Systems Specialist", org: "Extron" },
+  { name: "Fall Protection", org: "" },
+  { name: "First Aid / CPR", org: "Red Cross / AHA" },
+  { name: "Forklift Certification", org: "" },
+  { name: "HDBaseT Certified", org: "HDBaseT Alliance" },
+  { name: "Legrand AV Installer", org: "Legrand AV" },
   { name: "Low-Voltage License", org: "" },
+  { name: "Lutron Commercial Lighting Certification", org: "Lutron" },
+  { name: "Lutron Residential Certification", org: "Lutron" },
+  { name: "Microsoft Teams Rooms Specialist", org: "Microsoft" },
+  { name: "OSHA 10", org: "OSHA" },
+  { name: "OSHA 30", org: "OSHA" },
   { name: "Panduit UTD Certification", org: "Panduit" },
-];
+  { name: "Q-SYS Level 1 Certified", org: "QSC" },
+  { name: "Q-SYS Level 2 Certified", org: "QSC" },
+  { name: "Samsung WAD Certification", org: "Samsung" },
+  { name: "Shure Integrated Systems Certification", org: "Shure" },
+  { name: "Zoom Certified Integrator", org: "Zoom" },
+] as { name: string; org: string }[]).sort((a, b) => a.name.localeCompare(b.name));
 
 function CertNameCombobox({
   value,

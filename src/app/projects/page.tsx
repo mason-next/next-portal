@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { ArrowDown, ArrowUp } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { StatusBadge } from "@/components/shared/StatusBadge";
 import { ProgressBar } from "@/components/shared/ProgressBar";
@@ -33,6 +34,25 @@ type ViewMode = "list" | "kanban";
 const UNASSIGNED_PM = "unassigned";
 const FILTER_SELECT_CLASS =
   "h-9 rounded-md border border-input bg-background px-3 text-sm outline-none focus:border-primary";
+
+// ─── Sort ─────────────────────────────────────────────────────────────────────
+
+type SortField = "name" | "projectNumber" | "customer" | "pm" | "targetDate" | "progress" | "health";
+type SortDir   = "asc" | "desc";
+
+const SORT_LABELS: Record<SortField, string> = {
+  name:          "Project Name",
+  projectNumber: "Project #",
+  customer:      "Customer",
+  pm:            "Project Manager",
+  targetDate:    "Target Date",
+  progress:      "Progress",
+  health:        "Health",
+};
+
+const HEALTH_ORDER: Record<string, number> = {
+  "Ahead": 0, "On Track": 1, "At Risk": 2, "Off Track": 3,
+};
 
 // ─── Date filter helpers ──────────────────────────────────────────────────────
 
@@ -135,6 +155,8 @@ export default function ProjectsPage() {
   const [healthFilter, setHealthFilter] = usePersistentFilter("projects:healthFilter", "all");
   const [dateFilter, setDateFilter] = usePersistentFilter<DateFilterKey>("projects:dateFilter", "all");
   const [adminFilterUserId, setAdminFilterUserId] = usePersistentFilter<string | null>("projects:adminFilterUserId", null);
+  const [sortField, setSortField] = usePersistentFilter<SortField>("projects:sortField", "name");
+  const [sortDir, setSortDir]     = usePersistentFilter<SortDir>("projects:sortDir", "asc");
 
   useEffect(() => {
     queueMicrotask(() => setViewMode(readGlobal<ViewMode>(VIEW_MODE_KEY) ?? "list"));
@@ -216,6 +238,43 @@ export default function ProjectsPage() {
     setDateFilter("all");
     setAdminFilterUserId(null);
   }
+
+  function toggleSortDir() {
+    setSortDir(sortDir === "asc" ? "desc" : "asc");
+  }
+
+  const sorted = useMemo(() => {
+    const dir = sortDir === "asc" ? 1 : -1;
+    return [...filtered].sort((a, b) => {
+      switch (sortField) {
+        case "name":
+          return dir * a.project.name.localeCompare(b.project.name);
+        case "projectNumber":
+          return dir * a.project.projectNumber.localeCompare(b.project.projectNumber);
+        case "customer":
+          return dir * a.project.customerName.localeCompare(b.project.customerName);
+        case "pm": {
+          const pA = a.pm?.name ?? "";
+          const pB = b.pm?.name ?? "";
+          return dir * pA.localeCompare(pB);
+        }
+        case "targetDate": {
+          const dA = a.project.targetCompletionDate ? new Date(a.project.targetCompletionDate).getTime() : Infinity;
+          const dB = b.project.targetCompletionDate ? new Date(b.project.targetCompletionDate).getTime() : Infinity;
+          return dir * (dA - dB);
+        }
+        case "progress":
+          return dir * (a.progress - b.progress);
+        case "health": {
+          const hA = HEALTH_ORDER[a.health] ?? 99;
+          const hB = HEALTH_ORDER[b.health] ?? 99;
+          return dir * (hA - hB);
+        }
+        default:
+          return 0;
+      }
+    });
+  }, [filtered, sortField, sortDir]);
 
   return (
     <div className={cn("p-4 sm:p-8", viewMode === "kanban" ? "w-full" : "mx-auto max-w-5xl")}>
@@ -322,6 +381,27 @@ export default function ProjectsPage() {
               Clear filters
             </button>
           ) : null}
+
+          <div className="ml-auto flex items-center gap-1.5">
+            <select
+              className={FILTER_SELECT_CLASS}
+              value={sortField}
+              onChange={(e) => setSortField(e.target.value as SortField)}
+              aria-label="Sort by"
+            >
+              {(Object.keys(SORT_LABELS) as SortField[]).map((key) => (
+                <option key={key} value={key}>{SORT_LABELS[key]}</option>
+              ))}
+            </select>
+            <button
+              type="button"
+              onClick={toggleSortDir}
+              className="inline-flex h-9 w-9 items-center justify-center rounded-md border border-input bg-background text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+              title={sortDir === "asc" ? "Ascending — click to sort descending" : "Descending — click to sort ascending"}
+            >
+              {sortDir === "asc" ? <ArrowUp className="size-3.5" /> : <ArrowDown className="size-3.5" />}
+            </button>
+          </div>
         </div>
       ) : null}
 
@@ -329,17 +409,17 @@ export default function ProjectsPage() {
         <p className="text-sm text-muted-foreground">Loading projects…</p>
       ) : projects.length === 0 ? (
         <p className="text-sm text-muted-foreground">No projects yet.</p>
-      ) : filtered.length === 0 ? (
+      ) : sorted.length === 0 ? (
         <p className="text-sm text-muted-foreground">No projects match the selected filters.</p>
       ) : viewMode === "kanban" ? (
         <ProjectsKanbanBoard
-          projects={filtered.map((e) => e.project)}
+          projects={sorted.map((e) => e.project)}
           stepsByProject={stepsByProject}
           users={users}
         />
       ) : (
         <ul className="grid gap-3">
-          {filtered.map(({ project, status, health, progress, pm }) => {
+          {sorted.map(({ project, status, health, progress, pm }) => {
             return (
               <li key={project.id}>
                 <Link
