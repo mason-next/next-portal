@@ -116,7 +116,10 @@ export function TaskList({ projectId, users, availableSteps = [] }: TaskListProp
           users={users}
           availableSteps={availableSteps}
           allTasks={tasks ?? []}
-          onClose={() => setDrawerTask(null)}
+          onClose={() => {
+              setDrawerTask(null);
+              refetch();
+            }}
           onSave={async (id, input) => {
             await editTask(id, input);
           }}

@@ -28,7 +28,7 @@ const FULFILLED_STATUSES = new Set<EquipmentStatus>(["Shipped", "Delivered"]);
 export function applyQuickFilter(rows: EquipmentRow[], filter: QuickFilter): EquipmentRow[] {
   if (filter === "all") return rows;
   if (filter === "outstanding") {
-    return rows.filter((row) => row.status !== "Cancelled" && !FULFILLED_STATUSES.has(row.status));
+    return rows.filter((row) => row.status !== "Cancelled" && row.status !== "Not Needed" && !FULFILLED_STATUSES.has(row.status));
   }
   return rows.filter((row) => row.status === filter);
 }

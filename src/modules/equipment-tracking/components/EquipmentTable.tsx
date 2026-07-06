@@ -18,6 +18,7 @@ const STATUS_TONE: Record<EquipmentStatus, StatusTone> = {
   Shipped: "purple",
   Delivered: "success",
   Cancelled: "danger",
+  "Not Needed": "neutral",
 };
 
 interface EquipmentTableProps {
@@ -171,10 +172,18 @@ export function EquipmentTable({
     {
       key: "actions",
       header: "Actions",
-      width: 90,
+      width: 140,
       align: "center",
       cell: (row) => (
-        <div className="flex justify-center">
+        <div className="flex justify-center gap-1.5">
+          <Button
+            variant="outline"
+            size="xs"
+            onClick={() => onUpdateField(row.id, "notNeeded", !row.notNeeded)}
+            title={row.notNeeded ? "Mark as needed" : "Mark as not needed"}
+          >
+            {row.notNeeded ? "Needed" : "Not Needed"}
+          </Button>
           <Button variant="outline" size="xs" onClick={() => onGenerateRma(row)}>
             <Undo2 className="size-3.5" />
             RMA

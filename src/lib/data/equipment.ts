@@ -40,6 +40,7 @@ function toEquipmentRow(p: PrismaRowWithAudit): EquipmentRow {
     shippedQty: p.shippedQty,
     cancelled: p.cancelled,
     poInfo: p.poInfo,
+    notNeeded: (p as unknown as { notNeeded?: boolean }).notNeeded ?? false,
     // status is always computed — never stored in the DB
     status: computeEquipmentStatus({
       qty: p.qty,
@@ -49,6 +50,7 @@ function toEquipmentRow(p: PrismaRowWithAudit): EquipmentRow {
       shippedQty: p.shippedQty,
       cancelled: p.cancelled,
       poInfo: p.poInfo,
+      notNeeded: (p as unknown as { notNeeded?: boolean }).notNeeded ?? false,
     }),
     rmaRequestedAt: p.rmaRequestedAt ? p.rmaRequestedAt.toISOString() : null,
     source: p.source as EquipmentRow["source"],
@@ -118,6 +120,7 @@ export async function saveEquipmentRows(projectId: string, rows: EquipmentRow[])
             shippedQty: row.shippedQty,
             cancelled: row.cancelled,
             poInfo: row.poInfo,
+            ...({ notNeeded: row.notNeeded } as Record<string, unknown>),
             rmaRequestedAt: row.rmaRequestedAt ? new Date(row.rmaRequestedAt) : null,
             source: row.source as PrismaEquipmentSource,
             sortOrder: index,
@@ -154,6 +157,7 @@ export interface EquipmentRowPatch {
   cancelled?: string;
   poInfo?: string;
   rmaRequestedAt?: string | null;
+  notNeeded?: boolean;
 }
 
 // Targeted single-row update — used by useEquipmentRows.updateField.
@@ -181,6 +185,9 @@ export async function updateEquipmentRow(
   if ("poInfo" in patch)           data.poInfo = patch.poInfo;
   if ("rmaRequestedAt" in patch) {
     data.rmaRequestedAt = patch.rmaRequestedAt ? new Date(patch.rmaRequestedAt) : null;
+  }
+  if ("notNeeded" in patch) {
+    (data as Record<string, unknown>).notNeeded = patch.notNeeded;
   }
 
   await db.equipmentRow.update({

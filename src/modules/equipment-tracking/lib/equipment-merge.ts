@@ -24,7 +24,8 @@ function toNewEquipmentRow(parsed: ParsedEquipmentRow, now: string): EquipmentRo
     shippedQty: parsed.shippedQty,
     cancelled: parsed.cancelled,
     poInfo: parsed.poInfo,
-    status: computeEquipmentStatus(parsed),
+    notNeeded: false,
+    status: computeEquipmentStatus({ ...parsed, notNeeded: false }),
     rmaRequestedAt: null,
     source: "csv",
     audit: [],
@@ -87,7 +88,8 @@ export function mergeRowsIntoExisting(
       shippedQty: parsed.shippedQty,
       cancelled: parsed.cancelled,
       poInfo: parsed.poInfo,
-      status: computeEquipmentStatus(parsed),
+      // notNeeded is a manual override — preserve it across re-imports
+      status: computeEquipmentStatus({ ...parsed, notNeeded: existing.notNeeded }),
       updatedAt: now,
     };
     updatedCount++;

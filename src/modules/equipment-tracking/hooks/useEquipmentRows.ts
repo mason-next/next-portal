@@ -19,6 +19,7 @@ const STATUS_DRIVING_FIELDS = new Set<keyof EquipmentRow>([
   "shippedQty",
   "cancelled",
   "poInfo",
+  "notNeeded",
 ]);
 
 export function useEquipmentRows(projectId: string) {

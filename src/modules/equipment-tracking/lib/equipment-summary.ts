@@ -5,7 +5,7 @@ import type { WorkflowStepStatus } from "@/types/workflow";
 export interface EquipmentSummary {
   total: number;
   byStatus: Record<EquipmentStatus, number>;
-  activeCount: number; // total minus Cancelled
+  activeCount: number; // total minus Cancelled and Not Needed
   outstanding: number; // active minus Shipped/Delivered
   readyForInstallationPercent: number; // (Shipped + Delivered) / active
   procurementProgressPercent: number; // (Received + Shipped + Delivered) / active
@@ -18,7 +18,8 @@ export function computeEquipmentSummary(rows: EquipmentRow[]): EquipmentSummary 
   >;
   for (const row of rows) byStatus[row.status]++;
 
-  const activeCount = rows.length - byStatus.Cancelled;
+  // "Not Needed" items are excluded from the active count so they don't drag down progress.
+  const activeCount = rows.length - byStatus.Cancelled - byStatus["Not Needed"];
   const fulfilled = byStatus.Shipped + byStatus.Delivered;
   const outstanding = activeCount - fulfilled;
   const readyForInstallationPercent = activeCount > 0 ? Math.round((fulfilled / activeCount) * 100) : 0;

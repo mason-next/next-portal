@@ -407,7 +407,6 @@ export async function removeWorkflowStep(projectId: string, key: string): Promis
     where: { projectId_key: { projectId, key } },
   });
   if (!step) return;
-  if (!step.isCustom) throw new Error("Only custom steps can be removed");
 
   const section = step.section as unknown as ProjectSectionKey;
 

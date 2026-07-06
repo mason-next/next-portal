@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState, useTransition } from "react";
+import { useCallback, useEffect, useRef, useState, useTransition } from "react";
 import type { ImplementationTask, CreateTaskInput, UpdateTaskInput } from "@/types/implementation";
 import {
   getProjectTasks,
@@ -14,10 +14,15 @@ export function useImplementationTasks(projectId: string) {
   const [tasks, setTasks] = useState<ImplementationTask[] | null>(null);
   const [isPending, startTransition] = useTransition();
   const [tick, setTick] = useState(0);
+  const projectIdRef = useRef(projectId);
 
   useEffect(() => {
     let active = true;
-    setTasks(null);
+    // Show loading state only on initial mount or project change — not on manual refetch.
+    if (projectIdRef.current !== projectId) {
+      setTasks(null);
+      projectIdRef.current = projectId;
+    }
     getProjectTasks(projectId).then((rows) => {
       if (active) setTasks(rows);
     });

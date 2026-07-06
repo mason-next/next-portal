@@ -17,6 +17,7 @@ export interface EquipmentStatusInput {
   shippedQty: number;
   cancelled: string;
   poInfo: string;
+  notNeeded: boolean;
 }
 
 // The distributor stamps this exact phrase into the free-text PO Info column once the item
@@ -26,10 +27,11 @@ export function indicatesDelivered(poInfo: string): boolean {
   return poInfo.toLowerCase().includes("product status: received");
 }
 
-// Priority order: Cancelled > Delivered > Shipped > Received > Ordered > Allocated > Not Ordered.
+// Priority order: Not Needed > Cancelled > Delivered > Shipped > Received > Ordered > Allocated > Not Ordered.
 // The qty > 0 guards stop a zero-qty row from always reading as Shipped/Received, since
 // shippedQty/pickedQty >= 0 would otherwise always be true.
 export function computeEquipmentStatus(input: EquipmentStatusInput): EquipmentStatus {
+  if (input.notNeeded) return "Not Needed";
   if (isPopulated(input.cancelled)) return "Cancelled";
   if (indicatesDelivered(input.poInfo)) return "Delivered";
   if (input.qty > 0 && input.shippedQty >= input.qty) return "Shipped";

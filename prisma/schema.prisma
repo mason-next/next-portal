@@ -457,6 +457,7 @@ model EquipmentRow {
   cancelled       String          @default("")
   poInfo          String          @default("")
   rmaRequestedAt  DateTime?
+  notNeeded       Boolean         @default(false)
   source          EquipmentSource @default(csv)
   sortOrder       Int             @default(0)
   updatedAt       DateTime        @updatedAt

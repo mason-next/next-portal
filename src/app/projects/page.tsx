@@ -421,6 +421,15 @@ export default function ProjectsPage() {
                         <div className="text-xs text-muted-foreground">
                           {project.projectNumber} · {project.customerName}
                         </div>
+                        {project.projectTypes.length > 0 && (
+                          <div className="mt-1 flex flex-wrap gap-1">
+                            {project.projectTypes.map((type) => (
+                              <span key={type} className="inline-flex items-center rounded-full bg-muted px-1.5 py-0.5 text-xs text-muted-foreground">
+                                {type}
+                              </span>
+                            ))}
+                          </div>
+                        )}
                       </div>
                       <div className="flex items-center gap-1.5 shrink-0">
                         <StatusBadge label={status.label} tone={status.isComplete ? "success" : "neutral"} />
@@ -493,6 +502,12 @@ function MultiSelectFilter({
     );
   }
 
+  const allSelected = options.length > 0 && options.every((o) => selected.includes(o.value));
+
+  function toggleAll() {
+    onChange(allSelected ? [] : options.map((o) => o.value));
+  }
+
   const buttonLabel =
     selected.length === 0
       ? `All ${label}s`
@@ -520,6 +535,15 @@ function MultiSelectFilter({
 
       {open && options.length > 0 && (
         <div className="absolute left-0 z-50 mt-1 min-w-[180px] rounded-md border bg-popover py-1 shadow-md">
+          <label className="flex cursor-pointer items-center gap-2.5 border-b border-border/50 px-3 py-1.5 text-sm hover:bg-muted">
+            <input
+              type="checkbox"
+              checked={allSelected}
+              onChange={toggleAll}
+              className="h-3.5 w-3.5 shrink-0 rounded accent-primary"
+            />
+            <span className="font-medium text-muted-foreground">Select All</span>
+          </label>
           {options.map((opt) => (
             <label
               key={opt.value}

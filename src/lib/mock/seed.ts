@@ -100,6 +100,7 @@ export function generateSampleEquipmentRows(count = 50): EquipmentRow[] {
       shippedQty,
       cancelled,
       poInfo,
+      notNeeded: false,
     });
 
     return {
@@ -118,6 +119,7 @@ export function generateSampleEquipmentRows(count = 50): EquipmentRow[] {
       shippedQty,
       cancelled,
       poInfo,
+      notNeeded: false,
       status,
       rmaRequestedAt: null,
       source: "csv",

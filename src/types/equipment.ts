@@ -8,6 +8,7 @@ export const EQUIPMENT_STATUSES = [
   "Shipped",
   "Delivered",
   "Cancelled",
+  "Not Needed",
 ] as const;
 
 export type EquipmentStatus = (typeof EQUIPMENT_STATUSES)[number];
@@ -38,7 +39,9 @@ export interface EquipmentRow {
   // Free-text PO/shipment notes from the distributor. Checked for "Product Status: Received"
   // (case-insensitive substring) to detect the Delivered status — see lib/status.ts.
   poInfo: string;
-  // Always derived via computeEquipmentStatus — never hand-picked, unlike BomRow.status.
+  // "Not Needed" override — set manually; takes priority over CSV-derived status.
+  notNeeded: boolean;
+  // Derived: "Not Needed" if notNeeded=true, otherwise computeEquipmentStatus from CSV fields.
   status: EquipmentStatus;
   // Set when an RMA request is generated for this row (see RmaRequestModal) — re-stamped on
   // every subsequent request rather than appended, so it always reflects the most recent one.

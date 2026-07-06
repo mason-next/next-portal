@@ -313,10 +313,13 @@ export function WorkflowChecklist({
                       ) : (
                         <span className="text-muted-foreground">—</span>
                       )}
-                      {canEdit && step.isCustom ? (
+                      {canEdit ? (
                         <button
                           type="button"
-                          onClick={() => onDeleteStep(step.key)}
+                          onClick={() => {
+                            if (!window.confirm(`Remove "${step.name}"? This cannot be undone.`)) return;
+                            onDeleteStep(step.key);
+                          }}
                           className="text-xs text-muted-foreground hover:text-destructive"
                           title="Remove this step"
                         >
