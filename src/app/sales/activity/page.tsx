@@ -1,10 +1,11 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useSalesActivity } from "@/modules/sales-activity/hooks/useSalesActivity";
 import { useDealDeskUser } from "@/modules/deal-desk/hooks/useDealDeskUser";
 import { CompanyCard } from "@/modules/sales-activity/components/CompanyCard";
+import { CompanyDetailModal } from "@/modules/sales-activity/components/CompanyDetailModal";
 import { CompanyForm } from "@/modules/sales-activity/components/CompanyForm";
 import { OpportunityForm } from "@/modules/sales-activity/components/OpportunityForm";
 import { ActivityLogForm } from "@/modules/sales-activity/components/ActivityLogForm";
@@ -14,7 +15,8 @@ import { ActivityFeed, ActivitySummaryCards } from "@/modules/sales-activity/com
 import { SalesPulseReport } from "@/modules/sales-activity/components/SalesPulseReport";
 import { formatWeekLabel } from "@/types/sales";
 import type { SalesCompany, SalesOpportunity, SalesActivity } from "@/types/sales";
-import type { CWImportPayload } from "@/modules/sales-activity/components/CWImportModal";
+import type { CWImportPayload, ImportProgressCallback } from "@/modules/sales-activity/components/CWImportModal";
+import type { AppUser } from "@/types/user";
 
 type Modal =
   | { type: "company"; data?: SalesCompany }
@@ -25,7 +27,7 @@ type Modal =
   | null;
 
 export default function SalesActivityPage() {
-  const { userName, isManagement, actuallyManagement, previewAsSalesperson, togglePreview } = useDealDeskUser();
+  const { userName, isManagement, actuallyManagement, previewAsSalesperson, previewUser, setPreviewAs } = useDealDeskUser();
   const {
     companies, activities, allActivities, summary, isLoading,
     weekStart, setWeekStart,
@@ -36,9 +38,23 @@ export default function SalesActivityPage() {
 
   const [modal, setModal] = useState<Modal>(null);
   const [stageFilter, setStageFilter] = useState("All");
+  const [repFilter, setRepFilter] = useState("");
+  const [sortBy, setSortBy] = useState<"name" | "pipeline" | "active" | "winrate">("name");
   const [tab, setTab] = useState<"board" | "activity" | "pulse">("board");
+  const [detailCompany, setDetailCompany] = useState<SalesCompany | null>(null);
   const [importOpen, setImportOpen] = useState(false);
+  const [logoFetch, setLogoFetch] = useState<{ done: number; total: number } | null>(null);
+  const [previewOpen, setPreviewOpen] = useState(false);
+  const [allUsers, setAllUsers] = useState<AppUser[]>([]);
   const importRef = useRef<HTMLDivElement>(null);
+  const previewRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!actuallyManagement) return;
+    fetch("/api/users").then((r) => r.json()).then((users: AppUser[]) =>
+      setAllUsers(users.filter((u) => u.isActive).sort((a, b) => a.name.localeCompare(b.name)))
+    ).catch(() => {});
+  }, [actuallyManagement]);
 
   function prevWeek() {
     const d = new Date(weekStart);
@@ -52,40 +68,111 @@ export default function SalesActivityPage() {
   }
 
   const stages = ["All", "Prospecting", "Qualifying", "Proposal", "Negotiation", "Closed Won", "Closed Lost"];
+  const ACTIVE_STAGES = new Set(["Prospecting", "Qualifying", "Proposal", "Negotiation"]);
 
-  const filteredCompanies = stageFilter === "All"
-    ? companies
-    : companies.filter((c) =>
-        (c.opportunities ?? []).some((o) => o.stage === stageFilter)
-      );
+  // Non-admins are locked to their own name; admins use the dropdown selection
+  const effectiveRepFilter = isManagement ? repFilter : userName;
 
-  async function handleCWImport({ companyMappings, selectedOpps }: CWImportPayload) {
-    // Build csvName → companyId map
+  // Unique rep names that own at least one opp, sorted alphabetically (admin only)
+  const boardReps = Array.from(
+    new Set(
+      companies.flatMap((c) => (c.opportunities ?? []).map((o) => o.ownerName).filter(Boolean))
+    )
+  ).sort() as string[];
+
+  // Always exclude companies with no opportunities. Apply stage + rep filters, then sort.
+  const filteredCompanies = (() => {
+    const withOpps = companies.filter((c) => (c.opportunities ?? []).length > 0);
+    const staged = stageFilter === "All"
+      ? withOpps
+      : withOpps.filter((c) => (c.opportunities ?? []).some((o) => o.stage === stageFilter));
+    const repped = effectiveRepFilter
+      ? staged.filter((c) => (c.opportunities ?? []).some((o) => o.ownerName === effectiveRepFilter))
+      : staged;
+    return repped.slice().sort((a, b) => {
+      switch (sortBy) {
+        case "pipeline": {
+          const aVal = (a.opportunities ?? []).filter((o) => ACTIVE_STAGES.has(o.stage)).reduce((s, o) => s + (o.value ?? 0), 0);
+          const bVal = (b.opportunities ?? []).filter((o) => ACTIVE_STAGES.has(o.stage)).reduce((s, o) => s + (o.value ?? 0), 0);
+          return bVal - aVal || a.name.localeCompare(b.name);
+        }
+        case "active": {
+          const aC = (a.opportunities ?? []).filter((o) => ACTIVE_STAGES.has(o.stage)).length;
+          const bC = (b.opportunities ?? []).filter((o) => ACTIVE_STAGES.has(o.stage)).length;
+          return bC - aC || a.name.localeCompare(b.name);
+        }
+        case "winrate": {
+          const aW = (a.opportunities ?? []).filter((o) => o.stage === "Closed Won").length;
+          const aL = (a.opportunities ?? []).filter((o) => o.stage === "Closed Lost").length;
+          const bW = (b.opportunities ?? []).filter((o) => o.stage === "Closed Won").length;
+          const bL = (b.opportunities ?? []).filter((o) => o.stage === "Closed Lost").length;
+          const aRate = (aW + aL) > 0 ? aW / (aW + aL) : -1;
+          const bRate = (bW + bL) > 0 ? bW / (bW + bL) : -1;
+          return bRate - aRate || a.name.localeCompare(b.name);
+        }
+        default: // "name"
+          return a.name.localeCompare(b.name);
+      }
+    });
+  })();
+
+  async function fetchMissingLogos() {
+    const missing = companies.filter((c) => !c.domain?.trim());
+    if (missing.length === 0) return;
+    setLogoFetch({ done: 0, total: missing.length });
+    let done = 0;
+    for (const company of missing) {
+      try {
+        const res = await fetch(
+          `/api/sales/logo-suggest?query=${encodeURIComponent(company.name)}`
+        );
+        if (res.ok) {
+          const data = await res.json();
+          if (Array.isArray(data) && data[0]?.domain) {
+            await saveCompany({ id: company.id, name: company.name, domain: data[0].domain, notes: company.notes ?? "", dealDeskId: company.dealDeskId ?? null });
+          }
+        }
+      } catch { /* ignore individual failures */ }
+      done++;
+      setLogoFetch({ done, total: missing.length });
+    }
+    setLogoFetch(null);
+  }
+
+  async function handleCWImport({ companyMappings, selectedOpps }: CWImportPayload, onProgress: ImportProgressCallback) {
+    const total = selectedOpps.length;
+
+    // Phase 1: ensure all companies exist (label shows company name)
     const companyIdMap = new Map<string, string>();
-
     for (const mapping of companyMappings) {
       if (mapping.matchedId) {
         companyIdMap.set(mapping.csvName, mapping.matchedId);
       } else {
-        // Create new company
+        onProgress(0, total, `Creating company: ${mapping.csvName}`);
         const created = await saveCompany({ name: mapping.csvName, domain: "", notes: "", dealDeskId: null });
         companyIdMap.set(mapping.csvName, (created as SalesCompany).id);
       }
     }
 
+    // Phase 2: upsert each opp with live progress
+    let done = 0;
     for (const o of selectedOpps) {
+      onProgress(done, total, `${o.existingId ? "Updating" : "Saving"}: ${o.name}`);
       const companyId = companyIdMap.get(o.resolvedCsvName);
-      if (!companyId) continue;
+      if (!companyId) { done++; continue; }
       await saveOpportunity({
+        id: o.existingId,
         companyId,
         name: o.name,
         stage: o.stage,
         ownerId: o.resolvedOwnerId,
         ownerName: o.resolvedOwnerName,
-        value: Math.round(o.value * 100), // dollars → cents
+        value: Math.round(o.value * 100),
         notes: o.cwNumber ? `CW#${o.cwNumber}` : "",
         closeDate: o.closeDate ?? null,
       });
+      done++;
+      onProgress(done, total, `${o.existingId ? "Updated" : "Saved"}: ${o.name}`);
     }
   }
 
@@ -106,18 +193,77 @@ export default function SalesActivityPage() {
         </div>
         <div className="flex items-center gap-3 flex-wrap">
           {actuallyManagement && (
+            <div className="relative" ref={previewRef}>
+              <button
+                onClick={() => setPreviewOpen((o) => !o)}
+                className={`inline-flex items-center gap-1.5 rounded-md border px-3 py-1.5 text-xs font-medium transition-colors ${
+                  previewAsSalesperson
+                    ? "bg-amber-50 border-amber-300 text-amber-700 dark:bg-amber-900/20 dark:border-amber-700 dark:text-amber-400"
+                    : "text-muted-foreground hover:bg-muted"
+                }`}
+              >
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" /><circle cx="12" cy="12" r="3" />
+                </svg>
+                {previewAsSalesperson ? `Previewing as ${previewUser!.name.split(" ")[0]}` : "Management View"}
+                <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                  <polyline points="6 9 12 15 18 9" />
+                </svg>
+              </button>
+
+              {previewOpen && (
+                <>
+                  <div className="fixed inset-0 z-40" onClick={() => setPreviewOpen(false)} />
+                  <div className="absolute left-0 top-full mt-1 z-50 w-64 rounded-lg border bg-card shadow-lg py-1">
+                    {/* Admin view option */}
+                    <button
+                      type="button"
+                      onClick={() => { setPreviewAs(null); setPreviewOpen(false); }}
+                      className={`w-full flex items-center gap-2 px-3 py-2 text-sm hover:bg-muted text-left ${!previewAsSalesperson ? "font-medium text-foreground" : "text-muted-foreground"}`}
+                    >
+                      <span className="w-4 shrink-0 text-center text-xs">{!previewAsSalesperson ? "✓" : ""}</span>
+                      <span>Administrator View</span>
+                    </button>
+
+                    {allUsers.length > 0 && (
+                      <>
+                        <div className="mx-3 my-1 border-t" />
+                        <div className="px-3 py-1 text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Preview as</div>
+                        {allUsers.map((u) => {
+                          const isActive = previewUser?.name === u.name;
+                          return (
+                            <button
+                              key={u.id}
+                              type="button"
+                              onClick={() => { setPreviewAs({ name: u.name, accountType: u.accountType }); setPreviewOpen(false); }}
+                              className={`w-full flex items-center gap-2 px-3 py-2 text-sm hover:bg-muted text-left ${isActive ? "font-medium text-foreground" : "text-muted-foreground"}`}
+                            >
+                              <span className="w-4 shrink-0 text-center text-xs">{isActive ? "✓" : ""}</span>
+                              <span className="flex-1 truncate">{u.name}</span>
+                              <span className="text-[10px] text-muted-foreground shrink-0">{u.accountType}</span>
+                            </button>
+                          );
+                        })}
+                      </>
+                    )}
+                  </div>
+                </>
+              )}
+            </div>
+          )}
+
+          {/* Fetch logos — management only */}
+          {actuallyManagement && (
             <button
-              onClick={togglePreview}
-              className={`inline-flex items-center gap-1.5 rounded-md border px-3 py-1.5 text-xs font-medium transition-colors ${
-                previewAsSalesperson
-                  ? "bg-amber-50 border-amber-300 text-amber-700 dark:bg-amber-900/20 dark:border-amber-700 dark:text-amber-400"
-                  : "text-muted-foreground hover:bg-muted"
-              }`}
+              onClick={fetchMissingLogos}
+              disabled={!!logoFetch || isLoading}
+              title="Fetch logos for companies missing a domain"
+              className="inline-flex items-center gap-1.5 rounded-md border px-3 py-1.5 text-xs font-medium text-muted-foreground hover:bg-muted transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" /><circle cx="12" cy="12" r="3" />
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/>
               </svg>
-              {previewAsSalesperson ? "Previewing as Salesperson" : "Management View"}
+              {logoFetch ? `Logos ${logoFetch.done}/${logoFetch.total}…` : "Fetch Logos"}
             </button>
           )}
 
@@ -207,21 +353,54 @@ export default function SalesActivityPage() {
         <>
           {tab === "board" && (
             <div className="space-y-4">
-              <div className="flex gap-1 flex-wrap">
-                {stages.map((s) => {
-                  const count = s === "All"
-                    ? companies.length
-                    : companies.filter((c) => (c.opportunities ?? []).some((o) => o.stage === s)).length;
-                  return (
-                    <button
-                      key={s}
-                      onClick={() => setStageFilter(s)}
-                      className={`rounded-full px-3 py-1 text-xs font-medium transition-colors ${stageFilter === s ? "bg-primary text-primary-foreground" : "border hover:bg-muted"}`}
+              <div className="flex items-center justify-between gap-3 flex-wrap">
+                {/* Filters — stage pills + rep */}
+                <div className="flex items-center gap-3 flex-wrap">
+                  <div className="flex gap-1 flex-wrap">
+                    {stages.map((s) => {
+                      const count = s === "All"
+                        ? companies.reduce((n, c) => n + (c.opportunities ?? []).filter((o) => !effectiveRepFilter || o.ownerName === effectiveRepFilter).length, 0)
+                        : companies.reduce((n, c) => n + (c.opportunities ?? []).filter((o) => o.stage === s && (!effectiveRepFilter || o.ownerName === effectiveRepFilter)).length, 0);
+                      return (
+                        <button
+                          key={s}
+                          onClick={() => setStageFilter(s)}
+                          className={`rounded-full px-3 py-1 text-xs font-medium transition-colors ${stageFilter === s ? "bg-primary text-primary-foreground" : "border hover:bg-muted"}`}
+                        >
+                          {s} {count > 0 && `(${count})`}
+                        </button>
+                      );
+                    })}
+                  </div>
+
+                  {isManagement && boardReps.length > 0 && (
+                    <select
+                      value={repFilter}
+                      onChange={(e) => setRepFilter(e.target.value)}
+                      className="rounded-lg border bg-background px-3 py-1 text-xs font-medium focus:outline-none focus:ring-2 focus:ring-ring h-[30px]"
                     >
-                      {s} {count > 0 && `(${count})`}
-                    </button>
-                  );
-                })}
+                      <option value="">All reps</option>
+                      {boardReps.map((r) => <option key={r} value={r}>{r}</option>)}
+                    </select>
+                  )}
+                </div>
+
+                {/* Sort — visually separated */}
+                <div className="flex items-center gap-1.5 text-xs text-muted-foreground shrink-0">
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="14" y2="12"/><line x1="3" y1="18" x2="8" y2="18"/>
+                  </svg>
+                  <select
+                    value={sortBy}
+                    onChange={(e) => setSortBy(e.target.value as typeof sortBy)}
+                    className="rounded-lg border bg-background px-2 py-1 text-xs font-medium focus:outline-none focus:ring-2 focus:ring-ring h-[30px] cursor-pointer"
+                  >
+                    <option value="name">Name</option>
+                    <option value="pipeline">Pipeline value</option>
+                    <option value="active">Active opps</option>
+                    <option value="winrate">Win rate</option>
+                  </select>
+                </div>
               </div>
 
               {filteredCompanies.length === 0 ? (
@@ -229,17 +408,15 @@ export default function SalesActivityPage() {
                   <p className="text-sm text-muted-foreground">No companies yet. Click &quot;+ Add Company&quot; to get started.</p>
                 </div>
               ) : (
-                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
                   {filteredCompanies.map((company) => (
                     <CompanyCard
                       key={company.id}
                       company={company}
+                      stageFilter={stageFilter}
+                      repFilter={effectiveRepFilter}
+                      onClick={() => setDetailCompany(company)}
                       onEditCompany={(c) => setModal({ type: "company", data: c })}
-                      onDeleteCompany={removeCompany}
-                      onAddOpportunity={(cId) => setModal({ type: "opportunity", companyId: cId })}
-                      onEditOpportunity={(o) => setModal({ type: "opportunity", companyId: o.companyId, data: o })}
-                      onDeleteOpportunity={removeOpportunity}
-                      onStageChange={changeOppStage}
                     />
                   ))}
                 </div>
@@ -273,6 +450,26 @@ export default function SalesActivityPage() {
           )}
         </>
       )}
+
+      {/* Company detail panel */}
+      {detailCompany && (() => {
+        // Always use the freshest copy from companies so stage changes reflect immediately
+        const live = companies.find((c) => c.id === detailCompany.id) ?? detailCompany;
+        return (
+          <CompanyDetailModal
+            company={live}
+            stageFilter={stageFilter}
+            repFilter={effectiveRepFilter}
+            onClose={() => setDetailCompany(null)}
+            onEditCompany={(c) => setModal({ type: "company", data: c })}
+            onDeleteCompany={async (id) => { await removeCompany(id); setDetailCompany(null); }}
+            onAddOpportunity={(cId) => setModal({ type: "opportunity", companyId: cId })}
+            onEditOpportunity={(o) => setModal({ type: "opportunity", companyId: o.companyId, data: o })}
+            onDeleteOpportunity={removeOpportunity}
+            onStageChange={changeOppStage}
+          />
+        );
+      })()}
 
       {/* Modals */}
       {modal?.type === "company" && (

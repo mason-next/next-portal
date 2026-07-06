@@ -1,39 +1,47 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useState } from "react";
 import { useSession } from "@/lib/auth/client";
+import type { AccountType } from "@/types/user";
 
-const LS_KEY = "deal-desk:preview-as-salesperson";
+const LS_KEY = "deal-desk:preview-user";
+
+export interface PreviewUser {
+  name: string;
+  accountType: AccountType;
+}
+
+function readPreviewUser(): PreviewUser | null {
+  if (typeof window === "undefined") return null;
+  try {
+    return JSON.parse(localStorage.getItem(LS_KEY) ?? "null");
+  } catch {
+    return null;
+  }
+}
 
 export function useDealDeskUser() {
   const session = useSession();
   const actuallyManagement = session.accountType === "Administrator";
 
-  const [previewAsSalesperson, setPreviewAsSalesperson] = useState(() => {
-    if (typeof window === "undefined") return false;
-    return localStorage.getItem(LS_KEY) === "1";
-  });
+  const [previewUser, setPreviewUserState] = useState<PreviewUser | null>(readPreviewUser);
 
-  useEffect(() => {
-    localStorage.setItem(LS_KEY, previewAsSalesperson ? "1" : "0");
-  }, [previewAsSalesperson]);
-
-  const togglePreview = useCallback(() => {
-    setPreviewAsSalesperson((v) => !v);
+  const setPreviewAs = useCallback((user: PreviewUser | null) => {
+    setPreviewUserState(user);
+    localStorage.setItem(LS_KEY, JSON.stringify(user));
   }, []);
 
-  // Effective management flag — management previewing as salesperson acts like one
+  const previewAsSalesperson = actuallyManagement && previewUser !== null;
   const isManagement = actuallyManagement && !previewAsSalesperson;
 
   return {
-    /** The logged-in user's name */
-    userName: session.name,
-    /** True if the user has Administrator account type (and isn't previewing as salesperson) */
+    userName: previewUser?.name ?? session.name,
     isManagement,
-    /** True if the logged-in user is actually an Administrator (regardless of preview) */
     actuallyManagement,
-    /** Whether management is currently previewing the salesperson view */
     previewAsSalesperson,
-    togglePreview,
+    previewUser,
+    setPreviewAs,
+    // kept for any existing callers — clears the preview
+    togglePreview: useCallback(() => setPreviewAs(null), [setPreviewAs]),
   };
 }

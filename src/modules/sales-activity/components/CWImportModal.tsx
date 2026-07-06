@@ -47,8 +47,10 @@ interface MatchedCompany {
 
 export interface CWImportPayload {
   companyMappings: Array<{ csvName: string; matchedId?: string }>;
-  selectedOpps: Array<ParsedOpp & { resolvedCsvName: string; resolvedOwnerName: string; resolvedOwnerId: string | null }>;
+  selectedOpps: Array<ParsedOpp & { resolvedCsvName: string; resolvedOwnerName: string; resolvedOwnerId: string | null; existingId?: string }>;
 }
+
+export type ImportProgressCallback = (done: number, total: number, label: string) => void;
 
 // Convert "Charles Horn" → "chorn" to match CW's rep format
 function cwSlug(user: AppUser): string {
@@ -65,7 +67,7 @@ function autoMatchRep(cwName: string, users: AppUser[]): AppUser | null {
 
 interface CWImportModalProps {
   companies: SalesCompany[];
-  onImport: (data: CWImportPayload) => Promise<void>;
+  onImport: (data: CWImportPayload, onProgress: ImportProgressCallback) => Promise<void>;
   onClose: () => void;
 }
 
@@ -150,8 +152,8 @@ function parseCWCSV(text: string, existingCompanies: SalesCompany[]): MatchedCom
       statusLower === "lost" ? "Closed Lost" : stage;
 
     const revenue = parseFloat(r[iRevenue]?.trim().replace(/[^0-9.-]/g, "") ?? "0") || 0;
-    const won     = parseFloat(r[iWon]?.trim().replace(/[^0-9.-]/g, "") ?? "0") || 0;
-    const value   = status.toLowerCase() === "won" ? won : revenue;
+    // Revenue = total project/contract value. Always use it; the "Won" column is a separate CW metric (e.g. GP).
+    const value = revenue;
 
     // Parse CW close date (format: M/D/YYYY or MM/DD/YYYY)
     let closeDate: string | null = null;
@@ -209,7 +211,8 @@ export function CWImportModal({ companies, onImport, onClose }: CWImportModalPro
   const [parsed, setParsed] = useState<MatchedCompany[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [isImporting, setIsImporting] = useState(false);
-  const [done, setDone] = useState(false);
+  const [progress, setProgress] = useState<{ done: number; total: number; label: string } | null>(null);
+  const [done, setDone] = useState<{ created: number; updated: number } | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
 
   // Per-company: selected existing company id, or "" = create new
@@ -317,9 +320,34 @@ export function CWImportModal({ companies, onImport, onClose }: CWImportModalPro
 
   const selectedCount = useMemo(() => checked.size, [checked]);
 
+  // For each parsed opp, check if an existing opp with the same CW# already exists
+  // in the matched company. Key: oppKey → existing opp id.
+  const existingOppLookup = useMemo(() => {
+    const lookup = new Map<string, string>();
+    if (!parsed) return lookup;
+    for (const m of parsed) {
+      const companyId = companyMatch[m.csvName];
+      if (!companyId) continue;
+      const company = companies.find((c) => c.id === companyId);
+      if (!company) continue;
+      const cwIndex = new Map<string, string>();
+      for (const opp of company.opportunities ?? []) {
+        const match = opp.notes?.match(/^CW#(\d+)/);
+        if (match) cwIndex.set(match[1], opp.id);
+      }
+      m.opps.forEach((o, i) => {
+        if (o.cwNumber && cwIndex.has(o.cwNumber)) {
+          lookup.set(oppKey(m.csvName, i), cwIndex.get(o.cwNumber)!);
+        }
+      });
+    }
+    return lookup;
+  }, [parsed, companyMatch, companies]);
+
   async function handleImport() {
     if (!parsed) return;
     setIsImporting(true);
+    setProgress({ done: 0, total: 0, label: "Preparing…" });
     try {
       const companyMappings = parsed.map((m) => ({
         csvName: m.csvName,
@@ -328,24 +356,31 @@ export function CWImportModal({ companies, onImport, onClose }: CWImportModalPro
       const selectedOpps = parsed.flatMap((m) =>
         m.opps
           .map((o, i) => {
+            const key = oppKey(m.csvName, i);
             const resolvedUser = o.ownerName ? (repMapping[o.ownerName] ?? null) : null;
             return {
               ...o,
-              stage: stageOverride[oppKey(m.csvName, i)] ?? o.stage,
+              stage: stageOverride[key] ?? o.stage,
               resolvedCsvName: m.csvName,
               resolvedOwnerName: resolvedUser?.name ?? o.ownerName,
               resolvedOwnerId: resolvedUser?.id ?? null,
+              existingId: existingOppLookup.get(key),
             };
           })
           .filter((_, i) => checked.has(oppKey(m.csvName, i)))
       );
-      await onImport({ companyMappings, selectedOpps });
-      setDone(true);
+      const created = selectedOpps.filter((o) => !o.existingId).length;
+      const updated = selectedOpps.filter((o) => !!o.existingId).length;
+      await onImport({ companyMappings, selectedOpps }, (done, total, label) => {
+        setProgress({ done, total, label });
+      });
+      setDone({ created, updated });
     } catch (err) {
       console.error("[CWImport] Import failed:", err);
       setError(`Import failed: ${err instanceof Error ? err.message : String(err)}`);
     } finally {
       setIsImporting(false);
+      setProgress(null);
     }
   }
 
@@ -353,7 +388,7 @@ export function CWImportModal({ companies, onImport, onClose }: CWImportModalPro
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-      <div className="flex max-h-[92vh] w-full max-w-2xl flex-col rounded-xl border bg-card shadow-xl">
+      <div className="flex max-h-[92vh] w-full max-w-4xl flex-col rounded-xl border bg-card shadow-xl">
         {/* Header */}
         <div className="flex items-center justify-between border-b px-6 py-4 shrink-0">
           <div>
@@ -368,11 +403,39 @@ export function CWImportModal({ companies, onImport, onClose }: CWImportModalPro
         </div>
 
         <div className="flex-1 overflow-y-auto px-6 py-5 space-y-4">
-          {done ? (
+          {isImporting && progress ? (
+            <div className="py-12 flex flex-col items-center gap-6">
+              <div className="w-full max-w-sm space-y-3">
+                <div className="flex items-center justify-between text-xs text-muted-foreground">
+                  <span className="truncate max-w-[260px]">{progress.label}</span>
+                  {progress.total > 0 && (
+                    <span className="shrink-0 ml-2 tabular-nums font-medium">
+                      {progress.done} / {progress.total}
+                    </span>
+                  )}
+                </div>
+                <div className="h-2 w-full rounded-full bg-muted overflow-hidden">
+                  <div
+                    className="h-full rounded-full bg-primary transition-all duration-300 ease-out"
+                    style={{ width: progress.total > 0 ? `${Math.round((progress.done / progress.total) * 100)}%` : "0%" }}
+                  />
+                </div>
+                {progress.total > 0 && (
+                  <p className="text-center text-xs text-muted-foreground">
+                    {Math.round((progress.done / progress.total) * 100)}% complete
+                  </p>
+                )}
+              </div>
+            </div>
+          ) : done ? (
             <div className="py-12 text-center space-y-2">
               <div className="text-4xl mb-3">✓</div>
               <p className="text-sm font-semibold">Import complete</p>
-              <p className="text-xs text-muted-foreground">{selectedCount} opportunities imported</p>
+              <p className="text-xs text-muted-foreground">
+                {done.created > 0 && `${done.created} created`}
+                {done.created > 0 && done.updated > 0 && " · "}
+                {done.updated > 0 && `${done.updated} updated`}
+              </p>
               <button onClick={onClose} className="mt-4 rounded-md bg-primary px-6 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90">
                 Done
               </button>
@@ -412,14 +475,14 @@ export function CWImportModal({ companies, onImport, onClose }: CWImportModalPro
                       <span className="text-[10px] text-amber-600 font-medium">{unresolvedReps.length} need mapping</span>
                     )}
                   </div>
-                  <div className="space-y-2">
+                  <div className="grid grid-cols-2 gap-x-6 gap-y-2">
                     {uniqueRepSlugs.map((slug) => {
                       const resolved = repMapping[slug] ?? null;
                       return (
-                        <div key={slug} className="flex items-center gap-3">
-                          <code className="text-xs bg-muted px-2 py-1 rounded font-mono w-28 shrink-0">{slug}</code>
+                        <div key={slug} className="flex items-center gap-2">
+                          <code className="text-xs bg-muted px-2 py-1 rounded font-mono w-24 shrink-0">{slug}</code>
                           <span className="text-xs text-muted-foreground shrink-0">→</span>
-                          <div className="flex-1">
+                          <div className="flex-1 min-w-0">
                             <UserPicker
                               value={resolved?.id ?? ""}
                               users={allUsers}
@@ -486,48 +549,62 @@ export function CWImportModal({ companies, onImport, onClose }: CWImportModalPro
                         const isChecked = checked.has(key);
                         const stage = stageOverride[key] ?? o.stage;
                         const statusCls = STATUS_CLS[o.cwStatus.toLowerCase()] ?? "bg-muted text-muted-foreground border-transparent";
-
                         const isLost = stage === "Closed Lost";
+                        const isUpdate = existingOppLookup.has(key);
                         return (
-                          <li key={i} className={`flex items-center gap-3 px-4 py-3 transition-colors ${!isChecked ? "opacity-40" : ""} ${isLost && isChecked ? "bg-red-50/40 dark:bg-red-900/5" : ""}`}>
+                          <li key={i} className={`flex items-start gap-3 px-4 py-3 transition-colors ${!isChecked ? "opacity-40" : ""} ${isLost && isChecked ? "bg-red-50/40 dark:bg-red-900/5" : ""}`}>
                             <input
                               type="checkbox"
                               checked={isChecked}
                               onChange={() => toggleOpp(key)}
-                              className="h-4 w-4 rounded border-gray-300 shrink-0"
+                              className="h-4 w-4 rounded border-gray-300 shrink-0 mt-0.5"
                             />
+                            {/* Name + meta */}
                             <div className="flex-1 min-w-0">
-                              <div className="text-sm font-medium leading-snug">{o.name}</div>
-                              <div className="flex items-center gap-2 mt-0.5 flex-wrap">
+                              <div className="flex items-center gap-2 flex-wrap">
+                                <span className="text-sm font-medium leading-snug">{o.name}</span>
+                                {isUpdate && (
+                                  <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-blue-700 bg-blue-50 border border-blue-200 px-2 py-0.5 rounded-full">
+                                    ↺ update
+                                  </span>
+                                )}
+                                {isLost && (
+                                  <span className="text-[11px] text-muted-foreground italic">win rate only</span>
+                                )}
+                              </div>
+                              <div className="flex items-center gap-2.5 mt-1 text-xs text-muted-foreground flex-wrap">
                                 {o.ownerName && (
-                                  <span className="text-xs text-muted-foreground">
+                                  <span className="font-medium text-foreground/70">
                                     {repMapping[o.ownerName]?.name ?? o.ownerName}
                                   </span>
                                 )}
-                                {o.cwNumber && <span className="text-xs text-muted-foreground">#{o.cwNumber}</span>}
-                                {isLost && <span className="text-[10px] text-red-500 font-medium">for win rate</span>}
+                                {o.cwNumber && (
+                                  <span className="font-mono text-[11px]">#{o.cwNumber}</span>
+                                )}
+                                {o.closeDate && (
+                                  <span className="text-[11px]">closes {new Date(o.closeDate).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}</span>
+                                )}
                               </div>
                             </div>
-                            {/* Stage selector */}
-                            <select
-                              value={stage}
-                              onChange={(e) => setStageOverride((prev) => ({ ...prev, [key]: e.target.value as OppStage }))}
-                              disabled={!isChecked}
-                              className={`text-[11px] font-semibold rounded-full px-2.5 py-1 border appearance-none cursor-pointer shrink-0 ${STAGE_COLORS[stage] ?? "bg-muted text-muted-foreground"}`}
-                            >
-                              {STAGE_OPTIONS.map((s) => (
-                                <option key={s} value={s}>{s}</option>
-                              ))}
-                            </select>
-                            {/* CW Status */}
-                            <span className={`text-[10px] font-medium rounded-full px-2 py-0.5 border shrink-0 ${statusCls}`}>
-                              {o.cwStatus || "—"}
-                            </span>
-                            {o.value > 0 && (
-                              <span className="text-xs font-semibold tabular-nums shrink-0 text-right w-20">
-                                {fmt(o.value)}
+                            {/* Right-side badges */}
+                            <div className="flex items-center gap-2 shrink-0 pt-0.5">
+                              <select
+                                value={stage}
+                                onChange={(e) => setStageOverride((prev) => ({ ...prev, [key]: e.target.value as OppStage }))}
+                                disabled={!isChecked}
+                                className={`text-[11px] font-semibold rounded-full px-2.5 py-1 border appearance-none cursor-pointer ${STAGE_COLORS[stage] ?? "bg-muted text-muted-foreground"}`}
+                              >
+                                {STAGE_OPTIONS.map((s) => (
+                                  <option key={s} value={s}>{s}</option>
+                                ))}
+                              </select>
+                              <span className={`text-[11px] font-medium rounded-full px-2.5 py-1 border ${statusCls}`}>
+                                {o.cwStatus || "—"}
                               </span>
-                            )}
+                              <span className="text-xs font-semibold tabular-nums w-20 text-right">
+                                {o.value > 0 ? fmt(o.value) : ""}
+                              </span>
+                            </div>
                           </li>
                         );
                       })}
@@ -537,12 +614,11 @@ export function CWImportModal({ companies, onImport, onClose }: CWImportModalPro
               })}
             </div>
           )}
-
           {error && <p className="text-sm text-destructive rounded-lg border border-destructive/30 bg-destructive/5 px-4 py-2">{error}</p>}
         </div>
 
         {/* Footer */}
-        {parsed && !done && (
+        {parsed && !done && !isImporting && (
           <div className="border-t px-6 py-4 flex items-center justify-between shrink-0">
             <button type="button" onClick={() => { setParsed(null); setError(null); }}
               className="text-xs text-muted-foreground hover:text-foreground">
