@@ -105,6 +105,7 @@ export function TaskDrawer({
   const [subtasks, setSubtasks] = useState<ImplementationTask[]>([]);
   const [newSubtaskTitle, setNewSubtaskTitle] = useState("");
   const [saving, setSaving] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
   const [deleting, setDeleting] = useState(false);
   const [addingComment, setAddingComment] = useState(false);
   const titleRef = useRef<HTMLInputElement>(null);
@@ -137,6 +138,7 @@ export function TaskDrawer({
   async function handleSave() {
     if (!form.title.trim()) return;
     setSaving(true);
+    setSaveError(null);
     try {
       const payload = {
         title: form.title.trim(),
@@ -156,6 +158,8 @@ export function TaskDrawer({
       } else if (task) {
         await onSave(task.id, payload);
       }
+    } catch (err) {
+      setSaveError(err instanceof Error ? err.message : "Failed to save task. Please try again.");
     } finally {
       setSaving(false);
     }
@@ -593,6 +597,13 @@ export function TaskDrawer({
             </div>
           )}
         </div>
+
+        {/* Save error */}
+        {saveError && (
+          <div className="mx-4 mb-2 sm:mx-6 rounded-md border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm text-destructive">
+            {saveError}
+          </div>
+        )}
 
         {/* Footer */}
         <div className="flex items-center justify-between border-t px-4 py-3 sm:px-6 sm:py-4">

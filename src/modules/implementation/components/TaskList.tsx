@@ -10,7 +10,8 @@ import type { WorkflowStep } from "@/types/workflow";
 import { TaskListItem } from "./TaskListItem";
 import { TaskDrawer } from "./TaskDrawer";
 import { useImplementationTasks } from "@/modules/implementation/hooks/useImplementationTasks";
-import { seedStepTasks, STEP_TASK_TEMPLATES } from "@/lib/data/task-templates";
+import { seedStepTasks } from "@/lib/data/task-templates";
+import { STEP_TASK_TEMPLATES } from "@/lib/data/task-template-config";
 
 interface TaskListProps {
   projectId: string;

@@ -37,10 +37,19 @@ export default function ProjectLayout({
 }
 
 function ProjectLayoutGate({ projectId, children }: { projectId: string; children: React.ReactNode }) {
-  const { project, isLoading } = useProjectContext();
+  const { project, isLoading, fetchError } = useProjectContext();
 
   if (isLoading) {
     return <div className="p-8 text-sm text-muted-foreground">Loading project…</div>;
+  }
+
+  // Server/network error — don't call notFound(); show a recoverable error instead.
+  if (fetchError) {
+    return (
+      <div className="p-8 text-sm text-muted-foreground">
+        Unable to load project. Please refresh the page or try again later.
+      </div>
+    );
   }
 
   if (project === null) {

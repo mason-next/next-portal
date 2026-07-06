@@ -23,9 +23,13 @@ export function useImplementationTasks(projectId: string) {
       setTasks(null);
       projectIdRef.current = projectId;
     }
-    getProjectTasks(projectId).then((rows) => {
-      if (active) setTasks(rows);
-    });
+    getProjectTasks(projectId)
+      .then((rows) => {
+        if (active) setTasks(rows);
+      })
+      .catch(() => {
+        if (active) setTasks([]);
+      });
     return () => { active = false; };
   }, [projectId, tick]);
 
