@@ -556,9 +556,11 @@ model ImplementationTask {
   parentTaskId    String?
   notes           String                   @default("")
   tags            String[]                 @default([])
-  workflowStepId  String?
-  createdAt       DateTime                 @default(now())
-  updatedAt       DateTime                 @updatedAt
+  workflowStepId      String?
+  calendarScheduledAt DateTime?
+  calendarEventUrl    String?
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
 
   project     Project?           @relation(fields: [projectId],   references: [id], onDelete: SetNull)
   assignee    User?              @relation("ImplTaskAssignee",   fields: [assigneeId],  references: [id], onDelete: SetNull)

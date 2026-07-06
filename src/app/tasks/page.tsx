@@ -5,6 +5,7 @@ import Link from "next/link";
 import {
   AlertCircle,
   Bell,
+  Calendar,
   CheckCircle2,
   ChevronRight,
   CircleDot,
@@ -12,6 +13,7 @@ import {
   GitBranch,
   ListChecks,
   Plus,
+  Upload,
 } from "lucide-react";
 import { SkeletonList } from "@/components/shared/Skeleton";
 import { Modal } from "@/components/shared/Modal";
@@ -21,6 +23,9 @@ import { useSession } from "@/lib/auth/client";
 import { useUsersContext } from "@/components/shared/AppShell/UsersProvider";
 import { usePersistentFilter } from "@/lib/storage/use-persistent-filter";
 import { TaskDrawer } from "@/modules/implementation/components/TaskDrawer";
+import { TaskImportModal } from "@/modules/implementation/components/TaskImportModal";
+import { OutlookEventModal } from "@/modules/implementation/components/OutlookEventModal";
+import type { OutlookTaskInfo } from "@/modules/implementation/components/OutlookEventModal";
 import { updateTask, deleteTask } from "@/lib/data/implementation";
 import type { ImplementationTask } from "@/types/implementation";
 import type { UpdateTaskInput } from "@/types/implementation";
@@ -34,6 +39,7 @@ type StepStatus = "Not Started" | "In Progress" | "Complete" | "Not Needed";
 interface ApiTask {
   id: string;
   title: string;
+  description?: string;
   status: TaskStatus;
   priority: Priority;
   dueDate: string | null;
@@ -43,6 +49,8 @@ interface ApiTask {
   workflowStep?: { id: string; name: string; section: string } | null;
   subtasks: { status: TaskStatus }[];
   _count: { subtasks: number; comments: number };
+  calendarScheduledAt?: string | null;
+  calendarEventUrl?: string | null;
 }
 
 interface ApiStep {
@@ -126,6 +134,8 @@ export default function TasksPage() {
   const [tab, setTab] = usePersistentFilter<"tasks" | "followups">("tasks:tab", "tasks");
   const [error, setError] = useState(false);
   const [showCreate, setShowCreate] = useState(false);
+  const [showImport, setShowImport] = useState(false);
+  const [outlookTask, setOutlookTask] = useState<OutlookTaskInfo | null>(null);
   const [reloadKey, setReloadKey] = useState(0);
 
   // Personal task drawer
@@ -170,6 +180,31 @@ export default function TasksPage() {
     setReloadKey((k) => k + 1);
   }
 
+  function handleOpenCalendar(task: ApiTask) {
+    setOutlookTask({
+      id: task.id,
+      title: task.title,
+      description: task.description ?? "",
+      priority: task.priority,
+      dueDate: task.dueDate,
+      projectName: task.project.id === "personal" ? null : task.project.name,
+      calendarScheduledAt: task.calendarScheduledAt ?? null,
+      calendarEventUrl: task.calendarEventUrl ?? null,
+    });
+  }
+
+  function handleTaskScheduled(taskId: string, scheduledAt: string, eventUrl: string) {
+    setTasks((prev) =>
+      prev
+        ? prev.map((t) =>
+            t.id === taskId
+              ? { ...t, calendarScheduledAt: scheduledAt, calendarEventUrl: eventUrl }
+              : t
+          )
+        : prev
+    );
+  }
+
   async function handleOpenPersonalTask(taskId: string) {
     setPersonalTaskLoading(true);
     try {
@@ -197,14 +232,32 @@ export default function TasksPage() {
               : "Tasks assigned to you and follow-ups from activity mentions."}
           </p>
         </div>
-        <Button size="sm" className="shrink-0" onClick={() => setShowCreate(true)}>
-          <Plus className="size-4 mr-1" />
-          New Task
-        </Button>
+        <div className="flex items-center gap-2 shrink-0">
+          <Button size="sm" variant="outline" onClick={() => setShowImport(true)}>
+            <Upload className="size-4 mr-1" />
+            Import CSV
+          </Button>
+          <Button size="sm" onClick={() => setShowCreate(true)}>
+            <Plus className="size-4 mr-1" />
+            New Task
+          </Button>
+        </div>
       </div>
 
       {showCreate && (
         <CreateTaskModal onClose={() => setShowCreate(false)} onCreated={reload} />
+      )}
+
+      {showImport && (
+        <TaskImportModal onClose={() => setShowImport(false)} onImported={reload} />
+      )}
+
+      {outlookTask && (
+        <OutlookEventModal
+          task={outlookTask}
+          onClose={() => setOutlookTask(null)}
+          onScheduled={handleTaskScheduled}
+        />
       )}
 
       {isAdmin ? (
@@ -262,6 +315,7 @@ export default function TasksPage() {
           showAssignee={isAllTeam}
           onOpenPersonalTask={handleOpenPersonalTask}
           personalTaskLoading={personalTaskLoading}
+          onOpenCalendar={handleOpenCalendar}
         />
       ) : (
         <FollowUpsTab notifications={notifications!} />
@@ -325,12 +379,14 @@ function TasksTab({
   showAssignee,
   onOpenPersonalTask,
   personalTaskLoading,
+  onOpenCalendar,
 }: {
   tasks: ApiTask[];
   ownedSteps: ApiStep[];
   showAssignee?: boolean;
   onOpenPersonalTask: (id: string) => void;
   personalTaskLoading: boolean;
+  onOpenCalendar: (task: ApiTask) => void;
 }) {
   if (tasks.length === 0 && ownedSteps.length === 0) {
     return (
@@ -390,6 +446,7 @@ function TasksTab({
                 showAssignee={showAssignee}
                 onClickPersonal={onOpenPersonalTask}
                 personalTaskLoading={personalTaskLoading}
+                onOpenCalendar={onOpenCalendar}
               />
             ))}
           </div>
@@ -426,6 +483,7 @@ function TasksTab({
                   showAssignee={showAssignee}
                   onClickPersonal={onOpenPersonalTask}
                   personalTaskLoading={personalTaskLoading}
+                  onOpenCalendar={onOpenCalendar}
                 />
               ))}
             </div>
@@ -494,11 +552,13 @@ function TaskRow({
   showAssignee,
   onClickPersonal,
   personalTaskLoading,
+  onOpenCalendar,
 }: {
   task: ApiTask;
   showAssignee?: boolean;
   onClickPersonal: (id: string) => void;
   personalTaskLoading: boolean;
+  onOpenCalendar: (task: ApiTask) => void;
 }) {
   const due = formatDueDate(task.dueDate);
   const completedSubs = task.subtasks.filter((s) => s.status === "Complete").length;
@@ -533,7 +593,7 @@ function TaskRow({
         </div>
       </div>
 
-      <div className="flex items-center gap-3 shrink-0">
+      <div className="flex items-center gap-2 shrink-0">
         <span className={cn("text-xs font-medium", PRIORITY_COLOR[task.priority])}>
           {task.priority}
         </span>
@@ -548,6 +608,19 @@ function TaskRow({
             {due.label}
           </span>
         )}
+        <button
+          type="button"
+          title={task.calendarScheduledAt ? "Already scheduled in Outlook — click to reschedule" : "Create Outlook event"}
+          onClick={(e) => { e.preventDefault(); e.stopPropagation(); onOpenCalendar(task); }}
+          className={cn(
+            "rounded p-1 transition-colors hover:bg-accent",
+            task.calendarScheduledAt
+              ? "text-blue-500 dark:text-blue-400"
+              : "text-muted-foreground/50 hover:text-muted-foreground"
+          )}
+        >
+          <Calendar className="size-3.5" />
+        </button>
         <ChevronRight className="size-4 text-muted-foreground/50" />
       </div>
     </>

@@ -36,6 +36,8 @@ export interface ImplementationTask {
   workflowStepId: string | null;
   workflowStepName: string | null;
   dependencyCount: number;
+  calendarScheduledAt: string | null;
+  calendarEventUrl: string | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -70,6 +72,8 @@ export interface CreateTaskInput {
 
 export interface UpdateTaskInput extends Partial<CreateTaskInput> {
   completedAt?: string | null;
+  calendarScheduledAt?: string | null;
+  calendarEventUrl?: string | null;
 }
 
 export interface TaskDependencyRef {

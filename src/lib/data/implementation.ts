@@ -92,6 +92,8 @@ function toTask(p: PrismaTaskWithCounts): ImplementationTask {
     workflowStepId: pAny.workflowStepId ?? null,
     workflowStepName: pAny.workflowStep?.name ?? null,
     dependencyCount: (p._count as unknown as { dependencies?: number }).dependencies ?? 0,
+    calendarScheduledAt: (p as unknown as { calendarScheduledAt?: Date | null }).calendarScheduledAt?.toISOString() ?? null,
+    calendarEventUrl: (p as unknown as { calendarEventUrl?: string | null }).calendarEventUrl ?? null,
     createdAt: p.createdAt.toISOString(),
     updatedAt: p.updatedAt.toISOString(),
   };
@@ -215,6 +217,8 @@ export async function updateTask(
   if ("startDate" in input)                data.startDate       = input.startDate ? new Date(input.startDate) : null;
   if ("dueDate" in input)                  data.dueDate         = input.dueDate   ? new Date(input.dueDate)   : null;
   if ("completedAt" in input)              data.completedAt     = input.completedAt ? new Date(input.completedAt) : null;
+  if ("calendarScheduledAt" in input)      (data as Record<string, unknown>).calendarScheduledAt = input.calendarScheduledAt ? new Date(input.calendarScheduledAt) : null;
+  if ("calendarEventUrl" in input)         (data as Record<string, unknown>).calendarEventUrl = input.calendarEventUrl ?? null;
 
   // Auto-set completedAt when status transitions to Complete
   if (input.status === "Complete" && !data.completedAt) {
