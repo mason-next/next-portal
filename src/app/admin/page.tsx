@@ -7,6 +7,8 @@ import { StatusBadge } from "@/components/shared/StatusBadge";
 import { Skeleton } from "@/components/shared/Skeleton";
 import { UserAvatarImage } from "@/components/shared/AppShell/UserAvatarImage";
 import { useUsersContext } from "@/components/shared/AppShell/UsersProvider";
+import { useSession } from "@/lib/auth/client";
+import { getEffectiveLevel } from "@/lib/module-permissions";
 import { DefaultKickoffAttendeesCard } from "@/modules/admin/components/DefaultKickoffAttendeesCard";
 import { WorkflowTemplateTab } from "@/modules/admin/components/WorkflowTemplateTab";
 import { UserFormModal } from "@/modules/admin/components/UserFormModal";
@@ -49,6 +51,10 @@ function StarDisplay({ rating }: { rating: number | null }) {
 
 export default function AdminPage() {
   const isAdmin = useIsAdmin();
+  const session = useSession();
+  // "users: administrator" module level = can manage (see all + create/edit) users.
+  // Literal Administrator role always qualifies; others need explicit "administrator" level on the users module.
+  const canManageUsers = isAdmin || getEffectiveLevel(session.roleTypes, "users") === "administrator";
   const [tab, setTab] = useState<Tab>("users");
 
   return (
@@ -86,7 +92,7 @@ export default function AdminPage() {
       </div>
 
       {tab === "users" ? (
-        <UsersTab isAdmin={isAdmin} />
+        <UsersTab isAdmin={canManageUsers} />
       ) : tab === "subcontractors" ? (
         <SubcontractorsTab />
       ) : tab === "licenses" ? (
@@ -131,10 +137,12 @@ function TabButton({
 
 function UsersTab({ isAdmin }: { isAdmin: boolean }) {
   const { users, isLoading, refetch } = useUsersContext();
+  const session = useSession();
   const [editingUser, setEditingUser] = useState<AppUser | null>(null);
   const [showForm, setShowForm] = useState(false);
 
-  const displayUsers = users;
+  // Non-managers can only see their own profile.
+  const displayUsers = isAdmin ? users : users.filter((u) => u.id === session.id);
 
   return (
     <>
