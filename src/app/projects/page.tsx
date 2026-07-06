@@ -1,9 +1,9 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { ArrowDown, ArrowUp } from "lucide-react";
+import { ArrowDown, ArrowUp, ChevronDown } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { StatusBadge } from "@/components/shared/StatusBadge";
 import { ProgressBar } from "@/components/shared/ProgressBar";
@@ -32,8 +32,6 @@ const VIEW_MODE_KEY = "projects-page:view-mode";
 type ViewMode = "list" | "kanban";
 
 const UNASSIGNED_PM = "unassigned";
-const FILTER_SELECT_CLASS =
-  "h-9 rounded-md border border-input bg-background px-3 text-sm outline-none focus:border-primary";
 
 // ─── Sort ─────────────────────────────────────────────────────────────────────
 
@@ -150,9 +148,9 @@ export default function ProjectsPage() {
   const [showNewProject, setShowNewProject] = useState(false);
   const [showBulkImport, setShowBulkImport] = useState(false);
   const [viewMode, setViewMode] = useState<ViewMode>("list");
-  const [pmFilter, setPmFilter] = usePersistentFilter("projects:pmFilter", "all");
-  const [statusFilter, setStatusFilter] = usePersistentFilter("projects:statusFilter", "all");
-  const [healthFilter, setHealthFilter] = usePersistentFilter("projects:healthFilter", "all");
+  const [pmFilter, setPmFilter] = usePersistentFilter<string[]>("projects:pmFilter.v2", []);
+  const [statusFilter, setStatusFilter] = usePersistentFilter<string[]>("projects:statusFilter.v2", []);
+  const [healthFilter, setHealthFilter] = usePersistentFilter<string[]>("projects:healthFilter.v2", []);
   const [dateFilter, setDateFilter] = usePersistentFilter<DateFilterKey>("projects:dateFilter", "all");
   const [adminFilterUserId, setAdminFilterUserId] = usePersistentFilter<string | null>("projects:adminFilterUserId", null);
   const [sortField, setSortField] = usePersistentFilter<SortField>("projects:sortField", "name");
@@ -218,10 +216,12 @@ export default function ProjectsPage() {
   const filtered = useMemo(
     () =>
       enriched.filter(({ project, status, health, pm }) => {
-        if (pmFilter === UNASSIGNED_PM && pm) return false;
-        if (pmFilter !== "all" && pmFilter !== UNASSIGNED_PM && pm?.id !== pmFilter) return false;
-        if (statusFilter !== "all" && status.label !== statusFilter) return false;
-        if (healthFilter !== "all" && health !== healthFilter) return false;
+        if (pmFilter.length > 0) {
+          const pmId = pm?.id ?? UNASSIGNED_PM;
+          if (!pmFilter.includes(pmId)) return false;
+        }
+        if (statusFilter.length > 0 && !statusFilter.includes(status.label)) return false;
+        if (healthFilter.length > 0 && !healthFilter.includes(health)) return false;
         if (!matchesDateFilter(project.targetCompletionDate, dateFilter)) return false;
         return true;
       }),
@@ -229,12 +229,12 @@ export default function ProjectsPage() {
   );
 
   const filtersActive =
-    pmFilter !== "all" || statusFilter !== "all" || healthFilter !== "all" || dateFilter !== "all" || adminFilterUserId !== null;
+    pmFilter.length > 0 || statusFilter.length > 0 || healthFilter.length > 0 || dateFilter !== "all" || adminFilterUserId !== null;
 
   function clearFilters() {
-    setPmFilter("all");
-    setStatusFilter("all");
-    setHealthFilter("all");
+    setPmFilter([]);
+    setStatusFilter([]);
+    setHealthFilter([]);
     setDateFilter("all");
     setAdminFilterUserId(null);
   }
@@ -316,7 +316,7 @@ export default function ProjectsPage() {
         <div className="mb-4 flex flex-wrap items-center gap-2">
           {isAdmin ? (
             <select
-              className={FILTER_SELECT_CLASS}
+              className="h-9 rounded-md border border-input bg-background px-3 text-sm outline-none focus:border-primary"
               value={adminFilterUserId ?? ""}
               onChange={(e) => setAdminFilterUserId(e.target.value || null)}
             >
@@ -328,41 +328,29 @@ export default function ProjectsPage() {
               ))}
             </select>
           ) : null}
-          <select className={FILTER_SELECT_CLASS} value={pmFilter} onChange={(e) => setPmFilter(e.target.value)}>
-            <option value="all">All Project Managers</option>
-            {hasUnassignedPm ? <option value={UNASSIGNED_PM}>Unassigned</option> : null}
-            {pmOptions.map(([id, name]) => (
-              <option key={id} value={id}>
-                {name}
-              </option>
-            ))}
-          </select>
+          <MultiSelectFilter
+            label="Project Manager"
+            options={[
+              ...(hasUnassignedPm ? [{ value: UNASSIGNED_PM, label: "Unassigned" }] : []),
+              ...pmOptions.map(([id, name]) => ({ value: id, label: name })),
+            ]}
+            selected={pmFilter}
+            onChange={setPmFilter}
+          />
+          <MultiSelectFilter
+            label="Status"
+            options={statusOptions.map((label) => ({ value: label, label }))}
+            selected={statusFilter}
+            onChange={setStatusFilter}
+          />
+          <MultiSelectFilter
+            label="Health"
+            options={PROJECT_HEALTH.map((h) => ({ value: h, label: h }))}
+            selected={healthFilter}
+            onChange={setHealthFilter}
+          />
           <select
-            className={FILTER_SELECT_CLASS}
-            value={statusFilter}
-            onChange={(e) => setStatusFilter(e.target.value)}
-          >
-            <option value="all">All Statuses</option>
-            {statusOptions.map((label) => (
-              <option key={label} value={label}>
-                {label}
-              </option>
-            ))}
-          </select>
-          <select
-            className={FILTER_SELECT_CLASS}
-            value={healthFilter}
-            onChange={(e) => setHealthFilter(e.target.value)}
-          >
-            <option value="all">All Health</option>
-            {PROJECT_HEALTH.map((health) => (
-              <option key={health} value={health}>
-                {health}
-              </option>
-            ))}
-          </select>
-          <select
-            className={FILTER_SELECT_CLASS}
+            className="h-9 rounded-md border border-input bg-background px-3 text-sm outline-none focus:border-primary"
             value={dateFilter}
             onChange={(e) => setDateFilter(e.target.value as DateFilterKey)}
           >
@@ -384,7 +372,7 @@ export default function ProjectsPage() {
 
           <div className="ml-auto flex items-center gap-1.5">
             <select
-              className={FILTER_SELECT_CLASS}
+              className="h-9 rounded-md border border-input bg-background px-3 text-sm outline-none focus:border-primary"
               value={sortField}
               onChange={(e) => setSortField(e.target.value as SortField)}
               aria-label="Sort by"
@@ -471,6 +459,83 @@ export default function ProjectsPage() {
           onDone={() => { setShowBulkImport(false); void loadProjects(); }}
         />
       ) : null}
+    </div>
+  );
+}
+
+// ─── Multi-select filter dropdown ─────────────────────────────────────────────
+
+function MultiSelectFilter({
+  label,
+  options,
+  selected,
+  onChange,
+}: {
+  label: string;
+  options: { value: string; label: string }[];
+  selected: string[];
+  onChange: (v: string[]) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    function handleOutside(e: MouseEvent) {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+    }
+    document.addEventListener("mousedown", handleOutside);
+    return () => document.removeEventListener("mousedown", handleOutside);
+  }, []);
+
+  function toggle(value: string) {
+    onChange(
+      selected.includes(value) ? selected.filter((v) => v !== value) : [...selected, value]
+    );
+  }
+
+  const buttonLabel =
+    selected.length === 0
+      ? `All ${label}s`
+      : selected.length === 1
+        ? (options.find((o) => o.value === selected[0])?.label ?? selected[0])
+        : `${label}: ${selected.length} selected`;
+
+  const active = selected.length > 0;
+
+  return (
+    <div ref={ref} className="relative">
+      <button
+        type="button"
+        onClick={() => setOpen((v) => !v)}
+        className={cn(
+          "inline-flex h-9 items-center gap-1.5 rounded-md border px-3 text-sm transition-colors",
+          active
+            ? "border-primary bg-primary/5 text-primary font-medium"
+            : "border-input bg-background text-foreground hover:bg-muted"
+        )}
+      >
+        <span className="max-w-[160px] truncate">{buttonLabel}</span>
+        <ChevronDown className={cn("size-3.5 shrink-0 opacity-50 transition-transform", open && "rotate-180")} />
+      </button>
+
+      {open && options.length > 0 && (
+        <div className="absolute left-0 z-50 mt-1 min-w-[180px] rounded-md border bg-popover py-1 shadow-md">
+          {options.map((opt) => (
+            <label
+              key={opt.value}
+              className="flex cursor-pointer items-center gap-2.5 px-3 py-1.5 text-sm hover:bg-muted"
+            >
+              <input
+                type="checkbox"
+                checked={selected.includes(opt.value)}
+                onChange={() => toggle(opt.value)}
+                className="h-3.5 w-3.5 shrink-0 rounded accent-primary"
+              />
+              <span>{opt.label}</span>
+            </label>
+          ))}
+        </div>
+      )}
     </div>
   );
 }
