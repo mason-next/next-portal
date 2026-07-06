@@ -1,9 +1,10 @@
 import type { AuditEntry } from "./audit";
 
 export const BOM_STATUSES = [
-  "Pending Review",
+  "Not Reviewed",
   "Approved",
-  "Update Needed",
+  "Pending Verification",
+  "Swap/Replace",
   "Do Not Order",
   "On Hold",
   "Released",

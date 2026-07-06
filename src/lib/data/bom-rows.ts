@@ -12,28 +12,34 @@ import type { BomRow } from "@/types/bom";
 
 // ─── Status mapping ───────────────────────────────────────────────────────────
 
-const PRISMA_TO_APP: Record<PrismaBomStatus, BomRow["status"]> = {
-  PendingReview: "Pending Review",
-  Approved: "Approved",
-  UpdateNeeded: "Update Needed",
-  DoNotOrder: "Do Not Order",
-  OnHold: "On Hold",
-  Released: "Released",
-  Ordered: "Ordered",
-  Received: "Received",
-  Installed: "Installed",
+const PRISMA_TO_APP: Record<string, BomRow["status"]> = {
+  // current values
+  NotReviewed:         "Not Reviewed",
+  Approved:            "Approved",
+  PendingVerification: "Pending Verification",
+  SwapReplace:         "Swap/Replace",
+  DoNotOrder:          "Do Not Order",
+  OnHold:              "On Hold",
+  Released:            "Released",
+  Ordered:             "Ordered",
+  Received:            "Received",
+  Installed:           "Installed",
+  // legacy values — may still exist in DB enum after migration
+  PendingReview:       "Not Reviewed",
+  UpdateNeeded:        "Pending Verification",
 };
 
-const APP_TO_PRISMA: Record<BomRow["status"], PrismaBomStatus> = {
-  "Pending Review": "PendingReview",
-  Approved: "Approved",
-  "Update Needed": "UpdateNeeded",
-  "Do Not Order": "DoNotOrder",
-  "On Hold": "OnHold",
-  Released: "Released",
-  Ordered: "Ordered",
-  Received: "Received",
-  Installed: "Installed",
+const APP_TO_PRISMA: Record<BomRow["status"], string> = {
+  "Not Reviewed":         "NotReviewed",
+  Approved:               "Approved",
+  "Pending Verification": "PendingVerification",
+  "Swap/Replace":         "SwapReplace",
+  "Do Not Order":         "DoNotOrder",
+  "On Hold":              "OnHold",
+  Released:               "Released",
+  Ordered:                "Ordered",
+  Received:               "Received",
+  Installed:              "Installed",
 };
 
 // ─── Type mappers ─────────────────────────────────────────────────────────────
@@ -107,7 +113,7 @@ export async function saveBomRows(projectId: string, rows: BomRow[]): Promise<vo
             desc: row.desc,
             qty: row.qty,
             unitCost: row.unitCost,
-            status: APP_TO_PRISMA[row.status],
+            status: APP_TO_PRISMA[row.status] as PrismaBomStatus,
             releaseId: row.releaseId,
             releaseLabel: row.release,
             releasedAt: row.releasedAt ? new Date(row.releasedAt) : null,
@@ -166,7 +172,7 @@ export async function updateBomRow(
   if ("desc" in patch)         data.desc = patch.desc;
   if ("qty" in patch)          data.qty = patch.qty;
   if ("unitCost" in patch)     data.unitCost = patch.unitCost;
-  if ("status" in patch && patch.status) data.status = APP_TO_PRISMA[patch.status];
+  if ("status" in patch && patch.status) data.status = APP_TO_PRISMA[patch.status] as PrismaBomStatus;
   if ("releaseId" in patch)    data.releaseId = patch.releaseId;
   if ("releaseLabel" in patch) data.releaseLabel = patch.releaseLabel;
   if ("releasedAt" in patch)   data.releasedAt = patch.releasedAt ? new Date(patch.releasedAt) : null;

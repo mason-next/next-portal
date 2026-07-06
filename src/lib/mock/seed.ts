@@ -27,7 +27,7 @@ export function generateSampleBomRows(count = 50): BomRow[] {
     desc: DESCRIPTIONS[i % DESCRIPTIONS.length],
     qty: (i % 4) + 1,
     unitCost: ((i % 6) + 1) * 125,
-    status: "Pending Review",
+    status: "Not Reviewed",
     releaseId: null,
     release: null,
     releasedAt: null,

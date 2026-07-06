@@ -10,7 +10,7 @@ function toNewBomRow(parsed: ParsedBomRow, now: string): BomRow {
     desc: parsed.desc,
     qty: parsed.qty,
     unitCost: parsed.unitCost,
-    status: "Pending Review",
+    status: "Not Reviewed",
     releaseId: null,
     release: null,
     releasedAt: null,

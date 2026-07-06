@@ -138,9 +138,9 @@ export default function TasksPage() {
   const [outlookTask, setOutlookTask] = useState<OutlookTaskInfo | null>(null);
   const [reloadKey, setReloadKey] = useState(0);
 
-  // Personal task drawer
-  const [personalTaskLoading, setPersonalTaskLoading] = useState(false);
-  const [personalTaskDrawer, setPersonalTaskDrawer] = useState<ImplementationTask | null>(null);
+  // Task drawer (personal and project tasks)
+  const [activeTaskLoading, setActiveTaskLoading] = useState(false);
+  const [activeTaskDrawer, setActiveTaskDrawer] = useState<ImplementationTask | null>(null);
 
   const isAllTeam = isAdmin && adminUserId === "__all__";
 
@@ -205,16 +205,16 @@ export default function TasksPage() {
     );
   }
 
-  async function handleOpenPersonalTask(taskId: string) {
-    setPersonalTaskLoading(true);
+  async function handleOpenTask(taskId: string) {
+    setActiveTaskLoading(true);
     try {
       const res = await fetch(`/api/tasks/${taskId}`);
       if (res.ok) {
         const task = (await res.json()) as ImplementationTask;
-        setPersonalTaskDrawer(task);
+        setActiveTaskDrawer(task);
       }
     } finally {
-      setPersonalTaskLoading(false);
+      setActiveTaskLoading(false);
     }
   }
 
@@ -313,32 +313,35 @@ export default function TasksPage() {
           tasks={tasks!}
           ownedSteps={ownedSteps}
           showAssignee={isAllTeam}
-          onOpenPersonalTask={handleOpenPersonalTask}
-          personalTaskLoading={personalTaskLoading}
+          onOpenTask={handleOpenTask}
+          taskLoading={activeTaskLoading}
           onOpenCalendar={handleOpenCalendar}
         />
       ) : (
         <FollowUpsTab notifications={notifications!} />
       )}
 
-      {/* Personal task drawer */}
-      {personalTaskDrawer && (
+      {/* Task drawer — personal and project tasks */}
+      {activeTaskDrawer && (
         <TaskDrawer
-          key={personalTaskDrawer.id}
-          task={personalTaskDrawer}
+          key={activeTaskDrawer.id}
+          task={activeTaskDrawer}
           users={users}
           availableSteps={[]}
           allTasks={[]}
           onClose={() => {
-            setPersonalTaskDrawer(null);
+            setActiveTaskDrawer(null);
             reload();
           }}
           onSave={async (id: string, input: UpdateTaskInput) => {
             await updateTask(id, input);
+            setActiveTaskDrawer((prev) => (prev?.id === id ? { ...prev, ...input } as ImplementationTask : prev));
           }}
           onCreate={async () => {}}
           onDelete={async (id: string) => {
             await deleteTask(id);
+            setActiveTaskDrawer(null);
+            reload();
           }}
         />
       )}
@@ -377,15 +380,15 @@ function TasksTab({
   tasks,
   ownedSteps,
   showAssignee,
-  onOpenPersonalTask,
-  personalTaskLoading,
+  onOpenTask,
+  taskLoading,
   onOpenCalendar,
 }: {
   tasks: ApiTask[];
   ownedSteps: ApiStep[];
   showAssignee?: boolean;
-  onOpenPersonalTask: (id: string) => void;
-  personalTaskLoading: boolean;
+  onOpenTask: (id: string) => void;
+  taskLoading: boolean;
   onOpenCalendar: (task: ApiTask) => void;
 }) {
   if (tasks.length === 0 && ownedSteps.length === 0) {
@@ -444,8 +447,8 @@ function TasksTab({
                 key={task.id}
                 task={task}
                 showAssignee={showAssignee}
-                onClickPersonal={onOpenPersonalTask}
-                personalTaskLoading={personalTaskLoading}
+                onOpenTask={onOpenTask}
+                taskLoading={taskLoading}
                 onOpenCalendar={onOpenCalendar}
               />
             ))}
@@ -481,8 +484,8 @@ function TasksTab({
                   key={task.id}
                   task={task}
                   showAssignee={showAssignee}
-                  onClickPersonal={onOpenPersonalTask}
-                  personalTaskLoading={personalTaskLoading}
+                  onOpenTask={onOpenTask}
+                  taskLoading={taskLoading}
                   onOpenCalendar={onOpenCalendar}
                 />
               ))}
@@ -550,20 +553,18 @@ function StepRow({
 function TaskRow({
   task,
   showAssignee,
-  onClickPersonal,
-  personalTaskLoading,
+  onOpenTask,
+  taskLoading,
   onOpenCalendar,
 }: {
   task: ApiTask;
   showAssignee?: boolean;
-  onClickPersonal: (id: string) => void;
-  personalTaskLoading: boolean;
+  onOpenTask: (id: string) => void;
+  taskLoading: boolean;
   onOpenCalendar: (task: ApiTask) => void;
 }) {
   const due = formatDueDate(task.dueDate);
   const completedSubs = task.subtasks.filter((s) => s.status === "Complete").length;
-  const isPersonal = task.project.id === "personal";
-  const href = isPersonal ? undefined : `/projects/${task.project.id}/implementation`;
 
   const inner = (
     <>
@@ -589,6 +590,15 @@ function TaskRow({
             <span className="text-xs text-muted-foreground">
               {completedSubs}/{task._count.subtasks} subtasks
             </span>
+          )}
+          {task.project.id !== "personal" && (
+            <Link
+              href={`/projects/${task.project.id}/implementation`}
+              onClick={(e) => e.stopPropagation()}
+              className="text-xs text-primary/70 hover:text-primary hover:underline underline-offset-2 shrink-0"
+            >
+              {task.project.name}
+            </Link>
           )}
         </div>
       </div>
@@ -626,26 +636,15 @@ function TaskRow({
     </>
   );
 
-  if (isPersonal) {
-    return (
-      <button
-        type="button"
-        onClick={() => !personalTaskLoading && onClickPersonal(task.id)}
-        className="flex w-full items-center gap-3 px-5 py-3.5 hover:bg-accent transition-colors text-left disabled:opacity-60"
-        disabled={personalTaskLoading}
-      >
-        {inner}
-      </button>
-    );
-  }
-
   return (
-    <Link
-      href={href!}
-      className="flex items-center gap-3 px-5 py-3.5 hover:bg-accent transition-colors"
+    <button
+      type="button"
+      onClick={() => !taskLoading && onOpenTask(task.id)}
+      className="flex w-full items-center gap-3 px-5 py-3.5 hover:bg-accent transition-colors text-left disabled:opacity-60"
+      disabled={taskLoading}
     >
       {inner}
-    </Link>
+    </button>
   );
 }
 

@@ -28,15 +28,16 @@ const PROCUREMENT_STATUSES: ReadonlySet<BomStatus> = new Set([
 const PROCUREMENT_STATUS_OPTIONS: BomStatus[] = ["Released", "Ordered", "Received", "Installed"];
 
 const STATUS_SELECT_TONE: Record<BomStatus, string> = {
-  "Pending Review": "bg-muted text-muted-foreground",
-  Approved: "bg-emerald-50 text-emerald-700",
-  "Update Needed": "bg-amber-50 text-amber-700",
-  "Do Not Order": "bg-red-50 text-red-700",
-  "On Hold": "bg-purple-50 text-purple-700",
-  Released: "bg-sky-50 text-sky-700",
-  Ordered: "bg-blue-50 text-blue-700",
-  Received: "bg-teal-50 text-teal-700",
-  Installed: "bg-emerald-100 text-emerald-800",
+  "Not Reviewed":         "bg-muted text-muted-foreground",
+  Approved:               "bg-emerald-50 text-emerald-700",
+  "Pending Verification": "bg-amber-50 text-amber-700",
+  "Swap/Replace":         "bg-orange-50 text-orange-700",
+  "Do Not Order":         "bg-red-50 text-red-700",
+  "On Hold":              "bg-purple-50 text-purple-700",
+  Released:               "bg-sky-50 text-sky-700",
+  Ordered:                "bg-blue-50 text-blue-700",
+  Received:               "bg-teal-50 text-teal-700",
+  Installed:              "bg-emerald-100 text-emerald-800",
 };
 
 interface BomTableProps {

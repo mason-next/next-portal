@@ -22,8 +22,14 @@ export function BomBulkActionBar({
       <Button size="sm" variant="outline" onClick={() => onSetStatus("Approved")}>
         Approve
       </Button>
-      <Button size="sm" variant="outline" onClick={() => onSetStatus("Update Needed")}>
-        Update Needed
+      <Button size="sm" variant="outline" onClick={() => onSetStatus("Pending Verification")}>
+        Pending Verification
+      </Button>
+      <Button size="sm" variant="outline" onClick={() => onSetStatus("Swap/Replace")}>
+        Swap/Replace
+      </Button>
+      <Button size="sm" variant="outline" onClick={() => onSetStatus("On Hold")}>
+        On Hold
       </Button>
       <Button size="sm" variant="destructive" onClick={() => onSetStatus("Do Not Order")}>
         Do Not Order

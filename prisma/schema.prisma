@@ -74,11 +74,12 @@ enum WorkflowStepStatus {
 }
 
 enum BomStatus {
-  PendingReview @map("Pending Review")
+  NotReviewed         @map("Not Reviewed")
   Approved
-  UpdateNeeded  @map("Update Needed")
-  DoNotOrder    @map("Do Not Order")
-  OnHold        @map("On Hold")
+  PendingVerification @map("Pending Verification")
+  SwapReplace         @map("Swap/Replace")
+  DoNotOrder          @map("Do Not Order")
+  OnHold              @map("On Hold")
   Released
   Ordered
   Received
@@ -250,8 +251,10 @@ model Project {
   equipmentUploads     EquipmentUpload[]
   welcomeLetter        WelcomeLetter?
   internalKickoff      InternalKickoff?
+  technicalKickoff     TechnicalKickoff?
   implementationTasks  ImplementationTask[]
   technicians          ProjectTechnician[]
+  meetingNotes         MeetingNote[]
 
   @@map("projects")
 }
@@ -377,7 +380,7 @@ model BomRow {
   desc         String
   qty          Int
   unitCost     Float
-  status       BomStatus @default(PendingReview)
+  status       BomStatus @default(NotReviewed)
   // releaseId stores the Release UUID as a plain string (no FK) until Release is DB-migrated.
   // releaseLabel stores the display label ("Release 1") denormalized alongside it.
   releaseId    String?
@@ -534,6 +537,41 @@ model InternalKickoff {
   project Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
 
   @@map("internal_kickoffs")
+}
+
+model TechnicalKickoff {
+  id          String   @id @default(cuid())
+  projectId   String   @unique
+  subject     String
+  agenda      String
+  attendees   String[]
+  startTime   DateTime
+  endTime     DateTime
+  scheduledBy String
+  scheduledAt DateTime
+
+  project Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  @@map("technical_kickoffs")
+}
+
+model MeetingNote {
+  id            String   @id @default(cuid())
+  projectId     String
+  title         String
+  meetingDate   DateTime
+  attendees     String   @default("")
+  body          String   @default("")
+  actionItems   String   @default("")
+  createdById   String?
+  createdByName String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  project Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  @@index([projectId])
+  @@map("meeting_notes")
 }
 
 // ─── Implementation Tasks ─────────────────────────────────────────────────────

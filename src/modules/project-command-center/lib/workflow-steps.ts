@@ -130,6 +130,7 @@ const STEP_ACTION_OVERRIDES: Partial<Record<string, string>> = {
   assignTeam: "", // Project Overview (where the team is assigned) lives on the Dashboard itself
   sendWelcomeLetter: "/setup/welcome-letter",
   scheduleInternalKickoff: "/setup/internal-kickoff",
+  scheduleTechnicalKickoff: "/setup/technical-kickoff",
   equipmentTracking: "/procurement/equipment-tracking",
 };
 
@@ -138,7 +139,7 @@ export function stepActionHref(projectId: string, step: WorkflowStep): string {
   return `/projects/${projectId}${suffix}`;
 }
 
-export const PROJECT_SECTIONS: { key: "dashboard" | ProjectSectionKey; label: string; href: string }[] = [
+export const PROJECT_SECTIONS: { key: "dashboard" | "meetingNotes" | ProjectSectionKey; label: string; href: string }[] = [
   { key: "dashboard", label: "Dashboard", href: "" },
   { key: "setup", label: "Setup", href: "/setup" },
   { key: "engineering", label: "Engineering", href: "/engineering" },
@@ -146,6 +147,7 @@ export const PROJECT_SECTIONS: { key: "dashboard" | ProjectSectionKey; label: st
   { key: "implementation", label: "Implementation", href: "/implementation" },
   { key: "closeout", label: "Closeout", href: "/closeout" },
   { key: "serviceWarranty", label: "Service & Warranty", href: "/service-warranty" },
+  { key: "meetingNotes", label: "Meeting Notes", href: "/meeting-notes" },
 ];
 
 export const WORKFLOW_STATUS_TONE: Record<WorkflowStepStatus, StatusTone> = {
@@ -164,6 +166,7 @@ const MODULE_MANAGED_STEPS = new Set<string>([
   "assignTeam",
   "sendWelcomeLetter",
   "scheduleInternalKickoff",
+  "scheduleTechnicalKickoff",
   "equipmentTracking",
 ]);
 

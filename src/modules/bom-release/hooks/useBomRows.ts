@@ -200,7 +200,7 @@ export function useBomRows(projectId: string) {
       desc: "",
       qty: 1,
       unitCost: 0,
-      status: "Pending Review",
+      status: "Not Reviewed",
       releaseId: null,
       release: null,
       releasedAt: null,

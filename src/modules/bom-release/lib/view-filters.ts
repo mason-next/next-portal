@@ -28,7 +28,7 @@ export function applyQuickFilter(rows: BomRow[], filter: QuickFilter): BomRow[] 
     case "approved":
       return rows.filter((row) => row.status === "Approved");
     case "needsReview":
-      return rows.filter((row) => row.status === "Pending Review" || row.status === "Update Needed");
+      return rows.filter((row) => row.status === "Not Reviewed" || row.status === "Pending Verification");
     case "released":
       return rows.filter((row) => row.status === "Released");
     default:
