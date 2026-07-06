@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Plus, Wand2 } from "lucide-react";
+import { Plus, Wand2, ChevronDown, ChevronRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/shared/Skeleton";
 import type { ImplementationTask } from "@/types/implementation";
@@ -9,6 +9,7 @@ import type { AppUser } from "@/types/user";
 import type { WorkflowStep } from "@/types/workflow";
 import { TaskListItem } from "./TaskListItem";
 import { TaskDrawer } from "./TaskDrawer";
+import { SeedTemplatesModal } from "./SeedTemplatesModal";
 import { useImplementationTasks } from "@/modules/implementation/hooks/useImplementationTasks";
 import { STEP_TASK_TEMPLATES } from "@/lib/data/task-template-config";
 
@@ -19,111 +20,117 @@ interface TaskListProps {
 }
 
 export function TaskList({ projectId, users, availableSteps = [] }: TaskListProps) {
-  const { tasks, isLoading, addTask, editTask, removeTask, refetch } = useImplementationTasks(projectId);
-  const [drawerTask, setDrawerTask] = useState<ImplementationTask | "new" | null>(null);
-  const [seeding, setSeeding] = useState(false);
+  const { tasks, isLoading, addTask, editTask, removeTask, refetch } =
+    useImplementationTasks(projectId);
+  const [drawerTarget, setDrawerTarget] = useState<ImplementationTask | "new" | null>(null);
+  const [drawerDefaultStepId, setDrawerDefaultStepId] = useState<string | null>(null);
+  const [seedModalStep, setSeedModalStep] = useState<WorkflowStep | null>(null);
 
-  // Steps that have predefined templates
-  const templateSteps = availableSteps.filter((s) => !!STEP_TASK_TEMPLATES[s.key]);
-  const hasTemplates = templateSteps.length > 0;
+  function openNew(stepId: string | null = null) {
+    setDrawerTarget("new");
+    setDrawerDefaultStepId(stepId);
+  }
 
-  const openTask = drawerTask === "new" ? null : drawerTask;
-  const drawerOpen = drawerTask !== null;
+  function openTask(task: ImplementationTask) {
+    setDrawerTarget(task);
+    setDrawerDefaultStepId(null);
+  }
+
+  function closeDrawer() {
+    setDrawerTarget(null);
+    setDrawerDefaultStepId(null);
+    refetch();
+  }
 
   async function handleToggleComplete(task: ImplementationTask) {
     const nextStatus = task.status === "Complete" ? "Not Started" : "Complete";
     await editTask(task.id, { status: nextStatus });
   }
 
-  async function handleSeedTemplates() {
-    setSeeding(true);
-    try {
-      for (const step of templateSteps) {
-        await fetch("/api/implementation/seed-step-tasks", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ projectId, workflowStepId: step.id, stepKey: step.key }),
-        });
-      }
-      refetch();
-    } finally {
-      setSeeding(false);
-    }
+  // Group root tasks by workflowStepId
+  const tasksByStep = new Map<string, ImplementationTask[]>();
+  for (const task of tasks ?? []) {
+    const key = task.workflowStepId ?? "__unlinked__";
+    if (!tasksByStep.has(key)) tasksByStep.set(key, []);
+    tasksByStep.get(key)!.push(task);
   }
 
-  const completedCount = (tasks ?? []).filter((t) => t.status === "Complete").length;
+  const unlinkedTasks = tasksByStep.get("__unlinked__") ?? [];
+  const openTask_ = drawerTarget === "new" ? null : (drawerTarget as ImplementationTask | null);
+  const drawerOpen = drawerTarget !== null;
 
   return (
-    <div>
-      <div className="mb-3 flex items-center justify-between">
-        <div>
-          <div className="text-sm font-semibold">Tasks</div>
-          {!isLoading && (
-            <p className="text-xs text-muted-foreground">
-              {completedCount}/{tasks!.length} complete
-            </p>
-          )}
-        </div>
-        <div className="flex gap-2">
-          {hasTemplates && (
-            <Button size="sm" variant="outline" onClick={handleSeedTemplates} disabled={seeding}>
-              <Wand2 className="mr-1.5 size-4" />
-              {seeding ? "Loading…" : "Load Templates"}
-            </Button>
-          )}
-          <Button size="sm" onClick={() => setDrawerTask("new")}>
-            <Plus className="mr-1.5 size-4" />
-            Add Task
-          </Button>
-        </div>
-      </div>
-
-      {isLoading ? (
-        <div className="space-y-0.5">
-          {[1, 2, 3].map((i) => (
-            <div key={i} className="flex items-center gap-3 py-2.5 px-1">
-              <Skeleton className="h-4 w-4 rounded" />
-              <Skeleton className="h-4 flex-1" />
-              <Skeleton className="h-5 w-16 rounded-full" />
-            </div>
-          ))}
-        </div>
-      ) : tasks!.length === 0 ? (
-        <div className="rounded-lg border border-dashed py-8 text-center text-sm text-muted-foreground">
-          No tasks yet.{" "}
-          <button
-            type="button"
-            className="font-medium text-primary hover:underline"
-            onClick={() => setDrawerTask("new")}
-          >
-            Add the first one
-          </button>
-        </div>
-      ) : (
-        <div className="space-y-0.5">
-          {tasks!.map((task) => (
-            <TaskListItem
-              key={task.id}
-              task={task}
+    <div className="space-y-3">
+      {availableSteps.length > 0 ? (
+        <>
+          {availableSteps.map((step) => (
+            <StepSection
+              key={step.id}
+              step={step}
+              tasks={isLoading ? null : (tasksByStep.get(step.id) ?? [])}
               users={users}
-              onOpen={(t) => setDrawerTask(t)}
+              onOpenTask={openTask}
+              onAddTask={() => openNew(step.id)}
               onToggleComplete={handleToggleComplete}
+              onLoadTemplates={
+                STEP_TASK_TEMPLATES[step.key] ? () => setSeedModalStep(step) : null
+              }
             />
           ))}
+
+          {!isLoading && unlinkedTasks.length > 0 && (
+            <StepSection
+              step={null}
+              tasks={unlinkedTasks}
+              users={users}
+              onOpenTask={openTask}
+              onAddTask={() => openNew(null)}
+              onToggleComplete={handleToggleComplete}
+              onLoadTemplates={null}
+            />
+          )}
+        </>
+      ) : (
+        // No steps configured — flat list with single "Add Task" button
+        <div className="rounded-xl border bg-card shadow-sm overflow-hidden">
+          <div className="flex items-center justify-between px-4 py-3 border-b bg-muted/10">
+            <span className="text-sm font-semibold">Tasks</span>
+            <Button size="sm" variant="ghost" onClick={() => openNew(null)} className="h-7 px-2.5 text-xs">
+              <Plus className="mr-1 size-3.5" />
+              Add Task
+            </Button>
+          </div>
+          <div className="px-3 py-2">
+            {isLoading ? (
+              <LoadingRows />
+            ) : (tasks ?? []).length === 0 ? (
+              <EmptyState onAdd={() => openNew(null)} />
+            ) : (
+              <div className="space-y-0.5">
+                {(tasks ?? []).map((task) => (
+                  <TaskListItem
+                    key={task.id}
+                    task={task}
+                    users={users}
+                    onOpen={openTask}
+                    onToggleComplete={handleToggleComplete}
+                  />
+                ))}
+              </div>
+            )}
+          </div>
         </div>
       )}
 
       {drawerOpen && (
         <TaskDrawer
-          key={openTask?.id ?? "new"}
-          task={openTask}
+          key={openTask_?.id ?? "new"}
+          task={openTask_}
           users={users}
           availableSteps={availableSteps}
+          defaultWorkflowStepId={drawerDefaultStepId}
           allTasks={tasks ?? []}
-          onClose={() => {
-              setDrawerTask(null);
-              refetch();
-            }}
+          onClose={closeDrawer}
           onSave={async (id, input) => {
             await editTask(id, input);
           }}
@@ -134,6 +141,164 @@ export function TaskList({ projectId, users, availableSteps = [] }: TaskListProp
             await removeTask(id);
           }}
         />
+      )}
+
+      {seedModalStep && (
+        <SeedTemplatesModal
+          projectId={projectId}
+          step={seedModalStep}
+          onClose={() => setSeedModalStep(null)}
+          onDone={() => {
+            setSeedModalStep(null);
+            refetch();
+          }}
+        />
+      )}
+    </div>
+  );
+}
+
+// ─── Step Section ──────────────────────────────────────────────────────────────
+
+interface StepSectionProps {
+  step: WorkflowStep | null;
+  tasks: ImplementationTask[] | null;
+  users: AppUser[];
+  onOpenTask: (task: ImplementationTask) => void;
+  onAddTask: () => void;
+  onToggleComplete: (task: ImplementationTask) => void;
+  onLoadTemplates: (() => void) | null;
+}
+
+function StepSection({
+  step,
+  tasks,
+  users,
+  onOpenTask,
+  onAddTask,
+  onToggleComplete,
+  onLoadTemplates,
+}: StepSectionProps) {
+  const [expanded, setExpanded] = useState(true);
+  const label = step ? step.name : "Unlinked Tasks";
+  const taskCount = tasks?.length ?? 0;
+  const completedCount = tasks?.filter((t) => t.status === "Complete").length ?? 0;
+
+  return (
+    <div className="rounded-xl border bg-card shadow-sm overflow-hidden">
+      <div className="flex items-center gap-2 px-4 py-3 border-b bg-muted/10">
+        <button
+          type="button"
+          onClick={() => setExpanded((e) => !e)}
+          className="flex-none text-muted-foreground hover:text-foreground transition-colors"
+        >
+          {expanded ? <ChevronDown className="size-4" /> : <ChevronRight className="size-4" />}
+        </button>
+
+        <div className="flex-1 min-w-0">
+          <span className="text-sm font-semibold">{label}</span>
+          {tasks !== null && taskCount > 0 && (
+            <span className="ml-2 text-xs text-muted-foreground">
+              {completedCount}/{taskCount} complete
+            </span>
+          )}
+        </div>
+
+        <div className="flex items-center gap-1.5">
+          {onLoadTemplates && (
+            <Button
+              size="sm"
+              variant="ghost"
+              onClick={onLoadTemplates}
+              className="h-7 px-2.5 text-xs"
+            >
+              <Wand2 className="mr-1 size-3.5" />
+              Load Templates
+            </Button>
+          )}
+          <Button
+            size="sm"
+            variant="ghost"
+            onClick={onAddTask}
+            className="h-7 px-2.5 text-xs"
+          >
+            <Plus className="mr-1 size-3.5" />
+            Add Task
+          </Button>
+        </div>
+      </div>
+
+      {expanded && (
+        <div className="px-3 py-2">
+          {tasks === null ? (
+            <LoadingRows />
+          ) : tasks.length === 0 ? (
+            <EmptyState
+              onAdd={onAddTask}
+              onLoadTemplates={onLoadTemplates ?? undefined}
+            />
+          ) : (
+            <div className="space-y-0.5">
+              {tasks.map((task) => (
+                <TaskListItem
+                  key={task.id}
+                  task={task}
+                  users={users}
+                  onOpen={onOpenTask}
+                  onToggleComplete={onToggleComplete}
+                />
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function LoadingRows() {
+  return (
+    <div className="space-y-1 py-1">
+      {[1, 2].map((i) => (
+        <div key={i} className="flex items-center gap-3 py-2 px-1">
+          <Skeleton className="h-4 w-4 rounded" />
+          <Skeleton className="h-4 flex-1" />
+          <Skeleton className="h-5 w-16 rounded-full" />
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function EmptyState({
+  onAdd,
+  onLoadTemplates,
+}: {
+  onAdd: () => void;
+  onLoadTemplates?: () => void;
+}) {
+  return (
+    <div className="py-6 text-center text-sm text-muted-foreground">
+      No tasks yet.{" "}
+      <button
+        type="button"
+        className="font-medium text-primary hover:underline underline-offset-2"
+        onClick={onAdd}
+      >
+        Add the first one
+      </button>
+      {onLoadTemplates && (
+        <>
+          {" "}
+          or{" "}
+          <button
+            type="button"
+            className="font-medium text-primary hover:underline underline-offset-2"
+            onClick={onLoadTemplates}
+          >
+            load templates
+          </button>
+        </>
       )}
     </div>
   );

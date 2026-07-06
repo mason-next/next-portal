@@ -11,6 +11,7 @@ import { useSession } from "@/lib/auth/client";
 import { getEffectiveLevel } from "@/lib/module-permissions";
 import { DefaultKickoffAttendeesCard } from "@/modules/admin/components/DefaultKickoffAttendeesCard";
 import { WorkflowTemplateTab } from "@/modules/admin/components/WorkflowTemplateTab";
+import { TaskTemplatesTab } from "@/modules/admin/components/TaskTemplatesTab";
 import { UserFormModal } from "@/modules/admin/components/UserFormModal";
 import { SubcontractorFormModal } from "@/modules/admin/components/SubcontractorFormModal";
 import { LicensesTab } from "@/modules/admin/components/LicensesTab";
@@ -33,7 +34,7 @@ import { useIsAdmin } from "@/lib/hooks/useCanEdit";
 // Kept for tree-shaking — these were previously inlined in the admin page.
 // PermissionsConfig and permission constants now live in PermissionsTab component.
 
-type Tab = "users" | "subcontractors" | "licenses" | "templates" | "permissions" | "workflow";
+type Tab = "users" | "subcontractors" | "licenses" | "templates" | "permissions" | "workflow" | "taskTemplates";
 
 function StarDisplay({ rating }: { rating: number | null }) {
   if (!rating) return <span className="text-xs text-muted-foreground">—</span>;
@@ -87,6 +88,10 @@ export default function AdminPage() {
               <Layers className="size-4" />
               Workflow
             </TabButton>
+            <TabButton active={tab === "taskTemplates"} onClick={() => setTab("taskTemplates")}>
+              <MapPin className="size-4" />
+              Task Templates
+            </TabButton>
           </>
         ) : null}
       </div>
@@ -101,6 +106,8 @@ export default function AdminPage() {
         <TemplatesTab />
       ) : tab === "workflow" ? (
         <WorkflowTemplateTab />
+      ) : tab === "taskTemplates" ? (
+        <TaskTemplatesTab />
       ) : (
         <PermissionsTab />
       )}

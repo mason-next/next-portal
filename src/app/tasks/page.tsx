@@ -20,6 +20,10 @@ import { cn } from "@/lib/utils";
 import { useSession } from "@/lib/auth/client";
 import { useUsersContext } from "@/components/shared/AppShell/UsersProvider";
 import { usePersistentFilter } from "@/lib/storage/use-persistent-filter";
+import { TaskDrawer } from "@/modules/implementation/components/TaskDrawer";
+import { updateTask, deleteTask } from "@/lib/data/implementation";
+import type { ImplementationTask } from "@/types/implementation";
+import type { UpdateTaskInput } from "@/types/implementation";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -36,6 +40,7 @@ interface ApiTask {
   percentComplete: number;
   project: { id: string; name: string };
   assignee?: { id: string; name: string } | null;
+  workflowStep?: { id: string; name: string; section: string } | null;
   subtasks: { status: TaskStatus }[];
   _count: { subtasks: number; comments: number };
 }
@@ -65,10 +70,10 @@ interface ApiNotification {
 
 const STATUS_LABEL: Record<TaskStatus, string> = {
   NotStarted: "Not Started",
-  InProgress: "In Progress",
-  Blocked:    "Blocked",
-  Complete:   "Complete",
-  Cancelled:  "Cancelled",
+  InProgress:  "In Progress",
+  Blocked:     "Blocked",
+  Complete:    "Complete",
+  Cancelled:   "Cancelled",
 };
 
 const PRIORITY_COLOR: Record<Priority, string> = {
@@ -80,10 +85,10 @@ const PRIORITY_COLOR: Record<Priority, string> = {
 
 const STATUS_ICON: Record<TaskStatus, React.ReactNode> = {
   NotStarted: <CircleDot className="size-4 text-muted-foreground" />,
-  InProgress: <CircleDot className="size-4 text-blue-500" />,
-  Blocked:    <AlertCircle className="size-4 text-red-500" />,
-  Complete:   <CheckCircle2 className="size-4 text-emerald-500" />,
-  Cancelled:  <CheckCircle2 className="size-4 text-muted-foreground" />,
+  InProgress:  <CircleDot className="size-4 text-blue-500" />,
+  Blocked:     <AlertCircle className="size-4 text-red-500" />,
+  Complete:    <CheckCircle2 className="size-4 text-emerald-500" />,
+  Cancelled:   <CheckCircle2 className="size-4 text-muted-foreground" />,
 };
 
 function formatDueDate(iso: string | null): { label: string; overdue: boolean } | null {
@@ -114,7 +119,6 @@ export default function TasksPage() {
   const session = useSession();
   const { users } = useUsersContext();
   const isAdmin = session.roleTypes.includes("Administrator");
-  const isViewer = false; // Viewer accountType removed — permissions are role-based
   const [adminUserId, setAdminUserId] = usePersistentFilter<string | null>("tasks:adminUserId", null);
   const [tasks, setTasks] = useState<ApiTask[] | null>(null);
   const [ownedSteps, setOwnedSteps] = useState<ApiStep[]>([]);
@@ -122,9 +126,13 @@ export default function TasksPage() {
   const [tab, setTab] = usePersistentFilter<"tasks" | "followups">("tasks:tab", "tasks");
   const [error, setError] = useState(false);
   const [showCreate, setShowCreate] = useState(false);
+  const [reloadKey, setReloadKey] = useState(0);
+
+  // Personal task drawer
+  const [personalTaskLoading, setPersonalTaskLoading] = useState(false);
+  const [personalTaskDrawer, setPersonalTaskDrawer] = useState<ImplementationTask | null>(null);
 
   const isAllTeam = isAdmin && adminUserId === "__all__";
-  const [reloadKey, setReloadKey] = useState(0);
 
   useEffect(() => {
     if (isAllTeam && tab === "followups") setTab("tasks");
@@ -162,6 +170,19 @@ export default function TasksPage() {
     setReloadKey((k) => k + 1);
   }
 
+  async function handleOpenPersonalTask(taskId: string) {
+    setPersonalTaskLoading(true);
+    try {
+      const res = await fetch(`/api/tasks/${taskId}`);
+      if (res.ok) {
+        const task = (await res.json()) as ImplementationTask;
+        setPersonalTaskDrawer(task);
+      }
+    } finally {
+      setPersonalTaskLoading(false);
+    }
+  }
+
   return (
     <div className="mx-auto max-w-3xl p-4 sm:p-8 space-y-6">
       <div className="flex items-start justify-between gap-4">
@@ -176,23 +197,14 @@ export default function TasksPage() {
               : "Tasks assigned to you and follow-ups from activity mentions."}
           </p>
         </div>
-        {!isViewer && (
-          <Button
-            size="sm"
-            className="shrink-0"
-            onClick={() => setShowCreate(true)}
-          >
-            <Plus className="size-4 mr-1" />
-            New Task
-          </Button>
-        )}
+        <Button size="sm" className="shrink-0" onClick={() => setShowCreate(true)}>
+          <Plus className="size-4 mr-1" />
+          New Task
+        </Button>
       </div>
 
       {showCreate && (
-        <CreateTaskModal
-          onClose={() => setShowCreate(false)}
-          onCreated={reload}
-        />
+        <CreateTaskModal onClose={() => setShowCreate(false)} onCreated={reload} />
       )}
 
       {isAdmin ? (
@@ -206,9 +218,7 @@ export default function TasksPage() {
             <option value="">My tasks</option>
             <option value="__all__">All team tasks</option>
             {users.filter((u) => u.isActive).map((u) => (
-              <option key={u.id} value={u.id}>
-                {u.name}
-              </option>
+              <option key={u.id} value={u.id}>{u.name}</option>
             ))}
           </select>
         </div>
@@ -246,9 +256,37 @@ export default function TasksPage() {
       ) : loading ? (
         <SkeletonList count={5} />
       ) : tab === "tasks" || isAllTeam ? (
-        <TasksTab tasks={tasks!} ownedSteps={ownedSteps} showAssignee={isAllTeam} />
+        <TasksTab
+          tasks={tasks!}
+          ownedSteps={ownedSteps}
+          showAssignee={isAllTeam}
+          onOpenPersonalTask={handleOpenPersonalTask}
+          personalTaskLoading={personalTaskLoading}
+        />
       ) : (
         <FollowUpsTab notifications={notifications!} />
+      )}
+
+      {/* Personal task drawer */}
+      {personalTaskDrawer && (
+        <TaskDrawer
+          key={personalTaskDrawer.id}
+          task={personalTaskDrawer}
+          users={users}
+          availableSteps={[]}
+          allTasks={[]}
+          onClose={() => {
+            setPersonalTaskDrawer(null);
+            reload();
+          }}
+          onSave={async (id: string, input: UpdateTaskInput) => {
+            await updateTask(id, input);
+          }}
+          onCreate={async () => {}}
+          onDelete={async (id: string) => {
+            await deleteTask(id);
+          }}
+        />
       )}
     </div>
   );
@@ -285,10 +323,14 @@ function TasksTab({
   tasks,
   ownedSteps,
   showAssignee,
+  onOpenPersonalTask,
+  personalTaskLoading,
 }: {
   tasks: ApiTask[];
   ownedSteps: ApiStep[];
   showAssignee?: boolean;
+  onOpenPersonalTask: (id: string) => void;
+  personalTaskLoading: boolean;
 }) {
   if (tasks.length === 0 && ownedSteps.length === 0) {
     return (
@@ -302,11 +344,9 @@ function TasksTab({
     );
   }
 
-  // Split personal tasks from project tasks
   const personalTasks = tasks.filter((t) => t.project.id === "personal");
   const projectTasks  = tasks.filter((t) => t.project.id !== "personal");
 
-  // Group project tasks by project
   const byProject = projectTasks.reduce<Record<string, { name: string; tasks: ApiTask[] }>>(
     (acc, t) => {
       const key = t.project.id;
@@ -317,7 +357,6 @@ function TasksTab({
     {}
   );
 
-  // Group owned workflow steps by project
   const stepsByProject = ownedSteps.reduce<Record<string, { name: string; steps: ApiStep[] }>>(
     (acc, s) => {
       const key = s.project.id;
@@ -332,7 +371,7 @@ function TasksTab({
 
   return (
     <div className="space-y-5">
-      {/* Personal tasks — always first, distinct indigo header */}
+      {/* Personal tasks */}
       {personalTasks.length > 0 && (
         <div className="rounded-xl border border-indigo-200 bg-card shadow-sm overflow-hidden dark:border-indigo-800/40">
           <div className="flex items-center justify-between px-5 py-3 border-b border-indigo-200 bg-indigo-50 dark:border-indigo-800/40 dark:bg-indigo-950/30">
@@ -345,7 +384,13 @@ function TasksTab({
           </div>
           <div className="divide-y">
             {personalTasks.map((task) => (
-              <TaskRow key={task.id} task={task} showAssignee={showAssignee} />
+              <TaskRow
+                key={task.id}
+                task={task}
+                showAssignee={showAssignee}
+                onClickPersonal={onOpenPersonalTask}
+                personalTaskLoading={personalTaskLoading}
+              />
             ))}
           </div>
         </div>
@@ -375,7 +420,13 @@ function TasksTab({
                 <StepRow key={step.id} step={step} projectId={projectId} showOwner={showAssignee} />
               ))}
               {(taskGroup?.tasks ?? []).map((task) => (
-                <TaskRow key={task.id} task={task} showAssignee={showAssignee} />
+                <TaskRow
+                  key={task.id}
+                  task={task}
+                  showAssignee={showAssignee}
+                  onClickPersonal={onOpenPersonalTask}
+                  personalTaskLoading={personalTaskLoading}
+                />
               ))}
             </div>
           </div>
@@ -401,7 +452,9 @@ function StepRow({
       href={`/projects/${projectId}`}
       className="flex items-center gap-3 px-5 py-3.5 hover:bg-accent transition-colors"
     >
-      <GitBranch className={cn("size-4 shrink-0", isInProgress ? "text-blue-500" : "text-muted-foreground")} />
+      <GitBranch
+        className={cn("size-4 shrink-0", isInProgress ? "text-blue-500" : "text-muted-foreground")}
+      />
 
       <div className="flex-1 min-w-0">
         <p className="text-sm font-medium truncate">{step.name}</p>
@@ -436,23 +489,36 @@ function StepRow({
   );
 }
 
-function TaskRow({ task, showAssignee }: { task: ApiTask; showAssignee?: boolean }) {
+function TaskRow({
+  task,
+  showAssignee,
+  onClickPersonal,
+  personalTaskLoading,
+}: {
+  task: ApiTask;
+  showAssignee?: boolean;
+  onClickPersonal: (id: string) => void;
+  personalTaskLoading: boolean;
+}) {
   const due = formatDueDate(task.dueDate);
   const completedSubs = task.subtasks.filter((s) => s.status === "Complete").length;
   const isPersonal = task.project.id === "personal";
-  const href = isPersonal ? "#" : `/projects/${task.project.id}/implementation`;
+  const href = isPersonal ? undefined : `/projects/${task.project.id}/implementation`;
 
-  return (
-    <Link
-      href={href}
-      className="flex items-center gap-3 px-5 py-3.5 hover:bg-accent transition-colors"
-    >
+  const inner = (
+    <>
       <span className="shrink-0">{STATUS_ICON[task.status]}</span>
 
       <div className="flex-1 min-w-0">
         <p className="text-sm font-medium truncate">{task.title}</p>
         <div className="mt-0.5 flex items-center gap-2 flex-wrap">
           <span className="text-xs text-muted-foreground">{STATUS_LABEL[task.status]}</span>
+          {task.workflowStep && (
+            <>
+              <span className="text-xs text-muted-foreground/50">·</span>
+              <span className="text-xs text-muted-foreground">{task.workflowStep.name}</span>
+            </>
+          )}
           {showAssignee && task.assignee ? (
             <>
               <span className="text-xs text-muted-foreground/50">·</span>
@@ -484,6 +550,28 @@ function TaskRow({ task, showAssignee }: { task: ApiTask; showAssignee?: boolean
         )}
         <ChevronRight className="size-4 text-muted-foreground/50" />
       </div>
+    </>
+  );
+
+  if (isPersonal) {
+    return (
+      <button
+        type="button"
+        onClick={() => !personalTaskLoading && onClickPersonal(task.id)}
+        className="flex w-full items-center gap-3 px-5 py-3.5 hover:bg-accent transition-colors text-left disabled:opacity-60"
+        disabled={personalTaskLoading}
+      >
+        {inner}
+      </button>
+    );
+  }
+
+  return (
+    <Link
+      href={href!}
+      className="flex items-center gap-3 px-5 py-3.5 hover:bg-accent transition-colors"
+    >
+      {inner}
     </Link>
   );
 }
@@ -563,7 +651,9 @@ function FollowUpRow({
           </Link>
         </div>
         {n.commentPreview && (
-          <p className="text-xs text-muted-foreground line-clamp-2">&ldquo;{n.commentPreview}&rdquo;</p>
+          <p className="text-xs text-muted-foreground line-clamp-2">
+            &ldquo;{n.commentPreview}&rdquo;
+          </p>
         )}
         <p className="text-xs text-muted-foreground/60">{timeAgo(n.createdAt)}</p>
       </div>

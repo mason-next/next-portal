@@ -5,6 +5,7 @@ import { X, Plus, Trash2, AlertCircle, Link2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { UserSelect } from "@/components/shared/UserSelect";
+import { ProgressBar } from "@/components/shared/ProgressBar";
 import type {
   ImplementationTask,
   ImplementationTaskComment,
@@ -37,6 +38,7 @@ interface TaskDrawerProps {
   task: ImplementationTask | null;
   users: AppUser[];
   availableSteps: WorkflowStep[];
+  defaultWorkflowStepId?: string | null;
   allTasks: ImplementationTask[];
   onClose: () => void;
   onSave: (taskId: string, input: UpdateTaskInput) => Promise<void>;
@@ -72,23 +74,26 @@ function toFormState(task: ImplementationTask): FormState {
   };
 }
 
-const EMPTY_FORM: FormState = {
-  title: "",
-  description: "",
-  status: "Not Started",
-  priority: "Medium",
-  percentComplete: 0,
-  assigneeId: null,
-  workflowStepId: null,
-  startDate: "",
-  dueDate: "",
-  notes: "",
-};
+function emptyForm(defaultStepId: string | null = null): FormState {
+  return {
+    title: "",
+    description: "",
+    status: "Not Started",
+    priority: "Medium",
+    percentComplete: 0,
+    assigneeId: null,
+    workflowStepId: defaultStepId,
+    startDate: "",
+    dueDate: "",
+    notes: "",
+  };
+}
 
 export function TaskDrawer({
   task,
   users,
   availableSteps,
+  defaultWorkflowStepId = null,
   allTasks,
   onClose,
   onSave,
@@ -96,7 +101,11 @@ export function TaskDrawer({
   onDelete,
 }: TaskDrawerProps) {
   const isCreate = task === null;
-  const [form, setForm] = useState<FormState>(() => (task ? toFormState(task) : EMPTY_FORM));
+  const isSubtask = Boolean(task?.parentTaskId);
+
+  const [form, setForm] = useState<FormState>(() =>
+    task ? toFormState(task) : emptyForm(defaultWorkflowStepId)
+  );
   const [comments, setComments] = useState<ImplementationTaskComment[]>([]);
   const [commentText, setCommentText] = useState("");
   const [deps, setDeps] = useState<TaskDependencyRef[]>([]);
@@ -135,17 +144,24 @@ export function TaskDrawer({
     setForm((prev) => ({ ...prev, [key]: value }));
   }
 
+  // Progress derived from subtasks when subtasks exist
+  const hasSubtasks = subtasks.length > 0;
+  const completedSubtaskCount = subtasks.filter((s) => s.status === "Complete").length;
+  const derivedProgress = hasSubtasks
+    ? Math.round((completedSubtaskCount / subtasks.length) * 100)
+    : form.percentComplete;
+
   async function handleSave() {
     if (!form.title.trim()) return;
     setSaving(true);
     setSaveError(null);
     try {
-      const payload = {
+      const payload: UpdateTaskInput = {
         title: form.title.trim(),
         description: form.description,
         status: form.status,
         priority: form.priority,
-        percentComplete: form.percentComplete,
+        percentComplete: hasSubtasks ? derivedProgress : form.percentComplete,
         assigneeId: form.assigneeId,
         workflowStepId: form.workflowStepId,
         startDate: form.startDate || null,
@@ -153,7 +169,7 @@ export function TaskDrawer({
         notes: form.notes,
       };
       if (isCreate) {
-        await onCreate(payload);
+        await onCreate(payload as CreateTaskInput);
         onClose();
       } else if (task) {
         await onSave(task.id, payload);
@@ -182,7 +198,10 @@ export function TaskDrawer({
     try {
       const comment = await addTaskComment(
         task.id,
-        { type: "doc", content: [{ type: "paragraph", content: [{ type: "text", text: commentText.trim() }] }] },
+        {
+          type: "doc",
+          content: [{ type: "paragraph", content: [{ type: "text", text: commentText.trim() }] }],
+        },
         commentText.trim()
       );
       setComments((prev) => [...prev, comment]);
@@ -210,6 +229,7 @@ export function TaskDrawer({
       title: newSubtaskTitle.trim(),
       parentTaskId: task.id,
       workflowStepId: task.workflowStepId,
+      isPersonal: task.isPersonal,
     });
     setSubtasks((prev) => [...prev, created]);
     setNewSubtaskTitle("");
@@ -239,7 +259,6 @@ export function TaskDrawer({
     setDeps((prev) => prev.filter((d) => d.dependsOnId !== dependsOnId));
   }
 
-  // Tasks eligible to be added as a dependency: same project, not self, not already a dep
   const existingDepIds = new Set(deps.map((d) => d.dependsOnId));
   const depCandidates = allTasks.filter(
     (t) => t.id !== task?.id && !existingDepIds.has(t.id)
@@ -251,14 +270,21 @@ export function TaskDrawer({
 
   return (
     <>
-      {/* Backdrop */}
       <div className="fixed inset-0 z-30 bg-black/30" onClick={onClose} />
 
-      {/* Panel */}
       <div className="fixed inset-y-0 right-0 z-40 flex w-full sm:max-w-xl flex-col bg-card shadow-xl animate-in slide-in-from-right-8 duration-200">
         {/* Header */}
         <div className="flex items-center justify-between border-b px-4 py-4 sm:px-6">
-          <h2 className="text-base font-semibold">{isCreate ? "New Task" : "Edit Task"}</h2>
+          <div>
+            <h2 className="text-base font-semibold">
+              {isCreate ? "New Task" : isSubtask ? "Edit Subtask" : "Edit Task"}
+            </h2>
+            {task?.workflowStepName && (
+              <p className="mt-0.5 text-xs text-muted-foreground">
+                {task.workflowStepName}
+              </p>
+            )}
+          </div>
           <button type="button" onClick={onClose} className="text-muted-foreground hover:text-foreground">
             <X className="size-5" />
           </button>
@@ -270,7 +296,10 @@ export function TaskDrawer({
           {!isCreate && hasUnmetDeps && (
             <div className="flex items-start gap-2 rounded-md border border-amber-200 bg-amber-50 px-3 py-2.5 text-sm text-amber-800 dark:border-amber-800/40 dark:bg-amber-900/20 dark:text-amber-300">
               <AlertCircle className="mt-0.5 size-4 shrink-0" />
-              <span>This task has unmet dependencies. Complete the blocking tasks before starting this one.</span>
+              <span>
+                This task has unmet dependencies. Complete the blocking tasks before starting this
+                one.
+              </span>
             </div>
           )}
 
@@ -287,7 +316,7 @@ export function TaskDrawer({
             />
           </div>
 
-          {/* Status + Priority row */}
+          {/* Status + Priority */}
           <div className="grid grid-cols-2 gap-4">
             <div>
               <label className="mb-1.5 block text-xs font-medium text-muted-foreground">Status</label>
@@ -300,7 +329,9 @@ export function TaskDrawer({
                 )}
               >
                 {TASK_STATUSES.map((s) => (
-                  <option key={s} value={s}>{s}</option>
+                  <option key={s} value={s}>
+                    {s}
+                  </option>
                 ))}
               </select>
             </div>
@@ -315,16 +346,20 @@ export function TaskDrawer({
                 )}
               >
                 {TASK_PRIORITIES.map((p) => (
-                  <option key={p} value={p}>{p}</option>
+                  <option key={p} value={p}>
+                    {p}
+                  </option>
                 ))}
               </select>
             </div>
           </div>
 
-          {/* Workflow Step */}
-          {availableSteps.length > 0 && (
+          {/* Workflow Step — not shown for subtasks */}
+          {!isSubtask && availableSteps.length > 0 && (
             <div>
-              <label className="mb-1.5 block text-xs font-medium text-muted-foreground">Workflow Step</label>
+              <label className="mb-1.5 block text-xs font-medium text-muted-foreground">
+                Workflow Step
+              </label>
               <select
                 value={form.workflowStepId ?? ""}
                 onChange={(e) => set("workflowStepId", e.target.value || null)}
@@ -332,7 +367,9 @@ export function TaskDrawer({
               >
                 <option value="">— Not linked —</option>
                 {availableSteps.map((s) => (
-                  <option key={s.id} value={s.id}>{s.name}</option>
+                  <option key={s.id} value={s.id}>
+                    {s.name}
+                  </option>
                 ))}
               </select>
             </div>
@@ -352,7 +389,9 @@ export function TaskDrawer({
           {/* Dates */}
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className="mb-1.5 block text-xs font-medium text-muted-foreground">Start Date</label>
+              <label className="mb-1.5 block text-xs font-medium text-muted-foreground">
+                Start Date
+              </label>
               <input
                 type="date"
                 value={form.startDate}
@@ -371,26 +410,39 @@ export function TaskDrawer({
             </div>
           </div>
 
-          {/* Percent complete */}
+          {/* Progress — manual slider if no subtasks; derived display if subtasks exist */}
           <div>
             <div className="mb-1.5 flex items-center justify-between">
               <label className="text-xs font-medium text-muted-foreground">Progress</label>
-              <span className="text-xs tabular-nums text-muted-foreground">{form.percentComplete}%</span>
+              <span className="text-xs tabular-nums text-muted-foreground">
+                {derivedProgress}%
+                {hasSubtasks && (
+                  <span className="ml-1 text-muted-foreground/60">
+                    ({completedSubtaskCount}/{subtasks.length} subtasks)
+                  </span>
+                )}
+              </span>
             </div>
-            <input
-              type="range"
-              min={0}
-              max={100}
-              step={5}
-              value={form.percentComplete}
-              onChange={(e) => set("percentComplete", Number(e.target.value))}
-              className="w-full accent-primary"
-            />
+            {hasSubtasks ? (
+              <ProgressBar percent={derivedProgress} />
+            ) : (
+              <input
+                type="range"
+                min={0}
+                max={100}
+                step={5}
+                value={form.percentComplete}
+                onChange={(e) => set("percentComplete", Number(e.target.value))}
+                className="w-full accent-primary"
+              />
+            )}
           </div>
 
           {/* Description */}
           <div>
-            <label className="mb-1.5 block text-xs font-medium text-muted-foreground">Description</label>
+            <label className="mb-1.5 block text-xs font-medium text-muted-foreground">
+              Description
+            </label>
             <textarea
               value={form.description}
               onChange={(e) => set("description", e.target.value)}
@@ -412,8 +464,8 @@ export function TaskDrawer({
             />
           </div>
 
-          {/* Subtasks — only for existing tasks */}
-          {!isCreate && (
+          {/* Subtasks — only for existing non-subtask tasks */}
+          {!isCreate && !isSubtask && (
             <div>
               <div className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
                 Subtasks ({subtasks.length})
@@ -422,7 +474,10 @@ export function TaskDrawer({
                 {subtasks.map((sub) => {
                   const done = sub.status === "Complete";
                   return (
-                    <div key={sub.id} className="group flex items-center gap-2 rounded-md px-2 py-1.5 hover:bg-accent/50 transition-colors">
+                    <div
+                      key={sub.id}
+                      className="group flex items-center gap-2 rounded-md px-2 py-1.5 hover:bg-accent/50 transition-colors"
+                    >
                       <button
                         type="button"
                         onClick={() => handleToggleSubtask(sub)}
@@ -436,11 +491,23 @@ export function TaskDrawer({
                       >
                         {done && (
                           <svg viewBox="0 0 12 12" className="size-full fill-white p-0.5">
-                            <path d="M10 3L5 8.5 2 5.5" stroke="white" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" fill="none" />
+                            <path
+                              d="M10 3L5 8.5 2 5.5"
+                              stroke="white"
+                              strokeWidth="1.5"
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              fill="none"
+                            />
                           </svg>
                         )}
                       </button>
-                      <span className={cn("min-w-0 flex-1 text-sm", done && "line-through text-muted-foreground")}>
+                      <span
+                        className={cn(
+                          "min-w-0 flex-1 text-sm",
+                          done && "line-through text-muted-foreground"
+                        )}
+                      >
                         {sub.title}
                       </span>
                       <button
@@ -474,8 +541,8 @@ export function TaskDrawer({
             </div>
           )}
 
-          {/* Dependencies — only for existing tasks */}
-          {!isCreate && (
+          {/* Dependencies — only for existing non-subtask tasks */}
+          {!isCreate && !isSubtask && (
             <div>
               <div className="mb-2 flex items-center justify-between">
                 <div className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
@@ -500,15 +567,12 @@ export function TaskDrawer({
                   >
                     <option value="">Select a task…</option>
                     {depCandidates.map((t) => (
-                      <option key={t.id} value={t.id}>{t.title}</option>
+                      <option key={t.id} value={t.id}>
+                        {t.title}
+                      </option>
                     ))}
                   </select>
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    onClick={handleAddDep}
-                    disabled={!depPickerId}
-                  >
+                  <Button size="sm" variant="outline" onClick={handleAddDep} disabled={!depPickerId}>
                     Add
                   </Button>
                 </div>
@@ -519,18 +583,28 @@ export function TaskDrawer({
               ) : (
                 <div className="space-y-1.5">
                   {deps.map((d) => {
-                    const isBlocking = d.dependsOnStatus !== "Complete" && d.dependsOnStatus !== "Cancelled";
+                    const isBlocking =
+                      d.dependsOnStatus !== "Complete" && d.dependsOnStatus !== "Cancelled";
                     return (
                       <div
                         key={d.depId}
                         className={cn(
                           "flex items-center justify-between rounded-md border px-3 py-2 text-sm",
-                          isBlocking ? "border-amber-200 bg-amber-50 dark:border-amber-800/40 dark:bg-amber-900/10" : "border-border bg-muted/30"
+                          isBlocking
+                            ? "border-amber-200 bg-amber-50 dark:border-amber-800/40 dark:bg-amber-900/10"
+                            : "border-border bg-muted/30"
                         )}
                       >
                         <div className="min-w-0 flex-1">
                           <span className="truncate font-medium">{d.dependsOnTitle}</span>
-                          <span className={cn("ml-2 text-xs", isBlocking ? "text-amber-700 dark:text-amber-400" : "text-emerald-600 dark:text-emerald-400")}>
+                          <span
+                            className={cn(
+                              "ml-2 text-xs",
+                              isBlocking
+                                ? "text-amber-700 dark:text-amber-400"
+                                : "text-emerald-600 dark:text-emerald-400"
+                            )}
+                          >
                             {d.dependsOnStatus}
                           </span>
                         </div>
@@ -562,7 +636,10 @@ export function TaskDrawer({
                       <span className="text-xs font-medium">{c.userName}</span>
                       <div className="flex items-center gap-2">
                         <span className="text-xs text-muted-foreground">
-                          {new Date(c.createdAt).toLocaleDateString(undefined, { month: "short", day: "numeric" })}
+                          {new Date(c.createdAt).toLocaleDateString(undefined, {
+                            month: "short",
+                            day: "numeric",
+                          })}
                         </span>
                         <button
                           type="button"
@@ -622,8 +699,14 @@ export function TaskDrawer({
             <div />
           )}
           <div className="flex gap-2">
-            <Button variant="outline" size="sm" onClick={onClose}>Cancel</Button>
-            <Button size="sm" onClick={handleSave} disabled={saving || !form.title.trim()}>
+            <Button variant="outline" size="sm" onClick={onClose}>
+              Cancel
+            </Button>
+            <Button
+              size="sm"
+              onClick={handleSave}
+              disabled={saving || !form.title.trim()}
+            >
               {saving ? "Saving…" : isCreate ? "Create Task" : "Save"}
             </Button>
           </div>

@@ -41,6 +41,7 @@ export async function GET(req: Request) {
     project: { select: { id: true, name: true } },
     assignee: { select: { name: true } },
     subtasks: { select: { status: true } },
+    workflowStep: { select: { id: true, name: true, section: true } },
     _count: { select: { subtasks: true, comments: true } },
   };
 

@@ -43,13 +43,11 @@ export default function ProjectImplementationPage({
         />
       </div>
 
-      <div className="rounded-xl border bg-card p-5 shadow-sm">
-        <TaskList
-          projectId={projectId}
-          users={users}
-          availableSteps={stepsForSection(steps, "implementation")}
-        />
-      </div>
+      <TaskList
+        projectId={projectId}
+        users={users}
+        availableSteps={stepsForSection(steps, "implementation")}
+      />
     </div>
   );
 }
