@@ -30,6 +30,7 @@ export interface Project {
   technicianNotNeeded: boolean;
   projectTypes: string[];
   targetCompletionDate: string | null;
+  connectwiseUrl: string | null;
   createdAt: string;
   updatedAt: string;
 }

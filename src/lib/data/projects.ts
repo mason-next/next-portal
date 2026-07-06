@@ -37,6 +37,7 @@ function toProject(p: PrismaProject): Project {
     technicianNotNeeded: p.technicianNotNeeded,
     projectTypes: (p as unknown as { projectTypes: string[] }).projectTypes ?? [],
     targetCompletionDate: p.targetCompletionDate?.toISOString() ?? null,
+    connectwiseUrl: (p as unknown as { connectwiseUrl?: string | null }).connectwiseUrl ?? null,
     createdAt: p.createdAt.toISOString(),
     updatedAt: p.updatedAt.toISOString(),
   };
@@ -58,6 +59,7 @@ const FIELD_LABELS: Partial<Record<keyof Project, string>> = {
   seniorInsideId: "Senior Inside Project Manager",
   insidePMId: "Inside Project Manager",
   targetCompletionDate: "Target Completion",
+  connectwiseUrl: "ConnectWise URL",
 };
 
 const USER_ID_FIELDS = new Set<keyof Project>([
@@ -215,6 +217,7 @@ export async function updateProject(id: string, patch: Partial<Project>): Promis
   if ("seniorInsideId" in patch)        data.seniorInsideId = patch.seniorInsideId;
   if ("insidePMId" in patch)            data.insidePMId = patch.insidePMId;
   if ("technicianNotNeeded" in patch)  data.technicianNotNeeded = patch.technicianNotNeeded;
+  if ("connectwiseUrl" in patch) (data as Record<string, unknown>).connectwiseUrl = patch.connectwiseUrl ?? null;
   if ("targetCompletionDate" in patch) {
     data.targetCompletionDate = patch.targetCompletionDate
       ? new Date(patch.targetCompletionDate)

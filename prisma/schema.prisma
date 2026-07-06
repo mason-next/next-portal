@@ -232,6 +232,7 @@ model Project {
   targetCompletionDate DateTime?
   technicianNotNeeded  Boolean   @default(false)
   projectTypes         String[]  @default([])
+  connectwiseUrl       String?
   createdAt            DateTime  @default(now())
   updatedAt            DateTime  @updatedAt
 

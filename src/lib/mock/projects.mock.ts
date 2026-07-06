@@ -18,6 +18,7 @@ export const SAMPLE_PROJECT: Project = {
   technicianNotNeeded: false,
   projectTypes: ["Structured Cabling", "Security", "Audio / Visual"],
   targetCompletionDate: "2026-06-30T00:00:00.000Z",
+  connectwiseUrl: null,
   createdAt: "2026-01-01T00:00:00.000Z",
   updatedAt: "2026-01-01T00:00:00.000Z",
 };

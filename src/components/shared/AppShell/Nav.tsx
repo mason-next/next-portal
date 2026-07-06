@@ -16,8 +16,9 @@ import { usePermissions } from "@/lib/PermissionsContext";
 import type { PermissionFeature } from "@/lib/permissions";
 
 const OPERATIONS_ITEMS: { href: string; label: string; feature: PermissionFeature }[] = [
-  { href: "/projects", label: "Projects", feature: "projects" },
-  { href: "/tasks",    label: "Tasks",    feature: "tasks" },
+  { href: "/operations", label: "Overview",  feature: "projects" },
+  { href: "/projects",   label: "Projects",  feature: "projects" },
+  { href: "/tasks",      label: "Tasks",     feature: "tasks" },
 ];
 
 const SALES_ITEMS = [
@@ -40,7 +41,7 @@ export function Nav() {
   const navRef = useRef<HTMLDivElement>(null);
   const { hasAccess } = usePermissions();
 
-  const opsActive   = pathname.startsWith("/projects") || pathname.startsWith("/tasks");
+  const opsActive   = pathname.startsWith("/projects") || pathname.startsWith("/tasks") || pathname.startsWith("/operations");
   const salesActive = pathname.startsWith("/sales") || pathname.startsWith("/deal-desk");
   const toolsActive = pathname.startsWith("/tools") || pathname.startsWith("/process");
 
@@ -90,7 +91,7 @@ export function Nav() {
               key={href}
               href={href}
               label={label}
-              active={pathname.startsWith(href)}
+              active={href === "/operations" ? pathname === "/operations" : pathname.startsWith(href)}
               onClose={() => setOpen(null)}
             />
           ))}

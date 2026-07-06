@@ -1,11 +1,14 @@
 "use client";
 
 import { useState, type ReactNode } from "react";
-import { Ban, Building2, Users } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { Ban, Building2, ExternalLink, Users } from "lucide-react";
 import { bulkAutoAssignSteps, type BulkAutoAssignResult } from "@/lib/data/workflow";
 import { Button } from "@/components/ui/button";
 import { CollapsibleCard } from "@/components/shared/CollapsibleCard";
 import { EditProjectOverviewModal } from "@/components/shared/AppShell/EditProjectOverviewModal";
+import { DeleteProjectModal } from "@/components/shared/AppShell/DeleteProjectModal";
+import { ProjectBriefModal } from "@/modules/project-brief/components/ProjectBriefModal";
 import { UserInlineLabel } from "@/components/shared/UserInlineLabel";
 import { UserAvatarImage } from "@/components/shared/AppShell/UserAvatarImage";
 import { useUsersContext } from "@/components/shared/AppShell/UsersProvider";
@@ -17,16 +20,21 @@ import { ROLE_NOT_NEEDED } from "@/lib/role-assignment";
 import type { ProjectTechnicianEntry } from "@/types/subcontractor";
 
 export function ProjectOverviewCard() {
+  const router = useRouter();
   const session = useSession();
   const { project, setProject } = useProjectContext();
-  const { refetch: refetchWorkflowSteps } = useWorkflowStepsContext();
+  const { steps, refetch: refetchWorkflowSteps } = useWorkflowStepsContext();
   const { users } = useUsersContext();
   const [showEdit, setShowEdit] = useState(false);
+  const [showDelete, setShowDelete] = useState(false);
+  const [showBrief, setShowBrief] = useState(false);
   const [showAutoAssign, setShowAutoAssign] = useState(false);
   const [autoAssignResult, setAutoAssignResult] = useState<BulkAutoAssignResult | null>(null);
   const [autoAssignRunning, setAutoAssignRunning] = useState(false);
   const [overwriteExisting, setOverwriteExisting] = useState(false);
   const canEdit = session.accountType !== "Viewer";
+  const isAdmin = session.accountType === "Administrator";
+
   const userById = (id: string | null) => users.find((u) => u.id === id) ?? null;
   const roleLabel = (id: string | null) =>
     id === ROLE_NOT_NEEDED ? (
@@ -51,26 +59,58 @@ export function ProjectOverviewCard() {
 
   if (!project) return null;
 
+  const cwUrl = project.connectwiseUrl;
+
   return (
     <CollapsibleCard
       title="Project Overview"
       storageKey="project-overview"
       headerExtra={
-        canEdit ? (
-          <div className="flex items-center gap-2">
+        <div className="flex items-center gap-1.5">
+          <Button variant="outline" size="sm" onClick={() => setShowBrief(true)}>
+            Brief Report
+          </Button>
+          {canEdit && (
             <Button
               variant="outline"
               size="sm"
               onClick={() => { setShowAutoAssign(true); setAutoAssignResult(null); setOverwriteExisting(false); }}
             >
               <Users className="mr-1.5 size-3.5" />
-              Auto-Assign Steps
+              Auto-Assign
             </Button>
+          )}
+          {canEdit && (
             <Button variant="outline" size="sm" onClick={() => setShowEdit(true)}>
               Edit
             </Button>
-          </div>
-        ) : undefined
+          )}
+          {cwUrl ? (
+            <a
+              href={cwUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex h-8 w-8 items-center justify-center rounded-md border border-input bg-background text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+              title="Open in ConnectWise"
+            >
+              <ExternalLink className="size-3.5" />
+            </a>
+          ) : (
+            <button
+              type="button"
+              disabled
+              className="inline-flex h-8 w-8 items-center justify-center rounded-md border border-input bg-background text-muted-foreground/40 cursor-not-allowed"
+              title="No ConnectWise link added"
+            >
+              <ExternalLink className="size-3.5" />
+            </button>
+          )}
+          {isAdmin && (
+            <Button variant="destructive" size="sm" onClick={() => setShowDelete(true)}>
+              Delete
+            </Button>
+          )}
+        </div>
       }
     >
       <div className="grid grid-cols-2 gap-4 sm:grid-cols-4 sm:gap-6">
@@ -190,6 +230,23 @@ export function ProjectOverviewCard() {
             refetchWorkflowSteps();
             setShowEdit(false);
           }}
+        />
+      ) : null}
+
+      {showDelete ? (
+        <DeleteProjectModal
+          project={project}
+          onClose={() => setShowDelete(false)}
+          onDeleted={() => router.push("/projects")}
+        />
+      ) : null}
+
+      {showBrief ? (
+        <ProjectBriefModal
+          project={project}
+          steps={steps}
+          users={users}
+          onClose={() => setShowBrief(false)}
         />
       ) : null}
     </CollapsibleCard>
