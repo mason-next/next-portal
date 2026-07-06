@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Plus } from "lucide-react";
+import { Plus, Wand2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/shared/Skeleton";
 import type { ImplementationTask } from "@/types/implementation";
@@ -10,6 +10,7 @@ import type { WorkflowStep } from "@/types/workflow";
 import { TaskListItem } from "./TaskListItem";
 import { TaskDrawer } from "./TaskDrawer";
 import { useImplementationTasks } from "@/modules/implementation/hooks/useImplementationTasks";
+import { seedStepTasks, STEP_TASK_TEMPLATES } from "@/lib/data/task-templates";
 
 interface TaskListProps {
   projectId: string;
@@ -18,8 +19,13 @@ interface TaskListProps {
 }
 
 export function TaskList({ projectId, users, availableSteps = [] }: TaskListProps) {
-  const { tasks, isLoading, addTask, editTask, removeTask } = useImplementationTasks(projectId);
+  const { tasks, isLoading, addTask, editTask, removeTask, refetch } = useImplementationTasks(projectId);
   const [drawerTask, setDrawerTask] = useState<ImplementationTask | "new" | null>(null);
+  const [seeding, setSeeding] = useState(false);
+
+  // Steps that have predefined templates
+  const templateSteps = availableSteps.filter((s) => !!STEP_TASK_TEMPLATES[s.key]);
+  const hasTemplates = templateSteps.length > 0;
 
   const openTask = drawerTask === "new" ? null : drawerTask;
   const drawerOpen = drawerTask !== null;
@@ -27,6 +33,18 @@ export function TaskList({ projectId, users, availableSteps = [] }: TaskListProp
   async function handleToggleComplete(task: ImplementationTask) {
     const nextStatus = task.status === "Complete" ? "Not Started" : "Complete";
     await editTask(task.id, { status: nextStatus });
+  }
+
+  async function handleSeedTemplates() {
+    setSeeding(true);
+    try {
+      for (const step of templateSteps) {
+        await seedStepTasks(projectId, step.id, step.key);
+      }
+      refetch();
+    } finally {
+      setSeeding(false);
+    }
   }
 
   const completedCount = (tasks ?? []).filter((t) => t.status === "Complete").length;
@@ -42,10 +60,18 @@ export function TaskList({ projectId, users, availableSteps = [] }: TaskListProp
             </p>
           )}
         </div>
-        <Button size="sm" onClick={() => setDrawerTask("new")}>
-          <Plus className="mr-1.5 size-4" />
-          Add Task
-        </Button>
+        <div className="flex gap-2">
+          {hasTemplates && (
+            <Button size="sm" variant="outline" onClick={handleSeedTemplates} disabled={seeding}>
+              <Wand2 className="mr-1.5 size-4" />
+              {seeding ? "Loading…" : "Load Templates"}
+            </Button>
+          )}
+          <Button size="sm" onClick={() => setDrawerTask("new")}>
+            <Plus className="mr-1.5 size-4" />
+            Add Task
+          </Button>
+        </div>
       </div>
 
       {isLoading ? (

@@ -6,7 +6,7 @@ import type { ViewOptionsState } from "@/types/bom";
 
 const DEFAULT_ROW_FILTERS: ViewOptionsState["rowFilters"] = {
   hideReleased: false,
-  hideDoNotOrder: false,
+  hideDoNotOrder: true,
   hideZeroQty: false,
   hideBlankMfr: true,
 };

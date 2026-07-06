@@ -63,6 +63,7 @@ enum WorkflowSection {
   procurement
   implementation
   closeout
+  serviceWarranty
 }
 
 enum WorkflowStepStatus {

@@ -85,4 +85,5 @@ export const SAMPLE_WORKFLOW_STEPS: WorkflowStep[] = withSeededWeights([
   step(SAMPLE_PROJECT.id, "programming", "Not Started", null, null, null, "2026-01-01T00:00:00.000Z"),
   step(SAMPLE_PROJECT.id, "commissioning", "Not Started", null, null, null, "2026-01-01T00:00:00.000Z"),
   step(SAMPLE_PROJECT.id, "closeout", "Not Started", null, null, null, "2026-01-01T00:00:00.000Z"),
+  step(SAMPLE_PROJECT.id, "serviceWarranty", "Not Started", null, null, null, "2026-01-01T00:00:00.000Z"),
 ]);

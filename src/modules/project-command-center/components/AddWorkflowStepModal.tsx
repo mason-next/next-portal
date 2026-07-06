@@ -13,6 +13,7 @@ const SECTION_LABELS: Record<ProjectSectionKey, string> = {
   procurement: "Procurement",
   implementation: "Implementation",
   closeout: "Closeout",
+  serviceWarranty: "Service & Warranty",
 };
 
 interface AddWorkflowStepModalProps {

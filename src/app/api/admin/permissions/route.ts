@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { getServerSession } from "@/lib/auth/server";
-import { DEFAULT_PERMISSIONS, SETTINGS_KEY } from "@/lib/permissions";
+import { SETTINGS_KEY } from "@/lib/permissions";
 import type { PermissionsConfig } from "@/lib/permissions";
 
 export async function GET() {
@@ -10,7 +10,7 @@ export async function GET() {
     return new NextResponse("Forbidden", { status: 403 });
   }
   const row = await db.appSetting.findUnique({ where: { key: SETTINGS_KEY } });
-  const config: PermissionsConfig = row ? (row.value as PermissionsConfig) : DEFAULT_PERMISSIONS;
+  const config: PermissionsConfig = row ? (row.value as PermissionsConfig) : ({} as PermissionsConfig);
   return NextResponse.json(config);
 }
 

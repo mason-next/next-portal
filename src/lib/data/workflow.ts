@@ -46,6 +46,7 @@ const SECTION_TO_DB: Record<ProjectSectionKey, WorkflowSection> = {
   procurement: WorkflowSection.procurement,
   implementation: WorkflowSection.implementation,
   closeout: WorkflowSection.closeout,
+  serviceWarranty: WorkflowSection.serviceWarranty,
 };
 
 // ─── Type mapper ──────────────────────────────────────────────────────────────

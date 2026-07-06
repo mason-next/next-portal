@@ -65,6 +65,7 @@ export const WORKFLOW_STEP_TEMPLATE: WorkflowStepTemplateEntry[] = [
   { key: "programming",              name: "Programming",                sortOrder: 11, section: "implementation",  defaultOwnerRole: "fieldProjectManagerId" },
   { key: "commissioning",            name: "Commissioning",              sortOrder: 12, section: "implementation",  defaultOwnerRole: "fieldProjectManagerId" },
   { key: "closeout",                 name: "Closeout",                   sortOrder: 13, section: "closeout",        defaultOwnerRole: "seniorInsideId" },
+  { key: "serviceWarranty",          name: "Service & Warranty",         sortOrder: 14, section: "serviceWarranty",  defaultOwnerRole: "fieldProjectManagerId" },
 ];
 
 // Each phase's fixed weight budget — independent of how many steps currently exist in it.
@@ -75,8 +76,9 @@ export const PHASE_WEIGHT: Record<ProjectSectionKey, number> = {
   setup: 15,
   engineering: 15,
   procurement: 20,
-  implementation: 45,
+  implementation: 40,
   closeout: 5,
+  serviceWarranty: 5,
 };
 
 export function stepsForSection(steps: WorkflowStep[], section: ProjectSectionKey): WorkflowStep[] {
@@ -113,6 +115,7 @@ export const SECTION_LABEL: Record<ProjectSectionKey, string> = {
   procurement: "Procurement",
   implementation: "Implementation",
   closeout: "Closeout",
+  serviceWarranty: "Service & Warranty",
 };
 
 export function stepPhaseLabel(section: ProjectSectionKey): string {
@@ -142,6 +145,7 @@ export const PROJECT_SECTIONS: { key: "dashboard" | ProjectSectionKey; label: st
   { key: "procurement", label: "Procurement", href: "/procurement" },
   { key: "implementation", label: "Implementation", href: "/implementation" },
   { key: "closeout", label: "Closeout", href: "/closeout" },
+  { key: "serviceWarranty", label: "Service & Warranty", href: "/service-warranty" },
 ];
 
 export const WORKFLOW_STATUS_TONE: Record<WorkflowStepStatus, StatusTone> = {

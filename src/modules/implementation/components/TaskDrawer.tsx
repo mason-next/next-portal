@@ -22,6 +22,10 @@ import {
   getTaskComments,
   addTaskComment,
   deleteTaskComment,
+  getSubtasks,
+  createTask,
+  updateTask,
+  deleteTask,
 } from "@/lib/data/implementation";
 import {
   getTaskDependencies,
@@ -98,6 +102,8 @@ export function TaskDrawer({
   const [deps, setDeps] = useState<TaskDependencyRef[]>([]);
   const [addingDep, setAddingDep] = useState(false);
   const [depPickerId, setDepPickerId] = useState<string>("");
+  const [subtasks, setSubtasks] = useState<ImplementationTask[]>([]);
+  const [newSubtaskTitle, setNewSubtaskTitle] = useState("");
   const [saving, setSaving] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [addingComment, setAddingComment] = useState(false);
@@ -108,6 +114,7 @@ export function TaskDrawer({
     if (!isCreate && taskId) {
       getTaskComments(taskId).then(setComments);
       getTaskDependencies(taskId).then(setDeps);
+      getSubtasks(taskId).then(setSubtasks);
     }
   }, [taskId, isCreate]);
 
@@ -184,6 +191,29 @@ export function TaskDrawer({
   async function handleDeleteComment(commentId: string) {
     await deleteTaskComment(commentId);
     setComments((prev) => prev.filter((c) => c.id !== commentId));
+  }
+
+  async function handleToggleSubtask(subtask: ImplementationTask) {
+    const nextStatus = subtask.status === "Complete" ? "Not Started" : "Complete";
+    const updated = await updateTask(subtask.id, { status: nextStatus });
+    setSubtasks((prev) => prev.map((s) => (s.id === subtask.id ? updated : s)));
+  }
+
+  async function handleAddSubtask() {
+    if (!task || !newSubtaskTitle.trim()) return;
+    const created = await createTask({
+      projectId: task.projectId,
+      title: newSubtaskTitle.trim(),
+      parentTaskId: task.id,
+      workflowStepId: task.workflowStepId,
+    });
+    setSubtasks((prev) => [...prev, created]);
+    setNewSubtaskTitle("");
+  }
+
+  async function handleDeleteSubtask(subtaskId: string) {
+    await deleteTask(subtaskId);
+    setSubtasks((prev) => prev.filter((s) => s.id !== subtaskId));
   }
 
   async function handleAddDep() {
@@ -377,6 +407,68 @@ export function TaskDrawer({
               className="w-full resize-none rounded-md border border-input bg-background px-3 py-2 text-sm outline-none focus:border-primary"
             />
           </div>
+
+          {/* Subtasks — only for existing tasks */}
+          {!isCreate && (
+            <div>
+              <div className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                Subtasks ({subtasks.length})
+              </div>
+              <div className="space-y-1 mb-2">
+                {subtasks.map((sub) => {
+                  const done = sub.status === "Complete";
+                  return (
+                    <div key={sub.id} className="group flex items-center gap-2 rounded-md px-2 py-1.5 hover:bg-accent/50 transition-colors">
+                      <button
+                        type="button"
+                        onClick={() => handleToggleSubtask(sub)}
+                        className={cn(
+                          "flex-none size-4 rounded border-2 transition-colors flex items-center justify-center",
+                          done
+                            ? "border-emerald-500 bg-emerald-500"
+                            : "border-muted-foreground/40 hover:border-emerald-400"
+                        )}
+                        title={done ? "Mark incomplete" : "Mark complete"}
+                      >
+                        {done && (
+                          <svg viewBox="0 0 12 12" className="size-full fill-white p-0.5">
+                            <path d="M10 3L5 8.5 2 5.5" stroke="white" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" fill="none" />
+                          </svg>
+                        )}
+                      </button>
+                      <span className={cn("min-w-0 flex-1 text-sm", done && "line-through text-muted-foreground")}>
+                        {sub.title}
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => handleDeleteSubtask(sub.id)}
+                        className="hidden group-hover:flex text-muted-foreground hover:text-destructive transition-colors"
+                      >
+                        <X className="size-3.5" />
+                      </button>
+                    </div>
+                  );
+                })}
+              </div>
+              <div className="flex gap-2">
+                <input
+                  value={newSubtaskTitle}
+                  onChange={(e) => setNewSubtaskTitle(e.target.value)}
+                  onKeyDown={(e) => e.key === "Enter" && handleAddSubtask()}
+                  placeholder="Add a subtask…"
+                  className="min-w-0 flex-1 rounded-md border border-input bg-background px-3 py-1.5 text-sm outline-none focus:border-primary"
+                />
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={handleAddSubtask}
+                  disabled={!newSubtaskTitle.trim()}
+                >
+                  <Plus className="size-4" />
+                </Button>
+              </div>
+            </div>
+          )}
 
           {/* Dependencies — only for existing tasks */}
           {!isCreate && (

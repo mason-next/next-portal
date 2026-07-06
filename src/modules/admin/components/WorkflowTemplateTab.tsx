@@ -12,7 +12,7 @@ import {
 import { getProjectTypeConfig, saveProjectTypeConfig } from "@/lib/data/workflow-type-config";
 import type { ProjectSectionKey } from "@/types/workflow";
 
-const SECTION_ORDER: ProjectSectionKey[] = ["setup", "engineering", "procurement", "implementation", "closeout"];
+const SECTION_ORDER: ProjectSectionKey[] = ["setup", "engineering", "procurement", "implementation", "closeout", "serviceWarranty"];
 
 export function WorkflowTemplateTab() {
   const [config, setConfig] = useState<ProjectTypeWorkflowConfig>(DEFAULT_PROJECT_TYPE_CONFIG);

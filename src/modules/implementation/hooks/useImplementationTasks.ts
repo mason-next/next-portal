@@ -13,14 +13,18 @@ import {
 export function useImplementationTasks(projectId: string) {
   const [tasks, setTasks] = useState<ImplementationTask[] | null>(null);
   const [isPending, startTransition] = useTransition();
+  const [tick, setTick] = useState(0);
 
   useEffect(() => {
     let active = true;
+    setTasks(null);
     getProjectTasks(projectId).then((rows) => {
       if (active) setTasks(rows);
     });
     return () => { active = false; };
-  }, [projectId]);
+  }, [projectId, tick]);
+
+  const refetch = useCallback(() => setTick((n) => n + 1), []);
 
   const addTask = useCallback(
     async (input: CreateTaskInput) => {
@@ -85,5 +89,6 @@ export function useImplementationTasks(projectId: string) {
     editTask,
     removeTask,
     reorder,
+    refetch,
   };
 }

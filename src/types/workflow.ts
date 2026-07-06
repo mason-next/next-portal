@@ -3,7 +3,8 @@ export type ProjectSectionKey =
   | "engineering"
   | "procurement"
   | "implementation"
-  | "closeout";
+  | "closeout"
+  | "serviceWarranty";
 
 export const PROJECT_SECTION_KEYS: ProjectSectionKey[] = [
   "setup",
@@ -11,6 +12,7 @@ export const PROJECT_SECTION_KEYS: ProjectSectionKey[] = [
   "procurement",
   "implementation",
   "closeout",
+  "serviceWarranty",
 ];
 
 export const WORKFLOW_STEP_KEYS = [
@@ -27,6 +29,7 @@ export const WORKFLOW_STEP_KEYS = [
   "programming",
   "commissioning",
   "closeout",
+  "serviceWarranty",
 ] as const;
 
 // The fixed, built-in steps every project is seeded with. A WorkflowStep.key is no longer
