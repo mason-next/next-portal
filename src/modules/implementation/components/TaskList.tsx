@@ -10,7 +10,6 @@ import type { WorkflowStep } from "@/types/workflow";
 import { TaskListItem } from "./TaskListItem";
 import { TaskDrawer } from "./TaskDrawer";
 import { useImplementationTasks } from "@/modules/implementation/hooks/useImplementationTasks";
-import { seedStepTasks } from "@/lib/data/task-templates";
 import { STEP_TASK_TEMPLATES } from "@/lib/data/task-template-config";
 
 interface TaskListProps {
@@ -40,7 +39,11 @@ export function TaskList({ projectId, users, availableSteps = [] }: TaskListProp
     setSeeding(true);
     try {
       for (const step of templateSteps) {
-        await seedStepTasks(projectId, step.id, step.key);
+        await fetch("/api/implementation/seed-step-tasks", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ projectId, workflowStepId: step.id, stepKey: step.key }),
+        });
       }
       refetch();
     } finally {

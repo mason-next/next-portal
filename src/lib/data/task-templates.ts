@@ -5,10 +5,6 @@ import { getServerSession } from "@/lib/auth/server";
 import { requireEditPermission } from "@/lib/access-control";
 import { STEP_TASK_TEMPLATES } from "./task-template-config";
 
-// Re-export so server-side callers that previously imported from here still work.
-export type { TaskTemplate } from "./task-template-config";
-export { STEP_TASK_TEMPLATES } from "./task-template-config";
-
 export async function seedStepTasks(
   projectId: string,
   workflowStepId: string,
