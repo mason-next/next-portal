@@ -41,8 +41,7 @@ export async function POST(request: Request): Promise<NextResponse> {
     id: session.id,
     name: session.name,
     email: session.email,
-    accountType: session.accountType,
-    roleType: session.roleType,
+    roleTypes: session.roleTypes,
     mustChangePassword: false,
   };
   const token = await signSession(updatedSession);

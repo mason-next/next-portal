@@ -6,7 +6,7 @@ import type { PermissionsConfig } from "@/lib/permissions";
 
 export async function GET() {
   const session = await getServerSession();
-  if (!session || session.accountType !== "Administrator") {
+  if (!session || !session.roleTypes.includes("Administrator")) {
     return new NextResponse("Forbidden", { status: 403 });
   }
   const row = await db.appSetting.findUnique({ where: { key: SETTINGS_KEY } });
@@ -16,7 +16,7 @@ export async function GET() {
 
 export async function PUT(req: NextRequest) {
   const session = await getServerSession();
-  if (!session || session.accountType !== "Administrator") {
+  if (!session || !session.roleTypes.includes("Administrator")) {
     return new NextResponse("Forbidden", { status: 403 });
   }
   const body = await req.json() as PermissionsConfig;

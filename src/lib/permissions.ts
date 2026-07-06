@@ -1,3 +1,4 @@
+import { getEffectiveLevel, type ModuleKey, type RolePermissionsConfig } from "@/lib/module-permissions";
 import type { AccountType } from "@/types/user";
 
 export const PERMISSION_FEATURES = [
@@ -20,24 +21,31 @@ export const PERMISSION_FEATURE_LABELS: Record<PermissionFeature, string> = {
   tools:     "Tools & Process",
 };
 
+// Kept for PermissionsTab UI compatibility — not used for permission enforcement.
 export type PermissionMap = Record<PermissionFeature, boolean>;
 export type PermissionsConfig = Record<AccountType, PermissionMap>;
 
-// Defaults: Administrators and Members can access everything; Viewers can only see Dashboard and Reports.
-export const DEFAULT_PERMISSIONS: PermissionsConfig = {
-  Administrator: { dashboard: true, projects: true, tasks: true, sales: true, reports: true, tools: true },
-  Member:        { dashboard: true, projects: true, tasks: true, sales: true, reports: true, tools: true },
-  Viewer:        { dashboard: true, projects: true,  tasks: true,  sales: false, reports: true, tools: false },
-};
-
 export const SETTINGS_KEY = "permissions";
 
+const FEATURE_TO_MODULE: Record<PermissionFeature, ModuleKey> = {
+  dashboard: "dashboard",
+  projects:  "projects",
+  tasks:     "tasks",
+  sales:     "sales",
+  reports:   "reports",
+  tools:     "serviceCalculator",
+};
+
+/**
+ * Returns true if a user with the given roleTypes can access a nav feature.
+ * Derived from module-level permissions: any level above "none" grants nav access.
+ */
 export function canAccess(
-  config: PermissionsConfig,
-  accountType: AccountType,
-  feature: PermissionFeature
+  roleTypes: string[],
+  feature: PermissionFeature,
+  config?: RolePermissionsConfig
 ): boolean {
-  // Administrators always have full access regardless of config.
-  if (accountType === "Administrator") return true;
-  return config[accountType]?.[feature] ?? DEFAULT_PERMISSIONS[accountType][feature];
+  if (roleTypes.includes("Administrator")) return true;
+  const module = FEATURE_TO_MODULE[feature];
+  return getEffectiveLevel(roleTypes, module, config) !== "none";
 }

@@ -148,7 +148,7 @@ function SectionCard({ title, children, action }: { title: string; children: Rea
 export default function OperationsOverviewPage() {
   const session = useSession();
   const { users } = useUsersContext();
-  const isAdmin = session.accountType === "Administrator";
+  const isAdmin = session.roleTypes.includes("Administrator");
 
   const [projects, setProjects] = useState<Project[] | null>(null);
   const [stepsByProject, setStepsByProject] = useState<Record<string, WorkflowStep[]>>({});

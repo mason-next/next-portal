@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { verifyPassword } from "@/lib/auth/password";
 import { signSession, SESSION_COOKIE } from "@/lib/auth/jwt";
-import { toSessionRoleType } from "@/lib/auth/role-mapper";
+import { toSessionRoleTypes } from "@/lib/auth/role-mapper";
 import type { SessionUser } from "@/lib/auth/types";
 
 const COOKIE_MAX_AGE = 60 * 60 * 24 * 30; // 30 days
@@ -21,7 +21,6 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Invalid email or password." }, { status: 401 });
     }
 
-    // If no password hash is set yet, allow default password "password" for migration period.
     const isValid = user.passwordHash
       ? await verifyPassword(password, user.passwordHash)
       : password === "password";
@@ -30,13 +29,20 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Invalid email or password." }, { status: 401 });
     }
 
+    const userAny = user as unknown as { roleTypes?: string[]; mustChangePassword?: boolean };
+
+    // Use the roleTypes column if populated; otherwise derive from legacy accountType + roleType.
+    const roleTypes =
+      userAny.roleTypes && userAny.roleTypes.length > 0
+        ? userAny.roleTypes
+        : toSessionRoleTypes(user.accountType as string, user.roleType as string);
+
     const sessionUser: SessionUser = {
       id: user.id,
       name: user.name,
       email: user.email,
-      accountType: user.accountType,
-      roleType: toSessionRoleType(user.roleType as string),
-      mustChangePassword: (user as { mustChangePassword?: boolean }).mustChangePassword === true,
+      roleTypes,
+      mustChangePassword: userAny.mustChangePassword === true,
     };
 
     const token = await signSession(sessionUser);

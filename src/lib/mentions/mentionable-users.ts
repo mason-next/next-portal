@@ -5,7 +5,7 @@ import type { AppUser } from "@/types/user";
 // Users with Administrator account type are mentionable on every project regardless of
 // direct assignment — they have global visibility by virtue of their access level.
 function isGloballyMentionable(user: AppUser): boolean {
-  return user.accountType === "Administrator";
+  return user.roleTypes.includes("Administrator");
 }
 
 // The roster the @-mention dropdown shows, and the authoritative filter `addProjectComment`

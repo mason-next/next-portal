@@ -48,7 +48,8 @@ export function WorkflowChecklist({
   percentByKey,
 }: WorkflowChecklistProps) {
   const session = useSession();
-  const canEdit = session.accountType !== "Viewer";
+  const canEdit = session.roleTypes.includes("Administrator") ||
+    session.roleTypes.some((r) => !["Customer", "Subcontractor"].includes(r));
   const { users } = useUsersContext();
   const { project, setProject } = useProjectContext();
   const { refetch: refetchWorkflowSteps } = useWorkflowStepsContext();

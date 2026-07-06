@@ -26,7 +26,8 @@ interface StepDetailModalProps {
 
 export function StepDetailModal({ projectId, step, onClose, onUpdateStep }: StepDetailModalProps) {
   const session = useSession();
-  const canEdit = session.accountType !== "Viewer";
+  const canEdit = session.roleTypes.includes("Administrator") ||
+    session.roleTypes.some((r) => !["Customer", "Subcontractor"].includes(r));
   const isModuleManaged = isModuleManagedStep(step.key);
   const { users } = useUsersContext();
   const { project } = useProjectContext();

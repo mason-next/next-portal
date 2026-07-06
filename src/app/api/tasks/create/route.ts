@@ -5,7 +5,6 @@ import { createTask } from "@/lib/data/implementation";
 export async function POST(req: Request) {
   const session = await getServerSession();
   if (!session) return new NextResponse("Unauthorized", { status: 401 });
-  if (session.accountType === "Viewer") return new NextResponse("Forbidden", { status: 403 });
 
   const body = await req.json();
   const task = await createTask({

@@ -113,8 +113,8 @@ const FILTER_SELECT_CLASS =
 export default function TasksPage() {
   const session = useSession();
   const { users } = useUsersContext();
-  const isAdmin = session.accountType === "Administrator";
-  const isViewer = session.accountType === "Viewer";
+  const isAdmin = session.roleTypes.includes("Administrator");
+  const isViewer = false; // Viewer accountType removed — permissions are role-based
   const [adminUserId, setAdminUserId] = usePersistentFilter<string | null>("tasks:adminUserId", null);
   const [tasks, setTasks] = useState<ApiTask[] | null>(null);
   const [ownedSteps, setOwnedSteps] = useState<ApiStep[]>([]);

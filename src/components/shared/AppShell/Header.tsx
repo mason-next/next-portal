@@ -113,7 +113,8 @@ export function Header() {
         {/* Right: desktop controls + hamburger */}
         <div className="flex items-center gap-2 md:gap-3">
           {/* Desktop-only controls */}
-          {session.accountType !== "Viewer" ? (
+          {session.roleTypes.includes("Administrator") ||
+           session.roleTypes.some((r) => ["Sales", "Engineering", "ProjectManagement", "Management"].includes(r)) ? (
             <Link
               href="/admin"
               title="Admin Settings"
@@ -230,10 +231,13 @@ export function Header() {
             <UserAvatar />
             <div>
               <div className="text-sm font-medium">{session.name}</div>
-              <div className="text-xs text-muted-foreground capitalize">{session.accountType}</div>
+              <div className="text-xs text-muted-foreground capitalize">
+                {session.roleTypes.join(", ")}
+              </div>
             </div>
           </div>
-          {session.accountType !== "Viewer" && (
+          {(session.roleTypes.includes("Administrator") ||
+            session.roleTypes.some((r) => ["Sales", "Engineering", "ProjectManagement", "Management"].includes(r))) && (
             <Link
               href="/admin"
               onClick={() => setMenuOpen(false)}

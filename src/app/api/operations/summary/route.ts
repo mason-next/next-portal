@@ -17,7 +17,7 @@ export async function GET() {
   const session = await getServerSession();
   if (!session) return new NextResponse("Unauthorized", { status: 401 });
 
-  const isAdmin = session.accountType === "Administrator";
+  const isAdmin = session.roleTypes.includes("Administrator");
   const userId = session.id;
 
   const activityWhere = isAdmin ? {} : { project: memberProjectFilter(userId) };

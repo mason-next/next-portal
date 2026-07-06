@@ -1,7 +1,9 @@
+// AccountType kept for DB/migration reference — not used in AppUser or SessionUser.
 export const ACCOUNT_TYPES = ["Administrator", "Member", "Viewer"] as const;
 export type AccountType = (typeof ACCOUNT_TYPES)[number];
 
 export const ROLE_TYPES = [
+  "Administrator",
   "Sales",
   "Engineering",
   "ProjectManagement",
@@ -14,6 +16,7 @@ export const ROLE_TYPES = [
 export type RoleType = (typeof ROLE_TYPES)[number];
 
 export const ROLE_TYPE_LABELS: Record<RoleType, string> = {
+  Administrator: "Administrator",
   Sales: "Sales",
   Engineering: "Engineering",
   ProjectManagement: "Project Management",
@@ -40,8 +43,7 @@ export interface AppUser {
   email: string;
   phone: string;
   avatarUrl: string | null;
-  accountType: AccountType;
-  roleType: RoleType;
+  roleTypes: string[];
   isActive: boolean;
   mustChangePassword: boolean;
   location: string;
@@ -57,8 +59,7 @@ export interface NewUserInput {
   email: string;
   phone: string;
   avatarUrl: string | null;
-  accountType: AccountType;
-  roleType: RoleType;
+  roleTypes: string[];
   isActive: boolean;
   mustChangePassword?: boolean;
   location?: string;

@@ -101,8 +101,8 @@ function userAssignmentWhere(userId: string): Prisma.ProjectWhereInput {
 export async function getProjects(options?: { filterUserId?: string }): Promise<Project[]> {
   const session = await getServerSession();
 
-  if (!session || session.accountType !== "Administrator") {
-    // Non-admin (Member or Viewer): scope to user's assigned projects
+  if (!session || !session.roleTypes.includes("Administrator")) {
+    // Non-admin: scope to user's assigned projects
     const userId = session?.id;
     if (!userId) return [];
     const rows = await db.project.findMany({
@@ -137,7 +137,7 @@ export async function getProject(id: string): Promise<Project | null> {
   if (!row) return null;
 
   // Non-admins can only view projects they're assigned to
-  if (session && session.accountType !== "Administrator") {
+  if (session && !session.roleTypes.includes("Administrator")) {
     const userId = session.id;
     const isAssigned =
       row.fieldProjectManagerId === userId ||

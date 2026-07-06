@@ -7,9 +7,9 @@ const SETTINGS_KEY = "role-permissions:config";
 
 export async function GET() {
   const session = await getServerSession();
-  if (!session || session.accountType !== "Administrator") {
-    return new NextResponse("Forbidden", { status: 403 });
-  }
+  // Any authenticated user can read the config (needed for client-side permission checks).
+  if (!session) return new NextResponse("Unauthorized", { status: 401 });
+
   const row = await db.appSetting.findUnique({ where: { key: SETTINGS_KEY } });
   const config: RolePermissionsConfig =
     row?.value && typeof row.value === "object"
@@ -20,7 +20,7 @@ export async function GET() {
 
 export async function PUT(req: NextRequest) {
   const session = await getServerSession();
-  if (!session || session.accountType !== "Administrator") {
+  if (!session || !session.roleTypes.includes("Administrator")) {
     return new NextResponse("Forbidden", { status: 403 });
   }
   const body = (await req.json()) as RolePermissionsConfig;

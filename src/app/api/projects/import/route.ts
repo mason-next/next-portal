@@ -52,7 +52,7 @@ export interface ImportResponse {
 export async function POST(request: Request): Promise<NextResponse> {
   // TODO: Extend to module-level permission check once permissions are finalized.
   const session = await getServerSession();
-  if (!session || session.accountType !== "Administrator") {
+  if (!session || !session.roleTypes.includes("Administrator")) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 

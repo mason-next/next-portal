@@ -8,7 +8,7 @@ export async function GET(req: Request) {
 
   const url = new URL(req.url);
   const queryUserId = url.searchParams.get("userId");
-  const isAllTeam = session.accountType === "Administrator" && queryUserId === "all";
+  const isAllTeam = session.roleTypes.includes("Administrator") && queryUserId === "all";
 
   if (isAllTeam) {
     const [tasks, ownedSteps] = await Promise.all([
@@ -35,7 +35,7 @@ export async function GET(req: Request) {
   }
 
   const targetUserId =
-    session.accountType === "Administrator" && queryUserId ? queryUserId : session.id;
+    session.roleTypes.includes("Administrator") && queryUserId ? queryUserId : session.id;
 
   const taskInclude = {
     project: { select: { id: true, name: true } },

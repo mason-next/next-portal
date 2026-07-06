@@ -144,7 +144,7 @@ export default function ProjectsPage() {
   const router = useRouter();
   const session = useSession();
   const { users } = useUsersContext();
-  const isAdmin = session.accountType === "Administrator";
+  const isAdmin = session.roleTypes.includes("Administrator");
   const [projects, setProjects] = useState<Project[] | null>(null);
   const [stepsByProject, setStepsByProject] = useState<Record<string, WorkflowStep[]>>({});
   const [showNewProject, setShowNewProject] = useState(false);

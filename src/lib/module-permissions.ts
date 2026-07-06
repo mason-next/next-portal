@@ -1,13 +1,13 @@
-import type { AccountType, RoleType } from "@/types/user";
-
 // ─── Module definitions ───────────────────────────────────────────────────────
 
 export const MODULE_KEYS = [
   "dashboard",
   "projects",
   "tasks",
+  "sales",
   "bom",
   "serviceCalculator",
+  "reports",
   "activity",
   "users",
   "subcontractors",
@@ -23,8 +23,10 @@ export const MODULE_LABELS: Record<ModuleKey, string> = {
   dashboard:         "Dashboard",
   projects:          "Projects",
   tasks:             "Tasks",
+  sales:             "Sales",
   bom:               "BOM",
   serviceCalculator: "Service Calculator",
+  reports:           "Reports",
   activity:          "Activity / Comments",
   users:             "Users",
   subcontractors:    "Subcontractors",
@@ -34,7 +36,7 @@ export const MODULE_LABELS: Record<ModuleKey, string> = {
   permissions:       "Permissions",
 };
 
-// ─── Action definitions (for enforcement) ─────────────────────────────────────
+// ─── Action definitions ───────────────────────────────────────────────────────
 
 export const MODULE_ACTIONS = [
   "view", "create", "edit", "delete", "comment",
@@ -61,53 +63,68 @@ export type RolePermissionsConfig = Record<string, Record<ModuleKey, ModulePermL
 // ─── Default permissions by role ──────────────────────────────────────────────
 
 export const DEFAULT_ROLE_PERMISSIONS: RolePermissionsConfig = {
+  Administrator: {
+    dashboard: "administrator", projects: "administrator", tasks: "administrator",
+    sales: "administrator", bom: "administrator", serviceCalculator: "administrator",
+    reports: "administrator", activity: "administrator", users: "administrator",
+    subcontractors: "administrator", templates: "administrator", licenses: "administrator",
+    adminSettings: "administrator", permissions: "administrator",
+  },
   Sales: {
     dashboard: "member", projects: "viewer", tasks: "member",
-    bom: "viewer", serviceCalculator: "member", activity: "member",
-    users: "none", subcontractors: "none", templates: "viewer",
-    licenses: "none", adminSettings: "none", permissions: "none",
+    sales: "administrator", bom: "viewer", serviceCalculator: "member",
+    reports: "member", activity: "member", users: "none",
+    subcontractors: "none", templates: "viewer", licenses: "none",
+    adminSettings: "none", permissions: "none",
   },
   Engineering: {
     dashboard: "member", projects: "member", tasks: "member",
-    bom: "member", serviceCalculator: "member", activity: "member",
-    users: "none", subcontractors: "none", templates: "viewer",
-    licenses: "none", adminSettings: "none", permissions: "none",
+    sales: "viewer", bom: "member", serviceCalculator: "member",
+    reports: "viewer", activity: "member", users: "none",
+    subcontractors: "none", templates: "viewer", licenses: "none",
+    adminSettings: "none", permissions: "none",
   },
   ProjectManagement: {
     dashboard: "member", projects: "administrator", tasks: "member",
-    bom: "member", serviceCalculator: "viewer", activity: "member",
-    users: "viewer", subcontractors: "member", templates: "viewer",
-    licenses: "viewer", adminSettings: "none", permissions: "none",
+    sales: "viewer", bom: "member", serviceCalculator: "viewer",
+    reports: "member", activity: "member", users: "viewer",
+    subcontractors: "member", templates: "viewer", licenses: "viewer",
+    adminSettings: "none", permissions: "none",
   },
   Management: {
     dashboard: "administrator", projects: "administrator", tasks: "member",
-    bom: "viewer", serviceCalculator: "viewer", activity: "member",
-    users: "member", subcontractors: "member", templates: "member",
-    licenses: "member", adminSettings: "none", permissions: "none",
+    sales: "administrator", bom: "viewer", serviceCalculator: "viewer",
+    reports: "administrator", activity: "member", users: "member",
+    subcontractors: "member", templates: "member", licenses: "member",
+    adminSettings: "none", permissions: "none",
   },
   Installation: {
     dashboard: "viewer", projects: "viewer", tasks: "member",
-    bom: "viewer", serviceCalculator: "none", activity: "member",
-    users: "none", subcontractors: "none", templates: "viewer",
-    licenses: "none", adminSettings: "none", permissions: "none",
+    sales: "none", bom: "viewer", serviceCalculator: "none",
+    reports: "none", activity: "member", users: "none",
+    subcontractors: "none", templates: "viewer", licenses: "none",
+    adminSettings: "none", permissions: "none",
   },
   Finance: {
     dashboard: "viewer", projects: "viewer", tasks: "viewer",
-    bom: "viewer", serviceCalculator: "none", activity: "viewer",
-    users: "none", subcontractors: "none", templates: "none",
-    licenses: "viewer", adminSettings: "none", permissions: "none",
+    sales: "viewer", bom: "viewer", serviceCalculator: "none",
+    reports: "administrator", activity: "viewer", users: "none",
+    subcontractors: "none", templates: "none", licenses: "viewer",
+    adminSettings: "none", permissions: "none",
   },
   Customer: {
     dashboard: "viewer", projects: "viewer", tasks: "viewer",
-    bom: "none", serviceCalculator: "none", activity: "viewer",
-    users: "none", subcontractors: "none", templates: "none",
-    licenses: "none", adminSettings: "none", permissions: "none",
+    sales: "none", bom: "none", serviceCalculator: "none",
+    reports: "none", activity: "viewer", users: "none",
+    subcontractors: "none", templates: "none", licenses: "none",
+    adminSettings: "none", permissions: "none",
   },
   Subcontractor: {
     dashboard: "viewer", projects: "viewer", tasks: "viewer",
-    bom: "none", serviceCalculator: "none", activity: "viewer",
-    users: "none", subcontractors: "none", templates: "none",
-    licenses: "none", adminSettings: "none", permissions: "none",
+    sales: "none", bom: "none", serviceCalculator: "none",
+    reports: "none", activity: "viewer", users: "none",
+    subcontractors: "none", templates: "none", licenses: "none",
+    adminSettings: "none", permissions: "none",
   },
 };
 
@@ -122,40 +139,50 @@ export function levelToActions(level: ModulePermLevel): ModuleAction[] {
   }
 }
 
+/** True if the permission level allows editing (member or higher). */
+export function canLevelEdit(level: ModulePermLevel): boolean {
+  return level === "member" || level === "administrator";
+}
+
+/**
+ * Returns the effective permission level for a user with the given role types.
+ * Takes the highest level across all assigned roles.
+ * The "Administrator" role type always returns "administrator" on every module.
+ */
 export function getEffectiveLevel(
-  accountType: AccountType,
-  roleType: RoleType,
+  roleTypes: string[],
   module: ModuleKey,
   config?: RolePermissionsConfig
 ): ModulePermLevel {
-  if (accountType === "Administrator") return "administrator";
+  if (roleTypes.includes("Administrator")) return "administrator";
 
-  const perms = (config ?? DEFAULT_ROLE_PERMISSIONS)[roleType as string];
-  const roleLevel: ModulePermLevel = perms?.[module] ?? "none";
+  const source = config ?? DEFAULT_ROLE_PERMISSIONS;
+  let maxIdx = 0; // "none" at index 0
 
-  if (accountType === "Viewer") {
-    // Viewer cap: never exceed viewer
-    if (roleLevel === "administrator" || roleLevel === "member") return "viewer";
+  for (const role of roleTypes) {
+    const perms = source[role];
+    if (!perms) continue;
+    const level: ModulePermLevel = perms[module] ?? "none";
+    const idx = PERM_LEVELS.indexOf(level);
+    if (idx > maxIdx) maxIdx = idx;
   }
 
-  return roleLevel;
+  return PERM_LEVELS[maxIdx];
 }
 
 export function getEffectivePermissions(
-  accountType: AccountType,
-  roleType: RoleType,
+  roleTypes: string[],
   module: ModuleKey,
   config?: RolePermissionsConfig
 ): ModuleAction[] {
-  return levelToActions(getEffectiveLevel(accountType, roleType, module, config));
+  return levelToActions(getEffectiveLevel(roleTypes, module, config));
 }
 
 export function hasModulePermission(
-  accountType: AccountType,
-  roleType: RoleType,
+  roleTypes: string[],
   module: ModuleKey,
   action: ModuleAction,
   config?: RolePermissionsConfig
 ): boolean {
-  return getEffectivePermissions(accountType, roleType, module, config).includes(action);
+  return getEffectivePermissions(roleTypes, module, config).includes(action);
 }

@@ -32,8 +32,8 @@ export function ProjectOverviewCard() {
   const [autoAssignResult, setAutoAssignResult] = useState<BulkAutoAssignResult | null>(null);
   const [autoAssignRunning, setAutoAssignRunning] = useState(false);
   const [overwriteExisting, setOverwriteExisting] = useState(false);
-  const canEdit = session.accountType !== "Viewer";
-  const isAdmin = session.accountType === "Administrator";
+  const isAdmin = session.roleTypes.includes("Administrator");
+  const canEdit = isAdmin || session.roleTypes.some((r) => !["Customer", "Subcontractor"].includes(r));
 
   const userById = (id: string | null) => users.find((u) => u.id === id) ?? null;
   const roleLabel = (id: string | null) =>

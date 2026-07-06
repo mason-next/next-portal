@@ -2,6 +2,7 @@ import { notFound } from "next/navigation";
 import { Mail, Phone, Shield, User } from "lucide-react";
 import { getUser } from "@/lib/data/users";
 import { UserAvatarImage } from "@/components/shared/AppShell/UserAvatarImage";
+import { ROLE_TYPE_LABELS, type RoleType } from "@/types/user";
 
 export default async function UserProfilePage({
   params,
@@ -22,7 +23,7 @@ export default async function UserProfilePage({
             <p className="text-sm text-muted-foreground">{user.title}</p>
             <span className="mt-1 inline-flex items-center gap-1 rounded-full bg-muted px-2 py-0.5 text-xs text-muted-foreground">
               <Shield className="size-3" />
-              {user.accountType}
+              {user.roleTypes.map((r) => ROLE_TYPE_LABELS[r as RoleType] ?? r).join(", ")}
             </span>
           </div>
         </div>

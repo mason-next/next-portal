@@ -9,30 +9,13 @@ import { db } from "@/lib/db";
 import { getServerSession } from "@/lib/auth/server";
 import { requireAdmin } from "@/lib/access-control";
 import { hashPassword, verifyPassword } from "@/lib/auth/password";
-import type { AccountType, AppUser, NewUserInput, RoleType, UserCertification } from "@/types/user";
+import { toSessionRoleTypes } from "@/lib/auth/role-mapper";
+import type { AppUser, NewUserInput, UserCertification } from "@/types/user";
 
-// ─── Enum converters ──────────────────────────────────────────────────────────
+// ─── DB helpers ───────────────────────────────────────────────────────────────
 
-// AccountType and RoleType enum values have no @map in the schema, so Prisma
-// TypeScript enum values equal the DB string values exactly.
-
-const ACCOUNT_TYPE_FROM_DB: Record<PrismaAccountType, AccountType> = {
-  [PrismaAccountType.Administrator]: "Administrator",
-  [PrismaAccountType.Member]: "Member",
-  [PrismaAccountType.Viewer]: "Viewer",
-};
-
-const ACCOUNT_TYPE_TO_DB: Record<AccountType, PrismaAccountType> = {
-  Administrator: PrismaAccountType.Administrator,
-  Member: PrismaAccountType.Member,
-  Viewer: PrismaAccountType.Viewer,
-};
-
-// String-keyed maps avoid Record<PrismaRoleType, ...> exhaustiveness errors when
-// the local Prisma client is behind the schema. Includes both current and legacy
-// values so old DB rows are still handled gracefully after migration.
-const ROLE_TYPE_BY_STRING: Record<string, RoleType> = {
-  // Current values
+// Map legacy DB roleType values to current canonical names (for backward compat reads).
+const ROLE_TYPE_BY_STRING: Record<string, string> = {
   Sales: "Sales",
   Engineering: "Engineering",
   ProjectManagement: "ProjectManagement",
@@ -41,7 +24,7 @@ const ROLE_TYPE_BY_STRING: Record<string, RoleType> = {
   Finance: "Finance",
   Customer: "Customer",
   Subcontractor: "Subcontractor",
-  // Legacy → current mappings (post-migration fallback)
+  // Legacy → current
   Engineer: "Engineering",
   Salesperson: "Sales",
   ProjectManager: "ProjectManagement",
@@ -53,16 +36,6 @@ const ROLE_TYPE_BY_STRING: Record<string, RoleType> = {
   Vendor: "Subcontractor",
   Other: "Management",
 };
-
-function fromDbRoleType(r: PrismaRoleType): RoleType {
-  return ROLE_TYPE_BY_STRING[r as string] ?? "Other";
-}
-
-// RoleType string values match Prisma enum member names exactly (no @map in schema),
-// so a direct cast is safe and doesn't break when new values are added.
-function toDbRoleType(r: RoleType): PrismaRoleType {
-  return r as unknown as PrismaRoleType;
-}
 
 // ─── Type mappers ─────────────────────────────────────────────────────────────
 
@@ -90,10 +63,18 @@ function toCert(c: { id: string; userId: string; name: string; issuingOrg: strin
 
 function toAppUser(p: PrismaUserWithCerts): AppUser {
   const pAny = p as unknown as {
+    roleTypes?: string[];
     location?: string;
     emergencyContact?: string;
     mustChangePassword?: boolean;
   };
+
+  // Prefer the new roleTypes column; fall back to deriving from accountType + roleType.
+  const roleTypes =
+    pAny.roleTypes && pAny.roleTypes.length > 0
+      ? pAny.roleTypes
+      : toSessionRoleTypes(p.accountType as string, ROLE_TYPE_BY_STRING[p.roleType as string] ?? "Management");
+
   return {
     id: p.id,
     name: p.name,
@@ -101,8 +82,7 @@ function toAppUser(p: PrismaUserWithCerts): AppUser {
     email: p.email,
     phone: p.phone,
     avatarUrl: p.avatarUrl,
-    accountType: ACCOUNT_TYPE_FROM_DB[p.accountType] ?? "Member",
-    roleType: fromDbRoleType(p.roleType),
+    roleTypes,
     isActive: p.isActive,
     mustChangePassword: pAny.mustChangePassword ?? false,
     location: pAny.location ?? "",
@@ -134,6 +114,12 @@ export async function getUser(id: string): Promise<AppUser | null> {
 // ─── Mutations ────────────────────────────────────────────────────────────────
 
 export async function createUser(input: NewUserInput): Promise<AppUser> {
+  // Derive legacy DB columns from roleTypes for backward compat with old code paths.
+  const isAdminRole = input.roleTypes.includes("Administrator");
+  const dbAccountType = isAdminRole ? PrismaAccountType.Administrator : PrismaAccountType.Member;
+  const nonAdminRole = input.roleTypes.find((r) => r !== "Administrator") ?? "Management";
+  const dbRoleType = (ROLE_TYPE_BY_STRING[nonAdminRole] ?? "Management") as unknown as PrismaRoleType;
+
   const row = await (db.user.create as (args: unknown) => Promise<PrismaUserWithCerts>)({
     data: {
       id: crypto.randomUUID(),
@@ -142,8 +128,9 @@ export async function createUser(input: NewUserInput): Promise<AppUser> {
       email: input.email,
       phone: input.phone,
       avatarUrl: input.avatarUrl,
-      accountType: ACCOUNT_TYPE_TO_DB[input.accountType],
-      roleType: toDbRoleType(input.roleType),
+      accountType: dbAccountType,
+      roleType: dbRoleType,
+      roleTypes: input.roleTypes,
       isActive: input.isActive,
       mustChangePassword: input.mustChangePassword ?? true,
       location: input.location ?? "",
@@ -161,12 +148,19 @@ export async function updateUser(id: string, patch: Partial<AppUser>): Promise<A
   if ("email" in patch)            data.email = patch.email;
   if ("phone" in patch)            data.phone = patch.phone ?? "";
   if ("avatarUrl" in patch)        data.avatarUrl = patch.avatarUrl ?? null;
-  if ("accountType" in patch && patch.accountType) data.accountType = ACCOUNT_TYPE_TO_DB[patch.accountType];
-  if ("roleType" in patch && patch.roleType)       data.roleType = toDbRoleType(patch.roleType);
-  if ("isActive" in patch)           data.isActive = patch.isActive;
+  if ("isActive" in patch)         data.isActive = patch.isActive;
   if ("mustChangePassword" in patch) data.mustChangePassword = patch.mustChangePassword;
-  if ("location" in patch)           data.location = patch.location ?? "";
+  if ("location" in patch)         data.location = patch.location ?? "";
   if ("emergencyContact" in patch) data.emergencyContact = patch.emergencyContact ?? "";
+
+  if ("roleTypes" in patch && patch.roleTypes) {
+    data.roleTypes = patch.roleTypes;
+    // Keep legacy DB columns in sync.
+    const isAdminRole = patch.roleTypes.includes("Administrator");
+    data.accountType = isAdminRole ? PrismaAccountType.Administrator : PrismaAccountType.Member;
+    const nonAdminRole = patch.roleTypes.find((r) => r !== "Administrator") ?? "Management";
+    data.roleType = (ROLE_TYPE_BY_STRING[nonAdminRole] ?? "Management") as unknown as PrismaRoleType;
+  }
 
   const row = await (db.user.update as (args: unknown) => Promise<PrismaUserWithCerts>)({
     where: { id },
@@ -188,10 +182,9 @@ export async function updateUserPassword(
   newPassword: string
 ): Promise<void> {
   const session = await getServerSession();
-  const isAdminOverride = session?.accountType === "Administrator" && session.id !== userId;
+  const isAdminOverride = session?.roleTypes.includes("Administrator") && session.id !== userId;
 
   if (!isAdminOverride) {
-    // Self-edit: verify current password
     const user = await db.user.findUnique({ where: { id: userId }, select: { passwordHash: true } });
     if (!user) throw new Error("User not found");
     if (user.passwordHash) {

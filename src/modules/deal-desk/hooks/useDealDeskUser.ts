@@ -7,7 +7,8 @@ const LS_KEY = "deal-desk:preview-as-salesperson";
 
 export function useDealDeskUser() {
   const session = useSession();
-  const actuallyManagement = session.accountType === "Administrator";
+  const actuallyManagement = session.roleTypes.includes("Administrator") ||
+    session.roleTypes.includes("Management") || session.roleTypes.includes("Sales");
 
   const [previewAsSalesperson, setPreviewAsSalesperson] = useState(() => {
     if (typeof window === "undefined") return false;

@@ -13,12 +13,9 @@ import {
   removeCertification,
 } from "@/lib/data/users";
 import {
-  ACCOUNT_TYPES,
   ROLE_TYPES,
   ROLE_TYPE_LABELS,
-  type AccountType,
   type AppUser,
-  type RoleType,
   type UserCertification,
 } from "@/types/user";
 import { useSession } from "@/lib/auth/client";
@@ -230,7 +227,7 @@ interface UserFormModalProps {
 
 export function UserFormModal({ user, onClose, onSaved, onDeleted }: UserFormModalProps) {
   const session = useSession();
-  const isAdmin = session.accountType === "Administrator";
+  const isAdmin = session.roleTypes.includes("Administrator");
   const isSelf = user?.id === session.id;
 
   const [name, setName] = useState(user?.name ?? "");
@@ -238,8 +235,7 @@ export function UserFormModal({ user, onClose, onSaved, onDeleted }: UserFormMod
   const [email, setEmail] = useState(user?.email ?? "");
   const [phone, setPhone] = useState(formatPhone(user?.phone ?? ""));
   const [avatarUrl, setAvatarUrl] = useState<string | null>(user?.avatarUrl ?? null);
-  const [accountType, setAccountType] = useState<AccountType>(user?.accountType ?? "Member");
-  const [roleType, setRoleType] = useState<RoleType>(user?.roleType ?? "Sales");
+  const [roleTypes, setRoleTypes] = useState<string[]>(user?.roleTypes ?? ["Sales"]);
   const [isActive, setIsActive] = useState(user?.isActive ?? true);
   const [mustChangePassword, setMustChangePassword] = useState(
     user ? (user.mustChangePassword ?? false) : true
@@ -289,12 +285,12 @@ export function UserFormModal({ user, onClose, onSaved, onDeleted }: UserFormMod
       const saved = user
         ? await updateUser(user.id, {
             name, title, email, phone, avatarUrl,
-            accountType, roleType, isActive, mustChangePassword,
+            roleTypes, isActive, mustChangePassword,
             location, emergencyContact,
           })
         : await createUser({
             name, title, email, phone, avatarUrl,
-            accountType, roleType, isActive, mustChangePassword,
+            roleTypes, isActive, mustChangePassword,
             location, emergencyContact,
           });
       onSaved(saved);
@@ -415,18 +411,29 @@ export function UserFormModal({ user, onClose, onSaved, onDeleted }: UserFormMod
           <input className={FIELD_INPUT_CLASS} value={emergencyContact} onChange={(e) => setEmergencyContact(e.target.value)} />
         </Field>
         {isAdmin && (
-          <>
-            <Field label="Access Level">
-              <select className={FIELD_INPUT_CLASS} value={accountType} onChange={(e) => setAccountType(e.target.value as AccountType)}>
-                {ACCOUNT_TYPES.map((t) => <option key={t} value={t}>{t}</option>)}
-              </select>
-            </Field>
-            <Field label="Role / Group">
-              <select className={FIELD_INPUT_CLASS} value={roleType} onChange={(e) => setRoleType(e.target.value as RoleType)}>
-                {ROLE_TYPES.map((r) => <option key={r} value={r}>{ROLE_TYPE_LABELS[r]}</option>)}
-              </select>
-            </Field>
-          </>
+          <div>
+            <div className="mb-1 text-xs font-semibold text-muted-foreground">Role Types</div>
+            <div className="grid grid-cols-2 gap-1.5 rounded-md border border-input bg-background p-3">
+              {ROLE_TYPES.map((r) => (
+                <label key={r} className="flex cursor-pointer items-center gap-2 text-sm">
+                  <input
+                    type="checkbox"
+                    className="h-4 w-4 rounded"
+                    checked={roleTypes.includes(r)}
+                    onChange={(e) =>
+                      setRoleTypes((prev) =>
+                        e.target.checked ? [...prev, r] : prev.filter((x) => x !== r)
+                      )
+                    }
+                  />
+                  {ROLE_TYPE_LABELS[r]}
+                </label>
+              ))}
+            </div>
+            {roleTypes.length === 0 && (
+              <p className="mt-1 text-xs text-destructive">At least one role type is required.</p>
+            )}
+          </div>
         )}
       </div>
 

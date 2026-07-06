@@ -1,7 +1,6 @@
 import { SignJWT, jwtVerify, type JWTPayload } from "jose";
 import type { SessionUser } from "./types";
-import type { AccountType } from "@/types/user";
-import { toSessionRoleType } from "./role-mapper";
+import { toSessionRoleTypes } from "./role-mapper";
 
 const SESSION_COOKIE = "next-portal-session";
 const EXPIRY_DAYS = 30;
@@ -23,11 +22,12 @@ interface SessionPayload extends JWTPayload {
   id: string;
   name: string;
   email: string;
+  roleTypes?: string[];
+  // Legacy fields present in tokens issued before the permissions refactor.
   accountType?: string;
   roleType?: string;
-  mustChangePassword?: boolean;
-  // kept for backwards-compat: old sessions issued before the refactor carry `role`.
   role?: string;
+  mustChangePassword?: boolean;
 }
 
 export async function signSession(user: SessionUser): Promise<string> {
@@ -36,8 +36,7 @@ export async function signSession(user: SessionUser): Promise<string> {
     id: user.id,
     name: user.name,
     email: user.email,
-    accountType: user.accountType,
-    roleType: user.roleType,
+    roleTypes: user.roleTypes,
   };
   if (user.mustChangePassword) payload.mustChangePassword = true;
   return new SignJWT(payload)
@@ -52,22 +51,21 @@ export async function verifySession(token: string): Promise<SessionUser | null> 
     const { payload } = await jwtVerify<SessionPayload>(token, getSecret());
     if (!payload.id || !payload.name || !payload.email) return null;
 
-    // Support old tokens that carried `role` instead of `accountType`.
-    const rawAccountType: string | undefined =
-      payload.accountType ??
-      (payload.role === "Administrator" ? "Administrator" : "Member");
-
-    if (!rawAccountType) return null;
-
-    // Normalize roleType — handles both new values and legacy DB/JWT values.
-    const roleType = toSessionRoleType(payload.roleType ?? "Management");
+    let roleTypes: string[];
+    if (payload.roleTypes && payload.roleTypes.length > 0) {
+      roleTypes = payload.roleTypes;
+    } else {
+      // Backward compat: old tokens carry accountType + roleType instead of roleTypes.
+      const legacyAccountType =
+        payload.accountType ?? (payload.role === "Administrator" ? "Administrator" : undefined);
+      roleTypes = toSessionRoleTypes(legacyAccountType, payload.roleType);
+    }
 
     return {
       id: payload.id,
       name: payload.name,
       email: payload.email,
-      accountType: rawAccountType as AccountType,
-      roleType,
+      roleTypes,
       mustChangePassword: payload.mustChangePassword === true,
     };
   } catch {

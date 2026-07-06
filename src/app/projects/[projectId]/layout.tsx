@@ -72,8 +72,8 @@ function ProjectLayoutBody({
 
   if (!project) return null;
 
-  const canEdit = session.accountType !== "Viewer";
-  const isAdmin = session.accountType === "Administrator";
+  const isAdmin = session.roleTypes.includes("Administrator");
+  const canEdit = isAdmin || session.roleTypes.some((r) => !["Customer", "Subcontractor"].includes(r));
 
   const status = deriveProjectStatus(steps);
   const { health } = getProjectHealthSummary({

@@ -172,6 +172,7 @@ model User {
   isActive           Boolean     @default(true)
   passwordHash       String?
   mustChangePassword Boolean     @default(false)
+  roleTypes        String[]    @default([])
   department       String      @default("")
   location         String      @default("")
   region           String      @default("")

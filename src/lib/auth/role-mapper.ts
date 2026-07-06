@@ -37,3 +37,15 @@ export function toSessionRoleType(rawRole: string): RoleType {
       return "Management";
   }
 }
+
+/**
+ * Derives a roleTypes array from legacy JWT fields (accountType + roleType).
+ * Used only for backward compat when reading old tokens that predate the refactor.
+ */
+export function toSessionRoleTypes(accountType?: string, roleType?: string): string[] {
+  const base = toSessionRoleType(roleType ?? "Management");
+  if (accountType === "Administrator") {
+    return base === "Administrator" ? ["Administrator"] : [base, "Administrator"];
+  }
+  return [base];
+}
