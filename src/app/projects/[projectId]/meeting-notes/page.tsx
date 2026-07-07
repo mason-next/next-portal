@@ -1,10 +1,13 @@
 "use client";
 
-import { use, useEffect, useState } from "react";
+import { use, useEffect, useRef, useState } from "react";
 import {
   CalendarDays,
+  CheckCircle2,
   ChevronDown,
   ChevronUp,
+  FileUp,
+  Loader2,
   Pencil,
   Plus,
   Trash2,
@@ -16,7 +19,9 @@ import { RichNoteEditor } from "@/components/shared/RichNoteEditor";
 import { cn } from "@/lib/utils";
 import { useSession } from "@/lib/auth/client";
 import { getEffectiveLevel, canLevelEdit } from "@/lib/module-permissions";
+import { parseVtt } from "@/lib/vtt-parser";
 import type { MeetingNote } from "@/types/meeting-notes";
+import type { MeetingSummary } from "@/app/api/ai/summarize-meeting/route";
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -249,6 +254,44 @@ function NoteCard({
   );
 }
 
+// ─── VTT → HTML helpers ───────────────────────────────────────────────────────
+
+function escHtml(s: string): string {
+  return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+}
+
+function summaryToBodyHtml(s: MeetingSummary): string {
+  const parts: string[] = [];
+  if (s.summary) parts.push(`<p>${escHtml(s.summary)}</p>`);
+  if (s.decisions.length > 0) {
+    parts.push(
+      `<p><strong>Key Decisions</strong></p><ul>${s.decisions.map((d) => `<li>${escHtml(d)}</li>`).join("")}</ul>`
+    );
+  }
+  if (s.risks.length > 0) {
+    parts.push(
+      `<p><strong>Risks / Issues</strong></p><ul>${s.risks.map((r) => `<li>${escHtml(r)}</li>`).join("")}</ul>`
+    );
+  }
+  if (s.followUps.length > 0) {
+    parts.push(
+      `<p><strong>Follow-ups</strong></p><ul>${s.followUps.map((f) => `<li>${escHtml(f)}</li>`).join("")}</ul>`
+    );
+  }
+  return parts.join("");
+}
+
+function summaryToActionItemsHtml(s: MeetingSummary): string {
+  if (s.actionItems.length === 0) return "";
+  return `<ul>${s.actionItems
+    .map((item) => {
+      const owner = item.owner ? `<strong>${escHtml(item.owner)}:</strong> ` : "";
+      const due = item.dueDate ? ` <em>— ${escHtml(item.dueDate)}</em>` : "";
+      return `<li>${owner}${escHtml(item.action)}${due}</li>`;
+    })
+    .join("")}</ul>`;
+}
+
 // ─── Note Form Modal ──────────────────────────────────────────────────────────
 
 function NoteFormModal({
@@ -270,6 +313,47 @@ function NoteFormModal({
   const [actionItems, setActionItems] = useState(note?.actionItems ?? "");
   const [saving, setSaving]         = useState(false);
   const [saveError, setSaveError]   = useState<string | null>(null);
+
+  // VTT / AI summary state
+  const [generating, setGenerating] = useState(false);
+  const [genSuccess, setGenSuccess] = useState(false);
+  const [genError, setGenError]     = useState<string | null>(null);
+  const [editorRevision, setEditorRevision] = useState(0);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  async function handleVttFile(file: File) {
+    setGenerating(true);
+    setGenError(null);
+    setGenSuccess(false);
+    try {
+      const raw = await file.text();
+      const { text: transcript } = parseVtt(raw);
+      if (!transcript.trim()) {
+        setGenError("Could not extract text from this file. Check that it is a valid .vtt transcript.");
+        return;
+      }
+      const res = await fetch("/api/ai/summarize-meeting", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ transcript }),
+      });
+      if (!res.ok) {
+        const errBody = await res.json().catch(() => ({}));
+        setGenError(`Summary generation failed: ${(errBody as { error?: string })?.error ?? `HTTP ${res.status}`}`);
+        return;
+      }
+      const summary: MeetingSummary = await res.json();
+      if (summary.title) setTitle(summary.title);
+      setBody(summaryToBodyHtml(summary));
+      setActionItems(summaryToActionItemsHtml(summary));
+      setEditorRevision((n) => n + 1);
+      setGenSuccess(true);
+    } catch (err) {
+      setGenError(`Unexpected error: ${String(err)}`);
+    } finally {
+      setGenerating(false);
+    }
+  }
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -310,6 +394,53 @@ function NoteFormModal({
     <Modal open onClose={onClose}>
       <h2 className="mb-4 text-base font-semibold">{isEdit ? "Edit Meeting Note" : "New Meeting Note"}</h2>
       <form onSubmit={handleSubmit} className="space-y-4">
+
+        {/* VTT transcript upload → Claude summary */}
+        <div className="rounded-lg border border-dashed bg-muted/30 px-3.5 py-3">
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept=".vtt,.txt"
+            className="hidden"
+            onChange={(e) => {
+              const f = e.target.files?.[0];
+              if (f) handleVttFile(f);
+              e.target.value = "";
+            }}
+          />
+          {generating ? (
+            <div className="flex items-center gap-2 text-sm text-muted-foreground">
+              <Loader2 className="size-4 shrink-0 animate-spin" />
+              Analyzing transcript with Claude…
+            </div>
+          ) : genSuccess ? (
+            <div className="flex items-center gap-2 text-sm text-emerald-600 dark:text-emerald-400">
+              <CheckCircle2 className="size-4 shrink-0" />
+              <span className="flex-1">Summary generated — review and edit below</span>
+              <button
+                type="button"
+                className="text-xs text-muted-foreground underline underline-offset-2 hover:text-foreground"
+                onClick={() => fileInputRef.current?.click()}
+              >
+                Re-upload
+              </button>
+            </div>
+          ) : (
+            <button
+              type="button"
+              className="flex w-full items-center gap-2 text-sm text-muted-foreground hover:text-foreground"
+              onClick={() => fileInputRef.current?.click()}
+            >
+              <FileUp className="size-4 shrink-0" />
+              <span>Generate summary from .vtt transcript</span>
+              <span className="ml-auto text-xs opacity-50">optional</span>
+            </button>
+          )}
+          {genError && (
+            <p className="mt-1.5 text-xs text-red-600">{genError}</p>
+          )}
+        </div>
+
         <label className="block">
           <span className="text-xs font-semibold text-muted-foreground">Meeting Title *</span>
           <input
@@ -351,6 +482,7 @@ function NoteFormModal({
             Notes / Recap <span className="font-normal text-muted-foreground/60">paste AI recap here</span>
           </p>
           <RichNoteEditor
+            key={editorRevision}
             defaultValue={body}
             onChange={setBody}
             placeholder="Paste your AI meeting summary, notes, or recap…"
@@ -363,6 +495,7 @@ function NoteFormModal({
             Action Items <span className="font-normal text-muted-foreground/60">optional</span>
           </p>
           <RichNoteEditor
+            key={editorRevision + 1000}
             defaultValue={actionItems}
             onChange={setActionItems}
             placeholder="• Owner: action by date"
