@@ -335,8 +335,8 @@ export default function TasksPage() {
             reload();
           }}
           onSave={async (id: string, input: UpdateTaskInput) => {
-            await updateTask(id, input);
-            setActiveTaskDrawer((prev) => (prev?.id === id ? { ...prev, ...input } as ImplementationTask : prev));
+            const updated = await updateTask(id, input);
+            setActiveTaskDrawer((prev) => (prev?.id === id ? updated : prev));
           }}
           onCreate={async () => {}}
           onDelete={async (id: string) => {

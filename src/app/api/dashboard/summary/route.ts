@@ -56,7 +56,7 @@ export async function GET() {
         _count: { taskId: true },
         orderBy: { _count: { taskId: "desc" } },
         take: 10,
-      }),
+      }).catch(() => [] as { userId: string; _count: { taskId: number } }[]),
     ]);
 
     // Resolve user names for workload

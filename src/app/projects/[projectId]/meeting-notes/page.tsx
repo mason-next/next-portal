@@ -128,6 +128,7 @@ export default function MeetingNotesPage({
 
       {editNote && (
         <NoteFormModal
+          key={editNote.id}
           projectId={projectId}
           note={editNote}
           onClose={() => setEditNote(null)}

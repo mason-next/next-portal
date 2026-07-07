@@ -130,14 +130,17 @@ async function batchLoadAssignees(
   const result = new Map<string, { id: string; name: string }[]>();
   if (taskIds.length === 0) return result;
 
-  const rows: TaskAssigneeRow[] = await (db as any).implementationTaskAssignee.findMany({
-    where: { taskId: { in: taskIds } },
-    include: { user: { select: { id: true, name: true } } },
-  });
-
-  for (const r of rows) {
-    if (!result.has(r.taskId)) result.set(r.taskId, []);
-    result.get(r.taskId)!.push(r.user);
+  try {
+    const rows: TaskAssigneeRow[] = await (db as any).implementationTaskAssignee.findMany({
+      where: { taskId: { in: taskIds } },
+      include: { user: { select: { id: true, name: true } } },
+    });
+    for (const r of rows) {
+      if (!result.has(r.taskId)) result.set(r.taskId, []);
+      result.get(r.taskId)!.push(r.user);
+    }
+  } catch {
+    // Join table not yet migrated — fall through to scalar FK fallback
   }
 
   // Backfill tasks not yet in the join table from the scalar FK
@@ -151,13 +154,10 @@ async function batchLoadAssignees(
   return result;
 }
 
-// Replaces all assignee join-table rows for a task and keeps the scalar assigneeId in sync.
+// Replaces all assignee join-table rows for a task. The scalar assigneeId is kept in sync
+// by the caller (updateTask sets it in the main update data before calling this).
 async function syncAssignees(taskId: string, assigneeIds: string[]): Promise<void> {
-  const primaryId = assigneeIds[0] ?? null;
-  await Promise.all([
-    db.implementationTask.update({ where: { id: taskId }, data: { assigneeId: primaryId } }),
-    (db as any).implementationTaskAssignee.deleteMany({ where: { taskId } }),
-  ]);
+  await (db as any).implementationTaskAssignee.deleteMany({ where: { taskId } });
   if (assigneeIds.length > 0) {
     await (db as any).implementationTaskAssignee.createMany({
       data: assigneeIds.map((userId) => ({ taskId, userId })),
