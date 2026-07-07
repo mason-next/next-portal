@@ -353,14 +353,17 @@ export async function reorderTasks(
   );
 }
 
+// richContentJson is a JSON-serialized string — passing the raw Tiptap JSONContent object
+// through the RSC Flight layer triggers "Cannot access toStringTag on the server" for nodes
+// like mentions that carry extra attrs. Stringify on the client, parse here (same as addProjectComment).
 export async function addTaskComment(
   taskId: string,
-  richContent: Record<string, unknown>,
+  richContentJson: string,
   plainText: string,
   attachments?: CommentAttachment[]
 ): Promise<ImplementationTaskComment> {
   const session = await getServerSession();
-  const richContentJson = richContent as unknown as Prisma.InputJsonValue;
+  const richContent = JSON.parse(richContentJson) as Record<string, unknown>;
   const attachmentsJson =
     attachments === undefined
       ? undefined
@@ -372,7 +375,7 @@ export async function addTaskComment(
       taskId,
       userId: session?.id ?? null,
       userName: session?.name ?? "Unknown",
-      richContent: richContentJson,
+      richContent: richContent as unknown as Prisma.InputJsonValue,
       plainText,
       ...(attachmentsJson !== undefined ? { attachments: attachmentsJson } : {}),
     },

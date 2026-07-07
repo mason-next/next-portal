@@ -91,6 +91,7 @@ export function ProjectActivityDrawer({ projectId }: { projectId: string }) {
   const [lastViewed, setLastViewed] = useState<string | null>(() => getActivityLastViewed(projectId));
   const [isDraftEmpty, setIsDraftEmpty] = useState(true);
   const [submitting, setSubmitting] = useState(false);
+  const [postError, setPostError] = useState<string | null>(null);
   const [pendingAttachments, setPendingAttachments] = useState<CommentAttachment[]>([]);
   const [highlightedId, setHighlightedId] = useState<string | null>(null);
   const [hideNonComments, setHideNonComments] = useState(false);
@@ -170,6 +171,7 @@ export function ProjectActivityDrawer({ projectId }: { projectId: string }) {
     const editor = editorRef.current;
     if (!editor || (editor.isEmpty() && pendingAttachments.length === 0)) return;
     setSubmitting(true);
+    setPostError(null);
     try {
       const { richContent, text } = editor.getPayload();
       await addProjectComment(
@@ -181,6 +183,9 @@ export function ProjectActivityDrawer({ projectId }: { projectId: string }) {
       editor.clear();
       setIsDraftEmpty(true);
       setPendingAttachments([]);
+    } catch (err) {
+      console.error("[handlePost] failed:", err);
+      setPostError(err instanceof Error ? err.message : "Failed to post comment. Please try again.");
     } finally {
       setSubmitting(false);
       refresh();
@@ -273,6 +278,9 @@ export function ProjectActivityDrawer({ projectId }: { projectId: string }) {
                 onRemove={(i) => setPendingAttachments((prev) => prev.filter((_, idx) => idx !== i))}
                 disabled={submitting}
               />
+              {postError && (
+                <p className="mt-1 text-xs text-destructive">{postError}</p>
+              )}
               <div className="mt-1.5 flex justify-end">
                 <Button
                   size="xs"

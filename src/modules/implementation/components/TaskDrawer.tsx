@@ -130,6 +130,7 @@ export function TaskDrawer({
   const [saveError, setSaveError] = useState<string | null>(null);
   const [deleting, setDeleting] = useState(false);
   const [addingComment, setAddingComment] = useState(false);
+  const [commentError, setCommentError] = useState<string | null>(null);
   const [projects, setProjects] = useState<{ id: string; name: string }[]>([]);
   const titleRef = useRef<HTMLInputElement>(null);
 
@@ -224,11 +225,15 @@ export function TaskDrawer({
     if (!task || !editor || (editor.isEmpty() && pendingAttachments.length === 0)) return;
     const { richContent, text } = editor.getPayload();
     setAddingComment(true);
+    setCommentError(null);
     try {
-      const comment = await addTaskComment(task.id, richContent, text, pendingAttachments);
+      const comment = await addTaskComment(task.id, JSON.stringify(richContent), text, pendingAttachments);
       setComments((prev) => [...prev, comment]);
       editor.clear();
       setPendingAttachments([]);
+    } catch (err) {
+      console.error("[handleAddComment] failed:", err);
+      setCommentError(err instanceof Error ? err.message : "Failed to post comment. Please try again.");
     } finally {
       setAddingComment(false);
     }
@@ -730,6 +735,9 @@ export function TaskDrawer({
                   onRemove={(i) => setPendingAttachments((prev) => prev.filter((_, idx) => idx !== i))}
                   disabled={addingComment}
                 />
+                {commentError && (
+                  <p className="mt-1 text-xs text-destructive">{commentError}</p>
+                )}
                 <div className="mt-1.5 flex justify-end">
                   <Button
                     size="sm"
