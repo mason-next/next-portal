@@ -13,6 +13,7 @@ import {
   updateSalesActivity,
   deleteSalesActivity,
   getActivitySummary,
+  normalizeOppOwnerNames,
 } from "@/lib/data/sales-activity";
 import type { SalesCompany, SalesOpportunity, SalesActivity, OppStage, ActivitySummary } from "@/types/sales";
 import { getWeekStart } from "@/types/sales";
@@ -33,6 +34,13 @@ export function useSalesActivity() {
   const [weekStart, setWeekStart] = useState(getWeekStart());
 
   const bump = useCallback(() => setReloadToken((t) => t + 1), []);
+
+  // One-time: resolve any CW slug ownerNames (e.g. "jlazo" → "Juan Lazo") left
+  // by old imports. Idempotent — safe to call on every mount.
+  useEffect(() => {
+    normalizeOppOwnerNames().then((count) => { if (count > 0) bump(); });
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   useEffect(() => {
     let active = true;

@@ -131,6 +131,39 @@ export async function deleteSalesCompany(id: string): Promise<void> {
   await db.salesCompany.delete({ where: { id } });
 }
 
+// ─── Owner name normalization ─────────────────────────────────────────────────
+// Converts CW slug-style ownerNames (e.g. "jlazo") to full names ("Juan Lazo").
+// Safe to call repeatedly — only updates rows where a slug match is found and
+// the stored name differs from the resolved full name.
+export async function normalizeOppOwnerNames(): Promise<number> {
+  const [users, opps] = await Promise.all([
+    db.user.findMany({ select: { id: true, name: true } }),
+    db.salesOpportunity.findMany({ select: { id: true, ownerName: true, ownerId: true } }),
+  ]);
+
+  function cwSlug(name: string) {
+    const parts = name.trim().split(/\s+/);
+    return parts.length < 2 ? name.toLowerCase() : (parts[0][0] + parts[parts.length - 1]).toLowerCase();
+  }
+  const bySlug = new Map(users.map((u) => [cwSlug(u.name), u]));
+
+  let updated = 0;
+  for (const opp of opps) {
+    if (!opp.ownerName) continue;
+    const looksLikeSlug = /^[a-z][a-z0-9]{1,15}$/.test(opp.ownerName);
+    if (!looksLikeSlug) continue;
+    const user = bySlug.get(opp.ownerName.toLowerCase());
+    if (user && (user.name !== opp.ownerName || user.id !== opp.ownerId)) {
+      await db.salesOpportunity.update({
+        where: { id: opp.id },
+        data: { ownerName: user.name, ownerId: user.id },
+      });
+      updated++;
+    }
+  }
+  return updated;
+}
+
 // ─── Opportunities ────────────────────────────────────────────────────────────
 
 export async function upsertSalesOpportunity(
