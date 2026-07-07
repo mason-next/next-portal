@@ -2,10 +2,12 @@
 
 import type { ReactNode } from "react";
 import type { JSONContent } from "@tiptap/core";
+import { FileText } from "lucide-react";
 import { useUsersContext } from "@/components/shared/AppShell/UsersProvider";
 import { isSafeLinkHref } from "@/lib/richtext/markdown";
 import { cn } from "@/lib/utils";
 import type { AppUser } from "@/types/user";
+import type { CommentAttachment } from "@/types/attachments";
 
 // Renders a comment's richContent (Tiptap's JSON document format) for display. Deliberately a
 // pure JSON → React tree-walk, not a second (read-only) Tiptap Editor instance — mounting a
@@ -16,9 +18,36 @@ import type { AppUser } from "@/types/user";
 // useUsersContext() is resolved once here, at the top of the one real component, and threaded
 // down as a plain argument through the helper functions below — none of those are components or
 // hooks, so they must never call hooks themselves (Rules of Hooks).
-export function RichCommentView({ doc }: { doc: JSONContent }) {
+export function RichCommentView({
+  doc,
+  attachments,
+}: {
+  doc: JSONContent;
+  attachments?: CommentAttachment[];
+}) {
   const { users } = useUsersContext();
-  return <>{(doc.content ?? []).map((node, i) => renderBlock(node, users, `b${i}`))}</>;
+  return (
+    <>
+      {(doc.content ?? []).map((node, i) => renderBlock(node, users, `b${i}`))}
+      {attachments && attachments.length > 0 && (
+        <div className="mt-2 flex flex-wrap gap-1.5">
+          {attachments.map((a, i) => (
+            <a
+              key={i}
+              href={`/api/comments/serve/${encodeURIComponent(a.storagePath)}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex items-center gap-1.5 rounded-md border border-border bg-muted/40 px-2 py-1 text-xs text-foreground hover:bg-muted transition-colors"
+              title={`Download ${a.fileName}`}
+            >
+              <FileText className="size-3 shrink-0 text-muted-foreground" />
+              <span className="max-w-[180px] truncate font-medium">{a.fileName}</span>
+            </a>
+          ))}
+        </div>
+      )}
+    </>
+  );
 }
 
 function renderBlock(node: JSONContent, users: AppUser[], key: string): ReactNode {

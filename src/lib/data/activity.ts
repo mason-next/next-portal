@@ -14,8 +14,21 @@ import { getMentionableUsers } from "@/lib/mentions/mentionable-users";
 import { extractMentionedUserIdsFromDoc } from "@/lib/mentions/tiptap-mentions";
 import { truncate } from "@/lib/utils";
 import type { ActivityCategory, ProjectActivity, RichContent } from "@/types/activity";
+import type { CommentAttachment } from "@/types/attachments";
+
+function parseAttachments(raw: unknown): CommentAttachment[] {
+  if (!Array.isArray(raw)) return [];
+  return raw.filter(
+    (a): a is CommentAttachment =>
+      a !== null &&
+      typeof a === "object" &&
+      typeof (a as Record<string, unknown>).storagePath === "string"
+  );
+}
 
 function toActivity(p: PrismaActivity): ProjectActivity {
+  const pAny = p as unknown as { attachments?: unknown };
+  const attachments = parseAttachments(pAny.attachments);
   return {
     id: p.id,
     projectId: p.projectId,
@@ -26,6 +39,7 @@ function toActivity(p: PrismaActivity): ProjectActivity {
     message: p.message,
     richContent: p.richContent != null ? (p.richContent as RichContent) : undefined,
     metadata: p.metadata != null ? (p.metadata as Record<string, unknown>) : undefined,
+    attachments: attachments.length > 0 ? attachments : undefined,
     createdAt: p.createdAt.toISOString(),
   };
 }
@@ -38,6 +52,7 @@ export interface LogActivityInput {
   message: string;
   richContent?: RichContent;
   metadata?: Record<string, unknown>;
+  attachments?: CommentAttachment[];
 }
 
 export async function logProjectActivity(
@@ -54,6 +69,9 @@ export async function logProjectActivity(
       message: input.message,
       richContent: (input.richContent ?? undefined) as Prisma.InputJsonValue | undefined,
       metadata: (input.metadata ?? undefined) as Prisma.InputJsonValue | undefined,
+      ...(input.attachments && input.attachments.length > 0
+        ? { attachments: input.attachments as unknown as Prisma.InputJsonValue }
+        : {}),
     },
   });
   return toActivity(row);
@@ -78,6 +96,7 @@ export async function getProjectActivity(projectId: string): Promise<ProjectActi
 export interface CommentPayload {
   text: string;
   richContentJson: string;
+  attachments?: CommentAttachment[];
 }
 
 export async function addProjectComment(
@@ -93,6 +112,7 @@ export async function addProjectComment(
     userName,
     message: payload.text,
     richContent,
+    attachments: payload.attachments,
   });
 
   try {

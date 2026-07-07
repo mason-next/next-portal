@@ -48,6 +48,7 @@ export interface ImplementationTaskComment {
   userName: string;
   richContent: Record<string, unknown> | null;
   plainText: string;
+  attachments: import("@/types/attachments").CommentAttachment[];
   createdAt: string;
   updatedAt: string;
 }

@@ -31,5 +31,6 @@ export interface ProjectActivity {
   // legacy markdown-lite MentionText path off `message` alone, forever. Fully additive.
   richContent?: RichContent;
   metadata?: Record<string, unknown>;
+  attachments?: import("@/types/attachments").CommentAttachment[];
   createdAt: string; // ISO 8601
 }

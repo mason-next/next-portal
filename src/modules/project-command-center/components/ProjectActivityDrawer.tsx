@@ -9,6 +9,7 @@ import { useUsersContext } from "@/components/shared/AppShell/UsersProvider";
 import { MentionText } from "@/components/shared/MentionText";
 import { RichCommentEditor, type RichCommentEditorHandle } from "@/components/shared/RichCommentEditor";
 import { RichCommentView } from "@/components/shared/RichCommentView";
+import { CommentAttachmentArea } from "@/components/shared/CommentAttachmentArea";
 import {
   addProjectComment,
   deleteProjectActivity,
@@ -23,6 +24,7 @@ import { readGlobal, writeGlobal } from "@/lib/storage/local-store";
 import { cn } from "@/lib/utils";
 import { useProjectContext } from "@/modules/project-command-center/hooks/ProjectContext";
 import type { ActivityCategory, ProjectActivity } from "@/types/activity";
+import type { CommentAttachment } from "@/types/attachments";
 import type { AppUser } from "@/types/user";
 
 // Local-storage-backed, single-user prototype — there's no push channel, so a light poll
@@ -89,6 +91,7 @@ export function ProjectActivityDrawer({ projectId }: { projectId: string }) {
   const [lastViewed, setLastViewed] = useState<string | null>(() => getActivityLastViewed(projectId));
   const [isDraftEmpty, setIsDraftEmpty] = useState(true);
   const [submitting, setSubmitting] = useState(false);
+  const [pendingAttachments, setPendingAttachments] = useState<CommentAttachment[]>([]);
   const [highlightedId, setHighlightedId] = useState<string | null>(null);
   const [hideNonComments, setHideNonComments] = useState(false);
   const editorRef = useRef<RichCommentEditorHandle>(null);
@@ -165,13 +168,19 @@ export function ProjectActivityDrawer({ projectId }: { projectId: string }) {
 
   async function handlePost() {
     const editor = editorRef.current;
-    if (!editor || editor.isEmpty()) return;
+    if (!editor || (editor.isEmpty() && pendingAttachments.length === 0)) return;
     setSubmitting(true);
     try {
       const { richContent, text } = editor.getPayload();
-      await addProjectComment(projectId, session.name, { text, richContentJson: JSON.stringify(richContent) }, session.id);
+      await addProjectComment(
+        projectId,
+        session.name,
+        { text, richContentJson: JSON.stringify(richContent), attachments: pendingAttachments },
+        session.id
+      );
       editor.clear();
       setIsDraftEmpty(true);
+      setPendingAttachments([]);
     } finally {
       setSubmitting(false);
       refresh();
@@ -258,8 +267,18 @@ export function ProjectActivityDrawer({ projectId }: { projectId: string }) {
                 onSubmitShortcut={handlePost}
                 onEmptyChange={setIsDraftEmpty}
               />
+              <CommentAttachmentArea
+                attachments={pendingAttachments}
+                onAdd={(a) => setPendingAttachments((prev) => [...prev, a])}
+                onRemove={(i) => setPendingAttachments((prev) => prev.filter((_, idx) => idx !== i))}
+                disabled={submitting}
+              />
               <div className="mt-1.5 flex justify-end">
-                <Button size="xs" onClick={handlePost} disabled={submitting || isDraftEmpty}>
+                <Button
+                  size="xs"
+                  onClick={handlePost}
+                  disabled={submitting || (isDraftEmpty && pendingAttachments.length === 0)}
+                >
                   {submitting ? "Posting…" : "Comment"}
                 </Button>
               </div>
@@ -395,7 +414,11 @@ function ActivityRow({
             </div>
           ) : (
             <div className="prose-comment mt-1 text-sm">
-              {item.richContent ? <RichCommentView doc={item.richContent} /> : <MentionText text={item.message} />}
+              {item.richContent ? (
+                <RichCommentView doc={item.richContent} attachments={item.attachments} />
+              ) : (
+                <MentionText text={item.message} />
+              )}
             </div>
           )}
 

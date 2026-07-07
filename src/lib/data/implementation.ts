@@ -18,6 +18,7 @@ import type {
   CreateTaskInput,
   UpdateTaskInput,
 } from "@/types/implementation";
+import type { CommentAttachment } from "@/types/attachments";
 
 // ─── Status/Priority maps ─────────────────────────────────────────────────────
 
@@ -100,6 +101,16 @@ function toTask(p: PrismaTaskWithCounts, assignees: { id: string; name: string }
   };
 }
 
+function parseAttachments(raw: unknown): CommentAttachment[] {
+  if (!Array.isArray(raw)) return [];
+  return raw.filter(
+    (a): a is CommentAttachment =>
+      a !== null &&
+      typeof a === "object" &&
+      typeof (a as Record<string, unknown>).storagePath === "string"
+  );
+}
+
 function toComment(p: PrismaComment): ImplementationTaskComment {
   return {
     id: p.id,
@@ -108,6 +119,7 @@ function toComment(p: PrismaComment): ImplementationTaskComment {
     userName: p.userName,
     richContent: p.richContent as Record<string, unknown> | null,
     plainText: p.plainText,
+    attachments: parseAttachments((p as unknown as { attachments?: unknown }).attachments),
     createdAt: p.createdAt.toISOString(),
     updatedAt: p.updatedAt.toISOString(),
   };
@@ -343,7 +355,8 @@ export async function reorderTasks(
 export async function addTaskComment(
   taskId: string,
   richContent: Record<string, unknown>,
-  plainText: string
+  plainText: string,
+  attachments?: CommentAttachment[]
 ): Promise<ImplementationTaskComment> {
   const session = await getServerSession();
   const row = await db.implementationTaskComment.create({
@@ -353,6 +366,9 @@ export async function addTaskComment(
       userName: session?.name ?? "Unknown",
       richContent: richContent as Parameters<typeof db.implementationTaskComment.create>[0]["data"]["richContent"],
       plainText,
+      ...(attachments && attachments.length > 0
+        ? { attachments: attachments as unknown as Parameters<typeof db.implementationTaskComment.create>[0]["data"]["richContent"] }
+        : {}),
     },
   });
   return toComment(row);

@@ -8,6 +8,7 @@ import { UserSelect } from "@/components/shared/UserSelect";
 import { MultiUserSelect } from "@/components/shared/MultiUserSelect";
 import { RichCommentEditor, type RichCommentEditorHandle } from "@/components/shared/RichCommentEditor";
 import { RichCommentView } from "@/components/shared/RichCommentView";
+import { CommentAttachmentArea } from "@/components/shared/CommentAttachmentArea";
 import { ProgressBar } from "@/components/shared/ProgressBar";
 import type {
   ImplementationTask,
@@ -18,6 +19,7 @@ import type {
   TaskPriority,
   TaskDependencyRef,
 } from "@/types/implementation";
+import type { CommentAttachment } from "@/types/attachments";
 import { TASK_STATUSES, TASK_PRIORITIES } from "@/types/implementation";
 import type { AppUser } from "@/types/user";
 import type { WorkflowStep } from "@/types/workflow";
@@ -117,6 +119,7 @@ export function TaskDrawer({
   );
   const [comments, setComments] = useState<ImplementationTaskComment[]>([]);
   const [commentEmpty, setCommentEmpty] = useState(true);
+  const [pendingAttachments, setPendingAttachments] = useState<CommentAttachment[]>([]);
   const commentEditorRef = useRef<RichCommentEditorHandle>(null);
   const [deps, setDeps] = useState<TaskDependencyRef[]>([]);
   const [addingDep, setAddingDep] = useState(false);
@@ -218,13 +221,14 @@ export function TaskDrawer({
 
   async function handleAddComment() {
     const editor = commentEditorRef.current;
-    if (!task || !editor || editor.isEmpty()) return;
+    if (!task || !editor || (editor.isEmpty() && pendingAttachments.length === 0)) return;
     const { richContent, text } = editor.getPayload();
     setAddingComment(true);
     try {
-      const comment = await addTaskComment(task.id, richContent, text);
+      const comment = await addTaskComment(task.id, richContent, text, pendingAttachments);
       setComments((prev) => [...prev, comment]);
       editor.clear();
+      setPendingAttachments([]);
     } finally {
       setAddingComment(false);
     }
@@ -701,7 +705,10 @@ export function TaskDrawer({
                     </div>
                     <div className="prose-comment text-sm text-foreground">
                       {c.richContent ? (
-                        <RichCommentView doc={c.richContent as Parameters<typeof RichCommentView>[0]["doc"]} />
+                        <RichCommentView
+                          doc={c.richContent as Parameters<typeof RichCommentView>[0]["doc"]}
+                          attachments={c.attachments}
+                        />
                       ) : (
                         <p>{c.plainText}</p>
                       )}
@@ -717,11 +724,17 @@ export function TaskDrawer({
                   onSubmitShortcut={handleAddComment}
                   onEmptyChange={setCommentEmpty}
                 />
+                <CommentAttachmentArea
+                  attachments={pendingAttachments}
+                  onAdd={(a) => setPendingAttachments((prev) => [...prev, a])}
+                  onRemove={(i) => setPendingAttachments((prev) => prev.filter((_, idx) => idx !== i))}
+                  disabled={addingComment}
+                />
                 <div className="mt-1.5 flex justify-end">
                   <Button
                     size="sm"
                     onClick={handleAddComment}
-                    disabled={commentEmpty || addingComment}
+                    disabled={(commentEmpty && pendingAttachments.length === 0) || addingComment}
                   >
                     <Send className="mr-1.5 size-3.5" />
                     {addingComment ? "Posting…" : "Post"}
