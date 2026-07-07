@@ -29,9 +29,10 @@ export async function POST(
     const note = await createMeetingNote(projectId, body);
     return NextResponse.json(note, { status: 201 });
   } catch (err) {
+    console.error("[POST /api/meeting-notes] error:", err);
     if (err instanceof ForbiddenError) {
       return NextResponse.json({ error: err.message }, { status: 403 });
     }
-    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+    return NextResponse.json({ error: String(err) }, { status: 500 });
   }
 }

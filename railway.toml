@@ -2,7 +2,7 @@
 builder = "nixpacks"
 
 [deploy]
-startCommand = "prisma migrate deploy; next start -H 0.0.0.0 -p $PORT"
+startCommand = "prisma generate && prisma migrate deploy; next start -H 0.0.0.0 -p $PORT"
 healthcheckPath = "/api/health"
 healthcheckTimeout = 300
 restartPolicyType = "on_failure"

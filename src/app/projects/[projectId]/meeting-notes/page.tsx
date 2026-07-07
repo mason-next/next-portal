@@ -290,10 +290,17 @@ function NoteFormModal({
         const saved: MeetingNote = await res.json();
         onSaved(saved);
       } else {
-        setSaveError("Failed to save. Please try again.");
+        let detail = `HTTP ${res.status}`;
+        try {
+          const errBody = await res.json();
+          if (errBody?.error) detail = errBody.error;
+        } catch { /* non-JSON body */ }
+        console.error("[meeting-notes] save failed:", detail);
+        setSaveError(`Failed to save: ${detail}`);
       }
-    } catch {
-      setSaveError("Failed to save. Please try again.");
+    } catch (err) {
+      console.error("[meeting-notes] save error:", err);
+      setSaveError("Failed to save — network error. Please try again.");
     } finally {
       setSaving(false);
     }

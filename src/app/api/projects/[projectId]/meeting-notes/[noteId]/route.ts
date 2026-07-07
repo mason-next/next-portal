@@ -16,10 +16,11 @@ export async function PATCH(
     const note = await updateMeetingNote(noteId, body);
     return NextResponse.json(note);
   } catch (err) {
+    console.error("[PATCH /api/meeting-notes/:noteId] error:", err);
     if (err instanceof ForbiddenError) {
       return NextResponse.json({ error: err.message }, { status: 403 });
     }
-    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+    return NextResponse.json({ error: String(err) }, { status: 500 });
   }
 }
 
