@@ -561,7 +561,7 @@ model MeetingNote {
   projectId     String
   title         String
   meetingDate   DateTime
-  attendees     String   @default("")
+  attendees     String[] @default([])
   body          String   @default("")
   actionItems   String   @default("")
   createdById   String?

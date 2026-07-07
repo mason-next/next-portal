@@ -3,7 +3,7 @@ export interface MeetingNote {
   projectId: string;
   title: string;
   meetingDate: string; // ISO date string (YYYY-MM-DD)
-  attendees: string;
+  attendees: string[]; // user IDs
   body: string;
   actionItems: string;
   createdById: string | null;
@@ -15,7 +15,7 @@ export interface MeetingNote {
 export interface CreateMeetingNoteInput {
   title: string;
   meetingDate: string;
-  attendees?: string;
+  attendees?: string[];
   body?: string;
   actionItems?: string;
 }
@@ -23,7 +23,7 @@ export interface CreateMeetingNoteInput {
 export interface UpdateMeetingNoteInput {
   title?: string;
   meetingDate?: string;
-  attendees?: string;
+  attendees?: string[];
   body?: string;
   actionItems?: string;
 }

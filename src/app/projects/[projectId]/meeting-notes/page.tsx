@@ -16,11 +16,14 @@ import {
 import { Button } from "@/components/ui/button";
 import { Modal } from "@/components/shared/Modal";
 import { RichNoteEditor } from "@/components/shared/RichNoteEditor";
+import { MultiUserSelect } from "@/components/shared/MultiUserSelect";
 import { cn } from "@/lib/utils";
 import { useSession } from "@/lib/auth/client";
+import { useUsersContext } from "@/components/shared/AppShell/UsersProvider";
 import { getEffectiveLevel, canLevelEdit } from "@/lib/module-permissions";
 import { parseVtt } from "@/lib/vtt-parser";
 import type { MeetingNote } from "@/types/meeting-notes";
+import type { AppUser } from "@/types/user";
 import type { MeetingSummary } from "@/app/api/ai/summarize-meeting/route";
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -50,6 +53,7 @@ export default function MeetingNotesPage({
 }) {
   const { projectId } = use(params);
   const { roleTypes } = useSession();
+  const { users } = useUsersContext();
   const canEdit = canLevelEdit(getEffectiveLevel(roleTypes, "projects"));
 
   const [notes, setNotes] = useState<MeetingNote[] | null>(null);
@@ -113,6 +117,7 @@ export default function MeetingNotesPage({
             <NoteCard
               key={note.id}
               note={note}
+              users={users}
               canEdit={canEdit}
               onEdit={() => setEditNote(note)}
               onDelete={() => handleDelete(note.id)}
@@ -124,6 +129,7 @@ export default function MeetingNotesPage({
       {showCreate && (
         <NoteFormModal
           projectId={projectId}
+          users={users}
           onClose={() => setShowCreate(false)}
           onSaved={(note) => {
             setNotes((prev) => [note, ...(prev ?? [])]);
@@ -136,6 +142,7 @@ export default function MeetingNotesPage({
         <NoteFormModal
           key={editNote.id}
           projectId={projectId}
+          users={users}
           note={editNote}
           onClose={() => setEditNote(null)}
           onSaved={(updated) => {
@@ -152,11 +159,13 @@ export default function MeetingNotesPage({
 
 function NoteCard({
   note,
+  users,
   canEdit,
   onEdit,
   onDelete,
 }: {
   note: MeetingNote;
+  users: AppUser[];
   canEdit: boolean;
   onEdit: () => void;
   onDelete: () => void;
@@ -179,10 +188,14 @@ function NoteCard({
               <CalendarDays className="size-3" />
               {formatDate(note.meetingDate)}
             </span>
-            {note.attendees && (
+            {note.attendees.length > 0 && (
               <span className="flex items-center gap-1">
                 <Users className="size-3" />
-                <span className="truncate max-w-[200px]">{note.attendees}</span>
+                <span className="truncate max-w-[200px]">
+                  {note.attendees
+                    .map((id) => users.find((u) => u.id === id)?.name ?? id)
+                    .join(", ")}
+                </span>
               </span>
             )}
             <span className="text-muted-foreground/50">·</span>
@@ -296,11 +309,13 @@ function summaryToActionItemsHtml(s: MeetingSummary): string {
 
 function NoteFormModal({
   projectId,
+  users,
   note,
   onClose,
   onSaved,
 }: {
   projectId: string;
+  users: AppUser[];
   note?: MeetingNote;
   onClose: () => void;
   onSaved: (note: MeetingNote) => void;
@@ -308,7 +323,7 @@ function NoteFormModal({
   const isEdit = Boolean(note);
   const [title, setTitle]             = useState(note?.title ?? "");
   const [meetingDate, setMeetingDate] = useState(note?.meetingDate ?? new Date().toISOString().split("T")[0]);
-  const [attendees, setAttendees]     = useState(note?.attendees ?? "");
+  const [attendees, setAttendees]     = useState<string[]>(note?.attendees ?? []);
   const [body, setBody]               = useState(note?.body ?? "");
   const [actionItems, setActionItems] = useState(note?.actionItems ?? "");
   const [saving, setSaving]         = useState(false);
@@ -464,17 +479,17 @@ function NoteFormModal({
               required
             />
           </label>
-          <label className="block">
-            <span className="text-xs font-semibold text-muted-foreground">
+          <div className="block">
+            <span className="mb-1 block text-xs font-semibold text-muted-foreground">
               Attendees <span className="font-normal text-muted-foreground/60">optional</span>
             </span>
-            <input
-              className={cn(FIELD, "h-9")}
+            <MultiUserSelect
+              users={users}
               value={attendees}
-              onChange={(e) => setAttendees(e.target.value)}
-              placeholder="Names or emails"
+              onChange={setAttendees}
+              placeholder="Select attendees…"
             />
-          </label>
+          </div>
         </div>
 
         <div className="block">

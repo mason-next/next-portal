@@ -32,6 +32,7 @@ export function SeedTemplatesModal({ projectId, step, onClose, onDone }: SeedTem
   );
   const [hasExisting, setHasExisting] = useState<boolean | null>(null);
   const [loading, setLoading] = useState(false);
+  const [applyError, setApplyError] = useState<string | null>(null);
   const [expandedTasks, setExpandedTasks] = useState<Set<number>>(
     () => new Set(templates.map((_, i) => i))
   );
@@ -102,8 +103,9 @@ export function SeedTemplatesModal({ projectId, step, onClose, onDone }: SeedTem
     }
 
     setLoading(true);
+    setApplyError(null);
     try {
-      await fetch("/api/implementation/seed-step-tasks", {
+      const res = await fetch("/api/implementation/seed-step-tasks", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -113,7 +115,14 @@ export function SeedTemplatesModal({ projectId, step, onClose, onDone }: SeedTem
           selectedTasks,
         }),
       });
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}));
+        setApplyError((body as { error?: string })?.error ?? `Server error (${res.status})`);
+        return;
+      }
       onDone();
+    } catch {
+      setApplyError("Network error — please try again.");
     } finally {
       setLoading(false);
     }
@@ -241,6 +250,9 @@ export function SeedTemplatesModal({ projectId, step, onClose, onDone }: SeedTem
         })}
       </div>
 
+      {applyError && (
+        <p className="mt-3 text-sm text-red-600 dark:text-red-400">{applyError}</p>
+      )}
       <div className="mt-4 flex items-center justify-end gap-2 border-t pt-4">
         <Button variant="outline" onClick={onClose} disabled={loading}>
           Cancel

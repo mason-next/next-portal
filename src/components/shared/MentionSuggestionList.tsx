@@ -46,7 +46,7 @@ export const MentionSuggestionList = forwardRef<MentionSuggestionListHandle, Men
           setSelectedIndex((i) => (i - 1 + items.length) % items.length);
           return true;
         }
-        if (event.key === "Enter" || event.key === "Tab") {
+        if ((event.key === "Enter" || event.key === "Tab") && !event.ctrlKey && !event.metaKey) {
           selectItem(selectedIndex);
           return true;
         }

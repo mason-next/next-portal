@@ -10,7 +10,7 @@ function toNote(p: {
   projectId: string;
   title: string;
   meetingDate: Date;
-  attendees: string;
+  attendees: string[];
   body: string;
   actionItems: string;
   createdById: string | null;
@@ -49,7 +49,7 @@ export async function createMeetingNote(projectId: string, input: CreateMeetingN
       projectId,
       title: input.title,
       meetingDate: new Date(input.meetingDate),
-      attendees: input.attendees ?? "",
+      attendees: input.attendees ?? [],
       body: input.body ?? "",
       actionItems: input.actionItems ?? "",
       createdById: session?.id ?? null,

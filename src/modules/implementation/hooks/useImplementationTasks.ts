@@ -37,7 +37,12 @@ export function useImplementationTasks(projectId: string) {
 
   const addTask = useCallback(
     async (input: CreateTaskInput) => {
-      const created = await createTask({ ...input, projectId });
+      let created: ImplementationTask;
+      try {
+        created = await createTask({ ...input, projectId });
+      } catch (err) {
+        throw err instanceof Error ? err : new Error("Failed to create task. Please try again.");
+      }
       startTransition(() => {
         setTasks((prev) => (prev ? [...prev, created] : [created]));
       });
