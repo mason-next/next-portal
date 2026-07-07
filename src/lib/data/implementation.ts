@@ -157,12 +157,16 @@ async function batchLoadAssignees(
 // Replaces all assignee join-table rows for a task. The scalar assigneeId is kept in sync
 // by the caller (updateTask sets it in the main update data before calling this).
 async function syncAssignees(taskId: string, assigneeIds: string[]): Promise<void> {
-  await (db as any).implementationTaskAssignee.deleteMany({ where: { taskId } });
-  if (assigneeIds.length > 0) {
-    await (db as any).implementationTaskAssignee.createMany({
-      data: assigneeIds.map((userId) => ({ taskId, userId })),
-      skipDuplicates: true,
-    });
+  try {
+    await (db as any).implementationTaskAssignee.deleteMany({ where: { taskId } });
+    if (assigneeIds.length > 0) {
+      await (db as any).implementationTaskAssignee.createMany({
+        data: assigneeIds.map((userId) => ({ taskId, userId })),
+        skipDuplicates: true,
+      });
+    }
+  } catch {
+    // Join table not yet migrated on this env — scalar assigneeId is the only record
   }
 }
 

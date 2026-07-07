@@ -647,8 +647,8 @@ model ImplementationTaskComment {
 }
 
 model ImplementationTaskAssignee {
-  taskId String
-  userId String
+  taskId String @map("task_id")
+  userId String @map("user_id")
   task   ImplementationTask @relation(fields: [taskId], references: [id], onDelete: Cascade)
   user   User               @relation("ImplTaskAssigneeJoin", fields: [userId], references: [id], onDelete: Cascade)
 

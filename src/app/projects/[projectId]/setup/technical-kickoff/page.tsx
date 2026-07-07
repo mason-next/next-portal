@@ -43,9 +43,9 @@ export default function TechnicalKickoffPage({
 
   useEffect(() => {
     let active = true;
-    getTechnicalKickoffRecord(projectId).then((loaded) => {
-      if (active) setRecord(loaded);
-    });
+    getTechnicalKickoffRecord(projectId)
+      .then((loaded) => { if (active) setRecord(loaded); })
+      .catch(() => { if (active) setRecord(null); });
     return () => { active = false; };
   }, [projectId]);
 
