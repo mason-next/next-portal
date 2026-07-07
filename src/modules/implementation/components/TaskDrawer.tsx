@@ -57,6 +57,8 @@ interface FormState {
   percentComplete: number;
   assigneeIds: string[];
   workflowStepId: string | null;
+  projectId: string | null;
+  isPersonal: boolean;
   startDate: string;
   dueDate: string;
   notes: string;
@@ -71,6 +73,8 @@ function toFormState(task: ImplementationTask): FormState {
     percentComplete: task.percentComplete,
     assigneeIds: task.assignees.map((a) => a.id),
     workflowStepId: task.workflowStepId,
+    projectId: task.projectId,
+    isPersonal: task.isPersonal,
     startDate: task.startDate ? task.startDate.slice(0, 10) : "",
     dueDate: task.dueDate ? task.dueDate.slice(0, 10) : "",
     notes: task.notes,
@@ -86,6 +90,8 @@ function emptyForm(defaultStepId: string | null = null): FormState {
     percentComplete: 0,
     assigneeIds: [],
     workflowStepId: defaultStepId,
+    projectId: null,
+    isPersonal: false,
     startDate: "",
     dueDate: "",
     notes: "",
@@ -121,6 +127,7 @@ export function TaskDrawer({
   const [saveError, setSaveError] = useState<string | null>(null);
   const [deleting, setDeleting] = useState(false);
   const [addingComment, setAddingComment] = useState(false);
+  const [projects, setProjects] = useState<{ id: string; name: string }[]>([]);
   const titleRef = useRef<HTMLInputElement>(null);
 
   const taskId = task?.id;
@@ -131,6 +138,16 @@ export function TaskDrawer({
       getSubtasks(taskId).then(setSubtasks);
     }
   }, [taskId, isCreate]);
+
+  // Fetch project list for the "Move to project" selector (edit mode, non-subtasks only)
+  useEffect(() => {
+    if (!isCreate && !isSubtask) {
+      fetch("/api/projects/list")
+        .then((r) => r.json())
+        .then((list: { id: string; name: string }[]) => setProjects(list))
+        .catch(() => {});
+    }
+  }, [isCreate, isSubtask]);
 
   useEffect(() => {
     function onKey(e: KeyboardEvent) {
@@ -176,6 +193,8 @@ export function TaskDrawer({
         await onCreate(payload as CreateTaskInput);
         onClose();
       } else if (task) {
+        payload.projectId = form.projectId;
+        payload.isPersonal = form.isPersonal;
         await onSave(task.id, payload);
         onClose();
       }
@@ -354,8 +373,38 @@ export function TaskDrawer({
             </div>
           </div>
 
-          {/* Workflow Step — not shown for subtasks */}
-          {!isSubtask && availableSteps.length > 0 && (
+          {/* Project — only in edit mode for non-subtask tasks */}
+          {!isCreate && !isSubtask && (
+            <div>
+              <label className="mb-1.5 block text-xs font-medium text-muted-foreground">Project</label>
+              <select
+                value={form.projectId ?? ""}
+                onChange={(e) => {
+                  const val = e.target.value;
+                  setForm((prev) => ({
+                    ...prev,
+                    projectId: val || null,
+                    isPersonal: !val,
+                    workflowStepId: null,
+                  }));
+                }}
+                className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm outline-none focus:border-primary"
+              >
+                <option value="">Personal Task</option>
+                {projects.map((p) => (
+                  <option key={p.id} value={p.id}>{p.name}</option>
+                ))}
+              </select>
+              {form.projectId !== task?.projectId && (
+                <p className="mt-1 text-xs text-muted-foreground/70">
+                  Task will move out of its current project on save.
+                </p>
+              )}
+            </div>
+          )}
+
+          {/* Workflow Step — not shown for subtasks, or when moving to a different project */}
+          {!isSubtask && availableSteps.length > 0 && form.projectId === task?.projectId && (
             <div>
               <label className="mb-1.5 block text-xs font-medium text-muted-foreground">
                 Workflow Step

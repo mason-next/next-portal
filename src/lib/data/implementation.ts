@@ -283,6 +283,8 @@ export async function updateTask(
   if (input.notes !== undefined)           data.notes           = input.notes;
   if (input.tags !== undefined)            data.tags            = input.tags;
   if ("workflowStepId" in input)           data.workflowStepId  = input.workflowStepId ?? null;
+  if ("projectId" in input)               data.projectId       = input.projectId ?? null;
+  if ("isPersonal" in input)              data.isPersonal      = input.isPersonal ?? false;
   if ("startDate" in input)                data.startDate       = input.startDate ? new Date(input.startDate) : null;
   if ("dueDate" in input)                  data.dueDate         = input.dueDate   ? new Date(input.dueDate)   : null;
   if ("completedAt" in input)              data.completedAt     = input.completedAt ? new Date(input.completedAt) : null;
