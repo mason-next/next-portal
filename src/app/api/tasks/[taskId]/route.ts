@@ -16,7 +16,7 @@ export async function GET(
   const isAdmin = session.roleTypes.includes("Administrator");
   if (
     !isAdmin &&
-    task.assigneeId !== session.id &&
+    !task.assignees.some((a) => a.id === session.id) &&
     task.createdById !== session.id
   ) {
     return new NextResponse("Forbidden", { status: 403 });

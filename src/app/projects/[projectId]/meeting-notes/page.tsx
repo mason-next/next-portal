@@ -12,6 +12,7 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Modal } from "@/components/shared/Modal";
+import { RichNoteEditor } from "@/components/shared/RichNoteEditor";
 import { cn } from "@/lib/utils";
 import { useSession } from "@/lib/auth/client";
 import type { MeetingNote } from "@/types/meeting-notes";
@@ -223,9 +224,10 @@ function NoteCard({
               <p className="mb-1.5 text-xs font-semibold text-muted-foreground uppercase tracking-wide">
                 Notes
               </p>
-              <pre className="whitespace-pre-wrap text-sm leading-relaxed text-foreground font-sans">
-                {note.body}
-              </pre>
+              <div
+                className="prose-comment text-sm text-foreground"
+                dangerouslySetInnerHTML={{ __html: note.body }}
+              />
             </div>
           )}
           {hasActionItems && (
@@ -233,9 +235,10 @@ function NoteCard({
               <p className="mb-1.5 text-xs font-semibold text-muted-foreground uppercase tracking-wide">
                 Action Items
               </p>
-              <pre className="whitespace-pre-wrap text-sm leading-relaxed text-foreground font-sans">
-                {note.actionItems}
-              </pre>
+              <div
+                className="prose-comment text-sm text-foreground"
+                dangerouslySetInnerHTML={{ __html: note.actionItems }}
+              />
             </div>
           )}
         </div>
@@ -334,29 +337,29 @@ function NoteFormModal({
           </label>
         </div>
 
-        <label className="block">
-          <span className="text-xs font-semibold text-muted-foreground">
+        <div className="block">
+          <p className="mb-1 text-xs font-semibold text-muted-foreground">
             Notes / Recap <span className="font-normal text-muted-foreground/60">paste AI recap here</span>
-          </span>
-          <textarea
-            className={cn(FIELD, "min-h-40 resize-y leading-relaxed")}
-            value={body}
-            onChange={(e) => setBody(e.target.value)}
+          </p>
+          <RichNoteEditor
+            defaultValue={body}
+            onChange={setBody}
             placeholder="Paste your AI meeting summary, notes, or recap…"
+            minHeight="min-h-40"
           />
-        </label>
+        </div>
 
-        <label className="block">
-          <span className="text-xs font-semibold text-muted-foreground">
+        <div className="block">
+          <p className="mb-1 text-xs font-semibold text-muted-foreground">
             Action Items <span className="font-normal text-muted-foreground/60">optional</span>
-          </span>
-          <textarea
-            className={cn(FIELD, "min-h-24 resize-y leading-relaxed")}
-            value={actionItems}
-            onChange={(e) => setActionItems(e.target.value)}
-            placeholder="• Owner: action by date&#10;• Owner: action by date"
+          </p>
+          <RichNoteEditor
+            defaultValue={actionItems}
+            onChange={setActionItems}
+            placeholder="• Owner: action by date"
+            minHeight="min-h-24"
           />
-        </label>
+        </div>
 
         {saveError && (
           <p className="text-sm text-red-600">{saveError}</p>

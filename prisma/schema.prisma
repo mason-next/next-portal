@@ -189,6 +189,7 @@ model User {
   notifications         Notification[]
   commentMentions       CommentMention[]
   assignedImplTasks     ImplementationTask[]        @relation("ImplTaskAssignee")
+  implTaskAssignments   ImplementationTaskAssignee[] @relation("ImplTaskAssigneeJoin")
   createdImplTasks      ImplementationTask[]        @relation("ImplTaskCreatedBy")
   implTaskComments      ImplementationTaskComment[] @relation("ImplTaskCommentAuthor")
   technicianAssignments ProjectTechnician[]         @relation("ProjectTechUser")
@@ -608,6 +609,7 @@ model ImplementationTask {
   dependencies ImplementationTaskDep[] @relation("DepTask")
   dependents   ImplementationTaskDep[] @relation("DepPre")
   comments     ImplementationTaskComment[]
+  assignees    ImplementationTaskAssignee[]
   workflowStep WorkflowStep? @relation("TaskWorkflowStep", fields: [workflowStepId], references: [id], onDelete: SetNull)
 
   @@index([projectId, sortOrder])
@@ -642,6 +644,16 @@ model ImplementationTaskComment {
 
   @@index([taskId, createdAt(sort: Desc)])
   @@map("implementation_task_comments")
+}
+
+model ImplementationTaskAssignee {
+  taskId String
+  userId String
+  task   ImplementationTask @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  user   User               @relation("ImplTaskAssigneeJoin", fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([taskId, userId])
+  @@map("implementation_task_assignees")
 }
 
 // ─── Task Templates ───────────────────────────────────────────────────────────

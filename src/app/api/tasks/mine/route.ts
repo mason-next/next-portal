@@ -45,10 +45,20 @@ export async function GET(req: Request) {
     _count: { select: { subtasks: true, comments: true } },
   };
 
+  // Also find tasks where this user is an additional (non-primary) assignee via the join table.
+  const extraTaskIds: string[] = await (db as any).implementationTaskAssignee
+    .findMany({ where: { userId: targetUserId }, select: { taskId: true } })
+    .then((rows: { taskId: string }[]) => rows.map((r) => r.taskId))
+    .catch(() => [] as string[]);
+
+  const assigneeFilter = {
+    OR: [{ assigneeId: targetUserId }, ...(extraTaskIds.length > 0 ? [{ id: { in: extraTaskIds } }] : [])],
+  };
+
   const [projectTasks, personalTasks, notifications, ownedSteps] = await Promise.all([
     db.implementationTask.findMany({
       where: {
-        assigneeId: targetUserId,
+        ...assigneeFilter,
         status: { notIn: ["Complete", "Cancelled"] },
         parentTaskId: null,
         projectId: { not: null },
@@ -58,7 +68,7 @@ export async function GET(req: Request) {
     }),
     (db.implementationTask.findMany as (args: unknown) => Promise<unknown[]>)({
       where: {
-        assigneeId: targetUserId,
+        ...assigneeFilter,
         status: { notIn: ["Complete", "Cancelled"] },
         parentTaskId: null,
         isPersonal: true,

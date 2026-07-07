@@ -45,23 +45,22 @@ export async function GET() {
           project: { select: { name: true } },
         },
       }),
-      db.implementationTask.groupBy({
-        by: ["assigneeId"],
+      (db as any).implementationTaskAssignee.groupBy({
+        by: ["userId"],
         where: {
-          status: { notIn: ["Complete", "Cancelled"] },
-          assigneeId: { not: null },
-          parentTaskId: null,
+          task: {
+            status: { notIn: ["Complete", "Cancelled"] },
+            parentTaskId: null,
+          },
         },
-        _count: { id: true },
-        orderBy: { _count: { id: "desc" } },
+        _count: { taskId: true },
+        orderBy: { _count: { taskId: "desc" } },
         take: 10,
       }),
     ]);
 
     // Resolve user names for workload
-    const assigneeIds = workloadRows
-      .map((r: { assigneeId: string | null }) => r.assigneeId)
-      .filter(Boolean) as string[];
+    const assigneeIds = (workloadRows as { userId: string; _count: { taskId: number } }[]).map((r) => r.userId);
     const users = assigneeIds.length > 0
       ? await db.user.findMany({
           where: { id: { in: assigneeIds } },
@@ -69,10 +68,10 @@ export async function GET() {
         })
       : [];
     const nameById = new Map(users.map((u: { id: string; name: string }) => [u.id, u.name]));
-    const workload = workloadRows.map((r: { assigneeId: string | null; _count: { id: number } }) => ({
-      userId: r.assigneeId!,
-      name: nameById.get(r.assigneeId!) ?? "Unknown",
-      taskCount: r._count.id,
+    const workload = (workloadRows as { userId: string; _count: { taskId: number } }[]).map((r) => ({
+      userId: r.userId,
+      name: nameById.get(r.userId) ?? "Unknown",
+      taskCount: r._count.taskId,
     }));
 
     return NextResponse.json({

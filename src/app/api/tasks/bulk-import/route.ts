@@ -10,7 +10,7 @@ interface ImportRow {
   isPersonal: boolean;
   priority: TaskPriority;
   dueDate: string | null; // ISO date string (YYYY-MM-DD) or null
-  assigneeId: string;
+  assigneeIds: string[];
   description: string;
 }
 
@@ -32,10 +32,11 @@ export async function POST(req: Request) {
       const dueDateStart = row.dueDate ? new Date(`${row.dueDate}T00:00:00`) : null;
       const dueDateEnd   = row.dueDate ? new Date(`${row.dueDate}T23:59:59`) : null;
 
+      const primaryAssigneeId = row.assigneeIds[0] ?? null;
       const existing = await db.implementationTask.findFirst({
         where: {
           title: { equals: row.title, mode: "insensitive" },
-          assigneeId: row.assigneeId,
+          assigneeId: primaryAssigneeId,
           projectId: row.projectId ?? null,
           ...(dueDateStart && dueDateEnd
             ? { dueDate: { gte: dueDateStart, lte: dueDateEnd } }
@@ -56,7 +57,7 @@ export async function POST(req: Request) {
         isPersonal: row.isPersonal,
         priority: row.priority,
         dueDate: row.dueDate ? new Date(row.dueDate).toISOString() : null,
-        assigneeId: row.assigneeId,
+        assigneeIds: row.assigneeIds,
       });
 
       created++;

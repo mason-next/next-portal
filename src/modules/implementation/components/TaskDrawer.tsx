@@ -1,10 +1,13 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { X, Plus, Trash2, AlertCircle, Link2 } from "lucide-react";
+import { X, Plus, Trash2, AlertCircle, Link2, Send } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { UserSelect } from "@/components/shared/UserSelect";
+import { MultiUserSelect } from "@/components/shared/MultiUserSelect";
+import { RichCommentEditor, type RichCommentEditorHandle } from "@/components/shared/RichCommentEditor";
+import { RichCommentView } from "@/components/shared/RichCommentView";
 import { ProgressBar } from "@/components/shared/ProgressBar";
 import type {
   ImplementationTask,
@@ -52,7 +55,7 @@ interface FormState {
   status: ImplementationTaskStatus;
   priority: TaskPriority;
   percentComplete: number;
-  assigneeId: string | null;
+  assigneeIds: string[];
   workflowStepId: string | null;
   startDate: string;
   dueDate: string;
@@ -66,7 +69,7 @@ function toFormState(task: ImplementationTask): FormState {
     status: task.status,
     priority: task.priority,
     percentComplete: task.percentComplete,
-    assigneeId: task.assigneeId,
+    assigneeIds: task.assignees.map((a) => a.id),
     workflowStepId: task.workflowStepId,
     startDate: task.startDate ? task.startDate.slice(0, 10) : "",
     dueDate: task.dueDate ? task.dueDate.slice(0, 10) : "",
@@ -81,7 +84,7 @@ function emptyForm(defaultStepId: string | null = null): FormState {
     status: "Not Started",
     priority: "Medium",
     percentComplete: 0,
-    assigneeId: null,
+    assigneeIds: [],
     workflowStepId: defaultStepId,
     startDate: "",
     dueDate: "",
@@ -107,7 +110,8 @@ export function TaskDrawer({
     task ? toFormState(task) : emptyForm(defaultWorkflowStepId)
   );
   const [comments, setComments] = useState<ImplementationTaskComment[]>([]);
-  const [commentText, setCommentText] = useState("");
+  const [commentEmpty, setCommentEmpty] = useState(true);
+  const commentEditorRef = useRef<RichCommentEditorHandle>(null);
   const [deps, setDeps] = useState<TaskDependencyRef[]>([]);
   const [addingDep, setAddingDep] = useState(false);
   const [depPickerId, setDepPickerId] = useState<string>("");
@@ -162,7 +166,7 @@ export function TaskDrawer({
         status: form.status,
         priority: form.priority,
         percentComplete: hasSubtasks ? derivedProgress : form.percentComplete,
-        assigneeId: form.assigneeId,
+        assigneeIds: form.assigneeIds,
         workflowStepId: form.workflowStepId,
         startDate: form.startDate || null,
         dueDate: form.dueDate || null,
@@ -194,19 +198,14 @@ export function TaskDrawer({
   }
 
   async function handleAddComment() {
-    if (!task || !commentText.trim()) return;
+    const editor = commentEditorRef.current;
+    if (!task || !editor || editor.isEmpty()) return;
+    const { richContent, text } = editor.getPayload();
     setAddingComment(true);
     try {
-      const comment = await addTaskComment(
-        task.id,
-        {
-          type: "doc",
-          content: [{ type: "paragraph", content: [{ type: "text", text: commentText.trim() }] }],
-        },
-        commentText.trim()
-      );
+      const comment = await addTaskComment(task.id, richContent, text);
       setComments((prev) => [...prev, comment]);
-      setCommentText("");
+      editor.clear();
     } finally {
       setAddingComment(false);
     }
@@ -376,13 +375,13 @@ export function TaskDrawer({
             </div>
           )}
 
-          {/* Assignee */}
+          {/* Assignees */}
           <div>
-            <label className="mb-1.5 block text-xs font-medium text-muted-foreground">Assignee</label>
-            <UserSelect
+            <label className="mb-1.5 block text-xs font-medium text-muted-foreground">Assignees</label>
+            <MultiUserSelect
               users={users}
-              value={form.assigneeId}
-              onChange={(id) => set("assigneeId", id)}
+              value={form.assigneeIds}
+              onChange={(ids) => set("assigneeIds", ids)}
               placeholder="Unassigned"
             />
           </div>
@@ -651,26 +650,34 @@ export function TaskDrawer({
                         </button>
                       </div>
                     </div>
-                    <p className="text-sm text-foreground">{c.plainText}</p>
+                    <div className="prose-comment text-sm text-foreground">
+                      {c.richContent ? (
+                        <RichCommentView doc={c.richContent as Parameters<typeof RichCommentView>[0]["doc"]} />
+                      ) : (
+                        <p>{c.plainText}</p>
+                      )}
+                    </div>
                   </div>
                 ))}
               </div>
-              <div className="mt-3 flex gap-2">
-                <input
-                  value={commentText}
-                  onChange={(e) => setCommentText(e.target.value)}
-                  onKeyDown={(e) => e.key === "Enter" && !e.shiftKey && handleAddComment()}
-                  placeholder="Add a comment…"
-                  className="min-w-0 flex-1 rounded-md border border-input bg-background px-3 py-2 text-sm outline-none focus:border-primary"
+              <div className="mt-3">
+                <RichCommentEditor
+                  ref={commentEditorRef}
+                  users={users}
+                  placeholder="Add a comment… (@mention to notify)"
+                  onSubmitShortcut={handleAddComment}
+                  onEmptyChange={setCommentEmpty}
                 />
-                <Button
-                  size="sm"
-                  variant="outline"
-                  onClick={handleAddComment}
-                  disabled={!commentText.trim() || addingComment}
-                >
-                  <Plus className="size-4" />
-                </Button>
+                <div className="mt-1.5 flex justify-end">
+                  <Button
+                    size="sm"
+                    onClick={handleAddComment}
+                    disabled={commentEmpty || addingComment}
+                  >
+                    <Send className="mr-1.5 size-3.5" />
+                    {addingComment ? "Posting…" : "Post"}
+                  </Button>
+                </div>
               </div>
             </div>
           )}

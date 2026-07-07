@@ -45,6 +45,7 @@ interface ApiTask {
   dueDate: string | null;
   percentComplete: number;
   project: { id: string; name: string };
+  assignees?: { id: string; name: string }[];
   assignee?: { id: string; name: string } | null;
   workflowStep?: { id: string; name: string; section: string } | null;
   subtasks: { status: TaskStatus }[];
@@ -761,7 +762,7 @@ function CreateTaskModal({
   const [projectId, setProjectId] = useState<string>("");
   const [steps, setSteps] = useState<{ id: string; name: string }[]>([]);
   const [stepId, setStepId] = useState<string>("");
-  const [assigneeId, setAssigneeId] = useState(session.id);
+  const [assigneeIds, setAssigneeIds] = useState<string[]>([session.id]);
   const [priority, setPriority] = useState<"Low" | "Medium" | "High" | "Critical">("Medium");
   const [dueDate, setDueDate] = useState("");
   const [description, setDescription] = useState("");
@@ -797,7 +798,7 @@ function CreateTaskModal({
           description,
           projectId: projectId || null,
           workflowStepId: stepId || null,
-          assigneeId,
+          assigneeIds,
           priority,
           dueDate: dueDate || null,
         }),
@@ -882,9 +883,10 @@ function CreateTaskModal({
           <span className="text-xs font-semibold text-muted-foreground">Assign To</span>
           <select
             className={FIELD_CLASS}
-            value={assigneeId}
-            onChange={(e) => setAssigneeId(e.target.value)}
+            value={assigneeIds[0] ?? ""}
+            onChange={(e) => setAssigneeIds(e.target.value ? [e.target.value] : [])}
           >
+            <option value="">Unassigned</option>
             {users.filter((u) => u.isActive).map((u) => (
               <option key={u.id} value={u.id}>{u.name}</option>
             ))}

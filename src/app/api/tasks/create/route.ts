@@ -12,7 +12,7 @@ export async function POST(req: Request) {
     description: body.description ?? "",
     projectId: body.projectId ?? null,
     workflowStepId: body.workflowStepId ?? null,
-    assigneeId: body.assigneeId ?? session.id,
+    assigneeIds: body.assigneeIds ?? (body.assigneeId ? [body.assigneeId] : [session.id]),
     priority: body.priority ?? "Medium",
     dueDate: body.dueDate ?? null,
     isPersonal: !body.projectId,

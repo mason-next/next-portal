@@ -28,7 +28,7 @@ interface ValidatedRow {
     isPersonal: boolean;
     priority: TaskPriority;
     dueDate: string | null;
-    assigneeId: string;
+    assigneeIds: string[];
   };
   errors: string[];
   isDuplicate: boolean;
@@ -197,7 +197,7 @@ export function TaskImportModal({
           rowIndex: i + 2,
           raw,
           resolved: errors.length === 0 && priority && assigneeId
-            ? { projectId, isPersonal, priority, dueDate: dueDateIso, assigneeId }
+            ? { projectId, isPersonal, priority, dueDate: dueDateIso, assigneeIds: [assigneeId] }
             : undefined,
           errors,
           isDuplicate,
@@ -226,7 +226,7 @@ export function TaskImportModal({
             isPersonal: r.resolved!.isPersonal,
             priority: r.resolved!.priority,
             dueDate: r.resolved!.dueDate,
-            assigneeId: r.resolved!.assigneeId,
+            assigneeIds: r.resolved!.assigneeIds,
             description: r.raw.description,
           })),
         }),

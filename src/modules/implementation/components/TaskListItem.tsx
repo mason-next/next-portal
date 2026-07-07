@@ -28,7 +28,9 @@ export function TaskListItem({ task, users, depth = 0, onOpen, onToggleComplete 
   const [subtasks, setSubtasks] = useState<ImplementationTask[]>([]);
   const [loadedSubs, setLoadedSubs] = useState(false);
 
-  const assignee = task.assigneeId ? users.find((u) => u.id === task.assigneeId) : null;
+  const assigneeUsers = task.assignees
+    .map((a) => users.find((u) => u.id === a.id) ?? { id: a.id, name: a.name, avatarUrl: null, title: "" })
+    .slice(0, 3);
   const overdue = isOverdue(task.dueDate, task.status);
   const progress = taskProgress(task);
   const isComplete = task.status === "Complete";
@@ -153,9 +155,18 @@ export function TaskListItem({ task, users, depth = 0, onOpen, onToggleComplete 
           </span>
         )}
 
-        {/* Assignee avatar */}
-        {assignee && (
-          <UserAvatarImage name={assignee.name} avatarUrl={assignee.avatarUrl} size={22} />
+        {/* Assignee avatars — stacked for multi-assignee */}
+        {assigneeUsers.length > 0 && (
+          <div className="flex -space-x-1.5">
+            {assigneeUsers.map((u) => (
+              <UserAvatarImage key={u.id} name={u.name} avatarUrl={u.avatarUrl} size={22} />
+            ))}
+            {task.assignees.length > 3 && (
+              <span className="flex size-[22px] items-center justify-center rounded-full bg-muted text-[10px] font-medium text-muted-foreground ring-2 ring-background">
+                +{task.assignees.length - 3}
+              </span>
+            )}
+          </div>
         )}
       </div>
 

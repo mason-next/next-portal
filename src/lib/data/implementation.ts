@@ -54,7 +54,7 @@ const APP_PRIORITY: Record<TaskPriority, PrismaPriority> = {
 // ─── Mappers ──────────────────────────────────────────────────────────────────
 
 type PrismaTaskWithCounts = PrismaTask & {
-  assignee: Pick<User, "name"> | null;
+  assignee: Pick<User, "id" | "name"> | null;
   workflowStep: { id: string; name: string } | null;
   _count: {
     subtasks: number;
@@ -64,7 +64,9 @@ type PrismaTaskWithCounts = PrismaTask & {
   subtasks: { status: PrismaStatus }[];
 };
 
-function toTask(p: PrismaTaskWithCounts): ImplementationTask {
+type TaskAssigneeRow = { taskId: string; user: { id: string; name: string } };
+
+function toTask(p: PrismaTaskWithCounts, assignees: { id: string; name: string }[]): ImplementationTask {
   const completedSubs = p.subtasks.filter((s: { status: string }) => s.status === "Complete").length;
   const pAny = p as unknown as { isPersonal?: boolean; projectId: string | null; workflowStepId: string | null; workflowStep: { name: string } | null };
   return {
@@ -76,8 +78,7 @@ function toTask(p: PrismaTaskWithCounts): ImplementationTask {
     status: PRISMA_STATUS[p.status],
     priority: PRISMA_PRIORITY[p.priority],
     percentComplete: p.percentComplete,
-    assigneeId: p.assigneeId,
-    assigneeName: p.assignee?.name ?? null,
+    assignees,
     createdById: p.createdById,
     startDate: p.startDate?.toISOString() ?? null,
     dueDate: p.dueDate?.toISOString() ?? null,
@@ -113,11 +114,57 @@ function toComment(p: PrismaComment): ImplementationTaskComment {
 }
 
 const TASK_INCLUDE = {
-  assignee: { select: { name: true } },
+  assignee: { select: { id: true, name: true } },
   workflowStep: { select: { id: true, name: true } },
   subtasks: { select: { status: true } },
   _count: { select: { subtasks: true, comments: true, dependencies: true } },
 } as const;
+
+// Batch-loads all assignee join-table rows for a set of task IDs in one query.
+// Falls back to the legacy assigneeId column if the join table has no entries yet
+// (handles tasks created before multi-assignee was added).
+async function batchLoadAssignees(
+  taskIds: string[],
+  fallbackMap: Map<string, { id: string; name: string } | null>
+): Promise<Map<string, { id: string; name: string }[]>> {
+  const result = new Map<string, { id: string; name: string }[]>();
+  if (taskIds.length === 0) return result;
+
+  const rows: TaskAssigneeRow[] = await (db as any).implementationTaskAssignee.findMany({
+    where: { taskId: { in: taskIds } },
+    include: { user: { select: { id: true, name: true } } },
+  });
+
+  for (const r of rows) {
+    if (!result.has(r.taskId)) result.set(r.taskId, []);
+    result.get(r.taskId)!.push(r.user);
+  }
+
+  // Backfill tasks not yet in the join table from the scalar FK
+  for (const taskId of taskIds) {
+    if (!result.has(taskId)) {
+      const fallback = fallbackMap.get(taskId);
+      result.set(taskId, fallback ? [fallback] : []);
+    }
+  }
+
+  return result;
+}
+
+// Replaces all assignee join-table rows for a task and keeps the scalar assigneeId in sync.
+async function syncAssignees(taskId: string, assigneeIds: string[]): Promise<void> {
+  const primaryId = assigneeIds[0] ?? null;
+  await Promise.all([
+    db.implementationTask.update({ where: { id: taskId }, data: { assigneeId: primaryId } }),
+    (db as any).implementationTaskAssignee.deleteMany({ where: { taskId } }),
+  ]);
+  if (assigneeIds.length > 0) {
+    await (db as any).implementationTaskAssignee.createMany({
+      data: assigneeIds.map((userId) => ({ taskId, userId })),
+      skipDuplicates: true,
+    });
+  }
+}
 
 // ─── Queries ──────────────────────────────────────────────────────────────────
 
@@ -127,7 +174,9 @@ export async function getProjectTasks(projectId: string): Promise<Implementation
     include: TASK_INCLUDE,
     orderBy: [{ sortOrder: "asc" }, { createdAt: "asc" }],
   });
-  return rows.map(toTask);
+  const fallback = new Map(rows.map((r) => [r.id, r.assignee ? { id: r.assignee.id, name: r.assignee.name } : null]));
+  const assigneesById = await batchLoadAssignees(rows.map((r) => r.id), fallback);
+  return rows.map((r) => toTask(r, assigneesById.get(r.id) ?? []));
 }
 
 export async function getSubtasks(parentTaskId: string): Promise<ImplementationTask[]> {
@@ -136,7 +185,9 @@ export async function getSubtasks(parentTaskId: string): Promise<ImplementationT
     include: TASK_INCLUDE,
     orderBy: [{ sortOrder: "asc" }, { createdAt: "asc" }],
   });
-  return rows.map(toTask);
+  const fallback = new Map(rows.map((r) => [r.id, r.assignee ? { id: r.assignee.id, name: r.assignee.name } : null]));
+  const assigneesById = await batchLoadAssignees(rows.map((r) => r.id), fallback);
+  return rows.map((r) => toTask(r, assigneesById.get(r.id) ?? []));
 }
 
 export async function getTask(taskId: string): Promise<ImplementationTask | null> {
@@ -144,7 +195,10 @@ export async function getTask(taskId: string): Promise<ImplementationTask | null
     where: { id: taskId },
     include: TASK_INCLUDE,
   });
-  return row ? toTask(row) : null;
+  if (!row) return null;
+  const fallback = new Map([[row.id, row.assignee ? { id: row.assignee.id, name: row.assignee.name } : null]]);
+  const assigneesById = await batchLoadAssignees([row.id], fallback);
+  return toTask(row, assigneesById.get(row.id) ?? []);
 }
 
 export async function getTaskComments(taskId: string): Promise<ImplementationTaskComment[]> {
@@ -175,6 +229,9 @@ export async function createTask(
   });
   const nextOrder = (maxOrder._max.sortOrder ?? -1) + 1;
 
+  const assigneeIds = input.assigneeIds ?? [];
+  const primaryAssigneeId = assigneeIds[0] ?? null;
+
   const row = await db.implementationTask.create({
     data: {
       ...(projectId ? { projectId } : {}),
@@ -184,7 +241,7 @@ export async function createTask(
       status: input.status ? APP_STATUS[input.status] : "NotStarted",
       priority: input.priority ? APP_PRIORITY[input.priority] : "Medium",
       percentComplete: input.percentComplete ?? 0,
-      assigneeId: input.assigneeId ?? null,
+      assigneeId: primaryAssigneeId,
       createdById: session?.id ?? null,
       startDate: input.startDate ? new Date(input.startDate) : null,
       dueDate: input.dueDate ? new Date(input.dueDate) : null,
@@ -196,7 +253,16 @@ export async function createTask(
     } as Parameters<typeof db.implementationTask.create>[0]["data"],
     include: TASK_INCLUDE,
   });
-  return toTask(row as unknown as PrismaTaskWithCounts);
+  if (assigneeIds.length > 0) {
+    await (db as any).implementationTaskAssignee.createMany({
+      data: assigneeIds.map((userId: string) => ({ taskId: row.id, userId })),
+      skipDuplicates: true,
+    });
+  }
+  const assignees = assigneeIds.length > 0
+    ? await db.user.findMany({ where: { id: { in: assigneeIds } }, select: { id: true, name: true } })
+    : [];
+  return toTask(row as unknown as PrismaTaskWithCounts, assignees);
 }
 
 export async function updateTask(
@@ -212,7 +278,6 @@ export async function updateTask(
   if (input.percentComplete !== undefined) data.percentComplete = input.percentComplete;
   if (input.notes !== undefined)           data.notes           = input.notes;
   if (input.tags !== undefined)            data.tags            = input.tags;
-  if ("assigneeId" in input)               data.assigneeId      = input.assigneeId ?? null;
   if ("workflowStepId" in input)           data.workflowStepId  = input.workflowStepId ?? null;
   if ("startDate" in input)                data.startDate       = input.startDate ? new Date(input.startDate) : null;
   if ("dueDate" in input)                  data.dueDate         = input.dueDate   ? new Date(input.dueDate)   : null;
@@ -227,12 +292,25 @@ export async function updateTask(
     data.completedAt = null;
   }
 
+  // Keep assigneeId (primary) in sync when assigneeIds is provided
+  if ("assigneeIds" in input && input.assigneeIds !== undefined) {
+    data.assigneeId = input.assigneeIds[0] ?? null;
+  }
+
   const row = await db.implementationTask.update({
     where: { id: taskId },
     data,
     include: TASK_INCLUDE,
   });
-  return toTask(row);
+
+  // Sync the join table if assigneeIds was provided
+  if ("assigneeIds" in input && input.assigneeIds !== undefined) {
+    await syncAssignees(taskId, input.assigneeIds);
+  }
+
+  const fallback = new Map([[row.id, row.assignee ? { id: row.assignee.id, name: row.assignee.name } : null]]);
+  const assigneesById = await batchLoadAssignees([row.id], fallback);
+  return toTask(row, assigneesById.get(row.id) ?? []);
 }
 
 export async function deleteTask(taskId: string): Promise<void> {

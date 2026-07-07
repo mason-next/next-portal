@@ -20,8 +20,7 @@ export interface ImplementationTask {
   status: ImplementationTaskStatus;
   priority: TaskPriority;
   percentComplete: number; // 0–100
-  assigneeId: string | null;
-  assigneeName: string | null;
+  assignees: { id: string; name: string }[];
   createdById: string | null;
   startDate: string | null; // ISO
   dueDate: string | null;   // ISO
@@ -59,7 +58,7 @@ export interface CreateTaskInput {
   status?: ImplementationTaskStatus;
   priority?: TaskPriority;
   percentComplete?: number;
-  assigneeId?: string | null;
+  assigneeIds?: string[];
   workflowStepId?: string | null;
   startDate?: string | null;
   dueDate?: string | null;
