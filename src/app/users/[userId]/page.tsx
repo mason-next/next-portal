@@ -10,7 +10,13 @@ export default async function UserProfilePage({
   params: Promise<{ userId: string }>;
 }) {
   const { userId } = await params;
-  const user = await getUser(userId);
+  let user;
+  try {
+    user = await getUser(userId);
+  } catch (err) {
+    console.error("[/users/:id] getUser failed", { userId, err, stack: err instanceof Error ? err.stack : undefined });
+    throw err;
+  }
   if (!user) notFound();
 
   return (

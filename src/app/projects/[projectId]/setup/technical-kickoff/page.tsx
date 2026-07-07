@@ -122,12 +122,12 @@ export default function TechnicalKickoffPage({
       scheduledAt: now,
     };
     await saveTechnicalKickoffRecord(projectId, newRecord);
-    await logProjectActivity(projectId, {
+    logProjectActivity(projectId, {
       category: "system",
       activityType: "technical_kickoff_scheduled",
       userName: currentUserName,
       message: `Technical kickoff scheduled for ${formatDate(startTime)} by ${currentUserName}`,
-    });
+    }).catch((err) => console.error("[technical-kickoff] logProjectActivity failed:", err));
     refetchWorkflowSteps();
     setRecord(newRecord);
     setSubmitting(false);

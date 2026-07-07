@@ -137,12 +137,12 @@ export default function InternalKickoffPage({
       scheduledAt: now,
     };
     await saveInternalKickoffRecord(projectId, newRecord);
-    await logProjectActivity(projectId, {
+    logProjectActivity(projectId, {
       category: "system",
       activityType: "internal_kickoff_scheduled",
       userName: currentUserName,
       message: `Internal kickoff scheduled for ${formatDate(startTime)} by ${currentUserName}`,
-    });
+    }).catch((err) => console.error("[internal-kickoff] logProjectActivity failed:", err));
     refetchWorkflowSteps();
     setRecord(newRecord);
     setSubmitting(false);

@@ -120,12 +120,12 @@ export default function WelcomeLetterPage({
       sentAt: now,
     };
     await saveWelcomeLetterRecord(projectId, newRecord);
-    await logProjectActivity(projectId, {
+    logProjectActivity(projectId, {
       category: "system",
       activityType: "welcome_letter_sent",
       userName: currentUserName,
       message: `Welcome letter sent by ${currentUserName}`,
-    });
+    }).catch((err) => console.error("[welcome-letter] logProjectActivity failed:", err));
     refetchWorkflowSteps();
     setRecord(newRecord);
     setSubmitting(false);
