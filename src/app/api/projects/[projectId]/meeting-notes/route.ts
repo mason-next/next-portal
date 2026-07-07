@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { getServerSession } from "@/lib/auth/server";
 import { getMeetingNotes, createMeetingNote } from "@/lib/data/meeting-notes";
+import { ForbiddenError } from "@/lib/access-control";
 
 export async function GET(
   _req: Request,
@@ -24,6 +25,13 @@ export async function POST(
   if (!body?.title || !body?.meetingDate) {
     return NextResponse.json({ error: "title and meetingDate are required" }, { status: 400 });
   }
-  const note = await createMeetingNote(projectId, body);
-  return NextResponse.json(note, { status: 201 });
+  try {
+    const note = await createMeetingNote(projectId, body);
+    return NextResponse.json(note, { status: 201 });
+  } catch (err) {
+    if (err instanceof ForbiddenError) {
+      return NextResponse.json({ error: err.message }, { status: 403 });
+    }
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+  }
 }

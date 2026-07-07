@@ -15,6 +15,7 @@ import { Modal } from "@/components/shared/Modal";
 import { RichNoteEditor } from "@/components/shared/RichNoteEditor";
 import { cn } from "@/lib/utils";
 import { useSession } from "@/lib/auth/client";
+import { getEffectiveLevel, canLevelEdit } from "@/lib/module-permissions";
 import type { MeetingNote } from "@/types/meeting-notes";
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -44,7 +45,7 @@ export default function MeetingNotesPage({
 }) {
   const { projectId } = use(params);
   const { roleTypes } = useSession();
-  const canEdit = !roleTypes.includes("ReadOnly");
+  const canEdit = canLevelEdit(getEffectiveLevel(roleTypes, "projects"));
 
   const [notes, setNotes] = useState<MeetingNote[] | null>(null);
   const [showCreate, setShowCreate] = useState(false);

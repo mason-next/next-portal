@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { getServerSession } from "@/lib/auth/server";
 import { updateMeetingNote, deleteMeetingNote } from "@/lib/data/meeting-notes";
+import { ForbiddenError } from "@/lib/access-control";
 
 export async function PATCH(
   req: Request,
@@ -11,8 +12,15 @@ export async function PATCH(
   const { noteId } = await params;
   const body = await req.json().catch(() => null);
   if (!body) return NextResponse.json({ error: "Invalid body" }, { status: 400 });
-  const note = await updateMeetingNote(noteId, body);
-  return NextResponse.json(note);
+  try {
+    const note = await updateMeetingNote(noteId, body);
+    return NextResponse.json(note);
+  } catch (err) {
+    if (err instanceof ForbiddenError) {
+      return NextResponse.json({ error: err.message }, { status: 403 });
+    }
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+  }
 }
 
 export async function DELETE(
