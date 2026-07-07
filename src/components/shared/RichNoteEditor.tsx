@@ -39,7 +39,7 @@ export function RichNoteEditor({
     ],
     editorProps: {
       attributes: {
-        class: `${minHeight} max-h-96 overflow-y-auto px-3 py-2 text-sm outline-none`,
+        class: `${minHeight} max-h-96 overflow-y-auto px-3 py-2 text-sm outline-none [&_ul]:list-disc [&_ul]:pl-5 [&_ol]:list-decimal [&_ol]:pl-5 [&_li]:my-0.5`,
       },
     },
     onUpdate: ({ editor: e }) => onChange(e.getHTML()),
