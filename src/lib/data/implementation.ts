@@ -1,6 +1,7 @@
 "use server";
 
 import {
+  Prisma,
   ImplementationTaskStatus as PrismaStatus,
   TaskPriority as PrismaPriority,
   type ImplementationTask as PrismaTask,
@@ -359,16 +360,21 @@ export async function addTaskComment(
   attachments?: CommentAttachment[]
 ): Promise<ImplementationTaskComment> {
   const session = await getServerSession();
+  const richContentJson = richContent as unknown as Prisma.InputJsonValue;
+  const attachmentsJson =
+    attachments === undefined
+      ? undefined
+      : attachments === null
+        ? Prisma.JsonNull
+        : (attachments as unknown as Prisma.InputJsonValue);
   const row = await db.implementationTaskComment.create({
     data: {
       taskId,
       userId: session?.id ?? null,
       userName: session?.name ?? "Unknown",
-      richContent: richContent as Parameters<typeof db.implementationTaskComment.create>[0]["data"]["richContent"],
+      richContent: richContentJson,
       plainText,
-      ...(attachments && attachments.length > 0
-        ? { attachments: attachments as unknown as Parameters<typeof db.implementationTaskComment.create>[0]["data"]["richContent"] }
-        : {}),
+      ...(attachmentsJson !== undefined ? { attachments: attachmentsJson } : {}),
     },
   });
   return toComment(row);
