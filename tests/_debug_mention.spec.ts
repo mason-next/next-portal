@@ -1,6 +1,6 @@
 import { test, expect } from "@playwright/test";
 
-const PROJECT_ID = "proj-iat-anaheim";
+const PROJECT_ID = "c5a12d8a-552d-48b2-b5c4-5db037d6dad8";
 const PROJECT_URL = `http://localhost:3000/projects/${PROJECT_ID}`;
 const LOGIN_EMAIL = "jlazo@mason247.com";
 const LOGIN_PASSWORD = "password";

@@ -1,7 +1,7 @@
 import { test, expect } from "@playwright/test";
 
 const BASE = "http://localhost:3000";
-const PROJECT_URL = `${BASE}/projects/proj-iat-anaheim`;
+const PROJECT_URL = `${BASE}/projects/c5a12d8a-552d-48b2-b5c4-5db037d6dad8`;
 const FAB = 'button[title="Project activity"]';
 
 async function openActivityDrawer(page: import("@playwright/test").Page) {
