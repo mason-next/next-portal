@@ -10,6 +10,9 @@ BEGIN
       AND column_name  = 'attendees'
       AND data_type    = 'text'
   ) THEN
+    -- Drop the TEXT default before changing type; PostgreSQL cannot cast the old
+    -- default ('') automatically to TEXT[].
+    ALTER TABLE "meeting_notes" ALTER COLUMN "attendees" DROP DEFAULT;
     ALTER TABLE "meeting_notes" ALTER COLUMN "attendees" TYPE TEXT[] USING '{}'::TEXT[];
     ALTER TABLE "meeting_notes" ALTER COLUMN "attendees" SET DEFAULT '{}';
   END IF;
