@@ -7,6 +7,7 @@ import type { NewNotificationInput, Notification, NotificationType } from "@/typ
 // ─── Type mapper ──────────────────────────────────────────────────────────────
 
 function toNotification(p: PrismaNotification): Notification {
+  const pAny = p as unknown as { taskCommentId?: string | null };
   return {
     id: p.id,
     userId: p.userId,
@@ -14,6 +15,7 @@ function toNotification(p: PrismaNotification): Notification {
     projectId: p.projectId,
     projectName: p.projectName,
     commentId: p.commentId ?? null,
+    taskCommentId: pAny.taskCommentId ?? null,
     commentAuthor: p.commentAuthor,
     commentPreview: p.commentPreview,
     message: p.message,
@@ -36,26 +38,30 @@ export async function getNotificationsForUser(userId: string): Promise<Notificat
 
 // ─── Mutations ────────────────────────────────────────────────────────────────
 
-// Dedup key: (userId, commentId) for comment notifications; (userId, type, projectId) otherwise.
+// Dedup key: (userId, commentId) for project comments; (userId, taskCommentId) for task comments;
+// (userId, type, projectId) for all other notification types.
 export async function createNotification(input: NewNotificationInput): Promise<Notification | null> {
-  // Dedup: prevent spamming the same notification
   const dedup = input.commentId
     ? { userId: input.userId, commentId: input.commentId }
-    : { userId: input.userId, type: input.type, projectId: input.projectId };
+    : input.taskCommentId
+      ? { userId: input.userId, taskCommentId: input.taskCommentId }
+      : { userId: input.userId, type: input.type, projectId: input.projectId };
 
-  const isDuplicate = await db.notification.findFirst({
-    where: dedup,
-    select: { id: true },
-  });
+  const isDuplicate = await (db.notification as unknown as {
+    findFirst: (args: unknown) => Promise<{ id: string } | null>;
+  }).findFirst({ where: dedup, select: { id: true } });
   if (isDuplicate) return null;
 
-  const row = await db.notification.create({
+  const row = await (db.notification as unknown as {
+    create: (args: unknown) => Promise<PrismaNotification>;
+  }).create({
     data: {
       userId: input.userId,
       type: input.type,
       projectId: input.projectId,
       projectName: input.projectName,
       commentId: input.commentId ?? null,
+      taskCommentId: input.taskCommentId ?? null,
       commentAuthor: input.commentAuthor ?? "",
       commentPreview: input.commentPreview ?? "",
       message: input.message,

@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { Activity, CheckCircle2, MessageSquare, RefreshCw, Settings2, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -16,6 +17,7 @@ import {
   getProjectActivity,
   updateProjectComment,
 } from "@/lib/data/activity";
+import { getProjectTaskComments } from "@/lib/data/implementation";
 import { getActivityLastViewed, markActivityViewed } from "@/lib/data/activity-client";
 import { useSession } from "@/lib/auth/client";
 import { useCurrentUserAvatar } from "@/lib/hooks/useCurrentUserAvatar";
@@ -23,7 +25,7 @@ import { getMentionableUsers } from "@/lib/mentions/mentionable-users";
 import { readGlobal, writeGlobal } from "@/lib/storage/local-store";
 import { cn } from "@/lib/utils";
 import { useProjectContext } from "@/modules/project-command-center/hooks/ProjectContext";
-import type { ActivityCategory, ProjectActivity } from "@/types/activity";
+import type { ActivityCategory, ActivityTag, ProjectActivity, TaskCommentFeedItem } from "@/types/activity";
 import type { CommentAttachment } from "@/types/attachments";
 import type { AppUser } from "@/types/user";
 
@@ -50,6 +52,11 @@ const CATEGORY_TONE: Record<ActivityCategory, string> = {
   system: "bg-slate-100 text-slate-700",
 };
 
+// Unified feed item — either a project-level activity or a task comment.
+type FeedItem =
+  | (ProjectActivity & { _kind: "project" })
+  | TaskCommentFeedItem;
+
 function dateGroupLabel(isoDate: string): string {
   const date = new Date(isoDate);
   const today = new Date();
@@ -63,9 +70,9 @@ function dateGroupLabel(isoDate: string): string {
   return date.toLocaleDateString(undefined, { year: "numeric", month: "long", day: "numeric" });
 }
 
-function groupByDate(activity: ProjectActivity[]): { label: string; items: ProjectActivity[] }[] {
-  const groups: { label: string; items: ProjectActivity[] }[] = [];
-  for (const item of activity) {
+function groupByDate(items: FeedItem[]): { label: string; items: FeedItem[] }[] {
+  const groups: { label: string; items: FeedItem[] }[] = [];
+  for (const item of items) {
     const label = dateGroupLabel(item.createdAt);
     const lastGroup = groups[groups.length - 1];
     if (lastGroup?.label === label) {
@@ -88,6 +95,7 @@ export function ProjectActivityDrawer({ projectId }: { projectId: string }) {
   const searchParams = useSearchParams();
   const [open, setOpen] = useState(false);
   const [activity, setActivity] = useState<ProjectActivity[] | null>(null);
+  const [taskComments, setTaskComments] = useState<TaskCommentFeedItem[]>([]);
   const [lastViewed, setLastViewed] = useState<string | null>(() => getActivityLastViewed(projectId));
   const [isDraftEmpty, setIsDraftEmpty] = useState(true);
   const [submitting, setSubmitting] = useState(false);
@@ -95,6 +103,7 @@ export function ProjectActivityDrawer({ projectId }: { projectId: string }) {
   const [pendingAttachments, setPendingAttachments] = useState<CommentAttachment[]>([]);
   const [highlightedId, setHighlightedId] = useState<string | null>(null);
   const [hideNonComments, setHideNonComments] = useState(false);
+  const [isStatusUpdate, setIsStatusUpdate] = useState(false);
   const editorRef = useRef<RichCommentEditorHandle>(null);
 
   useEffect(() => {
@@ -119,15 +128,24 @@ export function ProjectActivityDrawer({ projectId }: { projectId: string }) {
   }
 
   async function refresh() {
-    const loaded = await getProjectActivity(projectId);
+    const [loaded, taskLoaded] = await Promise.all([
+      getProjectActivity(projectId),
+      getProjectTaskComments(projectId),
+    ]);
     setActivity(loaded);
+    setTaskComments(taskLoaded);
   }
 
   useEffect(() => {
     let active = true;
     const poll = () => {
-      getProjectActivity(projectId).then((loaded) => {
-        if (active) setActivity(loaded);
+      Promise.all([
+        getProjectActivity(projectId).catch(() => null),
+        getProjectTaskComments(projectId).catch(() => null),
+      ]).then(([loaded, taskLoaded]) => {
+        if (!active) return;
+        if (loaded) setActivity(loaded);
+        if (taskLoaded) setTaskComments(taskLoaded);
       });
     };
     poll();
@@ -148,7 +166,7 @@ export function ProjectActivityDrawer({ projectId }: { projectId: string }) {
     let timeout: ReturnType<typeof setTimeout> | undefined;
     queueMicrotask(() => {
       setOpen(true);
-      if (activity.some((a) => a.id === targetId)) {
+      if (activity.some((a) => a.id === targetId) || taskComments.some((tc) => tc.id === targetId)) {
         document.getElementById(`activity-${targetId}`)?.scrollIntoView({ behavior: "smooth", block: "center" });
         setHighlightedId(targetId);
         timeout = setTimeout(() => setHighlightedId(null), 2500);
@@ -159,7 +177,7 @@ export function ProjectActivityDrawer({ projectId }: { projectId: string }) {
     return () => {
       if (timeout) clearTimeout(timeout);
     };
-  }, [searchParams, activity, pathname, router]);
+  }, [searchParams, activity, taskComments, pathname, router]);
 
   function handleOpen() {
     setOpen(true);
@@ -177,12 +195,18 @@ export function ProjectActivityDrawer({ projectId }: { projectId: string }) {
       await addProjectComment(
         projectId,
         session.name,
-        { text, richContentJson: JSON.stringify(richContent), attachments: pendingAttachments },
+        {
+          text,
+          richContentJson: JSON.stringify(richContent),
+          attachments: pendingAttachments,
+          tag: isStatusUpdate ? "Status" : "General",
+        },
         session.id
       );
       editor.clear();
       setIsDraftEmpty(true);
       setPendingAttachments([]);
+      setIsStatusUpdate(false);
     } catch (err) {
       console.error("[handlePost] failed:", err);
       setPostError(err instanceof Error ? err.message : "Failed to post comment. Please try again.");
@@ -198,10 +222,22 @@ export function ProjectActivityDrawer({ projectId }: { projectId: string }) {
   }
 
   const mentionableUsers = project ? getMentionableUsers(project, users) : [];
-  const unreadCount =
-    activity?.filter((a) => !lastViewed || new Date(a.createdAt) > new Date(lastViewed)).length ?? 0;
-  const visibleActivity = hideNonComments ? (activity ?? []).filter((a) => a.category === "comment") : activity ?? [];
-  const groups = groupByDate(visibleActivity);
+
+  // Build the unified feed: merge project activity + task comments, sort newest-first.
+  const feedItems: FeedItem[] = [
+    ...(activity ?? []).map((a) => ({ ...a, _kind: "project" as const })),
+    ...taskComments,
+  ].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+
+  const unreadCount = feedItems.filter(
+    (item) => !lastViewed || new Date(item.createdAt) > new Date(lastViewed)
+  ).length;
+
+  const visibleItems = hideNonComments
+    ? feedItems.filter((item) => item._kind === "task" || item.category === "comment")
+    : feedItems;
+
+  const groups = groupByDate(visibleItems);
 
   return (
     <>
@@ -260,36 +296,49 @@ export function ProjectActivityDrawer({ projectId }: { projectId: string }) {
           <div className="flex gap-2.5">
             <UserAvatarImage name={session.name} avatarUrl={currentUserAvatar} size={28} />
             <div className="min-w-0 flex-1">
-              <RichCommentEditor
-                // Tiptap's useEditor only re-creates the editor (and its closure-captured
-                // extension config, incl. the mention suggestion's user roster) when this
-                // component remounts — the drawer persists across project navigations, so key
-                // on projectId to force a fresh editor (and fresh roster) per project.
-                key={projectId}
-                ref={editorRef}
-                placeholder="Write an update or note… (type @ to mention someone, or paste rich text)"
-                users={mentionableUsers}
-                onSubmitShortcut={handlePost}
-                onEmptyChange={setIsDraftEmpty}
-              />
-              <CommentAttachmentArea
-                attachments={pendingAttachments}
-                onAdd={(a) => setPendingAttachments((prev) => [...prev, a])}
-                onRemove={(i) => setPendingAttachments((prev) => prev.filter((_, idx) => idx !== i))}
-                disabled={submitting}
-              />
-              {postError && (
-                <p className="mt-1 text-xs text-destructive">{postError}</p>
+              {open && (
+                <>
+                  <RichCommentEditor
+                    // Tiptap's useEditor only re-creates the editor (and its closure-captured
+                    // extension config, incl. the mention suggestion's user roster) when this
+                    // component remounts — the drawer persists across project navigations, so key
+                    // on projectId to force a fresh editor (and fresh roster) per project.
+                    key={projectId}
+                    ref={editorRef}
+                    placeholder="Write an update or note… (type @ to mention someone, or paste rich text)"
+                    users={mentionableUsers}
+                    onSubmitShortcut={handlePost}
+                    onEmptyChange={setIsDraftEmpty}
+                  />
+                  <CommentAttachmentArea
+                    attachments={pendingAttachments}
+                    onAdd={(a) => setPendingAttachments((prev) => [...prev, a])}
+                    onRemove={(i) => setPendingAttachments((prev) => prev.filter((_, idx) => idx !== i))}
+                    disabled={submitting}
+                  />
+                  {postError && (
+                    <p className="mt-1 text-xs text-destructive">{postError}</p>
+                  )}
+                  <div className="mt-1.5 flex items-center justify-between gap-2">
+                    <label className="flex cursor-pointer items-center gap-1.5 text-xs text-muted-foreground select-none">
+                      <input
+                        type="checkbox"
+                        checked={isStatusUpdate}
+                        onChange={(e) => setIsStatusUpdate(e.target.checked)}
+                        className="h-3.5 w-3.5 rounded border-muted-foreground accent-violet-600"
+                      />
+                      Mark as status update
+                    </label>
+                    <Button
+                      size="xs"
+                      onClick={handlePost}
+                      disabled={submitting || (isDraftEmpty && pendingAttachments.length === 0)}
+                    >
+                      {submitting ? "Posting…" : "Comment"}
+                    </Button>
+                  </div>
+                </>
               )}
-              <div className="mt-1.5 flex justify-end">
-                <Button
-                  size="xs"
-                  onClick={handlePost}
-                  disabled={submitting || (isDraftEmpty && pendingAttachments.length === 0)}
-                >
-                  {submitting ? "Posting…" : "Comment"}
-                </Button>
-              </div>
             </div>
           </div>
         </div>
@@ -297,9 +346,9 @@ export function ProjectActivityDrawer({ projectId }: { projectId: string }) {
         <div className="flex-1 overflow-y-auto p-4">
           {activity === null ? (
             <p className="text-sm text-muted-foreground">Loading activity…</p>
-          ) : visibleActivity.length === 0 ? (
+          ) : visibleItems.length === 0 ? (
             <p className="text-sm text-muted-foreground">
-              {hideNonComments && activity.length > 0 ? "No comments yet." : "No activity yet."}
+              {hideNonComments && feedItems.length > 0 ? "No comments yet." : "No activity yet."}
             </p>
           ) : (
             <div className="space-y-5">
@@ -345,7 +394,7 @@ function ActivityRow({
   onEdited,
   highlighted,
 }: {
-  item: ProjectActivity;
+  item: FeedItem;
   projectId: string;
   currentUserName: string;
   currentUserId: string;
@@ -358,10 +407,54 @@ function ActivityRow({
   const [editing, setEditing] = useState(false);
   const [saving, setSaving] = useState(false);
   const [editEmpty, setEditEmpty] = useState(false);
+  const [editIsStatus, setEditIsStatus] = useState(false);
   const editRef = useRef<RichCommentEditorHandle>(null);
 
   const time = new Date(item.createdAt).toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" });
-  const isOwn = item.userName === currentUserName;
+
+  // ── Task comment row ──────────────────────────────────────────────────────────
+  if (item._kind === "task") {
+    const implUrl = `/projects/${projectId}/implementation`;
+    return (
+      <div id={`activity-${item.id}`} className={cn("flex gap-2.5", highlighted && "ring-2 ring-primary rounded-lg")}>
+        <UserAvatarImage
+          name={item.userName}
+          avatarUrl={item.userName === currentUserName ? currentUserAvatar : null}
+          size={28}
+        />
+        <div className="min-w-0 flex-1 rounded-lg bg-violet-50 dark:bg-violet-950/20 border border-violet-200 dark:border-violet-800 p-2.5">
+          <div className="flex flex-wrap items-center justify-between gap-1">
+            <span className="text-sm font-semibold">{item.userName}</span>
+            <span className="text-xs text-muted-foreground">{time}</span>
+          </div>
+          <Link
+            href={implUrl}
+            className="mt-1 inline-flex items-center gap-1 rounded-full bg-violet-100 dark:bg-violet-900/40 px-2 py-0.5 text-xs font-medium text-violet-700 dark:text-violet-300 hover:bg-violet-200 dark:hover:bg-violet-800/60 transition-colors"
+            title={`Open task: ${item.taskName}`}
+          >
+            <span className="opacity-60">Task:</span>
+            <span className="truncate max-w-[180px]">{item.taskName}</span>
+          </Link>
+          <div className="prose-comment mt-1.5 text-sm">
+            {item.richContent ? (
+              <RichCommentView doc={item.richContent} attachments={item.attachments} />
+            ) : (
+              <p className="text-sm text-foreground">{item.plainText}</p>
+            )}
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // ── Project comment row ───────────────────────────────────────────────────────
+  const projItem = item as ProjectActivity & { _kind: "project" };
+  const isOwn = projItem.userName === currentUserName;
+
+  function handleStartEdit() {
+    setEditIsStatus(projItem.tag === "Status");
+    setEditing(true);
+  }
 
   async function handleSaveEdit() {
     const editor = editRef.current;
@@ -369,7 +462,13 @@ function ActivityRow({
     setSaving(true);
     try {
       const { richContent, text } = editor.getPayload();
-      await updateProjectComment(projectId, item.id, currentUserName, { text, richContentJson: JSON.stringify(richContent) }, currentUserId);
+      await updateProjectComment(
+        projectId,
+        projItem.id,
+        currentUserName,
+        { text, richContentJson: JSON.stringify(richContent), tag: editIsStatus ? "Status" : "General" },
+        currentUserId
+      );
       setEditing(false);
       onEdited();
     } finally {
@@ -377,12 +476,12 @@ function ActivityRow({
     }
   }
 
-  if (item.category === "comment") {
+  if (projItem.category === "comment") {
     return (
-      <div id={`activity-${item.id}`} className="flex gap-2.5">
+      <div id={`activity-${projItem.id}`} className="flex gap-2.5">
         <UserAvatarImage
-          name={item.userName}
-          avatarUrl={item.userName === currentUserName ? currentUserAvatar : null}
+          name={projItem.userName}
+          avatarUrl={projItem.userName === currentUserName ? currentUserAvatar : null}
           size={28}
         />
         <div
@@ -391,23 +490,39 @@ function ActivityRow({
             highlighted && "ring-2 ring-primary"
           )}
         >
-          <div className="flex items-center justify-between gap-2">
-            <span className="text-sm font-semibold">{item.userName}</span>
+          <div className="flex flex-wrap items-center justify-between gap-1">
+            <div className="flex items-center gap-1.5">
+              <span className="text-sm font-semibold">{projItem.userName}</span>
+              {projItem.tag === "Status" && (
+                <span className="rounded-full bg-violet-100 dark:bg-violet-900/40 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-violet-700 dark:text-violet-300">
+                  Status
+                </span>
+              )}
+            </div>
             <span className="text-xs text-muted-foreground">{time}</span>
           </div>
 
           {editing ? (
             <div className="mt-1.5">
               <RichCommentEditor
-                key={item.id}
+                key={projItem.id}
                 ref={editRef}
                 users={mentionableUsers}
-                initialContent={item.richContent ?? undefined}
+                initialContent={projItem.richContent ?? undefined}
                 onSubmitShortcut={handleSaveEdit}
                 onEmptyChange={setEditEmpty}
                 placeholder="Edit your comment…"
               />
-              <div className="mt-1.5 flex items-center gap-2">
+              <div className="mt-1.5 flex flex-wrap items-center gap-3">
+                <label className="flex cursor-pointer items-center gap-1.5 text-xs text-muted-foreground select-none">
+                  <input
+                    type="checkbox"
+                    checked={editIsStatus}
+                    onChange={(e) => setEditIsStatus(e.target.checked)}
+                    className="h-3.5 w-3.5 rounded border-muted-foreground accent-violet-600"
+                  />
+                  Status update
+                </label>
                 <Button size="xs" onClick={handleSaveEdit} disabled={saving || editEmpty}>
                   {saving ? "Saving…" : "Save"}
                 </Button>
@@ -422,10 +537,10 @@ function ActivityRow({
             </div>
           ) : (
             <div className="prose-comment mt-1 text-sm">
-              {item.richContent ? (
-                <RichCommentView doc={item.richContent} attachments={item.attachments} />
+              {projItem.richContent ? (
+                <RichCommentView doc={projItem.richContent} attachments={projItem.attachments} />
               ) : (
-                <MentionText text={item.message} />
+                <MentionText text={projItem.message} />
               )}
             </div>
           )}
@@ -434,14 +549,14 @@ function ActivityRow({
             <div className="mt-1 flex gap-3">
               <button
                 type="button"
-                onClick={() => setEditing(true)}
+                onClick={handleStartEdit}
                 className="text-xs text-muted-foreground hover:text-foreground hover:underline"
               >
                 Edit
               </button>
               <button
                 type="button"
-                onClick={() => onDelete(item.id)}
+                onClick={() => onDelete(projItem.id)}
                 className="text-xs text-muted-foreground hover:text-foreground hover:underline"
               >
                 Delete
@@ -453,16 +568,17 @@ function ActivityRow({
     );
   }
 
-  const Icon = CATEGORY_ICON[item.category];
+  // ── System / workflow / status_change row ─────────────────────────────────────
+  const Icon = CATEGORY_ICON[projItem.category];
   return (
-    <div id={`activity-${item.id}`} className="flex gap-2.5">
-      <div className={cn("flex h-7 w-7 shrink-0 items-center justify-center rounded-full", CATEGORY_TONE[item.category])}>
+    <div id={`activity-${projItem.id}`} className="flex gap-2.5">
+      <div className={cn("flex h-7 w-7 shrink-0 items-center justify-center rounded-full", CATEGORY_TONE[projItem.category])}>
         <Icon className="h-3.5 w-3.5" />
       </div>
       <div className="min-w-0 flex-1 pt-0.5">
-        <p className="text-sm">{item.message}</p>
+        <p className="text-sm">{projItem.message}</p>
         <span className="text-xs text-muted-foreground">
-          {item.userName} · {time}
+          {projItem.userName} · {time}
         </span>
       </div>
     </div>

@@ -55,6 +55,18 @@ export function buildProjectBriefEmail(
     ...(data.recentMilestones.length
       ? [{ heading: "Recently Completed", notes: data.recentMilestones } as EmailSection]
       : []),
+    // Status Updates: comments tagged "Status" in the Project Activity feed.
+    // Each entry formatted as "Month Day, Year — Author: text" so the customer sees date context.
+    ...(data.statusUpdates.length
+      ? [
+          {
+            heading: "Status Updates",
+            notes: data.statusUpdates.map(
+              (u) => `${u.date} — ${u.author}: ${u.text}`
+            ),
+          } as EmailSection,
+        ]
+      : []),
     ...(data.contacts.length
       ? [
           {

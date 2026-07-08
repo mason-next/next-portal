@@ -29,6 +29,7 @@ export interface Notification {
   projectId: string;
   projectName: string;
   commentId: string | null;
+  taskCommentId: string | null;
   commentAuthor: string;
   commentPreview: string;
   message: string;
@@ -43,8 +44,10 @@ export interface NewNotificationInput {
   projectId: string;
   projectName: string;
   message: string;
-  // Comment-specific (optional — omit for non-comment notifications)
+  // Project comment mentions
   commentId?: string | null;
+  // Implementation task comment mentions (no FK — plain dedup key)
+  taskCommentId?: string | null;
   commentAuthor?: string;
   commentPreview?: string;
   // Arbitrary key-value context for future display/routing

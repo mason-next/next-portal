@@ -1,13 +1,15 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Modal } from "@/components/shared/Modal";
 import { buildProjectBriefEmail } from "@/modules/email-templates/templates/project-brief";
 import { buildProjectBriefData } from "@/modules/project-brief/lib/build-project-brief";
+import { getStatusComments } from "@/lib/data/activity";
 import type { Project } from "@/types/project";
 import type { AppUser } from "@/types/user";
 import type { WorkflowStep } from "@/types/workflow";
+import type { ProjectActivity } from "@/types/activity";
 
 interface ProjectBriefModalProps {
   project: Project;
@@ -18,9 +20,21 @@ interface ProjectBriefModalProps {
 
 export function ProjectBriefModal({ project, steps, users, onClose }: ProjectBriefModalProps) {
   const [toast, setToast] = useState<string | null>(null);
+  const [statusComments, setStatusComments] = useState<ProjectActivity[]>([]);
 
-  const data = buildProjectBriefData({ project, steps, users, now: new Date() });
-  const email = buildProjectBriefEmail(data);
+  // Fetch status-tagged comments when the modal mounts — these come from the activity feed
+  // and are included in the customer-facing brief as the "Status Updates" section.
+  useEffect(() => {
+    getStatusComments(project.id)
+      .then(setStatusComments)
+      .catch((err) => console.error("[ProjectBriefModal] failed to load status comments:", err));
+  }, [project.id]);
+
+  const data = useMemo(
+    () => buildProjectBriefData({ project, steps, users, now: new Date(), statusComments }),
+    [project, steps, users, statusComments]
+  );
+  const email = useMemo(() => buildProjectBriefEmail(data), [data]);
 
   function showToast(message: string) {
     setToast(message);
@@ -66,6 +80,11 @@ export function ProjectBriefModal({ project, steps, users, onClose }: ProjectBri
           <b>Subject</b>
           <span>{email.subject}</span>
         </div>
+        {statusComments.length > 0 && (
+          <p className="mb-3 text-xs text-muted-foreground">
+            Includes {statusComments.length} status update{statusComments.length !== 1 ? "s" : ""} from the activity feed.
+          </p>
+        )}
         <iframe srcDoc={email.html} title="Project brief report preview" className="h-[480px] w-full rounded-lg border" />
         <div className="mt-6 flex flex-wrap justify-end gap-2">
           <Button variant="outline" onClick={printReport}>

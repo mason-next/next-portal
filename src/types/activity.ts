@@ -10,8 +10,12 @@ export interface RichContent {
 }
 
 export const ACTIVITY_CATEGORIES = ["comment", "workflow", "status_change", "system"] as const;
-
 export type ActivityCategory = (typeof ACTIVITY_CATEGORIES)[number];
+
+// User-visible classification on a project comment.
+// "General" — ordinary project note (default, no badge shown)
+// "Status"  — customer-facing status update (appears in Project Brief Reports)
+export type ActivityTag = "General" | "Status";
 
 export interface ProjectActivity {
   id: string;
@@ -31,6 +35,23 @@ export interface ProjectActivity {
   // legacy markdown-lite MentionText path off `message` alone, forever. Fully additive.
   richContent?: RichContent;
   metadata?: Record<string, unknown>;
+  attachments?: import("@/types/attachments").CommentAttachment[];
+  // Classification tag — defaults to "General" for all pre-existing rows.
+  tag: ActivityTag;
+  createdAt: string; // ISO 8601
+}
+
+// A task comment surfaced in the unified Project Activity feed.
+// These come from ImplementationTaskComment joined through the task to the project.
+export interface TaskCommentFeedItem {
+  _kind: "task";
+  id: string;       // ImplementationTaskComment.id
+  taskId: string;
+  taskName: string;
+  userId: string | null;
+  userName: string;
+  richContent: RichContent | null;
+  plainText: string;
   attachments?: import("@/types/attachments").CommentAttachment[];
   createdAt: string; // ISO 8601
 }

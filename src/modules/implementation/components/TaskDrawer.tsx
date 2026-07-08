@@ -133,11 +133,17 @@ export function TaskDrawer({
   const [commentError, setCommentError] = useState<string | null>(null);
   const [projects, setProjects] = useState<{ id: string; name: string }[]>([]);
   const titleRef = useRef<HTMLInputElement>(null);
+  // Generation counter: prevents a stale initial-load fetch from overwriting a comment
+  // that was submitted while the fetch was in-flight (race condition on fast connections).
+  const commentsGenRef = useRef(0);
 
   const taskId = task?.id;
   useEffect(() => {
     if (!isCreate && taskId) {
-      getTaskComments(taskId).then(setComments);
+      const gen = ++commentsGenRef.current;
+      getTaskComments(taskId).then((data) => {
+        if (commentsGenRef.current === gen) setComments(data);
+      });
       getTaskDependencies(taskId).then(setDeps);
       getSubtasks(taskId).then(setSubtasks);
     }
@@ -227,10 +233,25 @@ export function TaskDrawer({
     setAddingComment(true);
     setCommentError(null);
     try {
-      const comment = await addTaskComment(task.id, JSON.stringify(richContent), text, pendingAttachments);
-      setComments((prev) => [...prev, comment]);
+      const newComment = await addTaskComment(task.id, JSON.stringify(richContent), text, pendingAttachments);
       editor.clear();
       setPendingAttachments([]);
+      // Append the server-returned comment instantly so it appears without a round-trip.
+      setComments((prev) => [...prev, newComment]);
+      // Bump gen so any still-in-flight initial-load fetch is ignored when it resolves.
+      // Then fire a background re-fetch to populate the full list in case the initial load
+      // hadn't completed yet (prev was []) when we appended above.
+      // Only accept the background result if it actually contains the new comment —
+      // this guards against a race where a fast stale response (without the new row)
+      // would otherwise overwrite the optimistic state.
+      const gen = ++commentsGenRef.current;
+      const taskIdSnap = task.id;
+      const newCommentId = newComment.id;
+      getTaskComments(taskIdSnap).then((data) => {
+        if (commentsGenRef.current === gen && data.some((c) => c.id === newCommentId)) {
+          setComments(data);
+        }
+      });
     } catch (err) {
       console.error("[handleAddComment] failed:", err);
       setCommentError(err instanceof Error ? err.message : "Failed to post comment. Please try again.");

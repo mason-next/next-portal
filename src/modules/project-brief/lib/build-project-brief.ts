@@ -11,6 +11,7 @@ import { PROJECT_SECTION_KEYS } from "@/types/workflow";
 import type { Project, ProjectHealth } from "@/types/project";
 import type { ProjectSectionKey, WorkflowStep } from "@/types/workflow";
 import type { AppUser } from "@/types/user";
+import type { ProjectActivity } from "@/types/activity";
 
 export interface ProjectBriefPhase {
   key: ProjectSectionKey;
@@ -26,6 +27,12 @@ export interface ProjectBriefContact {
   avatarUrl: string | null;
 }
 
+export interface StatusUpdateEntry {
+  date: string;    // formatted display date
+  author: string;
+  text: string;    // plain-text summary of the status comment
+}
+
 export interface ProjectBriefData {
   projectName: string;
   projectNumber: string;
@@ -39,11 +46,17 @@ export interface ProjectBriefData {
   phases: ProjectBriefPhase[];
   recentMilestones: string[];
   contacts: ProjectBriefContact[];
+  // Project Activity comments tagged "Status" — customer-facing status updates.
+  statusUpdates: StatusUpdateEntry[];
 }
 
 function resolveUser(users: AppUser[], id: string | null): AppUser | null {
   if (!id || id === ROLE_NOT_NEEDED) return null;
   return users.find((u) => u.id === id) ?? null;
+}
+
+function formatStatusDate(iso: string): string {
+  return new Date(iso).toLocaleDateString(undefined, { year: "numeric", month: "long", day: "numeric" });
 }
 
 // Snapshot of where a project currently stands, built from the same workflow-engine
@@ -54,8 +67,9 @@ export function buildProjectBriefData(params: {
   steps: WorkflowStep[];
   users: AppUser[];
   now: Date;
+  statusComments?: ProjectActivity[];
 }): ProjectBriefData {
-  const { project, steps, users, now } = params;
+  const { project, steps, users, now, statusComments = [] } = params;
   const status = deriveProjectStatus(steps);
   const { health } = getProjectHealthSummary({
     steps,
@@ -102,6 +116,12 @@ export function buildProjectBriefData(params: {
       : null,
   ].filter((c): c is ProjectBriefContact => c !== null);
 
+  const statusUpdates: StatusUpdateEntry[] = statusComments.map((c) => ({
+    date: formatStatusDate(c.createdAt),
+    author: c.userName,
+    text: c.message,
+  }));
+
   return {
     projectName: project.name,
     projectNumber: project.projectNumber,
@@ -115,5 +135,6 @@ export function buildProjectBriefData(params: {
     phases,
     recentMilestones,
     contacts,
+    statusUpdates,
   };
 }

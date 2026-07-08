@@ -9,7 +9,7 @@ import {
   type ProjectActivity as PrismaActivity,
 } from "@prisma/client";
 import { db } from "@/lib/db";
-import type { ActivityCategory, ProjectActivity, RichContent } from "@/types/activity";
+import type { ActivityCategory, ActivityTag, ProjectActivity, RichContent } from "@/types/activity";
 
 export function toActivity(p: PrismaActivity): ProjectActivity {
   return {
@@ -22,6 +22,7 @@ export function toActivity(p: PrismaActivity): ProjectActivity {
     message: p.message,
     richContent: p.richContent != null ? (p.richContent as RichContent) : undefined,
     metadata: p.metadata != null ? (p.metadata as Record<string, unknown>) : undefined,
+    tag: ((p.tag ?? "General") as ActivityTag),
     createdAt: p.createdAt.toISOString(),
   };
 }

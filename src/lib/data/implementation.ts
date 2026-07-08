@@ -11,6 +11,12 @@ import {
 import { db } from "@/lib/db";
 import { getServerSession } from "@/lib/auth/server";
 import { requireEditPermission } from "@/lib/access-control";
+import { notifyMention } from "@/lib/services/notification-service";
+import { getProject } from "@/lib/data/projects";
+import { getUsers } from "@/lib/data/users";
+import { getMentionableUsers } from "@/lib/mentions/mentionable-users";
+import { extractMentionedUserIdsFromDoc } from "@/lib/mentions/tiptap-mentions";
+import { truncate } from "@/lib/utils";
 import type {
   ImplementationTask,
   ImplementationTaskComment,
@@ -20,6 +26,7 @@ import type {
   UpdateTaskInput,
 } from "@/types/implementation";
 import type { CommentAttachment } from "@/types/attachments";
+import type { RichContent, TaskCommentFeedItem } from "@/types/activity";
 
 // ─── Status/Priority maps ─────────────────────────────────────────────────────
 
@@ -226,6 +233,31 @@ export async function getTaskComments(taskId: string): Promise<ImplementationTas
   return rows.map(toComment);
 }
 
+// Returns all comments for every task in a project, enriched with the task title.
+// Used by the Project Activity Drawer to show a unified project + task comment feed.
+export async function getProjectTaskComments(projectId: string): Promise<TaskCommentFeedItem[]> {
+  const rows = await db.implementationTaskComment.findMany({
+    where: { task: { projectId } },
+    include: { task: { select: { id: true, title: true } } },
+    orderBy: { createdAt: "desc" },
+  });
+  return rows.map((r) => {
+    const rAny = r as typeof r & { task: { id: string; title: string }; attachments?: unknown };
+    return {
+      _kind: "task" as const,
+      id: r.id,
+      taskId: rAny.task.id,
+      taskName: rAny.task.title,
+      userId: r.userId,
+      userName: r.userName,
+      richContent: r.richContent as RichContent | null,
+      plainText: r.plainText,
+      attachments: parseAttachments(rAny.attachments),
+      createdAt: r.createdAt.toISOString(),
+    };
+  });
+}
+
 // ─── Mutations ────────────────────────────────────────────────────────────────
 
 export async function createTask(
@@ -363,7 +395,7 @@ export async function addTaskComment(
   attachments?: CommentAttachment[]
 ): Promise<ImplementationTaskComment> {
   const session = await getServerSession();
-  const richContent = JSON.parse(richContentJson) as Record<string, unknown>;
+  const richContent = JSON.parse(richContentJson) as RichContent;
   const attachmentsJson =
     attachments === undefined
       ? undefined
@@ -380,7 +412,60 @@ export async function addTaskComment(
       ...(attachmentsJson !== undefined ? { attachments: attachmentsJson } : {}),
     },
   });
-  return toComment(row);
+  const comment = toComment(row);
+
+  try {
+    await notifyTaskCommentMentions(
+      taskId, comment.id, richContent, plainText, session?.id ?? null, session?.name ?? "Unknown"
+    );
+  } catch (err) {
+    console.error("[addTaskComment] mention notifications failed:", err);
+  }
+
+  return comment;
+}
+
+async function notifyTaskCommentMentions(
+  taskId: string,
+  commentId: string,
+  richContent: RichContent,
+  plainText: string,
+  actingUserId: string | null,
+  authorName: string
+): Promise<void> {
+  const extractedIds = extractMentionedUserIdsFromDoc(richContent);
+  if (extractedIds.length === 0) return;
+
+  const task = await db.implementationTask.findUnique({
+    where: { id: taskId },
+    select: { projectId: true },
+  });
+  const projectId = (task as unknown as { projectId?: string | null })?.projectId;
+  if (!projectId) return;
+
+  const [project, users] = await Promise.all([getProject(projectId), getUsers()]);
+  if (!project) return;
+
+  const mentionableIds = new Set(getMentionableUsers(project, users).map((u) => u.id));
+  const eligibleIds = extractedIds.filter((id) => mentionableIds.has(id));
+  if (eligibleIds.length === 0) return;
+
+  const notifyIds = eligibleIds.filter((id) => id !== actingUserId);
+  if (notifyIds.length === 0) return;
+
+  const commentPreview = truncate(plainText, 120);
+  await Promise.all(
+    notifyIds.map((userId) =>
+      notifyMention({
+        recipientId: userId,
+        authorName,
+        projectId,
+        projectName: project.name,
+        taskCommentId: commentId,
+        commentPreview,
+      })
+    )
+  );
 }
 
 export async function deleteTaskComment(commentId: string): Promise<void> {

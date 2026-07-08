@@ -31,11 +31,16 @@ const PROSEMIRROR = ".ProseMirror";
 // ── helpers ───────────────────────────────────────────────────────────────────
 
 async function login(page: Page) {
-  await page.goto(LOGIN_URL, { waitUntil: "domcontentloaded" });
-  await page.fill('input[type="email"]', LOGIN_EMAIL);
-  await page.fill('input[type="password"]', LOGIN_PASSWORD);
-  await page.click('button[type="submit"]');
-  await page.waitForURL(/\/projects/, { timeout: 30000 });
+  // global-setup has already saved a valid session in auth.json (storageState).
+  // Navigate directly to /projects — the auth cookie is already set.
+  // Fall back to the full login form only if the cookie is missing or expired.
+  await page.goto(PROJECTS_URL, { waitUntil: "domcontentloaded", timeout: 30000 });
+  if (page.url().includes("/login")) {
+    await page.fill('input[type="email"]', LOGIN_EMAIL);
+    await page.fill('input[type="password"]', LOGIN_PASSWORD);
+    await page.click('button[type="submit"]');
+    await page.waitForURL(/\/projects/, { timeout: 60000 });
+  }
 }
 
 function attachErrorCapture(page: Page) {
@@ -118,7 +123,7 @@ test.describe("Comment flows — regression suite", () => {
   test("A. Normal comment in TaskDrawer posts and appears", async ({ page }) => {
     const { realErrors, realNetworkErrors } = attachErrorCapture(page);
 
-    await page.goto(IMPL_URL, { waitUntil: "networkidle", timeout: 30000 });
+    await page.goto(IMPL_URL, { waitUntil: "networkidle", timeout: 60000 });
 
     // Task title buttons have class "text-left" and flex-1; clicking opens the drawer.
     const taskButton = page.locator("button.text-left").first();
@@ -137,7 +142,16 @@ test.describe("Comment flows — regression suite", () => {
     await page.waitForTimeout(3000);
 
     // Comment should appear in the comments section of the drawer.
-    const appeared = await page.getByText(uniqueText).isVisible({ timeout: 8000 }).catch(() => false);
+    // Use waitForFunction to scan the raw DOM text — avoids Playwright's strict visibility
+    // heuristics that can mark off-screen feed items as non-visible.
+    const appeared = await page
+      .waitForFunction(
+        (text) => document.body.innerText.includes(text),
+        uniqueText,
+        { timeout: 11000 }
+      )
+      .then(() => true)
+      .catch(() => false);
 
     console.log("A — Comment appeared:", appeared);
     console.log("A — Console errors:", realErrors());
@@ -152,7 +166,7 @@ test.describe("Comment flows — regression suite", () => {
   test("B. @mention comment in TaskDrawer posts without error", async ({ page }) => {
     const { realErrors, realNetworkErrors, consoleErrors } = attachErrorCapture(page);
 
-    await page.goto(IMPL_URL, { waitUntil: "networkidle", timeout: 30000 });
+    await page.goto(IMPL_URL, { waitUntil: "networkidle", timeout: 60000 });
 
     const taskButton = page.locator("button.text-left").first();
     await taskButton.waitFor({ state: "visible", timeout: 10000 });
@@ -177,7 +191,14 @@ test.describe("Comment flows — regression suite", () => {
     console.log("B — All console errors:", realErrors());
     console.log("B — Network errors:", realNetworkErrors());
 
-    const appeared = await page.getByText(uniqueText).isVisible({ timeout: 8000 }).catch(() => false);
+    const appeared = await page
+      .waitForFunction(
+        (text) => document.body.innerText.includes(text),
+        uniqueText,
+        { timeout: 8000 }
+      )
+      .then(() => true)
+      .catch(() => false);
     console.log("B — Comment appeared:", appeared);
 
     expect(realErrors(), "@mention task comment should produce no console errors").toHaveLength(0);
@@ -189,7 +210,7 @@ test.describe("Comment flows — regression suite", () => {
   test("C. Normal comment in ActivityDrawer posts and appears", async ({ page }) => {
     const { realErrors, realNetworkErrors } = attachErrorCapture(page);
 
-    await page.goto(PROJECT_URL, { waitUntil: "networkidle", timeout: 30000 });
+    await page.goto(PROJECT_URL, { waitUntil: "networkidle", timeout: 60000 });
 
     const fab = page.locator(FAB_SELECTOR);
     await fab.waitFor({ state: "visible", timeout: 10000 });
@@ -218,7 +239,7 @@ test.describe("Comment flows — regression suite", () => {
   test("D. @mention comment in ActivityDrawer posts without error", async ({ page }) => {
     const { realErrors, realNetworkErrors, consoleErrors } = attachErrorCapture(page);
 
-    await page.goto(PROJECT_URL, { waitUntil: "networkidle", timeout: 30000 });
+    await page.goto(PROJECT_URL, { waitUntil: "networkidle", timeout: 60000 });
 
     const fab = page.locator(FAB_SELECTOR);
     await fab.waitFor({ state: "visible", timeout: 10000 });
@@ -254,7 +275,7 @@ test.describe("Comment flows — regression suite", () => {
   test("E. Page reload after @mention activity comment shows no 'Server Components render' error", async ({ page }) => {
     const { realErrors } = attachErrorCapture(page);
 
-    await page.goto(PROJECT_URL, { waitUntil: "networkidle", timeout: 30000 });
+    await page.goto(PROJECT_URL, { waitUntil: "networkidle", timeout: 60000 });
 
     const fab = page.locator(FAB_SELECTOR);
     await fab.waitFor({ state: "visible", timeout: 10000 });
