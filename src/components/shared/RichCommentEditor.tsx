@@ -14,6 +14,10 @@ import {
   type MentionSuggestionItem,
   type MentionSuggestionListHandle,
 } from "@/components/shared/MentionSuggestionList";
+import {
+  SlashCommandExtension,
+  type SlashCommandId,
+} from "@/components/shared/SlashCommandExtension";
 import { cn } from "@/lib/utils";
 import type { AppUser } from "@/types/user";
 
@@ -35,6 +39,9 @@ interface RichCommentEditorProps {
   // (it owns the actual post button/async call, via the imperative handle above).
   onSubmitShortcut: () => void;
   onEmptyChange?: (isEmpty: boolean) => void;
+  // When provided, installs the "/" slash-command extension and fires this callback when
+  // the user picks a command. The "/" + query text is deleted from the editor before firing.
+  onSlashCommand?: (cmd: SlashCommandId) => void;
 }
 
 // Replaces the old MentionTextarea: a real WYSIWYG composer (Tiptap/ProseMirror) so pasted rich
@@ -44,14 +51,12 @@ interface RichCommentEditorProps {
 // Tiptap's Mention extension — mentions are now structured nodes in the document, not a string
 // token, see lib/mentions/tiptap-mentions.ts.
 export const RichCommentEditor = forwardRef<RichCommentEditorHandle, RichCommentEditorProps>(
-  function RichCommentEditor({ users, placeholder, className, initialContent, onSubmitShortcut, onEmptyChange }, ref) {
-    // Keep a ref so the mention suggestion's items() closure always reads the live roster.
-    // useEditor initializes extensions once (on mount) — without a ref, users captured in the
-    // closure would be stale if UsersProvider hadn't finished loading when the drawer opened.
+  function RichCommentEditor({ users, placeholder, className, initialContent, onSubmitShortcut, onEmptyChange, onSlashCommand }, ref) {
+    // Keep refs so extension closures (created once at mount) always read the live values.
     const usersRef = useRef<AppUser[]>(users);
-    useEffect(() => {
-      usersRef.current = users;
-    }, [users]);
+    useEffect(() => { usersRef.current = users; }, [users]);
+    const onSlashCommandRef = useRef(onSlashCommand);
+    useEffect(() => { onSlashCommandRef.current = onSlashCommand; }, [onSlashCommand]);
 
     const editor = useEditor({
       immediatelyRender: false,
@@ -89,6 +94,11 @@ export const RichCommentEditor = forwardRef<RichCommentEditorHandle, RichComment
             render: buildSuggestionRender,
           },
         }),
+        // Only install the slash-command extension when the parent opts in.
+        // eslint-disable-next-line react-hooks/refs -- onCommandSelect reads the ref at call-time
+        ...(onSlashCommand !== undefined
+          ? [SlashCommandExtension.configure({ onCommandSelect: (cmd) => onSlashCommandRef.current?.(cmd) })]
+          : []),
       ],
       editorProps: {
         attributes: {

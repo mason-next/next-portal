@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { Activity, CheckCircle2, MessageSquare, RefreshCw, Settings2, X } from "lucide-react";
+import { Activity, BarChart2, CheckCircle2, CheckSquare, MessageSquare, RefreshCw, Search, Settings2, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { UserAvatarImage } from "@/components/shared/AppShell/UserAvatarImage";
 import { useUsersContext } from "@/components/shared/AppShell/UsersProvider";
@@ -17,7 +17,7 @@ import {
   getProjectActivity,
   updateProjectComment,
 } from "@/lib/data/activity";
-import { getProjectTaskComments } from "@/lib/data/implementation";
+import { addTaskComment, getProjectTaskComments, getProjectTasks } from "@/lib/data/implementation";
 import { getActivityLastViewed, markActivityViewed } from "@/lib/data/activity-client";
 import { useSession } from "@/lib/auth/client";
 import { useCurrentUserAvatar } from "@/lib/hooks/useCurrentUserAvatar";
@@ -27,6 +27,7 @@ import { cn } from "@/lib/utils";
 import { useProjectContext } from "@/modules/project-command-center/hooks/ProjectContext";
 import type { ActivityCategory, ActivityTag, ProjectActivity, TaskCommentFeedItem } from "@/types/activity";
 import type { CommentAttachment } from "@/types/attachments";
+import type { ImplementationTask } from "@/types/implementation";
 import type { AppUser } from "@/types/user";
 
 // Local-storage-backed, single-user prototype — there's no push channel, so a light poll
@@ -103,7 +104,12 @@ export function ProjectActivityDrawer({ projectId }: { projectId: string }) {
   const [pendingAttachments, setPendingAttachments] = useState<CommentAttachment[]>([]);
   const [highlightedId, setHighlightedId] = useState<string | null>(null);
   const [hideNonComments, setHideNonComments] = useState(false);
-  const [isStatusUpdate, setIsStatusUpdate] = useState(false);
+  // Slash-command state — tracks what "/" selected before the user types the comment body.
+  const [slashTag, setSlashTag] = useState<"status" | "task" | null>(null);
+  const [attachedTask, setAttachedTask] = useState<{ id: string; title: string } | null>(null);
+  const [showTaskPicker, setShowTaskPicker] = useState(false);
+  const [taskPickerQuery, setTaskPickerQuery] = useState("");
+  const [projectTasks, setProjectTasks] = useState<ImplementationTask[] | null>(null);
   const editorRef = useRef<RichCommentEditorHandle>(null);
 
   useEffect(() => {
@@ -185,28 +191,62 @@ export function ProjectActivityDrawer({ projectId }: { projectId: string }) {
     setLastViewed(new Date().toISOString());
   }
 
+  function handleSlashCommand(cmd: "status" | "task") {
+    setSlashTag(cmd);
+    if (cmd === "task") {
+      setShowTaskPicker(true);
+      // Lazy-load project tasks the first time the task picker is opened.
+      if (!projectTasks) {
+        getProjectTasks(projectId).then(setProjectTasks).catch(() => setProjectTasks([]));
+      }
+    }
+  }
+
+  function clearSlashCommand() {
+    setSlashTag(null);
+    setAttachedTask(null);
+    setShowTaskPicker(false);
+    setTaskPickerQuery("");
+  }
+
+  function handleTaskSelect(task: ImplementationTask) {
+    setAttachedTask({ id: task.id, title: task.title });
+    setShowTaskPicker(false);
+    setTaskPickerQuery("");
+    editorRef.current?.focus();
+  }
+
   async function handlePost() {
     const editor = editorRef.current;
     if (!editor || (editor.isEmpty() && pendingAttachments.length === 0)) return;
+    // "task" mode requires a task to be selected before posting.
+    if (slashTag === "task" && !attachedTask) return;
     setSubmitting(true);
     setPostError(null);
     try {
       const { richContent, text } = editor.getPayload();
-      await addProjectComment(
-        projectId,
-        session.name,
-        {
-          text,
-          richContentJson: JSON.stringify(richContent),
-          attachments: pendingAttachments,
-          tag: isStatusUpdate ? "Status" : "General",
-        },
-        session.id
-      );
+      if (slashTag === "task" && attachedTask) {
+        // Route directly into the task's comment thread — surfaces in both the TaskDrawer
+        // and the ActivityDrawer's unified feed (via getProjectTaskComments poll).
+        await addTaskComment(attachedTask.id, JSON.stringify(richContent), text, pendingAttachments);
+      } else {
+        await addProjectComment(
+          projectId,
+          session.name,
+          {
+            text,
+            richContentJson: JSON.stringify(richContent),
+            attachments: pendingAttachments,
+            tag: slashTag === "status" ? "Status" : "General",
+          },
+          session.id
+        );
+      }
       editor.clear();
       setIsDraftEmpty(true);
       setPendingAttachments([]);
-      setIsStatusUpdate(false);
+      setSlashTag(null);
+      setAttachedTask(null);
     } catch (err) {
       console.error("[handlePost] failed:", err);
       setPostError(err instanceof Error ? err.message : "Failed to post comment. Please try again.");
@@ -238,6 +278,10 @@ export function ProjectActivityDrawer({ projectId }: { projectId: string }) {
     : feedItems;
 
   const groups = groupByDate(visibleItems);
+
+  const filteredTasks = (projectTasks ?? []).filter(
+    (t) => !taskPickerQuery || t.title.toLowerCase().includes(taskPickerQuery.toLowerCase())
+  );
 
   return (
     <>
@@ -305,10 +349,11 @@ export function ProjectActivityDrawer({ projectId }: { projectId: string }) {
                     // on projectId to force a fresh editor (and fresh roster) per project.
                     key={projectId}
                     ref={editorRef}
-                    placeholder="Write an update or note… (type @ to mention someone, or paste rich text)"
+                    placeholder="Write an update or note… (type / for commands, @ to mention)"
                     users={mentionableUsers}
                     onSubmitShortcut={handlePost}
                     onEmptyChange={setIsDraftEmpty}
+                    onSlashCommand={handleSlashCommand}
                   />
                   <CommentAttachmentArea
                     attachments={pendingAttachments}
@@ -316,25 +361,114 @@ export function ProjectActivityDrawer({ projectId }: { projectId: string }) {
                     onRemove={(i) => setPendingAttachments((prev) => prev.filter((_, idx) => idx !== i))}
                     disabled={submitting}
                   />
+
+                  {/* Task picker — rendered inline when "Project Task" is selected */}
+                  {showTaskPicker && (
+                    <div className="mt-1.5 rounded-md border bg-card shadow-md">
+                      <div className="flex items-center gap-2 border-b px-2.5 py-1.5">
+                        <Search className="size-3.5 shrink-0 text-muted-foreground" />
+                        <input
+                          autoFocus
+                          type="text"
+                          placeholder="Search tasks…"
+                          value={taskPickerQuery}
+                          onChange={(e) => setTaskPickerQuery(e.target.value)}
+                          className="flex-1 bg-transparent text-sm outline-none placeholder:text-muted-foreground"
+                          onKeyDown={(e) => {
+                            if (e.key === "Escape") {
+                              clearSlashCommand();
+                              editorRef.current?.focus();
+                            }
+                          }}
+                          onBlur={() => {
+                            // Delay so mousedown on a task row fires before blur dismisses the picker.
+                            setTimeout(() => {
+                              setShowTaskPicker(false);
+                              if (!attachedTask) setSlashTag(null);
+                              setTaskPickerQuery("");
+                            }, 150);
+                          }}
+                        />
+                      </div>
+                      <div className="max-h-44 overflow-y-auto py-1">
+                        {!projectTasks ? (
+                          <p className="px-3 py-2 text-xs text-muted-foreground">Loading tasks…</p>
+                        ) : filteredTasks.length === 0 ? (
+                          <p className="px-3 py-2 text-xs text-muted-foreground">No tasks found.</p>
+                        ) : (
+                          filteredTasks.map((task) => (
+                            <button
+                              key={task.id}
+                              type="button"
+                              onMouseDown={(e) => {
+                                e.preventDefault();
+                                handleTaskSelect(task);
+                              }}
+                              className="flex w-full flex-col gap-0.5 px-3 py-2 text-left text-sm hover:bg-accent"
+                            >
+                              <span className="truncate font-medium">{task.title}</span>
+                              {task.workflowStepName && (
+                                <span className="text-xs text-muted-foreground">{task.workflowStepName}</span>
+                              )}
+                            </button>
+                          ))
+                        )}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Active-tag chips with X-to-remove */}
+                  {(slashTag === "status" || (slashTag === "task" && attachedTask)) && (
+                    <div className="mt-1.5 flex flex-wrap gap-1.5">
+                      {slashTag === "status" && (
+                        <span className="inline-flex items-center gap-1 rounded-full bg-violet-100 px-2 py-0.5 text-xs font-medium text-violet-700 dark:bg-violet-900/40 dark:text-violet-300">
+                          <BarChart2 className="size-3" />
+                          Status Update
+                          <button
+                            type="button"
+                            onClick={clearSlashCommand}
+                            className="ml-0.5 rounded-full p-0.5 hover:bg-violet-200 dark:hover:bg-violet-800/60"
+                            title="Remove"
+                          >
+                            <X className="size-2.5" />
+                          </button>
+                        </span>
+                      )}
+                      {slashTag === "task" && attachedTask && (
+                        <span className="inline-flex max-w-full items-center gap-1 rounded-full bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-700 dark:bg-amber-900/40 dark:text-amber-300">
+                          <CheckSquare className="size-3 shrink-0" />
+                          <span className="truncate">Task: {attachedTask.title}</span>
+                          <button
+                            type="button"
+                            onClick={clearSlashCommand}
+                            className="ml-0.5 shrink-0 rounded-full p-0.5 hover:bg-amber-200 dark:hover:bg-amber-800/60"
+                            title="Remove"
+                          >
+                            <X className="size-2.5" />
+                          </button>
+                        </span>
+                      )}
+                    </div>
+                  )}
+
                   {postError && (
                     <p className="mt-1 text-xs text-destructive">{postError}</p>
                   )}
-                  <div className="mt-1.5 flex items-center justify-between gap-2">
-                    <label className="flex cursor-pointer items-center gap-1.5 text-xs text-muted-foreground select-none">
-                      <input
-                        type="checkbox"
-                        checked={isStatusUpdate}
-                        onChange={(e) => setIsStatusUpdate(e.target.checked)}
-                        className="h-3.5 w-3.5 rounded border-muted-foreground accent-violet-600"
-                      />
-                      Mark as status update
-                    </label>
+                  <div className="mt-1.5 flex items-center justify-end gap-2">
                     <Button
                       size="xs"
                       onClick={handlePost}
-                      disabled={submitting || (isDraftEmpty && pendingAttachments.length === 0)}
+                      disabled={
+                        submitting ||
+                        (isDraftEmpty && pendingAttachments.length === 0) ||
+                        (slashTag === "task" && !attachedTask)
+                      }
                     >
-                      {submitting ? "Posting…" : "Comment"}
+                      {submitting
+                        ? "Posting…"
+                        : slashTag === "task" && !attachedTask
+                          ? "Select a task above"
+                          : "Comment"}
                     </Button>
                   </div>
                 </>
