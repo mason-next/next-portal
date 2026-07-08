@@ -13,10 +13,26 @@ import {
 } from "@/modules/technical-kickoff/lib/store";
 import { buildTeamsMeetingUrl, DEFAULT_TKO_AGENDA } from "@/modules/technical-kickoff/lib/teams-invite";
 import { logProjectActivity } from "@/lib/data/activity";
+import { getMeetingDefaults } from "@/lib/data/system-defaults";
 import { useSession } from "@/lib/auth/client";
 import { formatDate } from "@/lib/utils";
+import type { AssigneeTarget } from "@/lib/data/system-defaults";
+import type { AppUser } from "@/types/user";
 
 const DURATION_OPTIONS = [15, 30, 45, 60, 90];
+
+function resolveTargetsClientSide(targets: AssigneeTarget[], users: AppUser[]): AppUser[] {
+  const result: AppUser[] = [];
+  for (const t of targets) {
+    if (t.kind === "user") {
+      const u = users.find((u) => u.id === t.value && u.isActive);
+      if (u) result.push(u);
+    } else {
+      users.filter((u) => u.isActive && u.roleTypes.includes(t.value)).forEach((u) => result.push(u));
+    }
+  }
+  return result;
+}
 
 const FIELD_INPUT_CLASS =
   "h-9 w-full rounded-md border border-input bg-background px-3 text-sm outline-none focus:border-primary";
@@ -33,6 +49,7 @@ export default function TechnicalKickoffPage({
   const { refetch: refetchWorkflowSteps } = useWorkflowStepsContext();
 
   const [record, setRecord] = useState<TechnicalKickoffRecord | null | undefined>(undefined);
+  const [standingAttendeeTargets, setStandingAttendeeTargets] = useState<AssigneeTarget[]>([]);
   const [subject, setSubject] = useState("");
   const [date, setDate] = useState("");
   const [time, setTime] = useState("10:00");
@@ -48,6 +65,14 @@ export default function TechnicalKickoffPage({
       .catch(() => { if (active) setRecord(null); });
     return () => { active = false; };
   }, [projectId]);
+
+  useEffect(() => {
+    let active = true;
+    getMeetingDefaults("technical-kickoff").then((d) => {
+      if (active) setStandingAttendeeTargets(d.standingAttendees);
+    });
+    return () => { active = false; };
+  }, []);
 
   function showToast(message: string) {
     setToast(message);
@@ -76,8 +101,13 @@ export default function TechnicalKickoffPage({
     .map(userById)
     .filter((u): u is NonNullable<typeof u> => u !== null && u.email.trim() !== "");
 
-  // Dedupe by user id in case the same person holds multiple roles.
-  const attendees = [...new Map(roleAttendeeDetails.map((u) => [u.id, u])).values()];
+  // Resolve standing attendees (from system defaults) client-side.
+  const standingUsers = resolveTargetsClientSide(standingAttendeeTargets, users);
+
+  // Merge role-based + standing attendees, deduped by user ID.
+  const attendees = [
+    ...new Map([...roleAttendeeDetails, ...standingUsers].map((u) => [u.id, u])).values(),
+  ];
 
   // Show which roles are missing (no user assigned to that role).
   const missingRoles: string[] = [];
@@ -215,11 +245,17 @@ export default function TechnicalKickoffPage({
             </p>
           ) : (
             <ul className="space-y-1 text-sm">
-              {attendees.map((user) => (
-                <li key={user.id} className="text-muted-foreground">
-                  <span className="font-medium text-foreground">{user.name}</span> · {user.email}
-                </li>
-              ))}
+              {attendees.map((user) => {
+                const isStanding = standingUsers.some((s) => s.id === user.id);
+                return (
+                  <li key={user.id} className="text-muted-foreground">
+                    <span className="font-medium text-foreground">{user.name}</span> · {user.email}
+                    {isStanding && (
+                      <span className="ml-2 text-xs text-muted-foreground">(always invited)</span>
+                    )}
+                  </li>
+                );
+              })}
             </ul>
           )}
         </div>

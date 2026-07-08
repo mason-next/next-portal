@@ -17,6 +17,10 @@ import {
   DEFAULT_PROJECT_TYPE_CONFIG,
   WORKFLOW_STEP_TEMPLATE,
 } from "@/modules/project-command-center/lib/workflow-steps";
+import {
+  getWorkflowStepDefaults,
+  resolveAssigneeTarget,
+} from "@/lib/data/system-defaults";
 import { getProjectTypeConfig } from "@/lib/data/workflow-type-config";
 import type { ProjectSectionKey, WorkflowStep, WorkflowStepStatus } from "@/types/workflow";
 
@@ -110,17 +114,41 @@ type ProjectRoleSnapshot = {
   solutionsExecutiveId: string | null;
 };
 
+// adminOverrides: resolved step-key → userId map from getWorkflowStepDefaults().
+// Admin overrides take precedence over the template's defaultOwnerRole.
 function autoAssignStepOwners(
   steps: WorkflowStep[],
-  roles: ProjectRoleSnapshot
+  roles: ProjectRoleSnapshot,
+  adminOverrides: Record<string, string | null> = {}
 ): WorkflowStep[] {
   return steps.map((s) => {
-    if (s.ownerId !== null) return s; // already assigned
+    if (s.ownerId !== null) return s;
+    // Admin override wins if set
+    if (Object.prototype.hasOwnProperty.call(adminOverrides, s.key)) {
+      const overrideId = adminOverrides[s.key];
+      return overrideId ? { ...s, ownerId: overrideId } : s;
+    }
+    // Fall back to project role
     const entry = WORKFLOW_STEP_TEMPLATE.find((t) => t.key === s.key);
     if (!entry?.defaultOwnerRole) return s;
     const userId = roles[entry.defaultOwnerRole] ?? null;
     return userId ? { ...s, ownerId: userId } : s;
   });
+}
+
+async function resolveAdminStepOverrides(): Promise<Record<string, string | null>> {
+  try {
+    const stepDefaults = await getWorkflowStepDefaults();
+    const entries = await Promise.all(
+      Object.entries(stepDefaults).map(async ([key, target]) => {
+        const userId = target ? await resolveAssigneeTarget(target) : null;
+        return [key, userId] as [string, string | null];
+      })
+    );
+    return Object.fromEntries(entries);
+  } catch {
+    return {};
+  }
 }
 
 // ─── Weight redistribution ────────────────────────────────────────────────────
@@ -242,7 +270,8 @@ export async function getWorkflowSteps(projectId: string): Promise<WorkflowStep[
 
     const types = (project as unknown as { projectTypes?: string[] }).projectTypes ?? [];
     const defaults = defaultWorkflowSteps(projectId, project.createdAt.toISOString(), types);
-    const withOwners = autoAssignStepOwners(defaults, project as unknown as ProjectRoleSnapshot);
+    const adminOverrides = await resolveAdminStepOverrides();
+    const withOwners = autoAssignStepOwners(defaults, project as unknown as ProjectRoleSnapshot, adminOverrides);
 
     await db.workflowStep.createMany({ data: withOwners.map(toDbCreate) });
     return withOwners;

@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { Building2, Download, FileCheck, FileText, Layers, MapPin, ShieldCheck, Upload, Users, X } from "lucide-react";
+import { Building2, Download, FileCheck, FileText, Layers, MapPin, Settings2, ShieldCheck, Upload, Users, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { StatusBadge } from "@/components/shared/StatusBadge";
 import { Skeleton } from "@/components/shared/Skeleton";
@@ -9,7 +9,7 @@ import { UserAvatarImage } from "@/components/shared/AppShell/UserAvatarImage";
 import { useUsersContext } from "@/components/shared/AppShell/UsersProvider";
 import { useSession } from "@/lib/auth/client";
 import { getEffectiveLevel } from "@/lib/module-permissions";
-import { DefaultKickoffAttendeesCard } from "@/modules/admin/components/DefaultKickoffAttendeesCard";
+import { DefaultsTab } from "@/modules/admin/components/DefaultsTab";
 import { WorkflowTemplateTab } from "@/modules/admin/components/WorkflowTemplateTab";
 import { TaskTemplatesTab } from "@/modules/admin/components/TaskTemplatesTab";
 import { UserFormModal } from "@/modules/admin/components/UserFormModal";
@@ -34,7 +34,7 @@ import { useIsAdmin } from "@/lib/hooks/useCanEdit";
 // Kept for tree-shaking — these were previously inlined in the admin page.
 // PermissionsConfig and permission constants now live in PermissionsTab component.
 
-type Tab = "users" | "subcontractors" | "licenses" | "templates" | "permissions" | "workflow" | "taskTemplates";
+type Tab = "users" | "subcontractors" | "licenses" | "templates" | "permissions" | "workflow" | "taskTemplates" | "defaults";
 
 function StarDisplay({ rating }: { rating: number | null }) {
   if (!rating) return <span className="text-xs text-muted-foreground">—</span>;
@@ -92,6 +92,10 @@ export default function AdminPage() {
               <MapPin className="size-4" />
               Task Templates
             </TabButton>
+            <TabButton active={tab === "defaults"} onClick={() => setTab("defaults")}>
+              <Settings2 className="size-4" />
+              Defaults
+            </TabButton>
           </>
         ) : null}
       </div>
@@ -108,6 +112,8 @@ export default function AdminPage() {
         <WorkflowTemplateTab />
       ) : tab === "taskTemplates" ? (
         <TaskTemplatesTab />
+      ) : tab === "defaults" ? (
+        <DefaultsTab />
       ) : (
         <PermissionsTab />
       )}
@@ -237,11 +243,6 @@ function UsersTab({ isAdmin }: { isAdmin: boolean }) {
         </ul>
       )}
 
-      {isAdmin ? (
-        <div className="mt-8">
-          <DefaultKickoffAttendeesCard />
-        </div>
-      ) : null}
 
       {isAdmin && showForm ? (
         <UserFormModal

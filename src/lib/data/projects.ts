@@ -9,6 +9,10 @@ import { removeProjectScoped } from "@/lib/storage/local-store";
 import { getServerSession } from "@/lib/auth/server";
 import { requireEditPermission } from "@/lib/access-control";
 import { autoAssignStepsForRoleChange } from "@/lib/data/workflow";
+import {
+  getProjectRoleDefaults,
+  resolveAssigneeTarget,
+} from "@/lib/data/system-defaults";
 import type { Prisma } from "@prisma/client";
 import type { Project, NewProjectInput } from "@/types/project";
 import type { Project as PrismaProject } from "@prisma/client";
@@ -157,25 +161,30 @@ export async function getProject(id: string): Promise<Project | null> {
 // ─── Mutations ────────────────────────────────────────────────────────────────
 
 export async function createProject(input: NewProjectInput): Promise<Project> {
-  // Look up default role assignments from AppSetting, then verify each user actually exists
-  // before using their ID — app_settings may hold stale IDs from seed/migration data.
+  // Resolve system-default role assignments. Each target may be a specific user or a role type;
+  // resolveAssigneeTarget converts both to a concrete userId (or null if unavailable/inactive).
   let defaultSeniorInsideId: string | null = null;
   let defaultInsidePMId: string | null = null;
+  let defaultFieldProjectManagerId: string | null = null;
+  let defaultSolutionsEngineerId: string | null = null;
+  let defaultSolutionsExecutiveId: string | null = null;
   try {
-    const [seniorSetting, insideSetting] = await Promise.all([
-      db.appSetting.findUnique({ where: { key: "default_senior_inside_id" } }),
-      db.appSetting.findUnique({ where: { key: "default_inside_pm_id" } }),
+    const roleDefaults = await getProjectRoleDefaults();
+    [
+      defaultSeniorInsideId,
+      defaultInsidePMId,
+      defaultFieldProjectManagerId,
+      defaultSolutionsEngineerId,
+      defaultSolutionsExecutiveId,
+    ] = await Promise.all([
+      roleDefaults.seniorInsideId ? resolveAssigneeTarget(roleDefaults.seniorInsideId) : null,
+      roleDefaults.insidePMId ? resolveAssigneeTarget(roleDefaults.insidePMId) : null,
+      roleDefaults.fieldProjectManagerId ? resolveAssigneeTarget(roleDefaults.fieldProjectManagerId) : null,
+      roleDefaults.solutionsEngineerId ? resolveAssigneeTarget(roleDefaults.solutionsEngineerId) : null,
+      roleDefaults.solutionsExecutiveId ? resolveAssigneeTarget(roleDefaults.solutionsExecutiveId) : null,
     ]);
-    const seniorId = seniorSetting?.value as string | null;
-    const insideId = insideSetting?.value as string | null;
-    const [seniorExists, insideExists] = await Promise.all([
-      seniorId ? db.user.findUnique({ where: { id: seniorId }, select: { id: true } }) : null,
-      insideId ? db.user.findUnique({ where: { id: insideId }, select: { id: true } }) : null,
-    ]);
-    if (seniorExists) defaultSeniorInsideId = seniorId;
-    if (insideExists) defaultInsidePMId = insideId;
   } catch {
-    // app_settings unavailable — create without defaults
+    // defaults unavailable — create project without pre-filled roles
   }
 
   const row = await db.project.create({
@@ -190,6 +199,9 @@ export async function createProject(input: NewProjectInput): Promise<Project> {
       grossProfit: 0,
       seniorInsideId: defaultSeniorInsideId,
       insidePMId: defaultInsidePMId,
+      fieldProjectManagerId: defaultFieldProjectManagerId,
+      solutionsEngineerId: defaultSolutionsEngineerId,
+      solutionsExecutiveId: defaultSolutionsExecutiveId,
       projectTypes: input.projectTypes ?? [],
     },
   });
