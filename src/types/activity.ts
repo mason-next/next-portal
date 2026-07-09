@@ -54,4 +54,5 @@ export interface TaskCommentFeedItem {
   plainText: string;
   attachments?: import("@/types/attachments").CommentAttachment[];
   createdAt: string; // ISO 8601
+  stepSection?: string | null; // WorkflowSection of the task's linked workflow step
 }

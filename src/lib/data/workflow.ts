@@ -95,6 +95,7 @@ function toDbCreate(s: WorkflowStep) {
     statusOverridden: s.statusOverridden,
     weightOverridden: s.weightOverridden,
     isCustom: s.isCustom,
+    isExcluded: s.isExcluded ?? false,
     description: s.description ?? "",
     dependsOnKeys: s.dependsOnKeys ?? [],
     completionRule: s.completionRule ?? "manual",
@@ -336,18 +337,26 @@ export async function seedWorkflowStepsForProject(
   // defaultWorkflowSteps already applies the project-type filter
   const all = defaultWorkflowSteps(projectId, project.createdAt.toISOString(), projectTypes);
 
-  // Apply user-chosen exclusions, then re-distribute weights across sections
-  const excluded = new Set(excludedStepKeys);
-  const filtered = all.filter((s) => !excluded.has(s.key));
+  // Apply user-chosen exclusions: active steps go into the project normally;
+  // excluded steps are still written to DB with isExcluded:true so that
+  // reconcileTemplateStepsDb sees them in existingKeys and never re-adds them.
+  const excludedSet = new Set(excludedStepKeys);
+  const active = all.filter((s) => !excludedSet.has(s.key));
+  const excludedList = all.filter((s) => excludedSet.has(s.key));
+
+  // Redistribute weights among active steps only
   const reweighted = PROJECT_SECTION_KEYS.reduce(
     (acc, section) => redistributeWeights(acc, section),
-    filtered
+    active
   );
 
   const adminOverrides = await resolveAdminStepOverrides();
   const withOwners = autoAssignStepOwners(reweighted, project as unknown as ProjectRoleSnapshot, adminOverrides);
 
-  await db.workflowStep.createMany({ data: withOwners.map(toDbCreate) });
+  const activeRows = withOwners.map(toDbCreate);
+  const excludedRows = excludedList.map((s) => ({ ...toDbCreate(s), isExcluded: true, weight: 0 }));
+
+  await db.workflowStep.createMany({ data: [...activeRows, ...excludedRows] });
 }
 
 // Batch-loads steps for many projects in 1 query — used by the Projects list page

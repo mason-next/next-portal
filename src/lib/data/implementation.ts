@@ -238,11 +238,22 @@ export async function getTaskComments(taskId: string): Promise<ImplementationTas
 export async function getProjectTaskComments(projectId: string): Promise<TaskCommentFeedItem[]> {
   const rows = await db.implementationTaskComment.findMany({
     where: { task: { projectId } },
-    include: { task: { select: { id: true, title: true } } },
+    include: {
+      task: {
+        select: {
+          id: true,
+          title: true,
+          workflowStep: { select: { section: true } },
+        },
+      },
+    },
     orderBy: { createdAt: "desc" },
   });
   return rows.map((r) => {
-    const rAny = r as typeof r & { task: { id: string; title: string }; attachments?: unknown };
+    const rAny = r as typeof r & {
+      task: { id: string; title: string; workflowStep: { section: string } | null };
+      attachments?: unknown;
+    };
     return {
       _kind: "task" as const,
       id: r.id,
@@ -254,6 +265,7 @@ export async function getProjectTaskComments(projectId: string): Promise<TaskCom
       plainText: r.plainText,
       attachments: parseAttachments(rAny.attachments),
       createdAt: r.createdAt.toISOString(),
+      stepSection: rAny.task.workflowStep?.section ?? null,
     };
   });
 }

@@ -1,6 +1,7 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import { Plus, Wand2, ChevronDown, ChevronRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/shared/Skeleton";
@@ -25,6 +26,20 @@ export function TaskList({ projectId, users, availableSteps = [] }: TaskListProp
   const [drawerTarget, setDrawerTarget] = useState<ImplementationTask | "new" | null>(null);
   const [drawerDefaultStepId, setDrawerDefaultStepId] = useState<string | null>(null);
   const [seedModalStep, setSeedModalStep] = useState<WorkflowStep | null>(null);
+
+  // Auto-open a specific task when ?taskId= is present in the URL (e.g. from an
+  // activity feed task reference link). Only fires once after tasks are loaded.
+  const searchParams = useSearchParams();
+  const openTaskId = searchParams.get("taskId");
+  const autoOpenedRef = useRef(false);
+  useEffect(() => {
+    if (!openTaskId || !tasks || tasks.length === 0 || autoOpenedRef.current) return;
+    const target = tasks.find((t) => t.id === openTaskId);
+    if (!target) return;
+    autoOpenedRef.current = true;
+    setDrawerTarget(target);
+    setDrawerDefaultStepId(null);
+  }, [tasks, openTaskId]);
 
   function openNew(stepId: string | null = null) {
     setDrawerTarget("new");
