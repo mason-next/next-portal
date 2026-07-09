@@ -34,7 +34,7 @@ import { useIsAdmin } from "@/lib/hooks/useCanEdit";
 // Kept for tree-shaking — these were previously inlined in the admin page.
 // PermissionsConfig and permission constants now live in PermissionsTab component.
 
-type Tab = "users" | "subcontractors" | "licenses" | "templates" | "permissions" | "workflow" | "taskTemplates" | "defaults";
+type Tab = "users" | "subcontractors" | "licenses" | "templates" | "permissions" | "workflow" | "defaults";
 
 function StarDisplay({ rating }: { rating: number | null }) {
   if (!rating) return <span className="text-xs text-muted-foreground">—</span>;
@@ -88,10 +88,6 @@ export default function AdminPage() {
               <Layers className="size-4" />
               Workflow
             </TabButton>
-            <TabButton active={tab === "taskTemplates"} onClick={() => setTab("taskTemplates")}>
-              <MapPin className="size-4" />
-              Task Templates
-            </TabButton>
             <TabButton active={tab === "defaults"} onClick={() => setTab("defaults")}>
               <Settings2 className="size-4" />
               Defaults
@@ -107,11 +103,14 @@ export default function AdminPage() {
       ) : tab === "licenses" ? (
         <LicensesTab />
       ) : tab === "templates" ? (
-        <TemplatesTab />
+        <>
+          <TemplatesTab />
+          <div className="mt-10">
+            <TaskTemplatesTab />
+          </div>
+        </>
       ) : tab === "workflow" ? (
         <WorkflowTemplateTab />
-      ) : tab === "taskTemplates" ? (
-        <TaskTemplatesTab />
       ) : tab === "defaults" ? (
         <DefaultsTab />
       ) : (
