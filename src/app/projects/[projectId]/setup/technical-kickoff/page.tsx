@@ -174,7 +174,7 @@ export default function TechnicalKickoffPage({
       </Link>
 
       <div className="rounded-xl border bg-card p-5 shadow-sm">
-        <div className="mb-1 text-sm font-semibold">Schedule Technical Kickoff</div>
+        <div className="mb-1 text-sm font-semibold">Technical Kickoff</div>
         <p className="mb-4 text-sm text-muted-foreground">
           Create a Teams meeting invite for the solutions and engineering team. Attendees are pulled
           from the project team assigned under Project Overview.

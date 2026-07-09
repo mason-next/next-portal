@@ -8,6 +8,38 @@ export interface TaskTemplate {
 // Each task has an optional list of subtask titles.
 // Kept in a plain (non-"use server") module so client components can import it safely.
 export const STEP_TASK_TEMPLATES: Record<string, TaskTemplate[]> = {
+  cadReview: [
+    {
+      title: "Drawing Package Review",
+      description: "Review all drawings submitted by the engineer or design team for completeness and accuracy.",
+      subtasks: [
+        "Check floor plan layouts for accuracy",
+        "Verify equipment locations match BOM",
+        "Review rack elevation drawings",
+        "Check cable pathway and routing drawings",
+        "Confirm signal flow diagrams",
+        "Note any discrepancies or revision requests",
+      ],
+    },
+    {
+      title: "Redline / Revision Coordination",
+      description: "Consolidate feedback and coordinate revision requests back to the drawing team.",
+      subtasks: [
+        "Compile all redline comments",
+        "Submit revision requests to engineer",
+        "Confirm receipt of revision request",
+      ],
+    },
+    {
+      title: "Final Drawing Approval",
+      description: "Review revised drawings and provide final approval for release to field.",
+      subtasks: [
+        "Verify all redlines addressed",
+        "Confirm drawings are release-ready",
+        "Distribute approved drawings to field team",
+      ],
+    },
+  ],
   installation: [
     {
       title: "Pre-Install Walkthrough",

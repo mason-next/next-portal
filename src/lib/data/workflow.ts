@@ -12,11 +12,11 @@ import { requireEditPermission } from "@/lib/access-control";
 import { defaultWorkflowSteps } from "@/lib/mock/workflow.mock";
 import {
   redistributeWeights,
-  shouldIncludeStepForTypes,
   shouldIncludeStepForTypesWithConfig,
   DEFAULT_PROJECT_TYPE_CONFIG,
   WORKFLOW_STEP_TEMPLATE,
 } from "@/modules/project-command-center/lib/workflow-steps";
+import { PROJECT_SECTION_KEYS } from "@/types/workflow";
 import {
   getWorkflowStepDefaults,
   resolveAssigneeTarget,
@@ -195,12 +195,33 @@ async function reconcileTemplateStepsDb(
     (e) => !existingKeys.has(e.key) && shouldIncludeStepForTypesWithConfig(e.key, projectTypes, config)
   );
 
-  if (toRemove.length === 0 && toAdd.length === 0) return steps.filter((s) => !s.isExcluded);
+  // Sync names for non-custom template steps whose display name changed in the template
+  const toRename = steps.filter((s) => {
+    if (s.isCustom) return false;
+    const entry = WORKFLOW_STEP_TEMPLATE.find((e) => e.key === s.key);
+    return entry && entry.name !== s.name;
+  });
+
+  if (toRemove.length === 0 && toAdd.length === 0 && toRename.length === 0) {
+    return steps.filter((s) => !s.isExcluded);
+  }
 
   if (toRemove.length > 0) {
     await db.workflowStep.deleteMany({
       where: { projectId, key: { in: toRemove.map((s) => s.key) } },
     });
+  }
+
+  if (toRename.length > 0) {
+    await Promise.all(
+      toRename.map((s) => {
+        const entry = WORKFLOW_STEP_TEMPLATE.find((e) => e.key === s.key)!;
+        return db.workflowStep.update({
+          where: { projectId_key: { projectId, key: s.key } },
+          data: { name: entry.name },
+        });
+      })
+    );
   }
 
   const now = new Date().toISOString();
@@ -286,6 +307,47 @@ export async function getWorkflowSteps(projectId: string): Promise<WorkflowStep[
   const config = await getProjectTypeConfig();
 
   return reconcileTemplateStepsDb(projectId, dbSteps.map(toStep), types, config);
+}
+
+// Eagerly seeds the initial workflow steps for a project at creation time, applying
+// project-type filtering and any user-chosen step exclusions from the workflow preview.
+// Called from createProject() so the lazy seed in getWorkflowSteps() is skipped.
+export async function seedWorkflowStepsForProject(
+  projectId: string,
+  projectTypes: string[],
+  excludedStepKeys: string[] = []
+): Promise<void> {
+  const existing = await db.workflowStep.count({ where: { projectId } });
+  if (existing > 0) return; // already seeded
+
+  const project = await db.project.findUnique({
+    where: { id: projectId },
+    select: {
+      createdAt: true,
+      seniorInsideId: true,
+      insidePMId: true,
+      fieldProjectManagerId: true,
+      solutionsEngineerId: true,
+      solutionsExecutiveId: true,
+    },
+  });
+  if (!project) throw new Error(`Project not found: ${projectId}`);
+
+  // defaultWorkflowSteps already applies the project-type filter
+  const all = defaultWorkflowSteps(projectId, project.createdAt.toISOString(), projectTypes);
+
+  // Apply user-chosen exclusions, then re-distribute weights across sections
+  const excluded = new Set(excludedStepKeys);
+  const filtered = all.filter((s) => !excluded.has(s.key));
+  const reweighted = PROJECT_SECTION_KEYS.reduce(
+    (acc, section) => redistributeWeights(acc, section),
+    filtered
+  );
+
+  const adminOverrides = await resolveAdminStepOverrides();
+  const withOwners = autoAssignStepOwners(reweighted, project as unknown as ProjectRoleSnapshot, adminOverrides);
+
+  await db.workflowStep.createMany({ data: withOwners.map(toDbCreate) });
 }
 
 // Batch-loads steps for many projects in 1 query — used by the Projects list page

@@ -8,35 +8,41 @@ export function isDoneStatus(status: WorkflowStep["status"]): boolean {
   return status === "Complete" || status === "Not Needed";
 }
 
+// Effective weight contributed by a set of steps:
+// Complete / Not Needed = 100% of weight, In Progress = 50%, Not Started = 0%.
+function effectiveWeight(steps: WorkflowStep[]): number {
+  return steps.reduce((sum, s) => {
+    if (isDoneStatus(s.status)) return sum + s.weight;
+    if (s.status === "In Progress") return sum + s.weight * 0.5;
+    return sum;
+  }, 0);
+}
+
 // Normalizes per-section so DB weight drift (e.g. when a section's budget changes but
 // existing rows aren't migrated) never pushes the total above 100.
 // Each section contributes up to PHASE_WEIGHT[section] points; within a section the
 // individual step weights only determine relative contribution among siblings.
+// In-Progress steps contribute 50% of their weighted value.
 export function calculateActualProgress(steps: WorkflowStep[]): number {
   const sections = [...new Set(steps.map((s) => s.section))] as ProjectSectionKey[];
   return sections.reduce((total, section) => {
     const sectionSteps = steps.filter((s) => s.section === section);
     const sectionTotal = sectionSteps.reduce((sum, s) => sum + s.weight, 0);
     if (sectionTotal === 0) return total;
-    const sectionDone = sectionSteps
-      .filter((s) => isDoneStatus(s.status))
-      .reduce((sum, s) => sum + s.weight, 0);
-    return total + (sectionDone / sectionTotal) * (PHASE_WEIGHT[section] ?? 0);
+    return total + (effectiveWeight(sectionSteps) / sectionTotal) * (PHASE_WEIGHT[section] ?? 0);
   }, 0);
 }
 
 // How complete a single phase is as a 0-100% value.
 // Normalizes against actual step weights so the result is correct even if the DB weights
 // don't exactly match the PHASE_WEIGHT budget (e.g. after a budget rebalance).
+// In-Progress steps contribute 50% of their weighted value.
 export function calculatePhaseProgress(steps: WorkflowStep[], section: ProjectSectionKey): number {
   const sectionSteps = steps.filter((s) => s.section === section);
   if (sectionSteps.length === 0) return 100;
   const sectionTotal = sectionSteps.reduce((sum, s) => sum + s.weight, 0);
   if (sectionTotal === 0) return 100;
-  const completed = sectionSteps
-    .filter((s) => isDoneStatus(s.status))
-    .reduce((sum, s) => sum + s.weight, 0);
-  return Math.min((completed / sectionTotal) * 100, 100);
+  return Math.min((effectiveWeight(sectionSteps) / sectionTotal) * 100, 100);
 }
 
 export function calculateExpectedProgress(params: {
