@@ -61,21 +61,21 @@ export function InfoModal({ onClose }: Props) {
             </div>
           </section>
 
-          {/* B. Subcontractor Rates */}
+          {/* B. Subcontractor Roles */}
           <section>
-            <h3 className="text-sm font-semibold mb-3">B. Subcontractor Rates</h3>
+            <h3 className="text-sm font-semibold mb-3">B. Subcontractor Roles</h3>
             <div className="flex gap-6 text-xs">
               <div className="rounded-lg border bg-muted/30 px-4 py-3">
                 <div className="font-medium">Onsite Labor Sub</div>
-                <div className="text-muted-foreground">$65 / hr</div>
+                <div className="text-muted-foreground">Field technician subcontractor</div>
               </div>
               <div className="rounded-lg border bg-muted/30 px-4 py-3">
                 <div className="font-medium">Programming Sub</div>
-                <div className="text-muted-foreground">$95 / hr</div>
+                <div className="text-muted-foreground">Control programming subcontractor</div>
               </div>
               <div className="rounded-lg border bg-muted/30 px-4 py-3">
                 <div className="font-medium">CAD Sub</div>
-                <div className="text-muted-foreground">$40 / hr</div>
+                <div className="text-muted-foreground">Drafting / drawing subcontractor</div>
               </div>
             </div>
           </section>
@@ -112,40 +112,40 @@ export function InfoModal({ onClose }: Props) {
 
 const ROLES_INFO = [
   {
-    role: 'Field PM',
+    role: 'Solutions Project Manager',
     group: 'Regional Hub',
     description:
-      'The primary driver of project execution at the regional level. The Field PM is responsible for the success of every project stage from internal kickoff through closeout — coordinating resources, owning the customer relationship in region, managing change orders, and ensuring each handoff is clean. When anything stalls, the Field PM identifies the path forward.',
+      'The primary driver of project execution at the regional level. The Solutions Project Manager is responsible for the success of every project stage from internal kickoff through closeout — coordinating resources, owning the customer relationship in region, managing change orders, and ensuring each handoff is clean. When anything stalls, the Solutions PM identifies the path forward.',
   },
   {
-    role: 'Project Engineer',
+    role: 'Solutions Engineer',
     group: 'Central Ops',
     description:
-      'The technical authority on every project. The PE owns all engineering from initial BOM review through closeout — defining IP scope, authoring the functional narrative, coordinating drawings, and handling all change order engineering. Engineering work is always kept internal, and the PE\'s deliverables set the standard that the entire field team executes against.',
+      'The technical authority on every project. The SE owns all engineering from initial BOM review through closeout — defining IP scope, authoring the functional narrative, coordinating drawings, and handling all change order engineering. Engineering work is always kept internal, and the SE\'s deliverables set the standard that the entire field team executes against.',
   },
   {
     role: 'Inside PM',
     group: 'Central Ops',
     description:
-      'The financial and logistics backbone of every active project. The Inside PM tracks labor hours, material costs, and margin — surfacing variances before they become problems and ensuring the books close clean. They also own daily logistics coordination: routing, shipping requests, and supply alignment so field crews have what they need each day. Closely partnered with the Field PM and Procurement throughout the install.',
+      'The financial and logistics backbone of every active project. The Inside PM tracks labor hours, material costs, and margin — surfacing variances before they become problems and ensuring the books close clean. They also own daily logistics coordination: routing, shipping requests, and supply alignment so field crews have what they need each day. Closely partnered with the Solutions PM and Procurement throughout the install.',
   },
   {
     role: 'Procurement',
     group: 'Central Ops',
     description:
-      'Bridges engineering intent and physical delivery. Procurement takes ownership of the BOM after the PE\'s clear-for-purchasing handoff — managing purchasing, flagging long-lead items early, coordinating RMAs, and ensuring the right materials are onsite when the crew needs them. Their visibility into logistics directly affects install schedule.',
+      'Bridges engineering intent and physical delivery. Procurement takes ownership of the BOM after the SE\'s clear-for-purchasing handoff — managing purchasing, flagging long-lead items early, coordinating RMAs, and ensuring the right materials are onsite when the crew needs them. Their visibility into logistics directly affects install schedule.',
   },
   {
     role: 'Admin',
     group: 'Central Ops',
     description:
-      'The communication hub that keeps customers informed and the team organized. Admin handles templated outreach — welcome letters, project schedules, daily report distribution, and routine weekly updates — so the Field PM can stay focused on project execution rather than routine correspondence.',
+      'The communication hub that keeps customers informed and the team organized. Admin handles templated outreach — welcome letters, project schedules, daily report distribution, and routine weekly updates — so the Solutions PM can stay focused on project execution rather than routine correspondence.',
   },
   {
     role: 'Technician',
     group: 'Regional Hub',
     description:
-      'The skilled hands who execute the installation. The Lead Tech directs the field crew, submits daily reports, and serves as the Field PM\'s primary eyes and ears on the jobsite. Issues that can\'t be resolved in the field are escalated immediately so the PM can mobilize the right resources.',
+      'The skilled hands who execute the installation. The Lead Tech directs the field crew, submits daily reports, and serves as the Solutions PM\'s primary eyes and ears on the jobsite. Issues that can\'t be resolved in the field are escalated immediately so the PM can mobilize the right resources.',
   },
   {
     role: 'Programmer',
@@ -160,10 +160,10 @@ const ROLES_INFO = [
       'Owns the customer-facing interface design process for projects with significant control UI. The UX Designer leads the GUI review prior to programming — ensuring the customer\'s interaction experience is intentional and approved before a single line of code is written. Required on all projects with 10 or more interfaces.',
   },
   {
-    role: 'Sales Rep',
+    role: 'Solutions Executive',
     group: '—',
     description:
-      'The original relationship owner. While not involved in day-to-day project management, the Sales Rep holds the customer\'s trust and should be kept current at key milestones and whenever issues arise. Their context on customer expectations and sensitivities is a valuable resource throughout the project lifecycle.',
+      'The original relationship owner. While not involved in day-to-day project management, the Solutions Executive holds the customer\'s trust and should be kept current at key milestones and whenever issues arise. Their context on customer expectations and sensitivities is a valuable resource throughout the project lifecycle.',
   },
   {
     role: 'Pre-Sales Engineer',
@@ -173,24 +173,28 @@ const ROLES_INFO = [
   },
   {
     role: 'CAD Engineer',
-    group: 'External · $40/hr',
+    group: 'External · Subcontractor',
     description:
-      'External drafting resource engaged by the Project Engineer. Produces all construction drawings, rack and field elevations, and pull schedules required for installation. Always subcontracted; deliverables are incorporated into the Engineering Packet and Closeout documentation.',
+      'External drafting resource engaged by the Solutions Engineer. Produces all construction drawings, rack and field elevations, and pull schedules required for installation. Always subcontracted; deliverables are incorporated into the Engineering Packet and Closeout documentation.',
   },
 ];
 
 const TEMPLATES_INFO = [
   { template: 'Welcome Letter', owner: 'Admin', stage: 'Project Won (48h)' },
-  { template: 'Project Schedule', owner: 'Admin · Field PM adjusts', stage: 'Project Won (48h)' },
-  { template: 'Internal Kickoff Agenda', owner: 'Field PM', stage: 'Internal Kickoff' },
-  { template: 'Functional Narrative', owner: 'Project Engineer', stage: 'Engineering Packet' },
+  { template: 'Project Schedule', owner: 'Admin · Solutions PM adjusts', stage: 'Project Won (48h)' },
+  { template: 'Internal Kickoff Agenda', owner: 'Solutions PM', stage: 'Internal Kickoff' },
+  { template: 'Customer Kickoff Agenda', owner: 'Solutions PM', stage: 'Customer Kickoff' },
+  { template: 'Finishes Approval', owner: 'Solutions PM', stage: 'BOM Review' },
+  { template: 'Functional Narrative', owner: 'Solutions Engineer', stage: 'Engineering Packet' },
   { template: 'Customer GUI Review', owner: 'UX Designer', stage: 'UX Design Review' },
-  { template: 'IP Scope', owner: 'Project Engineer', stage: 'Engineering Packet' },
-  { template: 'Engineering Packet', owner: 'Project Engineer', stage: 'Engineering Packet' },
-  { template: 'Walkthrough Checklist', owner: 'Field PM', stage: 'Pre-Install Prep' },
-  { template: 'Survey', owner: 'Field PM', stage: 'Change Orders' },
+  { template: 'IP Scope', owner: 'Solutions Engineer', stage: 'Engineering Packet' },
+  { template: 'Drawing Request', owner: 'Solutions Engineer', stage: 'Engineering Packet' },
+  { template: 'Engineering Packet', owner: 'Solutions Engineer', stage: 'Engineering Packet' },
+  { template: 'Drawing Review Checklist', owner: 'Solutions Engineer', stage: 'Drawing Review' },
+  { template: 'Walkthrough Checklist', owner: 'Solutions PM', stage: 'Pre-Install Prep' },
+  { template: 'Survey', owner: 'Solutions PM', stage: 'Change Orders' },
   { template: 'Daily Report', owner: 'Lead Tech · Admin processes', stage: 'Onsite Install (daily)' },
-  { template: 'Issue Tracker', owner: 'Field PM', stage: 'Onsite Install' },
-  { template: 'Weekly Customer Update', owner: 'Admin · from Field PM', stage: 'Onsite Install (weekly)' },
-  { template: 'Closeout Packet', owner: 'Field PM', stage: 'Closeout' },
+  { template: 'Issue Tracker', owner: 'Solutions PM', stage: 'Onsite Install' },
+  { template: 'Weekly Customer Update', owner: 'Admin · from Solutions PM', stage: 'Onsite Install (weekly)' },
+  { template: 'Closeout Packet', owner: 'Solutions PM', stage: 'Closeout' },
 ];
