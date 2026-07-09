@@ -14,16 +14,20 @@ export const TEMPLATE_NAMES = [
   'Welcome Letter',
   'Project Schedule',
   'Internal Kickoff Agenda',
+  'Customer Kickoff Agenda',
   'Functional Narrative',
   'Customer GUI Review',
   'Engineering Packet',
+  'IP Scope',
+  'Drawing Request',
+  'Drawing Review Checklist',
   'Walkthrough Checklist',
+  'Finishes Approval',
   'Survey',
   'Daily Report',
   'Weekly Customer Update',
-  'Closeout Packet',
-  'IP Scope',
   'Issue Tracker',
+  'Closeout Packet',
 ] as const;
 
 export type TemplateName = (typeof TEMPLATE_NAMES)[number];

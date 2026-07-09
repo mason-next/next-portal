@@ -1,28 +1,28 @@
 // ─── Types ───────────────────────────────────────────────────────────────────
 
 export type Role =
-  | 'Field PM'
-  | 'Project Engineer'
+  | 'Solutions Project Manager'
+  | 'Solutions Engineer'
   | 'Inside PM'
   | 'Procurement'
   | 'Admin'
   | 'Technician'
   | 'Programmer'
   | 'UX Designer'
-  | 'Sales Rep'
+  | 'Solutions Executive'
   | 'Pre-Sales Engineer'
   | 'CAD Engineer';
 
 export const ALL_ROLES: Role[] = [
-  'Field PM',
-  'Project Engineer',
+  'Solutions Project Manager',
+  'Solutions Engineer',
   'Inside PM',
   'Procurement',
   'Admin',
   'Technician',
   'Programmer',
   'UX Designer',
-  'Sales Rep',
+  'Solutions Executive',
   'Pre-Sales Engineer',
   'CAD Engineer',
 ];
@@ -117,7 +117,7 @@ export function flattenWorkflow(nodes: WorkflowNode[]): WorkflowNode[] {
 
 export function getNodeTitle(node: WorkflowNode | undefined): string {
   if (!node) return '';
-  if (node.type === 'milestone') return `Milestone ${node.number}: ${node.title}`;
+  if (node.type === 'milestone') return `Phase ${node.number}: ${node.title}`;
   if (node.type === 'parallel') return node.description;
   return node.title;
 }
@@ -164,7 +164,7 @@ export const WORKFLOW: MilestoneNode[] = [
                       'Review the project scope at a high level.',
                       'Prepare for the internal kickoff: identify questions and background to gather from the Pre-Sales Engineer.',
                     ],
-                    roles: ['Project Engineer'],
+                    roles: ['Solutions Engineer'],
                   },
                 ],
               },
@@ -178,7 +178,7 @@ export const WORKFLOW: MilestoneNode[] = [
                     summary: 'Welcome Letter dispatched; initial Project Schedule generated.',
                     details: [
                       "Welcome Letter dispatched to customer — project team CC'd.",
-                      'Initial Project Schedule generated, adjusted in real time by Field PM.',
+                      'Initial Project Schedule generated, adjusted in real time by Solutions Project Manager.',
                     ],
                     roles: ['Admin'],
                     templates: ['Welcome Letter', 'Project Schedule'],
@@ -222,7 +222,7 @@ export const WORKFLOW: MilestoneNode[] = [
         title: 'Prep Calls',
         summary: 'Internal and customer-facing kickoff calls.',
         details: [],
-        roles: ['Field PM', 'Project Engineer', 'Inside PM', 'Procurement', 'Admin', 'Sales Rep'],
+        roles: ['Solutions Project Manager', 'Solutions Engineer', 'Inside PM', 'Procurement', 'Admin', 'Solutions Executive'],
         children: [
           {
             type: 'task',
@@ -230,7 +230,7 @@ export const WORKFLOW: MilestoneNode[] = [
             title: 'Internal Kickoff',
             isCall: true,
             summary:
-              'Within 48h of PO — Attendees: Field PM, PE, Inside PM, Procurement, Sales Rep, Admin (optional).',
+              'Within 48h of PO — Attendees: Solutions Project Manager, SE, Inside PM, Procurement, Solutions Executive, Admin (optional).',
             details: [
               'Review project scope and customer expectations.',
               'Consult with Pre-Sales Engineer to understand design intentions and project background.',
@@ -239,7 +239,7 @@ export const WORKFLOW: MilestoneNode[] = [
               'Confirm timeline targets and major milestones.',
               'Procurement flags long-lead items immediately.',
             ],
-            roles: ['Field PM', 'Project Engineer', 'Inside PM', 'Procurement', 'Sales Rep', 'Admin'],
+            roles: ['Solutions Project Manager', 'Solutions Engineer', 'Inside PM', 'Procurement', 'Solutions Executive', 'Admin'],
             templates: ['Internal Kickoff Agenda'],
           },
           {
@@ -247,12 +247,17 @@ export const WORKFLOW: MilestoneNode[] = [
             id: 'task-customer-kickoff',
             title: 'Customer Kickoff',
             isCall: true,
-            summary: 'Owned by Field PM. Held just after the internal kickoff.',
+            summary: 'Graceful sales-to-operations handoff. Sets expectations for the full project lifecycle.',
             details: [
-              'Introduce the assigned team, review project scope, and establish expectations on timeline and methodology.',
-              'Frame customer expectations: large-scale deployments require time to prepare leading up to installation.',
+              'Introduce the assigned project team and establish the primary points of contact going forward.',
+              'Review the breadth of the project scope — confirm the customer understands what is and is not included.',
+              'Review schedule assumptions: confirm key dates, lead times, and access requirements.',
+              'Set expectations for next steps: what happens before installation begins, what communication they will receive.',
+              'Acknowledge the transition from Sales to Operations — reinforce confidence in the handoff.',
+              'Frame customer expectations: large-scale deployments require preparation time before installation begins.',
             ],
-            roles: ['Field PM', 'Sales Rep'],
+            roles: ['Solutions Project Manager', 'Solutions Executive'],
+            templates: ['Customer Kickoff Agenda'],
           },
         ],
       },
@@ -260,7 +265,7 @@ export const WORKFLOW: MilestoneNode[] = [
         type: 'stage',
         id: 'stage-bom-review',
         title: 'BOM Review',
-        meta: 'Owned by Project Engineer. Review the BOM for accuracy, completeness, and alignment with design intent.',
+        meta: 'Owned by Solutions Engineer. Review the BOM for accuracy, completeness, and alignment with design intent.',
         children: [
           {
             type: 'task',
@@ -269,9 +274,10 @@ export const WORKFLOW: MilestoneNode[] = [
             summary: 'Written customer approval for color and finishes of all relevant materials.',
             details: [
               'Written customer approval (email sufficient) confirming color and finishes of all relevant materials.',
-              'Deliverable: Finishes Approval on file.',
+              'Deliverable: Finishes Approval on file before any purchasing is released.',
             ],
-            roles: ['Project Engineer'],
+            roles: ['Solutions Engineer'],
+            templates: ['Finishes Approval'],
           },
           {
             type: 'task',
@@ -282,13 +288,13 @@ export const WORKFLOW: MilestoneNode[] = [
               'Draft change orders if any revisions are needed.',
               'CO generated during BOM review, except for finishes or customer request, should prompt an Engineering Issues Ticket in ConnectWise.',
             ],
-            roles: ['Project Engineer'],
+            roles: ['Solutions Engineer'],
           },
           {
             type: 'decision',
             id: 'decision-purchasing-release',
             title: 'Full or Partial Purchasing Release?',
-            roles: ['Project Engineer', 'Procurement'],
+            roles: ['Solutions Engineer', 'Procurement'],
             optionA: {
               label: 'FULL RELEASE',
               description: 'All items can be procured. Proceed.',
@@ -302,10 +308,14 @@ export const WORKFLOW: MilestoneNode[] = [
           {
             type: 'task',
             id: 'task-clear-for-purchasing',
-            title: 'PE Communicates: Clear for Purchasing',
-            summary: 'PE signals Procurement Coordinator to proceed with purchasing.',
-            details: ['PE communicates to the Procurement Coordinator: Clear for Purchasing.'],
-            roles: ['Project Engineer', 'Procurement'],
+            title: 'SE Communicates: Clear for Purchasing',
+            summary: 'Solutions Engineer signals Procurement to proceed; may handle initial release directly.',
+            details: [
+              'Solutions Engineer communicates to Procurement: Clear for Purchasing.',
+              'SE may release approved items directly to reduce handoff time on initial release.',
+              'Subsequent or partial releases may be revisited by the Solutions Project Manager as install needs evolve.',
+            ],
+            roles: ['Solutions Engineer', 'Procurement'],
           },
         ],
       },
@@ -323,7 +333,7 @@ export const WORKFLOW: MilestoneNode[] = [
         type: 'stage',
         id: 'stage-engineering-packet',
         title: 'Create Engineering Packet',
-        meta: 'Owned by Project Engineer. PE may pull in CAD Engineer, Programmer, and UX Designer as needed.',
+        meta: 'Owned by Solutions Engineer. SE may pull in CAD Engineer, Programmer, and UX Designer as needed.',
         children: [
           {
             type: 'parallel',
@@ -343,7 +353,7 @@ export const WORKFLOW: MilestoneNode[] = [
                       'Write the functional narrative — system capabilities, customer workflows, expected user experience, interface behavior, and operational expectations.',
                       'An engineering deliverable completed before programming begins.',
                     ],
-                    roles: ['Project Engineer', 'Programmer'],
+                    roles: ['Solutions Engineer', 'Programmer'],
                     templates: ['Functional Narrative'],
                   },
                   {
@@ -355,7 +365,7 @@ export const WORKFLOW: MilestoneNode[] = [
                       'Conducted before programming begins.',
                       'Required for projects with 10+ user interfaces or where consistency across spaces is critical.',
                     ],
-                    roles: ['UX Designer', 'Project Engineer', 'Programmer'],
+                    roles: ['UX Designer', 'Solutions Engineer', 'Programmer'],
                     templates: ['Customer GUI Review'],
                   },
                   {
@@ -368,7 +378,7 @@ export const WORKFLOW: MilestoneNode[] = [
                       'After UX approval, Programmer executes GUI mockups based on the approved UX direction.',
                       'Incorporate GUI screenshots into the Functional Narrative.',
                     ],
-                    roles: ['Programmer', 'Project Engineer'],
+                    roles: ['Programmer', 'Solutions Engineer'],
                   },
                 ],
               },
@@ -384,7 +394,7 @@ export const WORKFLOW: MilestoneNode[] = [
                       'Complete IP scope and switchport assignments.',
                       'Document all device credentials within IP scope (carries through to as-built and closeout).',
                     ],
-                    roles: ['Project Engineer'],
+                    roles: ['Solutions Engineer'],
                     templates: ['IP Scope'],
                   },
                   {
@@ -392,14 +402,15 @@ export const WORKFLOW: MilestoneNode[] = [
                     id: 'task-drawings',
                     title: 'Drawings',
                     summary:
-                      'CAD Engineer produces rack and field elevations; PE coordinates multi-project balancing.',
+                      'SE submits drawing request to CAD Engineer; final package includes rack and field elevations.',
                     details: [
-                      'PE submits to CAD Engineer.',
+                      'SE submits drawing request to CAD Engineer.',
                       'Draft sketch if none existing; if a sketch exists, add detail and include switchport assignments.',
-                      'PE coordinates when multi-project CAD workloads need balancing.',
+                      'SE coordinates when multi-project CAD workloads need balancing.',
                       'Final drawings include both rack and field elevations.',
                     ],
-                    roles: ['CAD Engineer', 'Project Engineer'],
+                    roles: ['CAD Engineer', 'Solutions Engineer'],
+                    templates: ['Drawing Request'],
                   },
                   {
                     type: 'task',
@@ -407,11 +418,26 @@ export const WORKFLOW: MilestoneNode[] = [
                     title: 'Pull Schedule',
                     summary: 'Requested from CAD Engineer if needed.',
                     details: ['Requested from CAD Engineer if needed.'],
-                    roles: ['CAD Engineer', 'Project Engineer'],
+                    roles: ['CAD Engineer', 'Solutions Engineer'],
                   },
                 ],
               },
             ],
+          },
+          {
+            type: 'task',
+            id: 'task-drawing-review',
+            title: 'Drawing Review & Redlines',
+            summary: 'SE and Solutions PM review drawings; redlines sent back to CAD Engineer for revision before final approval.',
+            details: [
+              'Solutions Engineer and Solutions Project Manager review the initial drawing package from the CAD Engineer.',
+              'Redlines and revision requests are submitted back for correction.',
+              'CAD Engineer revises and resubmits — cycle repeats until drawings are approved.',
+              'No cable pull is authorized until the drawing package and pull schedule are finalized.',
+              'Final approved drawing package is included in the Engineering Packet.',
+            ],
+            roles: ['Solutions Engineer', 'Solutions Project Manager', 'CAD Engineer'],
+            templates: ['Drawing Review Checklist'],
           },
           {
             type: 'task',
@@ -421,7 +447,7 @@ export const WORKFLOW: MilestoneNode[] = [
             details: [
               'Deliverable: Engineering Packet — signal flow diagrams, rack & field elevations, functional narrative with GUI screenshots, IP scope with hostnames, device credentials, switchport assignments, and pull schedule.',
             ],
-            roles: ['Project Engineer'],
+            roles: ['Solutions Engineer'],
             templates: ['Engineering Packet'],
           },
         ],
@@ -442,12 +468,12 @@ export const WORKFLOW: MilestoneNode[] = [
         title: 'Walkthrough',
         summary: 'Confirm onsite needs: materials, tools, infrastructure, items beyond BOM.',
         details: [
-          'Field PM (or designated colleague) completes a walkthrough to confirm onsite needs: materials, tools, infrastructure readiness, items beyond BOM.',
+          'Solutions Project Manager (or designated colleague) completes a walkthrough to confirm onsite needs: materials, tools, infrastructure readiness, items beyond BOM.',
           'Runs in parallel with engineering packet creation.',
           'No cable pull until the drawing package and pull schedule are finalized.',
           'If the walkthrough reveals out-of-scope items → see Change Orders.',
         ],
-        roles: ['Field PM', 'Technician'],
+        roles: ['Solutions Project Manager', 'Technician'],
         templates: ['Walkthrough Checklist'],
       },
       {
@@ -461,7 +487,7 @@ export const WORKFLOW: MilestoneNode[] = [
           'Subcontract onsite labor if internal capacity is insufficient.',
           'Technician / Lead Tech assignment within the regional pool.',
         ],
-        roles: ['Field PM', 'Programmer', 'Technician'],
+        roles: ['Solutions Project Manager', 'Programmer', 'Technician'],
       },
       {
         type: 'task',
@@ -471,23 +497,23 @@ export const WORKFLOW: MilestoneNode[] = [
         details: [
           'If previously flagged items now have clear direction → release remaining procurement.',
         ],
-        roles: ['Field PM', 'Procurement'],
+        roles: ['Solutions Project Manager', 'Procurement'],
       },
       {
         type: 'stage',
         id: 'stage-ep-review',
         title: 'Engineering Packet Review',
-        meta: 'Independent validation by Field PM before execution begins.',
+        meta: 'Independent validation by Solutions Project Manager before execution begins.',
         children: [
           {
             type: 'decision',
             id: 'decision-adjustments-needed',
             title: 'Adjustments Needed?',
-            roles: ['Field PM', 'Project Engineer', 'CAD Engineer', 'UX Designer'],
+            roles: ['Solutions Project Manager', 'Solutions Engineer', 'CAD Engineer', 'UX Designer'],
             optionA: {
               label: 'YES',
               description:
-                'Markup & Resubmit: Field PM communicates required revisions to PE → PE coordinates with CAD Engineer / UX Designer → markup and resubmit.',
+                'Markup & Resubmit: Solutions Project Manager communicates required revisions to SE → SE coordinates with CAD Engineer / UX Designer → markup and resubmit.',
             },
             optionB: {
               label: 'NO',
@@ -505,20 +531,20 @@ export const WORKFLOW: MilestoneNode[] = [
             type: 'task',
             id: 'task-finalize-dates',
             title: 'Finalize Calendar Dates',
-            summary: 'Field PM finalizes onsite installation dates with the client.',
-            details: ['Field PM finalizes onsite installation dates with the client.'],
-            roles: ['Field PM'],
+            summary: 'Solutions Project Manager finalizes onsite installation dates with the client.',
+            details: ['Solutions Project Manager finalizes onsite installation dates with the client.'],
+            roles: ['Solutions Project Manager'],
           },
           {
             type: 'task',
             id: 'task-pm-review-procurement',
             title: 'PM Review to Inside PM',
-            summary: 'Field PM submits routing, SOW, and shipping needs for day-1 logistics setup.',
+            summary: 'Solutions Project Manager submits routing, SOW, and shipping needs for day-1 logistics setup.',
             details: [
-              'Field PM submits a review summarizing routing, SOW, and shipping needs (tools, materials, etc.) for day-1 setup.',
+              'Solutions Project Manager submits a review summarizing routing, SOW, and shipping needs (tools, materials, etc.) for day-1 setup.',
               'Inside PM uses this to confirm logistics are in place before the install begins.',
             ],
-            roles: ['Field PM', 'Inside PM'],
+            roles: ['Solutions Project Manager', 'Inside PM'],
           },
         ],
       },
@@ -539,21 +565,21 @@ export const WORKFLOW: MilestoneNode[] = [
         title: 'Daily Tasks',
         summary: 'Ongoing field execution, documentation, and logistics throughout the install.',
         details: [],
-        roles: ['Field PM', 'Admin', 'Technician', 'Inside PM'],
+        roles: ['Solutions Project Manager', 'Admin', 'Technician', 'Inside PM'],
         templates: ['Daily Report'],
         exclusiveGroup: 'onsite-ops',
             children: [
               {
                 type: 'task',
                 id: 'task-daily-field-pm',
-                title: 'Field PM',
+                title: 'Solutions PM',
                 summary: 'Field guidance, project notes, and day-over-day coordination.',
                 details: [
                   'Provides daily field guidance to technicians, ensuring their needs are met and work progresses per plan.',
                   'Maintains project notes in preferred tracking method (Excel, Gantt, notepad); templated trackers available upon request.',
                   "If the day's required tasks differ from the original plan, an additional PM review is required before proceeding.",
                 ],
-                roles: ['Field PM'],
+                roles: ['Solutions Project Manager'],
               },
               {
                 type: 'task',
@@ -563,7 +589,7 @@ export const WORKFLOW: MilestoneNode[] = [
                 details: [
                   'Receives daily reports from the field team.',
                   'Distributes to all relevant stakeholders.',
-                  'Flags issues raised in the report to the Field PM for follow-up.',
+                  'Flags issues raised in the report to the Solutions Project Manager for follow-up.',
                 ],
                 roles: ['Admin'],
                 templates: ['Daily Report'],
@@ -575,7 +601,7 @@ export const WORKFLOW: MilestoneNode[] = [
                 summary: 'Routing, shipping requests, and daily logistics confirmed for each day.',
                 details: [
                   'Confirms that routing, shipping requests, and supply logistics are in place for each day of the install.',
-                  'Coordinates with Procurement and Field PM to ensure materials and deliveries stay aligned with the daily schedule.',
+                  'Coordinates with Procurement and Solutions Project Manager to ensure materials and deliveries stay aligned with the daily schedule.',
                   'Flags any logistical gaps that could delay field progress.',
                 ],
                 roles: ['Inside PM'],
@@ -590,7 +616,7 @@ export const WORKFLOW: MilestoneNode[] = [
             title: 'Weekly Tasks',
             summary: 'Recurring weekly responsibilities across the project team.',
             details: [],
-            roles: ['Admin', 'Field PM', 'Procurement', 'Inside PM', 'Sales Rep'],
+            roles: ['Admin', 'Solutions Project Manager', 'Procurement', 'Inside PM', 'Solutions Executive'],
             templates: ['Weekly Customer Update'],
             exclusiveGroup: 'onsite-ops',
             children: [
@@ -601,7 +627,7 @@ export const WORKFLOW: MilestoneNode[] = [
                 summary: 'Routine weekly customer status update.',
                 details: [
                   'Sends the routine weekly status update to the client using the Weekly Customer Update template.',
-                  'Field PM supplies content; Admin handles formatting and distribution.',
+                  'Solutions Project Manager supplies content; Admin handles formatting and distribution.',
                 ],
                 roles: ['Admin'],
                 templates: ['Weekly Customer Update'],
@@ -609,13 +635,13 @@ export const WORKFLOW: MilestoneNode[] = [
               {
                 type: 'task',
                 id: 'task-weekly-field-pm',
-                title: 'Field PM',
+                title: 'Solutions PM',
                 summary: 'Escalations, non-routine communications, and milestone updates.',
                 details: [
                   'Owns all non-routine customer communication, escalations, and technical conversations.',
-                  'Keeps the Sales Rep updated as milestones are reached or significant issues arise.',
+                  'Keeps the Solutions Executive updated as milestones are reached or significant issues arise.',
                 ],
-                roles: ['Field PM'],
+                roles: ['Solutions Project Manager'],
               },
               {
                 type: 'task',
@@ -637,7 +663,7 @@ export const WORKFLOW: MilestoneNode[] = [
                 details: [
                   'Tracks labor hours, material costs, change order impacts, and margin status.',
                   'Reviews routing, shipping requests, and logistics for the coming week — confirming supply is aligned with the install schedule.',
-                  'Flags cost variances and logistical gaps to the Field PM early for corrective action.',
+                  'Flags cost variances and logistical gaps to the Solutions Project Manager early for corrective action.',
                 ],
                 roles: ['Inside PM'],
               },
@@ -655,9 +681,9 @@ export const WORKFLOW: MilestoneNode[] = [
               'Issues added to the Issue Tracker → progress updated as work continues.',
               'Items are never deleted — they may be filtered out, but the record must remain for posterity.',
               'The project is not closed with any open issues.',
-              'Field PM follows up with the lead and updates the tracker.',
+              'Solutions Project Manager follows up with the lead and updates the tracker.',
             ],
-            roles: ['Field PM', 'Technician'],
+            roles: ['Solutions Project Manager', 'Technician'],
             templates: ['Issue Tracker'],
             exclusiveGroup: 'onsite-ops',
             children: [
@@ -665,7 +691,7 @@ export const WORKFLOW: MilestoneNode[] = [
                 type: 'decision',
                 id: 'decision-item-resolved',
                 title: 'Is Item Resolved?',
-                roles: ['Field PM'],
+                roles: ['Solutions Project Manager'],
                 optionA: {
                   label: 'YES',
                   description: 'Mark Complete (do not delete the record).',
@@ -673,14 +699,14 @@ export const WORKFLOW: MilestoneNode[] = [
                 optionB: {
                   label: 'NO',
                   description:
-                    'Field PM determines the next step and assigns the appropriate resource.',
+                    'Solutions Project Manager determines the next step and assigns the appropriate resource.',
                 },
               },
               {
                 type: 'decision',
                 id: 'decision-change-order-needed',
                 title: 'Change Order Needed?',
-                roles: ['Field PM', 'Project Engineer'],
+                roles: ['Solutions Project Manager', 'Solutions Engineer'],
                 showWhen: { decisionId: 'decision-item-resolved', option: 'B' },
                 optionA: {
                   label: 'NO — Continue',
@@ -695,23 +721,23 @@ export const WORKFLOW: MilestoneNode[] = [
                       id: 'task-generating-cos',
                       title: 'Generating COs',
                       summary:
-                        'Field PM opens OPP in ConnectWise; PE prepares the CO (engineering always internal).',
+                        'Solutions Project Manager opens OPP in ConnectWise; SE prepares the CO (engineering always internal).',
                       details: [
-                        'Field PM or PE identifies the need (walkthrough findings, customer requests, field conditions, etc.).',
-                        'Field PM opens an OPP in ConnectWise and submits the request with details.',
-                        'CO prepared by PE (engineering work is always internal).',
+                        'Solutions Project Manager or SE identifies the need (walkthrough findings, customer requests, field conditions, etc.).',
+                        'Solutions Project Manager opens an OPP in ConnectWise and submits the request with details.',
+                        'CO prepared by SE (engineering work is always internal).',
                       ],
-                      roles: ['Field PM', 'Project Engineer'],
+                      roles: ['Solutions Project Manager', 'Solutions Engineer'],
                     },
                     {
                       type: 'decision',
                       id: 'decision-co-site-visit',
                       title: 'Does CO Warrant a Site Visit?',
-                      roles: ['Field PM'],
+                      roles: ['Solutions Project Manager'],
                       optionA: {
                         label: 'YES — Substantial',
                         description:
-                          'Substantial scope change → schedule a Survey before submitting to customer. Template: Survey — owned by Field PM.',
+                          'Substantial scope change → schedule a Survey before submitting to customer. Template: Survey — owned by Solutions Project Manager.',
                       },
                       optionB: {
                         label: 'NO',
@@ -722,21 +748,21 @@ export const WORKFLOW: MilestoneNode[] = [
                       type: 'task',
                       id: 'task-submit-co',
                       title: 'Submit CO to Customer',
-                      summary: 'Field PM reviews and submits the CO to the customer for approval.',
-                      details: ['Field PM reviews and submits the CO to the customer for approval.'],
-                      roles: ['Field PM'],
+                      summary: 'Solutions Project Manager reviews and submits the CO to the customer for approval.',
+                      details: ['Solutions Project Manager reviews and submits the CO to the customer for approval.'],
+                      roles: ['Solutions Project Manager'],
                       showWhen: { decisionId: 'decision-co-site-visit', option: 'any' },
                     },
                     {
                       type: 'task',
                       id: 'task-process-executed-co',
                       title: 'Process Executed CO',
-                      summary: 'After customer approval, PE updates affected Engineering Packet documents.',
+                      summary: 'After customer approval, SE updates affected Engineering Packet documents.',
                       details: [
-                        'After customer approval, PE updates affected Engineering Packet documents (functional narrative, drawings, IP scope).',
+                        'After customer approval, SE updates affected Engineering Packet documents (functional narrative, drawings, IP scope).',
                         'Updated deliverables are included in the Closeout Packet — not separately submitted to the customer.',
                       ],
-                      roles: ['Project Engineer'],
+                      roles: ['Solutions Engineer'],
                       showWhen: { decisionId: 'decision-co-site-visit', option: 'any' },
                     },
                   ],
@@ -759,22 +785,22 @@ export const WORKFLOW: MilestoneNode[] = [
         id: 'task-commissioning',
         title: 'Commissioning',
         summary:
-          'Use Functional Narrative as checklist; Field PM captures as-built info for PE.',
+          'Use Functional Narrative as checklist; Solutions Project Manager captures as-built info for SE.',
         details: [
-          'Owned by Field PM, with PE supporting as needed.',
+          'Owned by Solutions Project Manager, with SE supporting as needed.',
           'Use the Functional Narrative as the commissioning checklist — verify each function performs as described.',
-          'Field PM gathers as-built information (text, email, red lines) and delivers to PE for as-built finalization.',
+          'Solutions Project Manager gathers as-built information (text, email, red lines) and delivers to SE for as-built finalization.',
           'Updated IP scope with all device credentials verified and recorded.',
           'Red lines or notes on any deviations from drawings.',
-          'The individual performing commissioning may vary, but Field PM is responsible for capturing and routing the information.',
+          'The individual performing commissioning may vary, but Solutions Project Manager is responsible for capturing and routing the information.',
         ],
-        roles: ['Field PM', 'Project Engineer'],
+        roles: ['Solutions Project Manager', 'Solutions Engineer'],
       },
       {
         type: 'decision',
         id: 'decision-functional-changes',
         title: 'Functional Changes Requested?',
-        roles: ['Field PM'],
+        roles: ['Solutions Project Manager'],
         optionA: {
           label: 'NO',
           description: 'No functional changes — continue to training.',
@@ -786,16 +812,16 @@ export const WORKFLOW: MilestoneNode[] = [
             {
               type: 'task',
               id: 'task-pm-reviews-coordinates',
-              title: 'Field PM Reviews & Coordinates',
-              summary: 'Field PM reviews the requested changes and coordinates the work.',
-              details: ['Field PM reviews the requested changes and coordinates the work.'],
-              roles: ['Field PM'],
+              title: 'Solutions PM Reviews & Coordinates',
+              summary: 'Solutions PM reviews the requested changes and coordinates the work.',
+              details: ['Solutions PM reviews the requested changes and coordinates the work.'],
+              roles: ['Solutions Project Manager'],
             },
             {
               type: 'decision',
               id: 'decision-is-co',
               title: 'Is This a Change Order?',
-              roles: ['Field PM'],
+              roles: ['Solutions Project Manager'],
               context:
                 'Minor programming updates (sound levels, fader ranges, visual feedback) — no cost within the 3-month labor warranty period. Changes that alter documented functionality may require a change order.',
               optionA: {
@@ -805,16 +831,16 @@ export const WORKFLOW: MilestoneNode[] = [
               optionB: {
                 label: 'NO',
                 description:
-                  'Direct the Project Team: Field PM communicates further direction to the project team.',
+                  'Direct the Project Team: Solutions Project Manager communicates further direction to the project team.',
               },
             },
             {
               type: 'task',
               id: 'task-review-changes-customer',
               title: 'Review Changes with Customer',
-              summary: 'Once complete, Field PM reviews the changes with the customer.',
-              details: ['Once complete, Field PM reviews the changes with the customer.'],
-              roles: ['Field PM'],
+              summary: 'Once complete, Solutions Project Manager reviews the changes with the customer.',
+              details: ['Once complete, Solutions Project Manager reviews the changes with the customer.'],
+              roles: ['Solutions Project Manager'],
             },
           ],
         },
@@ -823,12 +849,12 @@ export const WORKFLOW: MilestoneNode[] = [
         type: 'task',
         id: 'task-training',
         title: 'Training',
-        summary: 'Field PM ensures onsite staff training; Admin assists with large group scheduling.',
+        summary: 'Solutions Project Manager ensures onsite staff training; Admin assists with large group scheduling.',
         details: [
-          'Field PM ensures onsite staff training is conducted if required.',
+          'Solutions Project Manager ensures onsite staff training is conducted if required.',
           'Admin assists with scheduling if large staff training is requested.',
         ],
-        roles: ['Field PM', 'Admin'],
+        roles: ['Solutions Project Manager', 'Admin'],
       },
       {
         type: 'task',
@@ -836,11 +862,11 @@ export const WORKFLOW: MilestoneNode[] = [
         title: 'Final Day Documentation',
         summary: 'Photos taken on final day; Lessons Learned reported to regional leadership.',
         details: [
-          'Field PM ensures photos are taken on the final day — a record of site conditions at handoff.',
+          'Solutions Project Manager ensures photos are taken on the final day — a record of site conditions at handoff.',
           'Lessons Learned → reported to regional leadership for entry into the shared knowledge base.',
           'Engineering errors discovered during the project lifecycle → tracked via an Engineering Issues Ticket in ConnectWise.',
         ],
-        roles: ['Field PM'],
+        roles: ['Solutions Project Manager'],
       },
     ],
   },
@@ -855,7 +881,7 @@ export const WORKFLOW: MilestoneNode[] = [
       {
         type: 'task',
         id: 'task-field-pm-closeout',
-        title: 'Field PM Responsibilities',
+        title: 'Solutions Project Manager Responsibilities',
         summary: 'Communicate completion, compile Closeout Packet, and upload to Teams.',
         details: [
           'Communicate to Inside PM when the project is 100% complete.',
@@ -864,7 +890,7 @@ export const WORKFLOW: MilestoneNode[] = [
           'Submit the Closeout Packet to the customer.',
           'Compress (zip) and upload to Teams; final programming versions uploaded as individual files, labeled with date of work.',
         ],
-        roles: ['Field PM'],
+        roles: ['Solutions Project Manager'],
         templates: ['Closeout Packet'],
       },
       {
@@ -879,15 +905,15 @@ export const WORKFLOW: MilestoneNode[] = [
         type: 'task',
         id: 'task-accountant-closeout',
         title: 'Inside PM Responsibilities',
-        summary: 'Confirm financials closed, run P&L review, update Sales Rep on project completion.',
+        summary: 'Confirm financials closed, run P&L review, update Solutions Executive on project completion.',
         details: [
           'Ensure all RMAs / return-to-stock processed (validation in coordination with Procurement).',
           'Confirm project financials are closed.',
           'Run the P&L Review — actionable retrospective intel on labor, costs, change impact, and margin.',
-          'Update the Sales Rep that the project is complete.',
+          'Update the Solutions Executive that the project is complete.',
           'The functional narrative can serve as a manual and mitigate unnecessary service calls.',
         ],
-        roles: ['Inside PM', 'Procurement', 'Sales Rep'],
+        roles: ['Inside PM', 'Procurement', 'Solutions Executive'],
       },
     ],
   },
