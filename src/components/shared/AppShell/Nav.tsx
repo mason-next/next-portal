@@ -10,10 +10,12 @@ import {
   FileBarChart2,
   Wrench,
   ChevronDown,
+  Network,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { usePermissions } from "@/lib/PermissionsContext";
 import type { PermissionFeature } from "@/lib/permissions";
+import { ORG_CHART_ENABLED } from "@/lib/feature-flags";
 
 const OPERATIONS_ITEMS: { href: string; label: string; feature: PermissionFeature }[] = [
   { href: "/operations", label: "Overview",  feature: "projects" },
@@ -152,6 +154,20 @@ export function Nav() {
             />
           ))}
         </Dropdown>
+      )}
+
+      {/* Org Chart — beta module, feature-flagged */}
+      {ORG_CHART_ENABLED && (
+        <Link
+          href="/org-chart"
+          className={cn(
+            "flex items-center gap-2 rounded-md px-3 py-2 text-sm font-medium text-muted-foreground transition-colors hover:text-foreground",
+            pathname.startsWith("/org-chart") && "bg-accent text-foreground"
+          )}
+        >
+          <Network className="size-4" />
+          Org Chart
+        </Link>
       )}
     </nav>
   );

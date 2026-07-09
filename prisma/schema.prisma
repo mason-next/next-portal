@@ -192,8 +192,10 @@ model User {
   implTaskAssignments   ImplementationTaskAssignee[] @relation("ImplTaskAssigneeJoin")
   createdImplTasks      ImplementationTask[]        @relation("ImplTaskCreatedBy")
   implTaskComments      ImplementationTaskComment[] @relation("ImplTaskCommentAuthor")
-  technicianAssignments ProjectTechnician[]         @relation("ProjectTechUser")
-  certifications        UserCertification[]
+  technicianAssignments  ProjectTechnician[]         @relation("ProjectTechUser")
+  certifications         UserCertification[]
+  // Org Chart module backrelation — no column added to users table; FK lives on org_position_assignments.
+  orgPositionAssignments OrgPositionAssignment[]
 
   @@map("users")
 }
@@ -877,6 +879,94 @@ model UserCertification {
 
   @@index([userId])
   @@map("user_certifications")
+}
+
+// ─── Org Chart Module (Beta) ──────────────────────────────────────────────────
+// Feature-flagged via NEXT_PUBLIC_ORG_CHART_ENABLED.
+// All tables use the org_ prefix and are fully isolated.
+// Removal: drop all org_ tables and remove these models + the User backrelation.
+
+model OrgDepartment {
+  id          String   @id @default(cuid())
+  name        String
+  description String?
+  status      String   @default("active")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  positions OrgPosition[]
+
+  @@map("org_departments")
+}
+
+model OrgLocation {
+  id      String  @id @default(cuid())
+  name    String
+  address String?
+  city    String?
+  state   String?
+  region  String?
+  status  String  @default("active")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  positions OrgPosition[]
+
+  @@map("org_locations")
+}
+
+model OrgChartVersion {
+  id          String  @id @default(cuid())
+  name        String
+  description String?
+  versionType String  @default("current") @map("version_type")
+  isActive    Boolean @default(true) @map("is_active")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  positions OrgPosition[]
+
+  @@map("org_chart_versions")
+}
+
+model OrgPosition {
+  id                  String    @id @default(cuid())
+  orgChartVersionId   String    @map("org_chart_version_id")
+  title               String
+  departmentId        String?   @map("department_id")
+  locationId          String?   @map("location_id")
+  reportsToPositionId String?   @map("reports_to_position_id")
+  status              String    @default("open")
+  targetHireDate      DateTime? @map("target_hire_date")
+  notes               String?
+  createdAt           DateTime  @default(now()) @map("created_at")
+  updatedAt           DateTime  @updatedAt @map("updated_at")
+
+  version       OrgChartVersion         @relation(fields: [orgChartVersionId], references: [id], onDelete: Cascade)
+  department    OrgDepartment?          @relation(fields: [departmentId], references: [id], onDelete: SetNull)
+  location      OrgLocation?            @relation(fields: [locationId], references: [id], onDelete: SetNull)
+  reportsTo     OrgPosition?            @relation("OrgReportsTo", fields: [reportsToPositionId], references: [id], onDelete: SetNull)
+  directReports OrgPosition[]           @relation("OrgReportsTo")
+  assignments   OrgPositionAssignment[]
+
+  @@map("org_positions")
+}
+
+model OrgPositionAssignment {
+  id             String    @id @default(cuid())
+  positionId     String    @map("position_id")
+  userId         String?   @map("user_id")
+  assignmentType String    @default("primary") @map("assignment_type")
+  startDate      DateTime? @map("start_date")
+  endDate        DateTime? @map("end_date")
+  isActive       Boolean   @default(true) @map("is_active")
+  createdAt      DateTime  @default(now()) @map("created_at")
+  updatedAt      DateTime  @updatedAt @map("updated_at")
+
+  position OrgPosition @relation(fields: [positionId], references: [id], onDelete: Cascade)
+  user     User?       @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@map("org_position_assignments")
 }
 
 // ─── Licenses ─────────────────────────────────────────────────────────────────
