@@ -1,9 +1,10 @@
 "use client";
 
 import { useState } from "react";
-import { ChevronDown, ChevronRight, User, MapPin, Building2 } from "lucide-react";
+import { ChevronDown, ChevronRight, MapPin, Building2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { StatusBadge } from "@/components/shared/StatusBadge";
+import { UserAvatarImage } from "@/components/shared/AppShell/UserAvatarImage";
 import type { OrgPosition } from "../lib/types";
 
 const REL_BADGE: Record<string, { label: string; className: string }> = {
@@ -78,13 +79,19 @@ function OrgTreeNode({
 
           <div className="mt-1.5 flex flex-wrap gap-x-3 gap-y-1">
             {primaryAssignment?.user ? (
-              <span className="flex items-center gap-1 text-xs text-muted-foreground">
-                <User className="size-3 flex-none" />
+              <span className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                <UserAvatarImage
+                  name={primaryAssignment.user.name}
+                  avatarUrl={primaryAssignment.user.avatarUrl ?? null}
+                  size={20}
+                />
                 {primaryAssignment.user.name}
               </span>
             ) : (
-              <span className="flex items-center gap-1 text-xs text-muted-foreground/60 italic">
-                <User className="size-3 flex-none" />
+              <span className="flex items-center gap-1.5 text-xs text-muted-foreground/60 italic">
+                <span className="flex size-5 shrink-0 items-center justify-center rounded-full bg-muted text-muted-foreground/40">
+                  <svg className="size-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/></svg>
+                </span>
                 Vacant
               </span>
             )}

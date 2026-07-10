@@ -5,6 +5,7 @@ import { X, Plus, ArrowUp, ArrowDown } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Modal } from "@/components/shared/Modal";
 import { cn } from "@/lib/utils";
+import { UserAvatarImage } from "@/components/shared/AppShell/UserAvatarImage";
 import { useUsersContext } from "@/components/shared/AppShell/UsersProvider";
 import type { AppUser } from "@/types/user";
 import type {
@@ -78,7 +79,7 @@ function SuccessorsSection({
     onChange(successors.map((s, i) => (i === index ? { ...s, notes: notes || null } : s)));
   }
 
-  const userMap = new Map(users.map((u) => [u.id, u.name]));
+  const userMap = new Map(users.map((u) => [u.id, u]));
 
   return (
     <div>
@@ -113,7 +114,8 @@ function SuccessorsSection({
               )}>
                 {RANK_LABELS[i + 1] ?? `#${i + 1}`}
               </span>
-              <span className="flex-1 text-sm font-medium">{userMap.get(s.userId) ?? s.userId}</span>
+              {(() => { const u = userMap.get(s.userId); return u ? <UserAvatarImage name={u.name} avatarUrl={u.avatarUrl ?? null} size={20} /> : null; })()}
+              <span className="flex-1 text-sm font-medium">{userMap.get(s.userId)?.name ?? s.userId}</span>
               <div className="flex gap-0.5 flex-none">
                 <button type="button" onClick={() => moveUp(i)} disabled={i === 0} className="p-1 rounded text-muted-foreground hover:text-foreground disabled:opacity-30 transition-colors">
                   <ArrowUp className="size-3" />

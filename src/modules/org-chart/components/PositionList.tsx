@@ -1,9 +1,10 @@
 "use client";
 
 import { useState } from "react";
-import { Plus, Search, User, Building2, MapPin, Pencil } from "lucide-react";
+import { Plus, Search, Building2, MapPin, Pencil } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { StatusBadge } from "@/components/shared/StatusBadge";
+import { UserAvatarImage } from "@/components/shared/AppShell/UserAvatarImage";
 import type { OrgPosition } from "../lib/types";
 
 function positionStatusBadge(status: string) {
@@ -104,8 +105,12 @@ export function PositionList({ positions, onAdd, onEdit }: PositionListProps) {
                     <td className="px-4 py-3 font-medium">{p.title}</td>
                     <td className="px-4 py-3 hidden sm:table-cell text-muted-foreground">
                       {primary?.user ? (
-                        <span className="flex items-center gap-1.5">
-                          <User className="size-3.5 flex-none" />
+                        <span className="flex items-center gap-2">
+                          <UserAvatarImage
+                            name={primary.user.name}
+                            avatarUrl={primary.user.avatarUrl ?? null}
+                            size={24}
+                          />
                           {primary.user.name}
                         </span>
                       ) : (
