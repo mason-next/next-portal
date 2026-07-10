@@ -22,7 +22,9 @@ import type {
   OrgChartStats,
   OrgCertification,
   OrgUserCertification,
+  OrgChartFormSections,
 } from "../lib/types";
+import { DEFAULT_FORM_SECTIONS } from "../lib/form-settings";
 
 type Tab = "chart" | "positions" | "departments" | "locations" | "reports" | "certifications";
 
@@ -50,6 +52,7 @@ interface OrgChartDashboardProps {
   certifications: OrgCertification[];
   userCertifications: OrgUserCertification[];
   isAdmin: boolean;
+  formSections?: OrgChartFormSections;
 }
 
 export function OrgChartDashboard({
@@ -62,6 +65,7 @@ export function OrgChartDashboard({
   certifications,
   userCertifications,
   isAdmin,
+  formSections = DEFAULT_FORM_SECTIONS,
 }: OrgChartDashboardProps) {
   const router = useRouter();
   const [activeTab, setActiveTab] = useState<Tab>("chart");
@@ -207,6 +211,7 @@ export function OrgChartDashboard({
           certifications={certifications}
           editing={editingPosition}
           defaultReportsToPositionId={defaultReportsTo}
+          formSections={formSections}
         />
       )}
     </div>

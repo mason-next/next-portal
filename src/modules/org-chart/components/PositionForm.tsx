@@ -13,12 +13,14 @@ import type {
   OrgDepartment,
   OrgLocation,
   OrgCertification,
+  OrgChartFormSections,
   CertRequirement,
   SuccessorEntry,
   RelationshipEntry,
   CreatePositionInput,
   UpdatePositionInput,
 } from "../lib/types";
+import { DEFAULT_FORM_SECTIONS } from "../lib/form-settings";
 import {
   createOrgPosition,
   updateOrgPosition,
@@ -345,6 +347,7 @@ interface PositionFormProps {
   certifications: OrgCertification[];
   editing?: OrgPosition | null;
   defaultReportsToPositionId?: string;
+  formSections?: OrgChartFormSections;
 }
 
 export function PositionForm({
@@ -357,6 +360,7 @@ export function PositionForm({
   certifications,
   editing,
   defaultReportsToPositionId,
+  formSections = DEFAULT_FORM_SECTIONS,
 }: PositionFormProps) {
   const { users } = useUsersContext();
   const [isPending, startTransition] = useTransition();
@@ -614,8 +618,8 @@ export function PositionForm({
           </select>
         </div>
 
-        {/* Bio Description — shown when a user is assigned */}
-        {(form.assignedUserId || primaryAssignment?.userId) && (
+        {/* Bio Description — shown when a user is assigned and section is enabled */}
+        {formSections.bio && (form.assignedUserId || primaryAssignment?.userId) && (
           <div>
             <label className="block text-xs font-medium text-muted-foreground mb-1">
               Bio Description{" "}
@@ -632,32 +636,36 @@ export function PositionForm({
         )}
 
         {/* Target Hire Date */}
-        <div>
-          <label className="block text-xs font-medium text-muted-foreground mb-1">
-            Target Hire Date <span className="text-muted-foreground/60">(optional)</span>
-          </label>
-          <input
-            type="date"
-            value={form.targetHireDate}
-            onChange={(e) => set("targetHireDate", e.target.value)}
-            className="w-full rounded-md border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/40"
-          />
-        </div>
+        {formSections.targetHireDate && (
+          <div>
+            <label className="block text-xs font-medium text-muted-foreground mb-1">
+              Target Hire Date <span className="text-muted-foreground/60">(optional)</span>
+            </label>
+            <input
+              type="date"
+              value={form.targetHireDate}
+              onChange={(e) => set("targetHireDate", e.target.value)}
+              className="w-full rounded-md border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/40"
+            />
+          </div>
+        )}
 
         {/* Notes */}
-        <div>
-          <label className="block text-xs font-medium text-muted-foreground mb-1">Notes</label>
-          <textarea
-            value={form.notes}
-            onChange={(e) => set("notes", e.target.value)}
-            rows={3}
-            placeholder="Optional notes about this position…"
-            className="w-full rounded-md border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/40 resize-none"
-          />
-        </div>
+        {formSections.notes && (
+          <div>
+            <label className="block text-xs font-medium text-muted-foreground mb-1">Notes</label>
+            <textarea
+              value={form.notes}
+              onChange={(e) => set("notes", e.target.value)}
+              rows={3}
+              placeholder="Optional notes about this position…"
+              className="w-full rounded-md border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/40 resize-none"
+            />
+          </div>
+        )}
 
         {/* Certifications */}
-        {certifications.length > 0 && (
+        {formSections.certifications && certifications.length > 0 && (
           <div>
             <label className="block text-xs font-medium text-muted-foreground mb-2">
               Required Certifications
@@ -717,7 +725,7 @@ export function PositionForm({
         )}
 
         {/* Career Paths */}
-        {positions.filter((p) => p.id !== editing?.id).length > 0 && (
+        {formSections.careerPaths && positions.filter((p) => p.id !== editing?.id).length > 0 && (
           <div>
             <label className="block text-xs font-medium text-muted-foreground mb-2">
               Career Paths <span className="font-normal text-muted-foreground/60">(this role leads to…)</span>
@@ -754,74 +762,80 @@ export function PositionForm({
         )}
 
         {/* Compensation & Budget */}
-        <div className="rounded-lg border bg-muted/20 p-3 space-y-3">
-          <p className="text-xs font-medium text-muted-foreground">Compensation &amp; Budget</p>
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label className="block text-xs font-medium text-muted-foreground mb-1">Pay Frequency</label>
-              <select
-                value={form.payFrequency}
-                onChange={(e) => set("payFrequency", e.target.value)}
-                className="w-full rounded-md border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/40"
-              >
-                <option value="annual">Annual</option>
-                <option value="hourly">Hourly</option>
-                <option value="monthly">Monthly</option>
-              </select>
+        {formSections.compensation && (
+          <div className="rounded-lg border bg-muted/20 p-3 space-y-3">
+            <p className="text-xs font-medium text-muted-foreground">Compensation &amp; Budget</p>
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="block text-xs font-medium text-muted-foreground mb-1">Pay Frequency</label>
+                <select
+                  value={form.payFrequency}
+                  onChange={(e) => set("payFrequency", e.target.value)}
+                  className="w-full rounded-md border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/40"
+                >
+                  <option value="annual">Annual</option>
+                  <option value="hourly">Hourly</option>
+                  <option value="monthly">Monthly</option>
+                </select>
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-muted-foreground mb-1">Budget Status</label>
+                <select
+                  value={form.budgetStatus}
+                  onChange={(e) => set("budgetStatus", e.target.value)}
+                  className="w-full rounded-md border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/40"
+                >
+                  <option value="budgeted">Budgeted</option>
+                  <option value="unbudgeted">Unbudgeted</option>
+                  <option value="frozen">Frozen</option>
+                </select>
+              </div>
             </div>
             <div>
-              <label className="block text-xs font-medium text-muted-foreground mb-1">Budget Status</label>
-              <select
-                value={form.budgetStatus}
-                onChange={(e) => set("budgetStatus", e.target.value)}
-                className="w-full rounded-md border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/40"
-              >
-                <option value="budgeted">Budgeted</option>
-                <option value="unbudgeted">Unbudgeted</option>
-                <option value="frozen">Frozen</option>
-              </select>
+              <label className="block text-xs font-medium text-muted-foreground mb-1">
+                Salary Band <span className="font-normal text-muted-foreground/60">(optional)</span>
+              </label>
+              <div className="grid grid-cols-3 gap-2">
+                {(["salaryMin", "salaryMid", "salaryMax"] as const).map((field, idx) => (
+                  <div key={field}>
+                    <label className="block text-[10px] text-muted-foreground/70 mb-0.5">
+                      {["Min", "Mid", "Max"][idx]}
+                    </label>
+                    <input
+                      type="number"
+                      min={0}
+                      step={1000}
+                      value={form[field]}
+                      onChange={(e) => set(field, e.target.value)}
+                      placeholder="—"
+                      className="w-full rounded-md border bg-background px-2.5 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary/40"
+                    />
+                  </div>
+                ))}
+              </div>
             </div>
           </div>
-          <div>
-            <label className="block text-xs font-medium text-muted-foreground mb-1">
-              Salary Band <span className="font-normal text-muted-foreground/60">(optional)</span>
-            </label>
-            <div className="grid grid-cols-3 gap-2">
-              {(["salaryMin", "salaryMid", "salaryMax"] as const).map((field, idx) => (
-                <div key={field}>
-                  <label className="block text-[10px] text-muted-foreground/70 mb-0.5">
-                    {["Min", "Mid", "Max"][idx]}
-                  </label>
-                  <input
-                    type="number"
-                    min={0}
-                    step={1000}
-                    value={form[field]}
-                    onChange={(e) => set(field, e.target.value)}
-                    placeholder="—"
-                    className="w-full rounded-md border bg-background px-2.5 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary/40"
-                  />
-                </div>
-              ))}
-            </div>
-          </div>
-        </div>
+        )}
 
         {/* Successors */}
-        <SuccessorsSection
-          successors={successors}
-          onChange={setSuccessors}
-          users={users}
-          currentOccupantId={form.assignedUserId || null}
-        />
+        {formSections.successors && (
+          <SuccessorsSection
+            successors={successors}
+            onChange={setSuccessors}
+            users={users}
+            currentOccupantId={form.assignedUserId || null}
+          />
+        )}
 
         {/* Matrix Relationships */}
-        <MatrixRelationshipsSection
-          relationships={matrixRelationships}
-          onChange={setMatrixRelationships}
-          positions={positions}
-          currentPositionId={editing?.id}
-        />
+        {formSections.matrixRelationships && (
+          <MatrixRelationshipsSection
+            relationships={matrixRelationships}
+            onChange={setMatrixRelationships}
+            positions={positions}
+            currentPositionId={editing?.id}
+          />
+        )}
 
         {error && (
           <p className="text-xs text-destructive">{error}</p>

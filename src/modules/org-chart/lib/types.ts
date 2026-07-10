@@ -240,3 +240,16 @@ export interface CreateVersionInput {
   versionType: OrgChartVersionType;
   description?: string | null;
 }
+
+// ─── Admin-configurable Position Form section visibility ──────────────────────
+
+export interface OrgChartFormSections {
+  bio: boolean;
+  certifications: boolean;
+  careerPaths: boolean;
+  compensation: boolean;
+  successors: boolean;
+  matrixRelationships: boolean;
+  targetHireDate: boolean;
+  notes: boolean;
+}

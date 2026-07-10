@@ -381,3 +381,17 @@ export async function swapOrgPositionOrder(
   ]);
   revalidatePath("/org-chart");
 }
+
+// ─── Reparent position (drag-to-restructure) ─────────────────────────────────
+
+export async function reparentOrgPosition(
+  id: string,
+  newParentId: string | null,
+): Promise<void> {
+  await requireAdmin();
+  await db.orgPosition.update({
+    where: { id },
+    data: { reportsToPositionId: newParentId },
+  });
+  revalidatePath("/org-chart");
+}

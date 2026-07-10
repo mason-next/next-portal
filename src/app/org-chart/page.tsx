@@ -12,6 +12,7 @@ import {
   getOrgCertifications,
   getOrgUserCertifications,
 } from "@/modules/org-chart/lib/queries";
+import { getOrgChartFormSections } from "@/modules/org-chart/lib/form-settings";
 import { OrgChartDashboard } from "@/modules/org-chart/components/OrgChartDashboard";
 
 export const metadata = { title: "Org Chart — Mason NEXT Portal" };
@@ -35,7 +36,7 @@ export default async function OrgChartPage({ searchParams }: PageProps) {
   const selectedVersion =
     requestedId ? (versions.find((v) => v.id === requestedId) ?? defaultVersion) : defaultVersion;
 
-  const [positions, departments, locations, stats, certifications, userCertifications] =
+  const [positions, departments, locations, stats, certifications, userCertifications, formSections] =
     await Promise.all([
       getOrgPositions(selectedVersion.id, isAdmin),
       getOrgDepartments(),
@@ -43,6 +44,7 @@ export default async function OrgChartPage({ searchParams }: PageProps) {
       getOrgChartStats(selectedVersion.id),
       isAdmin ? getOrgCertifications() : Promise.resolve([]),
       isAdmin ? getOrgUserCertifications() : Promise.resolve([]),
+      getOrgChartFormSections(),
     ]);
 
   return (
@@ -56,6 +58,7 @@ export default async function OrgChartPage({ searchParams }: PageProps) {
       certifications={certifications}
       userCertifications={userCertifications}
       isAdmin={isAdmin}
+      formSections={formSections}
     />
   );
 }

@@ -23,6 +23,8 @@ import {
   type Edge,
   type Node,
   type NodeProps,
+  type NodeMouseHandler,
+  type OnNodeDrag,
 } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
 import {
@@ -35,7 +37,7 @@ import {
   Search,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { swapOrgPositionOrder } from "../lib/actions";
+import { swapOrgPositionOrder, reparentOrgPosition } from "../lib/actions";
 import { cn } from "@/lib/utils";
 import { UserAvatarImage } from "@/components/shared/AppShell/UserAvatarImage";
 import type { OrgDepartment, OrgPosition } from "../lib/types";
@@ -43,15 +45,18 @@ import type { OrgDepartment, OrgPosition } from "../lib/types";
 // ─── Layout constants ─────────────────────────────────────────────────────────
 
 const NODE_W = 215;
-const NODE_H = 138; // approximate rendered height used for vertical spacing
+const NODE_H = 138;
 const X_GAP  = 56;
 const Y_GAP  = 72;
 
+// Drop threshold: center-to-center distance at which a drag target is recognized
+const DROP_DIST = NODE_W;
+
 // ─── Department group layout ──────────────────────────────────────────────────
 
-const LABEL_H  = 52;  // vertical space above position cards reserved for dept label
-const PAD_H    = 28;  // horizontal padding inside each dept container
-const PAD_B    = 28;  // bottom padding inside each dept container
+const LABEL_H  = 52;
+const PAD_H    = 28;
+const PAD_B    = 28;
 
 function buildDeptGroups(
   positionNodes: Node[],
@@ -80,12 +85,12 @@ function buildDeptGroups(
     const h = maxY - minY + NODE_H + LABEL_H + PAD_B;
 
     groups.push({
-      id:       `dg-${dept.id}`,
-      type:     "deptGroup",
-      position: { x: minX - PAD_H, y: minY - LABEL_H },
-      style:    { width: w, height: h },
-      data:     { label: dept.name, color: dept.color ?? "#6366f1" },
-      zIndex:   -1,
+      id:         `dg-${dept.id}`,
+      type:       "deptGroup",
+      position:   { x: minX - PAD_H, y: minY - LABEL_H },
+      style:      { width: w, height: h },
+      data:       { label: dept.name, color: dept.color ?? "#6366f1" },
+      zIndex:     -1,
       draggable:  false,
       selectable: false,
     });
@@ -102,7 +107,7 @@ function buildLayout(
 ): { nodes: Node[]; edges: Edge[] } {
   if (positions.length === 0) return { nodes: [], edges: [] };
 
-  const idSet     = new Set(positions.map((p) => p.id));
+  const idSet      = new Set(positions.map((p) => p.id));
   const childrenOf = new Map<string, string[]>(positions.map((p) => [p.id, []]));
 
   for (const p of positions) {
@@ -115,7 +120,6 @@ function buildLayout(
     .filter((p) => !p.reportsToPositionId || !idSet.has(p.reportsToPositionId))
     .map((p) => p.id);
 
-  // Compute subtree widths (DFS, respects collapsed state)
   const subtreeW = new Map<string, number>();
   function calcWidth(id: string): number {
     const kids = collapsed.has(id) ? [] : (childrenOf.get(id) ?? []);
@@ -127,7 +131,6 @@ function buildLayout(
   }
   for (const r of roots) calcWidth(r);
 
-  // Assign x,y coordinates
   const xyMap = new Map<string, { x: number; y: number }>();
   function assign(id: string, left: number, y: number) {
     const w = subtreeW.get(id) ?? NODE_W;
@@ -147,7 +150,6 @@ function buildLayout(
     rootLeft += (subtreeW.get(r) ?? NODE_W) + X_GAP * 2;
   }
 
-  // Determine visible nodes (parents in collapsed set hide their subtrees)
   const visible = new Set<string>();
   function markVisible(id: string) {
     visible.add(id);
@@ -166,47 +168,40 @@ function buildLayout(
 
     nodes.push({
       id,
-      type: "orgPosition",
-      position: xy,
-      data: {
-        positionId:  id,
-        childCount:  kids.length,
-        isCollapsed: collapsed.has(id),
-      },
-      style:    { overflow: "visible" },
-      draggable: false,
+      type:      "orgPosition",
+      position:  xy,
+      data:      { positionId: id, childCount: kids.length, isCollapsed: collapsed.has(id) },
+      style:     { overflow: "visible" },
+      draggable: false,   // overridden per-node when isAdmin (see OrgChartInner)
       selectable: false,
     });
 
     if (pos.reportsToPositionId && visible.has(pos.reportsToPositionId)) {
       edges.push({
-        id:     `e:${pos.reportsToPositionId}→${id}`,
-        source:  pos.reportsToPositionId,
-        target:  id,
-        type:   "smoothstep",
-        style:  { stroke: "#cbd5e1", strokeWidth: 1.5 },
+        id:    `e:${pos.reportsToPositionId}→${id}`,
+        source: pos.reportsToPositionId,
+        target: id,
+        type:  "smoothstep",
+        style: { stroke: "#cbd5e1", strokeWidth: 1.5 },
       });
     }
   }
 
-  // Prepend department group containers (rendered below position nodes)
   const deptGroups = buildDeptGroups(nodes, posById, departments);
-
   return { nodes: [...deptGroups, ...nodes], edges };
 }
 
-// ─── Context — callbacks + live position lookup ───────────────────────────────
-// Node data stores only primitive IDs; the full OrgPosition is always looked up
-// here so clicks never use a stale snapshot from React Flow's internal state.
+// ─── Context ──────────────────────────────────────────────────────────────────
 
 const OrgCtx = createContext<{
-  onEdit?:       (p: OrgPosition) => void;
-  onAdd?:        (reportsToId: string) => void;
-  onToggle:      (id: string) => void;
-  onReorder?:    (id: string, dir: "left" | "right") => void;
-  positionsById: Map<string, OrgPosition>;
-  isAdmin:       boolean;
-}>({ onToggle: () => {}, positionsById: new Map(), isAdmin: false });
+  onEdit?:        (p: OrgPosition) => void;
+  onAdd?:         (reportsToId: string) => void;
+  onToggle:       (id: string) => void;
+  onReorder?:     (id: string, dir: "left" | "right") => void;
+  positionsById:  Map<string, OrgPosition>;
+  isAdmin:        boolean;
+  dropTargetId:   string | null;
+}>({ onToggle: () => {}, positionsById: new Map(), isAdmin: false, dropTargetId: null });
 
 // ─── Status config ────────────────────────────────────────────────────────────
 
@@ -226,11 +221,10 @@ type PositionNodeData = {
 };
 
 function PositionNode({ data, id }: NodeProps) {
-  const { onEdit, onAdd, onToggle, onReorder, positionsById, isAdmin } = useContext(OrgCtx);
+  const { onEdit, onAdd, onToggle, onReorder, positionsById, isAdmin, dropTargetId } = useContext(OrgCtx);
   const d = data as unknown as PositionNodeData;
   const { positionId, childCount, isCollapsed } = d;
 
-  // Always look up the live position from context — never use stale React Flow snapshots
   const position = positionsById.get(positionId)!;
   if (!position) return null;
 
@@ -242,7 +236,9 @@ function PositionNode({ data, id }: NodeProps) {
   const displayName = primary?.user?.name
     ?? (isPlanned ? "— Planned —" : "— Vacant —");
 
-  // Sibling reorder state (admin only) — siblings sorted by sortOrder then createdAt
+  const isDropTarget = dropTargetId === positionId;
+
+  // Siblings for reorder (admin only)
   const siblings = useMemo(() => {
     if (!isAdmin || !onReorder) return [];
     const parentKey = position.reportsToPositionId ?? "__root__";
@@ -256,21 +252,20 @@ function PositionNode({ data, id }: NodeProps) {
       });
   }, [isAdmin, onReorder, position, positionsById]);
 
-  const siblingIdx = siblings.findIndex((p) => p.id === position.id);
-  const canMoveLeft  = isAdmin && siblingIdx > 0;
-  const canMoveRight = isAdmin && siblingIdx >= 0 && siblingIdx < siblings.length - 1;
+  const siblingIdx    = siblings.findIndex((p) => p.id === position.id);
+  const canMoveLeft   = isAdmin && siblingIdx > 0;
+  const canMoveRight  = isAdmin && siblingIdx >= 0 && siblingIdx < siblings.length - 1;
+  const showReorder   = isAdmin && (canMoveLeft || canMoveRight);
 
   return (
     <div
-      className={cn("relative", onEdit ? "cursor-pointer" : "cursor-default")}
+      className={cn("relative group", onEdit ? "cursor-pointer" : "cursor-default")}
       style={{ width: NODE_W }}
       onClick={() => onEdit?.(position)}
     >
-      {/* Admin reorder arrows — visible on hover, above the card */}
-      {isAdmin && (canMoveLeft || canMoveRight) && (
-        <div className="absolute -top-6 left-0 right-0 flex justify-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity z-30"
-          style={{ opacity: undefined }} // React Flow doesn't propagate group-hover, use inline
-        >
+      {/* Admin reorder arrows — always visible for admin when siblings exist */}
+      {showReorder && (
+        <div className="absolute -top-7 left-0 right-0 flex justify-center gap-1 z-30">
           <button
             type="button"
             disabled={!canMoveLeft}
@@ -292,12 +287,17 @@ function PositionNode({ data, id }: NodeProps) {
         </div>
       )}
 
-      {/* White card */}
-      <div className="rounded-xl border border-slate-200 bg-white shadow-sm transition-shadow hover:shadow-md">
+      {/* White card — highlighted when it's the drag-to-reparent drop target */}
+      <div className={cn(
+        "rounded-xl border bg-white shadow-sm transition-all",
+        isDropTarget
+          ? "border-primary ring-2 ring-primary/30 shadow-md"
+          : "border-slate-200 hover:shadow-md",
+      )}>
         {/* Colored status accent bar */}
         <div className={cn("h-1.5 w-full rounded-t-xl", st.bar)} />
 
-        {/* Avatar — floats up overlapping the accent bar */}
+        {/* Avatar */}
         <div className="relative z-10 -mt-5 flex justify-center">
           <div className={cn("rounded-full ring-2 ring-white shadow-sm", (isVacant || isPlanned) && "opacity-50")}>
             <UserAvatarImage
@@ -342,7 +342,7 @@ function PositionNode({ data, id }: NodeProps) {
         </div>
       </div>
 
-      {/* Expand / collapse badge — sits below the card */}
+      {/* Expand / collapse badge */}
       {childCount > 0 && (
         <button
           type="button"
@@ -350,21 +350,19 @@ function PositionNode({ data, id }: NodeProps) {
           onClick={(e) => { e.stopPropagation(); onToggle(id); }}
         >
           {childCount}
-          {isCollapsed
-            ? <ChevronDown className="size-2.5" />
-            : <ChevronUp   className="size-2.5" />}
+          {isCollapsed ? <ChevronDown className="size-2.5" /> : <ChevronUp className="size-2.5" />}
         </button>
       )}
 
-      {/* Admin: add direct report "+" button — bottom-right of card */}
+      {/* Admin: "+" add direct report button */}
       {isAdmin && onAdd && (
         <button
           type="button"
           title="Add direct report"
           onClick={(e) => { e.stopPropagation(); onAdd(position.id); }}
-          className="absolute -bottom-2 -right-2 z-30 flex size-5 items-center justify-center rounded-full border border-slate-200 bg-white shadow-sm text-slate-400 hover:text-emerald-600 hover:border-emerald-300 transition-colors"
+          className="absolute -bottom-2 -right-2 z-30 flex size-6 items-center justify-center rounded-full border-2 border-white bg-emerald-500 shadow-md text-white hover:bg-emerald-600 transition-colors"
         >
-          <Plus className="size-3" />
+          <Plus className="size-3.5" />
         </button>
       )}
 
@@ -382,18 +380,11 @@ function DeptGroupNode({ data }: NodeProps) {
   return (
     <div
       className="h-full w-full rounded-2xl pointer-events-none"
-      style={{
-        border:     `1.5px solid ${c}35`,
-        background: `${c}08`,
-      }}
+      style={{ border: `1.5px solid ${c}35`, background: `${c}08` }}
     >
       <div
         className="m-3 inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[11px] font-semibold"
-        style={{
-          background: `${c}18`,
-          color:       c,
-          border:     `1px solid ${c}30`,
-        }}
+        style={{ background: `${c}18`, color: c, border: `1px solid ${c}30` }}
       >
         <span className="size-2 flex-none rounded-full" style={{ background: c }} />
         {label}
@@ -404,7 +395,7 @@ function DeptGroupNode({ data }: NodeProps) {
 
 const NODE_TYPES = { orgPosition: PositionNode, deptGroup: DeptGroupNode };
 
-// ─── Inner canvas (must be inside ReactFlowProvider) ──────────────────────────
+// ─── Inner canvas ─────────────────────────────────────────────────────────────
 
 function OrgChartInner({
   positions,
@@ -421,12 +412,13 @@ function OrgChartInner({
 }) {
   const { fitView } = useReactFlow();
   const router = useRouter();
-  const [, startReorderTransition] = useTransition();
+  const [, startTransition] = useTransition();
 
   const [collapsed,    setCollapsed]    = useState<Set<string>>(new Set());
   const [search,       setSearch]       = useState("");
   const [deptFilter,   setDeptFilter]   = useState("");
   const [statusFilter, setStatusFilter] = useState("");
+  const [dropTargetId, setDropTargetId] = useState<string | null>(null);
 
   const onToggle = useCallback((id: string) => {
     setCollapsed((prev) => {
@@ -441,6 +433,7 @@ function OrgChartInner({
     [positions],
   );
 
+  // Sibling reorder: swap sort_order values atomically
   const onReorder = useCallback((id: string, dir: "left" | "right") => {
     const pos = positionsById.get(id);
     if (!pos) return;
@@ -459,24 +452,24 @@ function OrgChartInner({
     const other = sorted[targetIdx];
     const myOrder    = pos.sortOrder    ?? idx;
     const otherOrder = other.sortOrder  ?? targetIdx;
-    startReorderTransition(async () => {
+    startTransition(async () => {
       await swapOrgPositionOrder(id, myOrder, other.id, otherOrder);
       router.refresh();
     });
-  }, [positionsById, router, startReorderTransition]);
+  }, [positionsById, router, startTransition]);
 
   const ctx = useMemo(
-    () => ({ onEdit, onAdd, onToggle, onReorder: isAdmin ? onReorder : undefined, positionsById, isAdmin }),
-    [onEdit, onAdd, onToggle, onReorder, positionsById, isAdmin],
+    () => ({ onEdit, onAdd, onToggle, onReorder: isAdmin ? onReorder : undefined, positionsById, isAdmin, dropTargetId }),
+    [onEdit, onAdd, onToggle, onReorder, positionsById, isAdmin, dropTargetId],
   );
 
-  // Compute layout from positions + departments + collapsed state
+  // Build base layout
   const layout = useMemo(
     () => buildLayout(positions, departments, collapsed),
     [positions, departments, collapsed],
   );
 
-  // Compute which nodes to dim based on active filters
+  // Dim nodes that don't match active filters
   const dimmedIds = useMemo<Set<string>>(() => {
     if (!search && !deptFilter && !statusFilter) return new Set();
     const q = search.toLowerCase();
@@ -490,7 +483,6 @@ function OrgChartInner({
         })
         .map((p) => p.id),
     );
-    // Only dim position nodes, never group containers
     return new Set(
       layout.nodes
         .filter((n) => !n.id.startsWith("dg-") && !matched.has(n.id))
@@ -498,32 +490,37 @@ function OrgChartInner({
     );
   }, [positions, layout.nodes, search, deptFilter, statusFilter]);
 
-  const displayNodes = useMemo(
-    () =>
-      dimmedIds.size === 0
-        ? layout.nodes
-        : layout.nodes.map((n) => ({
-            ...n,
-            style: {
-              ...n.style,
-              opacity:    dimmedIds.has(n.id) ? 0.18 : 1,
-              transition: "opacity 0.15s",
-            },
-          })),
-    [layout.nodes, dimmedIds],
-  );
+  // For admin: enable dragging on position nodes
+  const displayNodes = useMemo(() => {
+    const withDim = dimmedIds.size === 0
+      ? layout.nodes
+      : layout.nodes.map((n) => ({
+          ...n,
+          style: {
+            ...n.style,
+            opacity:    dimmedIds.has(n.id) ? 0.18 : 1,
+            transition: "opacity 0.15s",
+          },
+        }));
+
+    if (!isAdmin) return withDim;
+    return withDim.map((n) => ({
+      ...n,
+      draggable: n.type === "orgPosition",
+    }));
+  }, [layout.nodes, dimmedIds, isAdmin]);
 
   const [nodes, setNodes, onNodesChange] = useNodesState(displayNodes);
   const [edges, setEdges, onEdgesChange] = useEdgesState(layout.edges);
 
-  useEffect(() => { setNodes(displayNodes);   }, [displayNodes, setNodes]);
-  useEffect(() => { setEdges(layout.edges);   }, [layout.edges, setEdges]);
+  useEffect(() => { setNodes(displayNodes); }, [displayNodes, setNodes]);
+  useEffect(() => { setEdges(layout.edges); }, [layout.edges, setEdges]);
   useEffect(() => {
     const t = setTimeout(() => fitView({ duration: 350, padding: 0.12 }), 60);
     return () => clearTimeout(t);
   }, [layout, fitView]);
 
-  // Compute the set of nodes that have children (for collapse-all)
+  // Collapse-all helper
   const parentIds = useMemo(
     () => new Set(positions.filter((p) => positions.some((q) => q.reportsToPositionId === p.id)).map((p) => p.id)),
     [positions],
@@ -532,12 +529,85 @@ function OrgChartInner({
   function expandAll()   { setCollapsed(new Set()); }
   function collapseAll() { setCollapsed(new Set(parentIds)); }
 
+  // ── Drag-to-reparent helpers ────────────────────────────────────────────────
+
+  // Compute the set of all descendants of a given position id
+  function getDescendants(id: string): Set<string> {
+    const result = new Set<string>();
+    function walk(cur: string) {
+      for (const p of positionsById.values()) {
+        if (p.reportsToPositionId === cur) { result.add(p.id); walk(p.id); }
+      }
+    }
+    walk(id);
+    return result;
+  }
+
+  // Find the closest valid drop-target node given a dragged node's position
+  function findDropTarget(
+    draggedId: string,
+    dragPos: { x: number; y: number },
+    currentNodes: Node[],
+  ): string | null {
+    const descendants = getDescendants(draggedId);
+    const cx = dragPos.x + NODE_W / 2;
+    const cy = dragPos.y + NODE_H / 2;
+
+    let best: string | null = null;
+    let bestDist = DROP_DIST;
+
+    for (const n of currentNodes) {
+      if (n.id === draggedId || n.id.startsWith("dg-") || descendants.has(n.id)) continue;
+      const nx = n.position.x + NODE_W / 2;
+      const ny = n.position.y + NODE_H / 2;
+      const dist = Math.sqrt((cx - nx) ** 2 + (cy - ny) ** 2);
+      if (dist < bestDist) { bestDist = dist; best = n.id; }
+    }
+    return best;
+  }
+
+  const onNodeDrag: OnNodeDrag<Node> = useCallback((_event, draggedNode) => {
+    if (!isAdmin || draggedNode.id.startsWith("dg-")) return;
+    const target = findDropTarget(draggedNode.id, draggedNode.position, nodes);
+    setDropTargetId(target);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isAdmin, nodes, positionsById]);
+
+  const onNodeDragStop: OnNodeDrag<Node> = useCallback((_event, draggedNode) => {
+    setDropTargetId(null);
+    if (!isAdmin || draggedNode.id.startsWith("dg-")) {
+      router.refresh();
+      return;
+    }
+
+    const newParentId = findDropTarget(draggedNode.id, draggedNode.position, nodes);
+    const currentParentId = positionsById.get(draggedNode.id)?.reportsToPositionId ?? null;
+
+    if (newParentId === null || newParentId === currentParentId) {
+      // No-op or dropped far from everything: just restore layout
+      router.refresh();
+      return;
+    }
+
+    startTransition(async () => {
+      await reparentOrgPosition(draggedNode.id, newParentId);
+      router.refresh();
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isAdmin, nodes, positionsById, router, startTransition]);
+
+  // ── Node click via ReactFlow API (most reliable path) ──────────────────────
+  const onNodeClick: NodeMouseHandler = useCallback((_event, node) => {
+    if (node.id.startsWith("dg-") || !onEdit || !isAdmin) return;
+    const pos = positionsById.get(node.id);
+    if (pos) onEdit(pos);
+  }, [onEdit, isAdmin, positionsById]);
+
   return (
     <OrgCtx.Provider value={ctx}>
       <div className="flex h-full flex-col gap-3">
         {/* ── Toolbar ── */}
         <div className="flex flex-wrap items-center gap-2">
-          {/* Search */}
           <div className="relative min-w-48 flex-1">
             <Search className="absolute left-2.5 top-1/2 size-3.5 -translate-y-1/2 text-muted-foreground" />
             <input
@@ -548,7 +618,6 @@ function OrgChartInner({
             />
           </div>
 
-          {/* Department filter */}
           <select
             value={deptFilter}
             onChange={(e) => setDeptFilter(e.target.value)}
@@ -560,7 +629,6 @@ function OrgChartInner({
               .map((d) => <option key={d.id} value={d.id}>{d.name}</option>)}
           </select>
 
-          {/* Status filter */}
           <select
             value={statusFilter}
             onChange={(e) => setStatusFilter(e.target.value)}
@@ -573,7 +641,6 @@ function OrgChartInner({
             <option value="inactive">Inactive</option>
           </select>
 
-          {/* Expand / collapse all */}
           <button
             type="button"
             onClick={expandAll}
@@ -588,8 +655,6 @@ function OrgChartInner({
           >
             <ChevronUp className="size-3.5" /> Collapse all
           </button>
-
-          {/* Fit view */}
           <button
             type="button"
             onClick={() => fitView({ duration: 400, padding: 0.12 })}
@@ -598,6 +663,13 @@ function OrgChartInner({
             <Maximize2 className="size-3.5" /> Fit view
           </button>
         </div>
+
+        {/* Admin drag hint */}
+        {isAdmin && positions.length > 1 && (
+          <p className="text-[11px] text-muted-foreground/70 px-0.5">
+            Drag a card onto another to change its parent. Use ← → to reorder siblings. Click any card to edit.
+          </p>
+        )}
 
         {/* ── Canvas ── */}
         <div className="flex-1 overflow-hidden rounded-xl border bg-slate-50/60">
@@ -617,16 +689,14 @@ function OrgChartInner({
               minZoom={0.05}
               maxZoom={2}
               proOptions={{ hideAttribution: true }}
-              nodesDraggable={false}
+              nodesDraggable={isAdmin}
               nodesConnectable={false}
               elementsSelectable={false}
+              onNodeClick={onNodeClick}
+              onNodeDrag={isAdmin ? onNodeDrag : undefined}
+              onNodeDragStop={isAdmin ? onNodeDragStop : undefined}
             >
-              <Background
-                variant={BackgroundVariant.Dots}
-                gap={22}
-                size={1}
-                color="#e2e8f0"
-              />
+              <Background variant={BackgroundVariant.Dots} gap={22} size={1} color="#e2e8f0" />
               <Controls position="bottom-right" showInteractive={false} />
             </ReactFlow>
           )}
@@ -636,7 +706,7 @@ function OrgChartInner({
   );
 }
 
-// ─── Public export (wraps in ReactFlowProvider) ────────────────────────────────
+// ─── Public export ────────────────────────────────────────────────────────────
 
 export function OrgChartCanvas({
   positions,
