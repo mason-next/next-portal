@@ -60,7 +60,12 @@ export async function getOrCreateDefaultVersion(): Promise<OrgChartVersion> {
 // ─── Departments ──────────────────────────────────────────────────────────────
 
 export async function getOrgDepartments(): Promise<OrgDepartment[]> {
-  const rows = await db.orgDepartment.findMany({ orderBy: { name: "asc" } });
+  const rows = await db.orgDepartment.findMany({
+    orderBy: [
+      { sortOrder: { sort: "asc", nulls: "last" } },
+      { name: "asc" },
+    ],
+  });
   return rows.map((r) => ({
     ...r,
     createdAt: r.createdAt.toISOString(),

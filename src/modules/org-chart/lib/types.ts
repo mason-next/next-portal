@@ -11,6 +11,7 @@ export interface OrgDepartment {
   description: string | null;
   color: string;
   status: string;
+  sortOrder: number | null;
   createdAt: string;
   updatedAt: string;
 }

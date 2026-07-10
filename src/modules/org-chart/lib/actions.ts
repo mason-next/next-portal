@@ -384,6 +384,22 @@ export async function swapOrgPositionOrder(
   revalidatePath("/org-chart");
 }
 
+// ─── Department reorder ───────────────────────────────────────────────────────
+
+export async function swapOrgDepartmentOrder(
+  idA: string,
+  orderA: number,
+  idB: string,
+  orderB: number,
+): Promise<void> {
+  await requireAdmin();
+  await db.$transaction([
+    db.orgDepartment.update({ where: { id: idA }, data: { sortOrder: orderB } }),
+    db.orgDepartment.update({ where: { id: idB }, data: { sortOrder: orderA } }),
+  ]);
+  revalidatePath("/org-chart");
+}
+
 // ─── Reparent position (drag-to-restructure) ─────────────────────────────────
 
 export async function reparentOrgPosition(

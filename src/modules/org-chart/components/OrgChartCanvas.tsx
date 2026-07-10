@@ -24,7 +24,6 @@ import {
   type Node,
   type NodeProps,
   type NodeMouseHandler,
-  type OnNodeDrag,
 } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
 import {
@@ -35,9 +34,11 @@ import {
   Maximize2,
   Plus,
   Search,
+  Network,
+  GitBranch,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { swapOrgPositionOrder, reparentOrgPosition } from "../lib/actions";
+import { swapOrgPositionOrder, swapOrgDepartmentOrder } from "../lib/actions";
 import { cn } from "@/lib/utils";
 import { UserAvatarImage } from "@/components/shared/AppShell/UserAvatarImage";
 import type { OrgDepartment, OrgPosition } from "../lib/types";
@@ -46,17 +47,49 @@ import type { OrgDepartment, OrgPosition } from "../lib/types";
 
 const NODE_W = 215;
 const NODE_H = 138;
-const X_GAP  = 56;
-const Y_GAP  = 72;
+const X_GAP  = 140;   // was 56 — wider sibling separation
+const Y_GAP  = 100;   // was 72 — more space between levels
 
-// Drop threshold: center-to-center distance at which a drag target is recognized
-const DROP_DIST = NODE_W;
+// Department group overlay
+const LABEL_H  = 60;  // was 52
+const PAD_H    = 44;  // was 28 — horizontal padding inside group box
+const PAD_B    = 44;  // was 28 — bottom padding inside group box
+const GROUP_GAP = 32; // min gap between dept group bounding boxes (nudge pass)
 
-// ─── Department group layout ──────────────────────────────────────────────────
+// Mind map layout
+const MM_X_GAP = 80;  // horizontal gap between tree levels
+const MM_Y_GAP = 24;  // vertical gap between sibling subtrees
 
-const LABEL_H  = 52;
-const PAD_H    = 28;
-const PAD_B    = 28;
+// ─── Dept group nudge pass ────────────────────────────────────────────────────
+
+function nudgeDeptGroups(groups: Node[]): Node[] {
+  if (groups.length < 2) return groups;
+  const result = groups.map((g) => ({ ...g, position: { ...g.position } }));
+
+  for (let iter = 0; iter < 20; iter++) {
+    result.sort((a, b) => a.position.x - b.position.x);
+    let changed = false;
+    for (let i = 0; i < result.length; i++) {
+      for (let j = i + 1; j < result.length; j++) {
+        const a = result[i];
+        const b = result[j];
+        const aw = (a.style?.width as number) ?? 0;
+        const ah = (a.style?.height as number) ?? 0;
+        const bh = (b.style?.height as number) ?? 0;
+        const overlapX = a.position.x + aw + GROUP_GAP - b.position.x;
+        const yOverlap = Math.min(a.position.y + ah, b.position.y + bh) - Math.max(a.position.y, b.position.y);
+        if (overlapX > 0 && yOverlap > 0) {
+          result[j] = { ...result[j], position: { ...result[j].position, x: result[j].position.x + overlapX } };
+          changed = true;
+        }
+      }
+    }
+    if (!changed) break;
+  }
+  return result;
+}
+
+// ─── Department group builder ─────────────────────────────────────────────────
 
 function buildDeptGroups(
   positionNodes: Node[],
@@ -72,6 +105,7 @@ function buildDeptGroups(
   }
 
   const groups: Node[] = [];
+  let groupIdx = 0;
   for (const dept of departments) {
     const pts = buckets.get(dept.id);
     if (!pts || pts.length === 0) continue;
@@ -89,16 +123,23 @@ function buildDeptGroups(
       type:       "deptGroup",
       position:   { x: minX - PAD_H, y: minY - LABEL_H },
       style:      { width: w, height: h },
-      data:       { label: dept.name, color: dept.color ?? "#6366f1" },
+      data:       { label: dept.name, color: dept.color ?? "#6366f1", deptId: dept.id, deptIndex: groupIdx },
       zIndex:     -1,
       draggable:  false,
       selectable: false,
     });
+    groupIdx++;
   }
-  return groups;
+
+  const nudged = nudgeDeptGroups(groups);
+  const total = nudged.length;
+  return nudged.map((g) => ({
+    ...g,
+    data: { ...(g.data as Record<string, unknown>), deptTotal: total },
+  }));
 }
 
-// ─── Tree layout algorithm ─────────────────────────────────────────────────────
+// ─── Top-down tree layout ─────────────────────────────────────────────────────
 
 function buildLayout(
   positions:   OrgPosition[],
@@ -168,21 +209,120 @@ function buildLayout(
 
     nodes.push({
       id,
-      type:      "orgPosition",
-      position:  xy,
-      data:      { positionId: id, childCount: kids.length, isCollapsed: collapsed.has(id) },
-      style:     { overflow: "visible" },
-      draggable: false,   // overridden per-node when isAdmin (see OrgChartInner)
+      type:       "orgPosition",
+      position:   xy,
+      data:       { positionId: id, childCount: kids.length, isCollapsed: collapsed.has(id) },
+      style:      { overflow: "visible" },
+      draggable:  false,
       selectable: false,
     });
 
     if (pos.reportsToPositionId && visible.has(pos.reportsToPositionId)) {
       edges.push({
-        id:    `e:${pos.reportsToPositionId}→${id}`,
-        source: pos.reportsToPositionId,
-        target: id,
-        type:  "smoothstep",
-        style: { stroke: "#cbd5e1", strokeWidth: 1.5 },
+        id:           `e:${pos.reportsToPositionId}→${id}`,
+        source:       pos.reportsToPositionId,
+        target:       id,
+        sourceHandle: "src-bottom",
+        targetHandle: "tgt-top",
+        type:         "smoothstep",
+        style:        { stroke: "#cbd5e1", strokeWidth: 1.5 },
+      });
+    }
+  }
+
+  const deptGroups = buildDeptGroups(nodes, posById, departments);
+  return { nodes: [...deptGroups, ...nodes], edges };
+}
+
+// ─── Left-to-right mind map layout ───────────────────────────────────────────
+
+function buildMindMapLayout(
+  positions:   OrgPosition[],
+  departments: OrgDepartment[],
+  collapsed:   Set<string>,
+): { nodes: Node[]; edges: Edge[] } {
+  if (positions.length === 0) return { nodes: [], edges: [] };
+
+  const idSet      = new Set(positions.map((p) => p.id));
+  const childrenOf = new Map<string, string[]>(positions.map((p) => [p.id, []]));
+
+  for (const p of positions) {
+    if (p.reportsToPositionId && idSet.has(p.reportsToPositionId)) {
+      childrenOf.get(p.reportsToPositionId)!.push(p.id);
+    }
+  }
+
+  const roots = positions
+    .filter((p) => !p.reportsToPositionId || !idSet.has(p.reportsToPositionId))
+    .map((p) => p.id);
+
+  const subtreeH = new Map<string, number>();
+  function calcH(id: string): number {
+    const kids = collapsed.has(id) ? [] : (childrenOf.get(id) ?? []);
+    if (kids.length === 0) { subtreeH.set(id, NODE_H); return NODE_H; }
+    const total = kids.reduce((s, k) => s + calcH(k) + MM_Y_GAP, -MM_Y_GAP);
+    const h = Math.max(total, NODE_H);
+    subtreeH.set(id, h);
+    return h;
+  }
+  for (const r of roots) calcH(r);
+
+  const xyMap = new Map<string, { x: number; y: number }>();
+  function assign(id: string, x: number, centerY: number) {
+    xyMap.set(id, { x, y: centerY - NODE_H / 2 });
+    if (collapsed.has(id)) return;
+    const kids = childrenOf.get(id) ?? [];
+    if (kids.length === 0) return;
+    const totalKidH = kids.reduce((s, k) => s + (subtreeH.get(k) ?? NODE_H) + MM_Y_GAP, -MM_Y_GAP);
+    let curY = centerY - totalKidH / 2;
+    for (const kid of kids) {
+      const kh = subtreeH.get(kid) ?? NODE_H;
+      assign(kid, x + NODE_W + MM_X_GAP, curY + kh / 2);
+      curY += kh + MM_Y_GAP;
+    }
+  }
+  let rootY = 0;
+  for (const r of roots) {
+    const rh = subtreeH.get(r) ?? NODE_H;
+    assign(r, 0, rootY + rh / 2);
+    rootY += rh + Y_GAP;
+  }
+
+  const visible = new Set<string>();
+  function markVisible(id: string) {
+    visible.add(id);
+    if (!collapsed.has(id)) for (const k of childrenOf.get(id) ?? []) markVisible(k);
+  }
+  for (const r of roots) markVisible(r);
+
+  const posById = new Map(positions.map((p) => [p.id, p]));
+  const nodes: Node[] = [];
+  const edges: Edge[] = [];
+
+  for (const [id, xy] of xyMap) {
+    if (!visible.has(id)) continue;
+    const pos  = posById.get(id)!;
+    const kids = childrenOf.get(id) ?? [];
+
+    nodes.push({
+      id,
+      type:       "orgPosition",
+      position:   xy,
+      data:       { positionId: id, childCount: kids.length, isCollapsed: collapsed.has(id), mindmap: true },
+      style:      { overflow: "visible" },
+      draggable:  false,
+      selectable: false,
+    });
+
+    if (pos.reportsToPositionId && visible.has(pos.reportsToPositionId)) {
+      edges.push({
+        id:           `e:${pos.reportsToPositionId}→${id}`,
+        source:       pos.reportsToPositionId,
+        target:       id,
+        sourceHandle: "src-right",
+        targetHandle: "tgt-left",
+        type:         "smoothstep",
+        style:        { stroke: "#cbd5e1", strokeWidth: 1.5 },
       });
     }
   }
@@ -194,22 +334,30 @@ function buildLayout(
 // ─── Context ──────────────────────────────────────────────────────────────────
 
 const OrgCtx = createContext<{
-  onEdit?:        (p: OrgPosition) => void;
-  onAdd?:         (reportsToId: string) => void;
-  onToggle:       (id: string) => void;
-  onReorder?:     (id: string, dir: "left" | "right") => void;
-  positionsById:  Map<string, OrgPosition>;
-  isAdmin:        boolean;
-  dropTargetId:   string | null;
-}>({ onToggle: () => {}, positionsById: new Map(), isAdmin: false, dropTargetId: null });
+  onEdit?:         (p: OrgPosition) => void;
+  onAdd?:          (reportsToId: string) => void;
+  onToggle:        (id: string) => void;
+  onReorder?:      (id: string, dir: "left" | "right") => void;
+  onDeptReorder?:  (deptId: string, dir: "left" | "right") => void;
+  positionsById:   Map<string, OrgPosition>;
+  departmentsById: Map<string, OrgDepartment>;
+  isAdmin:         boolean;
+  viewMode:        "chart" | "mindmap";
+}>({
+  onToggle:        () => {},
+  positionsById:   new Map(),
+  departmentsById: new Map(),
+  isAdmin:         false,
+  viewMode:        "chart",
+});
 
 // ─── Status config ────────────────────────────────────────────────────────────
 
-const STATUS: Record<string, { bar: string; dot: string; label: string }> = {
-  filled:   { bar: "bg-emerald-500", dot: "bg-emerald-500", label: "Filled"   },
-  open:     { bar: "bg-amber-400",   dot: "bg-amber-400",   label: "Open"     },
-  planned:  { bar: "bg-blue-400",    dot: "bg-blue-400",    label: "Planned"  },
-  inactive: { bar: "bg-slate-300",   dot: "bg-slate-300",   label: "Inactive" },
+const STATUS: Record<string, { dot: string; label: string }> = {
+  filled:   { dot: "bg-emerald-500", label: "Filled"   },
+  open:     { dot: "bg-amber-400",   label: "Open"     },
+  planned:  { dot: "bg-blue-400",    label: "Planned"  },
+  inactive: { dot: "bg-slate-300",   label: "Inactive" },
 };
 
 // ─── Position card node ───────────────────────────────────────────────────────
@@ -218,10 +366,11 @@ type PositionNodeData = {
   positionId:  string;
   childCount:  number;
   isCollapsed: boolean;
+  mindmap?:    boolean;
 };
 
 function PositionNode({ data, id }: NodeProps) {
-  const { onEdit, onAdd, onToggle, onReorder, positionsById, isAdmin, dropTargetId } = useContext(OrgCtx);
+  const { onEdit, onAdd, onToggle, onReorder, positionsById, departmentsById, isAdmin, viewMode } = useContext(OrgCtx);
   const d = data as unknown as PositionNodeData;
   const { positionId, childCount, isCollapsed } = d;
 
@@ -233,12 +382,16 @@ function PositionNode({ data, id }: NodeProps) {
   const isPlanned = position.status === "planned";
   const st        = STATUS[position.status] ?? STATUS.inactive;
 
+  // Department color drives the top accent bar
+  const deptColor = position.departmentId
+    ? (departmentsById.get(position.departmentId)?.color ?? "#6366f1")
+    : "#e2e8f0";
+
   const displayName = primary?.user?.name
     ?? (isPlanned ? "— Planned —" : "— Vacant —");
 
-  const isDropTarget = dropTargetId === positionId;
+  const isMindmap = viewMode === "mindmap";
 
-  // Siblings for reorder (admin only)
   const siblings = useMemo(() => {
     if (!isAdmin || !onReorder) return [];
     const parentKey = position.reportsToPositionId ?? "__root__";
@@ -252,50 +405,57 @@ function PositionNode({ data, id }: NodeProps) {
       });
   }, [isAdmin, onReorder, position, positionsById]);
 
-  const siblingIdx    = siblings.findIndex((p) => p.id === position.id);
-  const canMoveLeft   = isAdmin && siblingIdx > 0;
-  const canMoveRight  = isAdmin && siblingIdx >= 0 && siblingIdx < siblings.length - 1;
-  const showReorder   = isAdmin && (canMoveLeft || canMoveRight);
+  const siblingIdx   = siblings.findIndex((p) => p.id === position.id);
+  const canMoveLeft  = isAdmin && siblingIdx > 0;
+  const canMoveRight = isAdmin && siblingIdx >= 0 && siblingIdx < siblings.length - 1;
+  const showReorder  = isAdmin && (canMoveLeft || canMoveRight);
 
   return (
     <div
-      className={cn("relative group", onEdit ? "cursor-pointer" : "cursor-default")}
+      className={cn("relative", onEdit ? "cursor-pointer" : "cursor-default")}
       style={{ width: NODE_W }}
       onClick={() => onEdit?.(position)}
     >
-      {/* Admin reorder arrows — always visible for admin when siblings exist */}
+      {/* Sibling reorder arrows */}
       {showReorder && (
-        <div className="absolute -top-7 left-0 right-0 flex justify-center gap-1 z-30">
+        <div className={cn(
+          "absolute z-30 flex gap-1",
+          isMindmap
+            ? "-left-7 top-1/2 -translate-y-1/2 flex-col"
+            : "-top-7 left-0 right-0 justify-center",
+        )}>
           <button
             type="button"
             disabled={!canMoveLeft}
             onClick={(e) => { e.stopPropagation(); onReorder?.(position.id, "left"); }}
             className="flex h-5 w-5 items-center justify-center rounded border border-slate-200 bg-white shadow-sm text-slate-400 hover:text-slate-700 hover:border-slate-300 disabled:opacity-20 disabled:cursor-not-allowed transition-colors"
-            title="Move left"
+            title={isMindmap ? "Move up" : "Move left"}
           >
-            <ChevronLeft className="size-3" />
+            {isMindmap ? <ChevronUp className="size-3" /> : <ChevronLeft className="size-3" />}
           </button>
           <button
             type="button"
             disabled={!canMoveRight}
             onClick={(e) => { e.stopPropagation(); onReorder?.(position.id, "right"); }}
             className="flex h-5 w-5 items-center justify-center rounded border border-slate-200 bg-white shadow-sm text-slate-400 hover:text-slate-700 hover:border-slate-300 disabled:opacity-20 disabled:cursor-not-allowed transition-colors"
-            title="Move right"
+            title={isMindmap ? "Move down" : "Move right"}
           >
-            <ChevronRight className="size-3" />
+            {isMindmap ? <ChevronDown className="size-3" /> : <ChevronRight className="size-3" />}
           </button>
         </div>
       )}
 
-      {/* White card — highlighted when it's the drag-to-reparent drop target */}
+      {/* Card */}
       <div className={cn(
-        "rounded-xl border bg-white shadow-sm transition-all",
-        isDropTarget
-          ? "border-primary ring-2 ring-primary/30 shadow-md"
-          : "border-slate-200 hover:shadow-md",
+        "rounded-xl border shadow-sm transition-all hover:shadow-md",
+        isVacant || isPlanned ? "bg-slate-50/90" : "bg-white",
+        "border-slate-200",
       )}>
-        {/* Colored status accent bar */}
-        <div className={cn("h-1.5 w-full rounded-t-xl", st.bar)} />
+        {/* Department color accent bar */}
+        <div
+          className="h-1.5 w-full rounded-t-xl"
+          style={{ backgroundColor: deptColor }}
+        />
 
         {/* Avatar */}
         <div className="relative z-10 -mt-5 flex justify-center">
@@ -322,7 +482,10 @@ function PositionNode({ data, id }: NodeProps) {
           </p>
 
           {position.department && (
-            <span className="mt-1.5 inline-block max-w-full truncate rounded-full bg-slate-100 px-2 py-0.5 text-[10px] text-slate-500">
+            <span
+              className="mt-1.5 inline-block max-w-full truncate rounded-full px-2 py-0.5 text-[10px]"
+              style={{ backgroundColor: `${deptColor}18`, color: deptColor }}
+            >
               {position.department.name}
             </span>
           )}
@@ -342,32 +505,48 @@ function PositionNode({ data, id }: NodeProps) {
         </div>
       </div>
 
-      {/* Expand / collapse badge */}
+      {/* Expand / collapse badge — below card in chart mode, right side in mind map */}
       {childCount > 0 && (
         <button
           type="button"
-          className="absolute bottom-0 left-1/2 z-20 flex -translate-x-1/2 translate-y-1/2 items-center gap-0.5 rounded-full border border-slate-200 bg-white px-2 py-0.5 text-[10px] font-semibold text-slate-500 shadow-sm hover:bg-slate-50"
+          className={cn(
+            "absolute z-20 flex items-center gap-0.5 rounded-full border border-slate-200 bg-white px-2 py-0.5 text-[10px] font-semibold text-slate-500 shadow-sm hover:bg-slate-50",
+            isMindmap
+              ? "right-0 top-1/2 translate-x-1/2 -translate-y-1/2"
+              : "bottom-0 left-1/2 -translate-x-1/2 translate-y-1/2",
+          )}
           onClick={(e) => { e.stopPropagation(); onToggle(id); }}
         >
           {childCount}
-          {isCollapsed ? <ChevronDown className="size-2.5" /> : <ChevronUp className="size-2.5" />}
+          {isCollapsed
+            ? (isMindmap ? <ChevronRight className="size-2.5" /> : <ChevronDown className="size-2.5" />)
+            : (isMindmap ? <ChevronLeft  className="size-2.5" /> : <ChevronUp   className="size-2.5" />)
+          }
         </button>
       )}
 
-      {/* Admin: "+" add direct report button */}
+      {/* Admin: "+" add direct report */}
       {isAdmin && onAdd && (
         <button
           type="button"
           title="Add direct report"
           onClick={(e) => { e.stopPropagation(); onAdd(position.id); }}
-          className="absolute -bottom-2 -right-2 z-30 flex size-6 items-center justify-center rounded-full border-2 border-white bg-emerald-500 shadow-md text-white hover:bg-emerald-600 transition-colors"
+          className={cn(
+            "absolute z-30 flex size-6 items-center justify-center rounded-full border-2 border-white bg-emerald-500 shadow-md text-white hover:bg-emerald-600 transition-colors",
+            isMindmap ? "-right-2 bottom-0" : "-bottom-2 -right-2",
+          )}
         >
           <Plus className="size-3.5" />
         </button>
       )}
 
-      <Handle type="target" position={Position.Top}    style={{ opacity: 0, pointerEvents: "none" }} />
-      <Handle type="source" position={Position.Bottom} style={{ opacity: 0, pointerEvents: "none" }} />
+      {/* Invisible connection handles — chart mode (top / bottom) */}
+      <Handle id="tgt-top"    type="target" position={Position.Top}    style={{ opacity: 0, pointerEvents: "none" }} />
+      <Handle id="src-bottom" type="source" position={Position.Bottom} style={{ opacity: 0, pointerEvents: "none" }} />
+
+      {/* Invisible connection handles — mind map mode (left / right) */}
+      <Handle id="tgt-left"  type="target" position={Position.Left}  style={{ opacity: 0, pointerEvents: "none" }} />
+      <Handle id="src-right" type="source" position={Position.Right} style={{ opacity: 0, pointerEvents: "none" }} />
     </div>
   );
 }
@@ -375,20 +554,55 @@ function PositionNode({ data, id }: NodeProps) {
 // ─── Department group container node ─────────────────────────────────────────
 
 function DeptGroupNode({ data }: NodeProps) {
-  const { label, color } = data as { label: string; color: string };
+  const { label, color, deptId, deptIndex, deptTotal } = data as {
+    label: string; color: string; deptId: string; deptIndex: number; deptTotal: number;
+  };
+  const { onDeptReorder, isAdmin } = useContext(OrgCtx);
   const c = color ?? "#6366f1";
+  const canMoveLeft  = isAdmin && deptIndex > 0;
+  const canMoveRight = isAdmin && deptIndex < (deptTotal - 1);
+
   return (
-    <div
-      className="h-full w-full rounded-2xl pointer-events-none"
-      style={{ border: `1.5px solid ${c}35`, background: `${c}08` }}
-    >
+    <div className="relative h-full w-full">
+      {/* Background (non-interactive) */}
       <div
-        className="m-3 inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[11px] font-semibold"
-        style={{ background: `${c}18`, color: c, border: `1px solid ${c}30` }}
+        className="h-full w-full rounded-2xl pointer-events-none"
+        style={{ border: `1.5px solid ${c}35`, background: `${c}08` }}
       >
-        <span className="size-2 flex-none rounded-full" style={{ background: c }} />
-        {label}
+        <div
+          className="m-3 inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[11px] font-semibold"
+          style={{ background: `${c}18`, color: c, border: `1px solid ${c}30` }}
+        >
+          <span className="size-2 flex-none rounded-full" style={{ background: c }} />
+          {label}
+        </div>
       </div>
+
+      {/* Admin department reorder controls — pointer-events enabled */}
+      {isAdmin && (canMoveLeft || canMoveRight) && onDeptReorder && (
+        <div className="absolute top-2 right-2 z-10 flex gap-1">
+          <button
+            type="button"
+            disabled={!canMoveLeft}
+            onClick={() => onDeptReorder(deptId, "left")}
+            className="flex h-5 w-5 items-center justify-center rounded border border-slate-200 bg-white/90 shadow-sm text-slate-400 hover:text-slate-700 disabled:opacity-20 disabled:cursor-not-allowed transition-colors"
+            title="Move department left"
+            style={{ pointerEvents: "all" }}
+          >
+            <ChevronLeft className="size-3" />
+          </button>
+          <button
+            type="button"
+            disabled={!canMoveRight}
+            onClick={() => onDeptReorder(deptId, "right")}
+            className="flex h-5 w-5 items-center justify-center rounded border border-slate-200 bg-white/90 shadow-sm text-slate-400 hover:text-slate-700 disabled:opacity-20 disabled:cursor-not-allowed transition-colors"
+            title="Move department right"
+            style={{ pointerEvents: "all" }}
+          >
+            <ChevronRight className="size-3" />
+          </button>
+        </div>
+      )}
     </div>
   );
 }
@@ -418,7 +632,7 @@ function OrgChartInner({
   const [search,       setSearch]       = useState("");
   const [deptFilter,   setDeptFilter]   = useState("");
   const [statusFilter, setStatusFilter] = useState("");
-  const [dropTargetId, setDropTargetId] = useState<string | null>(null);
+  const [viewMode,     setViewMode]     = useState<"chart" | "mindmap">("chart");
 
   const onToggle = useCallback((id: string) => {
     setCollapsed((prev) => {
@@ -433,7 +647,12 @@ function OrgChartInner({
     [positions],
   );
 
-  // Sibling reorder: swap sort_order values atomically
+  const departmentsById = useMemo(
+    () => new Map(departments.map((d) => [d.id, d])),
+    [departments],
+  );
+
+  // Position sibling reorder
   const onReorder = useCallback((id: string, dir: "left" | "right") => {
     const pos = positionsById.get(id);
     if (!pos) return;
@@ -450,26 +669,56 @@ function OrgChartInner({
     const targetIdx = dir === "left" ? idx - 1 : idx + 1;
     if (targetIdx < 0 || targetIdx >= sorted.length) return;
     const other = sorted[targetIdx];
-    const myOrder    = pos.sortOrder    ?? idx;
-    const otherOrder = other.sortOrder  ?? targetIdx;
+    const myOrder    = pos.sortOrder    ?? idx * 10;
+    const otherOrder = other.sortOrder  ?? targetIdx * 10;
     startTransition(async () => {
       await swapOrgPositionOrder(id, myOrder, other.id, otherOrder);
       router.refresh();
     });
   }, [positionsById, router, startTransition]);
 
+  // Department order reorder
+  const onDeptReorder = useCallback((deptId: string, dir: "left" | "right") => {
+    const sorted = [...departments].sort((a, b) => {
+      if (a.sortOrder == null && b.sortOrder == null) return a.name.localeCompare(b.name);
+      if (a.sortOrder == null) return 1;
+      if (b.sortOrder == null) return -1;
+      return a.sortOrder - b.sortOrder;
+    });
+    const idx = sorted.findIndex((d) => d.id === deptId);
+    const targetIdx = dir === "left" ? idx - 1 : idx + 1;
+    if (targetIdx < 0 || targetIdx >= sorted.length) return;
+    const other = sorted[targetIdx];
+    const myOrder    = departments.find((d) => d.id === deptId)?.sortOrder ?? idx * 10;
+    const otherOrder = other.sortOrder ?? targetIdx * 10;
+    startTransition(async () => {
+      await swapOrgDepartmentOrder(deptId, myOrder, other.id, otherOrder);
+      router.refresh();
+    });
+  }, [departments, router, startTransition]);
+
   const ctx = useMemo(
-    () => ({ onEdit, onAdd, onToggle, onReorder: isAdmin ? onReorder : undefined, positionsById, isAdmin, dropTargetId }),
-    [onEdit, onAdd, onToggle, onReorder, positionsById, isAdmin, dropTargetId],
+    () => ({
+      onEdit,
+      onAdd,
+      onToggle,
+      onReorder:     isAdmin ? onReorder     : undefined,
+      onDeptReorder: isAdmin ? onDeptReorder : undefined,
+      positionsById,
+      departmentsById,
+      isAdmin,
+      viewMode,
+    }),
+    [onEdit, onAdd, onToggle, onReorder, onDeptReorder, positionsById, departmentsById, isAdmin, viewMode],
   );
 
-  // Build base layout
   const layout = useMemo(
-    () => buildLayout(positions, departments, collapsed),
-    [positions, departments, collapsed],
+    () => viewMode === "mindmap"
+      ? buildMindMapLayout(positions, departments, collapsed)
+      : buildLayout(positions, departments, collapsed),
+    [positions, departments, collapsed, viewMode],
   );
 
-  // Dim nodes that don't match active filters
   const dimmedIds = useMemo<Set<string>>(() => {
     if (!search && !deptFilter && !statusFilter) return new Set();
     const q = search.toLowerCase();
@@ -490,25 +739,17 @@ function OrgChartInner({
     );
   }, [positions, layout.nodes, search, deptFilter, statusFilter]);
 
-  // For admin: enable dragging on position nodes
   const displayNodes = useMemo(() => {
-    const withDim = dimmedIds.size === 0
-      ? layout.nodes
-      : layout.nodes.map((n) => ({
-          ...n,
-          style: {
-            ...n.style,
-            opacity:    dimmedIds.has(n.id) ? 0.18 : 1,
-            transition: "opacity 0.15s",
-          },
-        }));
-
-    if (!isAdmin) return withDim;
-    return withDim.map((n) => ({
+    if (dimmedIds.size === 0) return layout.nodes;
+    return layout.nodes.map((n) => ({
       ...n,
-      draggable: n.type === "orgPosition",
+      style: {
+        ...n.style,
+        opacity:    dimmedIds.has(n.id) ? 0.18 : 1,
+        transition: "opacity 0.15s",
+      },
     }));
-  }, [layout.nodes, dimmedIds, isAdmin]);
+  }, [layout.nodes, dimmedIds]);
 
   const [nodes, setNodes, onNodesChange] = useNodesState(displayNodes);
   const [edges, setEdges, onEdgesChange] = useEdgesState(layout.edges);
@@ -520,7 +761,6 @@ function OrgChartInner({
     return () => clearTimeout(t);
   }, [layout, fitView]);
 
-  // Collapse-all helper
   const parentIds = useMemo(
     () => new Set(positions.filter((p) => positions.some((q) => q.reportsToPositionId === p.id)).map((p) => p.id)),
     [positions],
@@ -529,74 +769,6 @@ function OrgChartInner({
   function expandAll()   { setCollapsed(new Set()); }
   function collapseAll() { setCollapsed(new Set(parentIds)); }
 
-  // ── Drag-to-reparent helpers ────────────────────────────────────────────────
-
-  // Compute the set of all descendants of a given position id
-  function getDescendants(id: string): Set<string> {
-    const result = new Set<string>();
-    function walk(cur: string) {
-      for (const p of positionsById.values()) {
-        if (p.reportsToPositionId === cur) { result.add(p.id); walk(p.id); }
-      }
-    }
-    walk(id);
-    return result;
-  }
-
-  // Find the closest valid drop-target node given a dragged node's position
-  function findDropTarget(
-    draggedId: string,
-    dragPos: { x: number; y: number },
-    currentNodes: Node[],
-  ): string | null {
-    const descendants = getDescendants(draggedId);
-    const cx = dragPos.x + NODE_W / 2;
-    const cy = dragPos.y + NODE_H / 2;
-
-    let best: string | null = null;
-    let bestDist = DROP_DIST;
-
-    for (const n of currentNodes) {
-      if (n.id === draggedId || n.id.startsWith("dg-") || descendants.has(n.id)) continue;
-      const nx = n.position.x + NODE_W / 2;
-      const ny = n.position.y + NODE_H / 2;
-      const dist = Math.sqrt((cx - nx) ** 2 + (cy - ny) ** 2);
-      if (dist < bestDist) { bestDist = dist; best = n.id; }
-    }
-    return best;
-  }
-
-  const onNodeDrag: OnNodeDrag<Node> = useCallback((_event, draggedNode) => {
-    if (!isAdmin || draggedNode.id.startsWith("dg-")) return;
-    const target = findDropTarget(draggedNode.id, draggedNode.position, nodes);
-    setDropTargetId(target);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isAdmin, nodes, positionsById]);
-
-  const onNodeDragStop: OnNodeDrag<Node> = useCallback((_event, draggedNode) => {
-    setDropTargetId(null);
-    if (!isAdmin || draggedNode.id.startsWith("dg-")) {
-      router.refresh();
-      return;
-    }
-
-    const newParentId = findDropTarget(draggedNode.id, draggedNode.position, nodes);
-    const currentParentId = positionsById.get(draggedNode.id)?.reportsToPositionId ?? null;
-
-    if (newParentId === null || newParentId === currentParentId) {
-      // No-op or dropped far from everything: just restore layout
-      router.refresh();
-      return;
-    }
-
-    startTransition(async () => {
-      await reparentOrgPosition(draggedNode.id, newParentId);
-      router.refresh();
-    });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isAdmin, nodes, positionsById, router, startTransition]);
-
-  // ── Node click via ReactFlow API (most reliable path) ──────────────────────
   const onNodeClick: NodeMouseHandler = useCallback((_event, node) => {
     if (node.id.startsWith("dg-") || !onEdit || !isAdmin) return;
     const pos = positionsById.get(node.id);
@@ -662,12 +834,40 @@ function OrgChartInner({
           >
             <Maximize2 className="size-3.5" /> Fit view
           </button>
+
+          {/* View mode toggle */}
+          <div className="flex rounded-md border overflow-hidden">
+            <button
+              type="button"
+              onClick={() => setViewMode("chart")}
+              className={cn(
+                "flex items-center gap-1.5 px-3 py-1.5 text-sm transition-colors",
+                viewMode === "chart"
+                  ? "bg-primary text-primary-foreground"
+                  : "bg-background hover:bg-muted/40",
+              )}
+            >
+              <Network className="size-3.5" /> Chart
+            </button>
+            <button
+              type="button"
+              onClick={() => setViewMode("mindmap")}
+              className={cn(
+                "flex items-center gap-1.5 px-3 py-1.5 text-sm transition-colors border-l",
+                viewMode === "mindmap"
+                  ? "bg-primary text-primary-foreground"
+                  : "bg-background hover:bg-muted/40",
+              )}
+            >
+              <GitBranch className="size-3.5" /> Mind Map
+            </button>
+          </div>
         </div>
 
-        {/* Admin drag hint */}
+        {/* Admin hint */}
         {isAdmin && positions.length > 1 && (
           <p className="text-[11px] text-muted-foreground/70 px-0.5">
-            Drag a card onto another to change its parent. Use ← → to reorder siblings. Click any card to edit.
+            Use ← → arrows to reorder siblings. Click any card to edit. Use + to add a direct report.
           </p>
         )}
 
@@ -689,12 +889,10 @@ function OrgChartInner({
               minZoom={0.05}
               maxZoom={2}
               proOptions={{ hideAttribution: true }}
-              nodesDraggable={isAdmin}
+              nodesDraggable={false}
               nodesConnectable={false}
               elementsSelectable={false}
               onNodeClick={onNodeClick}
-              onNodeDrag={isAdmin ? onNodeDrag : undefined}
-              onNodeDragStop={isAdmin ? onNodeDragStop : undefined}
             >
               <Background variant={BackgroundVariant.Dots} gap={22} size={1} color="#e2e8f0" />
               <Controls position="bottom-right" showInteractive={false} />

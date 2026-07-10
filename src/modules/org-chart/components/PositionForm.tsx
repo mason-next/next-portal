@@ -28,7 +28,7 @@ import {
   updateUserBioDescription,
 } from "../lib/actions";
 
-// ─── Successors section (self-contained) ─────────────────────────────────────
+// ─── Successors section ───────────────────────────────────────────────────────
 
 const RANK_LABELS: Record<number, string> = { 1: "#1", 2: "#2", 3: "#3" };
 
@@ -40,7 +40,7 @@ function SuccessorsSection({
 }: {
   successors: SuccessorEntry[];
   onChange: (s: SuccessorEntry[]) => void;
-  users: import("@/types/user").AppUser[];
+  users: AppUser[];
   currentOccupantId: string | null;
 }) {
   const [addingUserId, setAddingUserId] = useState("");
@@ -115,9 +115,9 @@ function SuccessorsSection({
             <div className="flex items-center gap-2">
               <span className={cn(
                 "rounded px-1.5 py-0.5 text-xs font-bold flex-none",
-                i === 0 ? "bg-emerald-100 text-emerald-700" :
-                i === 1 ? "bg-blue-100 text-blue-700" :
-                           "bg-muted text-muted-foreground"
+                i === 0 ? "bg-emerald-100 text-emerald-700"
+                  : i === 1 ? "bg-blue-100 text-blue-700"
+                  : "bg-muted text-muted-foreground"
               )}>
                 {RANK_LABELS[i + 1] ?? `#${i + 1}`}
               </span>
@@ -181,8 +181,8 @@ function SuccessorsSection({
 
 const REL_TYPE_LABELS: Record<string, string> = {
   dotted_line: "Dotted line",
-  project: "Project",
-  mentorship: "Mentorship",
+  project:     "Project",
+  mentorship:  "Mentorship",
 };
 
 const REL_TYPE_COLORS: Record<string, string> = {
@@ -330,12 +330,27 @@ function MatrixRelationshipsSection({
   );
 }
 
+// ─── Tab definitions ──────────────────────────────────────────────────────────
+
+type ModalTab = "overview" | "skills" | "career" | "compensation" | "successors" | "matrix";
+
+const ALL_MODAL_TABS: { key: ModalTab; label: string; section?: keyof OrgChartFormSections }[] = [
+  { key: "overview",     label: "Overview" },
+  { key: "skills",       label: "Skills & Certs",  section: "certifications" },
+  { key: "career",       label: "Career Paths",    section: "careerPaths" },
+  { key: "compensation", label: "Compensation",    section: "compensation" },
+  { key: "successors",   label: "Successors",      section: "successors" },
+  { key: "matrix",       label: "Matrix",          section: "matrixRelationships" },
+];
+
 const POSITION_STATUSES = [
   { value: "open",     label: "Open"     },
   { value: "filled",   label: "Filled"   },
   { value: "planned",  label: "Planned"  },
   { value: "inactive", label: "Inactive" },
 ];
+
+// ─── Position form ────────────────────────────────────────────────────────────
 
 interface PositionFormProps {
   open: boolean;
@@ -365,6 +380,7 @@ export function PositionForm({
   const { users } = useUsersContext();
   const [isPending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
+  const [activeTab, setActiveTab] = useState<ModalTab>("overview");
 
   const primaryAssignment = editing?.assignments.find(
     (a) => a.isActive && a.assignmentType === "primary"
@@ -422,12 +438,18 @@ export function PositionForm({
     setForm((prev) => ({ ...prev, [field]: value }));
   }
 
-  // Positions available as "reports to" — exclude self to avoid cycles
   const parentOptions = positions.filter((p) => p.id !== editing?.id);
+
+  // Which tabs are visible based on formSections
+  const visibleTabs = ALL_MODAL_TABS.filter((t) => !t.section || formSections[t.section]);
+
+  // Keep activeTab valid when formSections change
+  const safeTab = visibleTabs.some((t) => t.key === activeTab) ? activeTab : "overview";
 
   function handleSubmit() {
     if (!form.title.trim()) {
       setError("Position title is required.");
+      setActiveTab("overview");
       return;
     }
     setError(null);
@@ -438,7 +460,6 @@ export function PositionForm({
         const salaryMid = form.salaryMid ? parseFloat(form.salaryMid) : null;
         const salaryMax = form.salaryMax ? parseFloat(form.salaryMax) : null;
 
-        // Save bio for the assigned user if one is set (updating or keeping)
         const bioUserId = form.assignedUserId || primaryAssignment?.userId;
         if (bioUserId) {
           await updateUserBioDescription(bioUserId, bio.trim() || null);
@@ -507,264 +528,308 @@ export function PositionForm({
 
   return (
     <Modal open={open} onClose={onClose} className="max-w-xl">
-      <div className="flex items-center justify-between mb-4">
+      {/* Header */}
+      <div className="flex items-center justify-between mb-2">
         <h2 className="text-base font-semibold">
           {editing ? "Edit Position" : "New Position"}
         </h2>
         <button
           type="button"
           onClick={onClose}
-          className="text-muted-foreground hover:text-foreground"
+          className="text-muted-foreground hover:text-foreground transition-colors"
         >
           <X className="size-4" />
         </button>
       </div>
 
-      <div className="space-y-4">
-        {/* Title */}
-        <div>
-          <label className="block text-xs font-medium text-muted-foreground mb-1">
-            Position Title <span className="text-destructive">*</span>
-          </label>
-          <input
-            type="text"
-            value={form.title}
-            onChange={(e) => set("title", e.target.value)}
-            placeholder="e.g. Solutions Engineer"
-            className="w-full rounded-md border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/40"
-          />
-        </div>
-
-        {/* Status */}
-        <div>
-          <label className="block text-xs font-medium text-muted-foreground mb-1">Status</label>
-          <select
-            value={form.status}
-            onChange={(e) => set("status", e.target.value)}
-            className="w-full rounded-md border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/40"
-          >
-            {POSITION_STATUSES.map((s) => (
-              <option key={s.value} value={s.value}>{s.label}</option>
-            ))}
-          </select>
-        </div>
-
-        {/* Department + Location */}
-        <div className="grid grid-cols-2 gap-3">
-          <div>
-            <label className="block text-xs font-medium text-muted-foreground mb-1">Department</label>
-            <select
-              value={form.departmentId}
-              onChange={(e) => set("departmentId", e.target.value)}
-              className="w-full rounded-md border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/40"
+      {/* Tab bar */}
+      {visibleTabs.length > 1 && (
+        <div className="-mx-6 border-b flex gap-0 px-2 mb-4 overflow-x-auto">
+          {visibleTabs.map((tab) => (
+            <button
+              key={tab.key}
+              type="button"
+              onClick={() => setActiveTab(tab.key)}
+              className={cn(
+                "flex items-center px-3 py-2 text-xs font-medium border-b-2 -mb-px transition-colors whitespace-nowrap",
+                safeTab === tab.key
+                  ? "border-primary text-foreground"
+                  : "border-transparent text-muted-foreground hover:text-foreground",
+              )}
             >
-              <option value="">— None —</option>
-              {departments
-                .filter((d) => d.status === "active")
-                .map((d) => (
-                  <option key={d.id} value={d.id}>{d.name}</option>
-                ))}
-            </select>
-          </div>
-          <div>
-            <label className="block text-xs font-medium text-muted-foreground mb-1">Location</label>
-            <select
-              value={form.locationId}
-              onChange={(e) => set("locationId", e.target.value)}
-              className="w-full rounded-md border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/40"
-            >
-              <option value="">— None —</option>
-              {locations
-                .filter((l) => l.status === "active")
-                .map((l) => (
-                  <option key={l.id} value={l.id}>{l.name}</option>
-                ))}
-            </select>
-          </div>
+              {tab.label}
+            </button>
+          ))}
         </div>
+      )}
 
-        {/* Reports To */}
-        <div>
-          <label className="block text-xs font-medium text-muted-foreground mb-1">Reports To</label>
-          <select
-            value={form.reportsToPositionId}
-            onChange={(e) => set("reportsToPositionId", e.target.value)}
-            className="w-full rounded-md border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/40"
-          >
-            <option value="">— No manager (top-level) —</option>
-            {parentOptions.map((p) => (
-              <option key={p.id} value={p.id}>{p.title}</option>
-            ))}
-          </select>
-        </div>
+      {/* Tab content — scrollable */}
+      <div className="space-y-4 max-h-[58vh] overflow-y-auto pb-1 pr-0.5">
 
-        {/* Assigned User */}
-        <div>
-          <label className="block text-xs font-medium text-muted-foreground mb-1">
-            Assigned User <span className="text-muted-foreground/60">(optional)</span>
-          </label>
-          <select
-            value={form.assignedUserId}
-            onChange={(e) => set("assignedUserId", e.target.value)}
-            className="w-full rounded-md border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/40"
-          >
-            <option value="">— Vacant —</option>
-            {users
-              .filter((u: AppUser) => u.isActive)
-              .sort((a: AppUser, b: AppUser) => a.name.localeCompare(b.name))
-              .map((u: AppUser) => (
-                <option key={u.id} value={u.id}>{u.name}</option>
-              ))}
-          </select>
-        </div>
-
-        {/* Bio Description — shown when a user is assigned and section is enabled */}
-        {formSections.bio && (form.assignedUserId || primaryAssignment?.userId) && (
-          <div>
-            <label className="block text-xs font-medium text-muted-foreground mb-1">
-              Bio Description{" "}
-              <span className="font-normal text-muted-foreground/60">(about the person in this role)</span>
-            </label>
-            <textarea
-              value={bio}
-              onChange={(e) => setBio(e.target.value)}
-              rows={3}
-              placeholder="Short professional bio or background summary…"
-              className="w-full rounded-md border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/40 resize-none"
-            />
-          </div>
-        )}
-
-        {/* Target Hire Date */}
-        {formSections.targetHireDate && (
-          <div>
-            <label className="block text-xs font-medium text-muted-foreground mb-1">
-              Target Hire Date <span className="text-muted-foreground/60">(optional)</span>
-            </label>
-            <input
-              type="date"
-              value={form.targetHireDate}
-              onChange={(e) => set("targetHireDate", e.target.value)}
-              className="w-full rounded-md border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/40"
-            />
-          </div>
-        )}
-
-        {/* Notes */}
-        {formSections.notes && (
-          <div>
-            <label className="block text-xs font-medium text-muted-foreground mb-1">Notes</label>
-            <textarea
-              value={form.notes}
-              onChange={(e) => set("notes", e.target.value)}
-              rows={3}
-              placeholder="Optional notes about this position…"
-              className="w-full rounded-md border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/40 resize-none"
-            />
-          </div>
-        )}
-
-        {/* Certifications */}
-        {formSections.certifications && certifications.length > 0 && (
-          <div>
-            <label className="block text-xs font-medium text-muted-foreground mb-2">
-              Required Certifications
-            </label>
-            <div className="space-y-1.5 max-h-40 overflow-y-auto rounded-md border bg-background p-2">
-              {certifications.map((cert) => {
-                const existing = selectedCerts.find((c) => c.certificationId === cert.id);
-                return (
-                  <div key={cert.id} className="flex items-center gap-2">
-                    <input
-                      type="checkbox"
-                      id={`cert-${cert.id}`}
-                      checked={!!existing}
-                      onChange={(e) => {
-                        if (e.target.checked) {
-                          setSelectedCerts((prev) => [
-                            ...prev,
-                            { certificationId: cert.id, requirementLevel: "required" },
-                          ]);
-                        } else {
-                          setSelectedCerts((prev) =>
-                            prev.filter((c) => c.certificationId !== cert.id)
-                          );
-                        }
-                      }}
-                      className="rounded"
-                    />
-                    <label htmlFor={`cert-${cert.id}`} className="flex-1 text-sm cursor-pointer">
-                      {cert.name}
-                      {cert.issuingBody && (
-                        <span className="ml-1 text-xs text-muted-foreground">({cert.issuingBody})</span>
-                      )}
-                    </label>
-                    {existing && (
-                      <select
-                        value={existing.requirementLevel}
-                        onChange={(e) =>
-                          setSelectedCerts((prev) =>
-                            prev.map((c) =>
-                              c.certificationId === cert.id
-                                ? { ...c, requirementLevel: e.target.value as "required" | "preferred" }
-                                : c
-                            )
-                          )
-                        }
-                        className="rounded border bg-background px-1.5 py-0.5 text-xs focus:outline-none"
-                      >
-                        <option value="required">Required</option>
-                        <option value="preferred">Preferred</option>
-                      </select>
-                    )}
-                  </div>
-                );
-              })}
+        {/* ── Overview tab ── */}
+        {safeTab === "overview" && (
+          <>
+            {/* Title */}
+            <div>
+              <label className="block text-xs font-medium text-muted-foreground mb-1">
+                Position Title <span className="text-destructive">*</span>
+              </label>
+              <input
+                type="text"
+                value={form.title}
+                onChange={(e) => set("title", e.target.value)}
+                placeholder="e.g. Solutions Engineer"
+                className="w-full rounded-md border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/40"
+              />
             </div>
-          </div>
-        )}
 
-        {/* Career Paths */}
-        {formSections.careerPaths && positions.filter((p) => p.id !== editing?.id).length > 0 && (
-          <div>
-            <label className="block text-xs font-medium text-muted-foreground mb-2">
-              Career Paths <span className="font-normal text-muted-foreground/60">(this role leads to…)</span>
-            </label>
-            <div className="space-y-1.5 max-h-36 overflow-y-auto rounded-md border bg-background p-2">
-              {positions
-                .filter((p) => p.id !== editing?.id)
-                .sort((a, b) => a.title.localeCompare(b.title))
-                .map((p) => (
-                  <div key={p.id} className="flex items-center gap-2">
-                    <input
-                      type="checkbox"
-                      id={`path-${p.id}`}
-                      checked={careerPathsTo.includes(p.id)}
-                      onChange={(e) => {
-                        if (e.target.checked) {
-                          setCareerPathsTo((prev) => [...prev, p.id]);
-                        } else {
-                          setCareerPathsTo((prev) => prev.filter((id) => id !== p.id));
-                        }
-                      }}
-                      className="rounded"
-                    />
-                    <label htmlFor={`path-${p.id}`} className="text-sm cursor-pointer">
-                      {p.title}
-                      {p.department && (
-                        <span className="ml-1 text-xs text-muted-foreground">({p.department.name})</span>
-                      )}
-                    </label>
-                  </div>
+            {/* Status */}
+            <div>
+              <label className="block text-xs font-medium text-muted-foreground mb-1">Status</label>
+              <select
+                value={form.status}
+                onChange={(e) => set("status", e.target.value)}
+                className="w-full rounded-md border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/40"
+              >
+                {POSITION_STATUSES.map((s) => (
+                  <option key={s.value} value={s.value}>{s.label}</option>
                 ))}
+              </select>
             </div>
-          </div>
+
+            {/* Department + Location */}
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="block text-xs font-medium text-muted-foreground mb-1">Department</label>
+                <select
+                  value={form.departmentId}
+                  onChange={(e) => set("departmentId", e.target.value)}
+                  className="w-full rounded-md border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/40"
+                >
+                  <option value="">— None —</option>
+                  {departments
+                    .filter((d) => d.status === "active")
+                    .map((d) => (
+                      <option key={d.id} value={d.id}>{d.name}</option>
+                    ))}
+                </select>
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-muted-foreground mb-1">Location</label>
+                <select
+                  value={form.locationId}
+                  onChange={(e) => set("locationId", e.target.value)}
+                  className="w-full rounded-md border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/40"
+                >
+                  <option value="">— None —</option>
+                  {locations
+                    .filter((l) => l.status === "active")
+                    .map((l) => (
+                      <option key={l.id} value={l.id}>{l.name}</option>
+                    ))}
+                </select>
+              </div>
+            </div>
+
+            {/* Reports To */}
+            <div>
+              <label className="block text-xs font-medium text-muted-foreground mb-1">Reports To</label>
+              <select
+                value={form.reportsToPositionId}
+                onChange={(e) => set("reportsToPositionId", e.target.value)}
+                className="w-full rounded-md border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/40"
+              >
+                <option value="">— No manager (top-level) —</option>
+                {parentOptions.map((p) => (
+                  <option key={p.id} value={p.id}>{p.title}</option>
+                ))}
+              </select>
+            </div>
+
+            {/* Assigned User */}
+            <div>
+              <label className="block text-xs font-medium text-muted-foreground mb-1">
+                Assigned User <span className="text-muted-foreground/60">(optional)</span>
+              </label>
+              <select
+                value={form.assignedUserId}
+                onChange={(e) => set("assignedUserId", e.target.value)}
+                className="w-full rounded-md border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/40"
+              >
+                <option value="">— Vacant —</option>
+                {users
+                  .filter((u: AppUser) => u.isActive)
+                  .sort((a: AppUser, b: AppUser) => a.name.localeCompare(b.name))
+                  .map((u: AppUser) => (
+                    <option key={u.id} value={u.id}>{u.name}</option>
+                  ))}
+              </select>
+            </div>
+
+            {/* Bio Description */}
+            {formSections.bio && (form.assignedUserId || primaryAssignment?.userId) && (
+              <div>
+                <label className="block text-xs font-medium text-muted-foreground mb-1">
+                  Bio Description{" "}
+                  <span className="font-normal text-muted-foreground/60">(about the person in this role)</span>
+                </label>
+                <textarea
+                  value={bio}
+                  onChange={(e) => setBio(e.target.value)}
+                  rows={3}
+                  placeholder="Short professional bio or background summary…"
+                  className="w-full rounded-md border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/40 resize-none"
+                />
+              </div>
+            )}
+
+            {/* Target Hire Date */}
+            {formSections.targetHireDate && (
+              <div>
+                <label className="block text-xs font-medium text-muted-foreground mb-1">
+                  Target Hire Date <span className="text-muted-foreground/60">(optional)</span>
+                </label>
+                <input
+                  type="date"
+                  value={form.targetHireDate}
+                  onChange={(e) => set("targetHireDate", e.target.value)}
+                  className="w-full rounded-md border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/40"
+                />
+              </div>
+            )}
+
+            {/* Notes */}
+            {formSections.notes && (
+              <div>
+                <label className="block text-xs font-medium text-muted-foreground mb-1">Notes</label>
+                <textarea
+                  value={form.notes}
+                  onChange={(e) => set("notes", e.target.value)}
+                  rows={3}
+                  placeholder="Optional notes about this position…"
+                  className="w-full rounded-md border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/40 resize-none"
+                />
+              </div>
+            )}
+          </>
         )}
 
-        {/* Compensation & Budget */}
-        {formSections.compensation && (
-          <div className="rounded-lg border bg-muted/20 p-3 space-y-3">
-            <p className="text-xs font-medium text-muted-foreground">Compensation &amp; Budget</p>
+        {/* ── Skills & Certs tab ── */}
+        {safeTab === "skills" && (
+          <>
+            {certifications.length === 0 ? (
+              <p className="text-sm text-muted-foreground italic py-4 text-center">
+                No certifications in the library. Add some in the Certifications tab.
+              </p>
+            ) : (
+              <div>
+                <label className="block text-xs font-medium text-muted-foreground mb-2">
+                  Required Certifications
+                </label>
+                <div className="space-y-1.5 rounded-md border bg-background p-2">
+                  {certifications.map((cert) => {
+                    const existing = selectedCerts.find((c) => c.certificationId === cert.id);
+                    return (
+                      <div key={cert.id} className="flex items-center gap-2">
+                        <input
+                          type="checkbox"
+                          id={`cert-${cert.id}`}
+                          checked={!!existing}
+                          onChange={(e) => {
+                            if (e.target.checked) {
+                              setSelectedCerts((prev) => [
+                                ...prev,
+                                { certificationId: cert.id, requirementLevel: "required" },
+                              ]);
+                            } else {
+                              setSelectedCerts((prev) =>
+                                prev.filter((c) => c.certificationId !== cert.id)
+                              );
+                            }
+                          }}
+                          className="rounded"
+                        />
+                        <label htmlFor={`cert-${cert.id}`} className="flex-1 text-sm cursor-pointer">
+                          {cert.name}
+                          {cert.issuingBody && (
+                            <span className="ml-1 text-xs text-muted-foreground">({cert.issuingBody})</span>
+                          )}
+                        </label>
+                        {existing && (
+                          <select
+                            value={existing.requirementLevel}
+                            onChange={(e) =>
+                              setSelectedCerts((prev) =>
+                                prev.map((c) =>
+                                  c.certificationId === cert.id
+                                    ? { ...c, requirementLevel: e.target.value as "required" | "preferred" }
+                                    : c
+                                )
+                              )
+                            }
+                            className="rounded border bg-background px-1.5 py-0.5 text-xs focus:outline-none"
+                          >
+                            <option value="required">Required</option>
+                            <option value="preferred">Preferred</option>
+                          </select>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+          </>
+        )}
+
+        {/* ── Career Paths tab ── */}
+        {safeTab === "career" && (
+          <>
+            {positions.filter((p) => p.id !== editing?.id).length === 0 ? (
+              <p className="text-sm text-muted-foreground italic py-4 text-center">
+                No other positions to link. Create more positions first.
+              </p>
+            ) : (
+              <div>
+                <label className="block text-xs font-medium text-muted-foreground mb-2">
+                  Career Paths <span className="font-normal text-muted-foreground/60">(this role leads to…)</span>
+                </label>
+                <div className="space-y-1.5 rounded-md border bg-background p-2">
+                  {positions
+                    .filter((p) => p.id !== editing?.id)
+                    .sort((a, b) => a.title.localeCompare(b.title))
+                    .map((p) => (
+                      <div key={p.id} className="flex items-center gap-2">
+                        <input
+                          type="checkbox"
+                          id={`path-${p.id}`}
+                          checked={careerPathsTo.includes(p.id)}
+                          onChange={(e) => {
+                            if (e.target.checked) {
+                              setCareerPathsTo((prev) => [...prev, p.id]);
+                            } else {
+                              setCareerPathsTo((prev) => prev.filter((id) => id !== p.id));
+                            }
+                          }}
+                          className="rounded"
+                        />
+                        <label htmlFor={`path-${p.id}`} className="text-sm cursor-pointer">
+                          {p.title}
+                          {p.department && (
+                            <span className="ml-1 text-xs text-muted-foreground">({p.department.name})</span>
+                          )}
+                        </label>
+                      </div>
+                    ))}
+                </div>
+              </div>
+            )}
+          </>
+        )}
+
+        {/* ── Compensation tab ── */}
+        {safeTab === "compensation" && (
+          <div className="space-y-4">
             <div className="grid grid-cols-2 gap-3">
               <div>
                 <label className="block text-xs font-medium text-muted-foreground mb-1">Pay Frequency</label>
@@ -817,8 +882,8 @@ export function PositionForm({
           </div>
         )}
 
-        {/* Successors */}
-        {formSections.successors && (
+        {/* ── Successors tab ── */}
+        {safeTab === "successors" && (
           <SuccessorsSection
             successors={successors}
             onChange={setSuccessors}
@@ -827,8 +892,8 @@ export function PositionForm({
           />
         )}
 
-        {/* Matrix Relationships */}
-        {formSections.matrixRelationships && (
+        {/* ── Matrix tab ── */}
+        {safeTab === "matrix" && (
           <MatrixRelationshipsSection
             relationships={matrixRelationships}
             onChange={setMatrixRelationships}
@@ -836,32 +901,34 @@ export function PositionForm({
             currentPositionId={editing?.id}
           />
         )}
+      </div>
 
-        {error && (
-          <p className="text-xs text-destructive">{error}</p>
+      {/* Error */}
+      {error && (
+        <p className="mt-2 text-xs text-destructive">{error}</p>
+      )}
+
+      {/* Footer */}
+      <div className="mt-4 flex items-center justify-between border-t pt-4">
+        {editing ? (
+          <button
+            type="button"
+            onClick={handleDelete}
+            disabled={isPending}
+            className="text-xs text-destructive hover:underline disabled:opacity-50"
+          >
+            Delete position
+          </button>
+        ) : (
+          <div />
         )}
-
-        <div className="flex items-center justify-between pt-1">
-          {editing ? (
-            <button
-              type="button"
-              onClick={handleDelete}
-              disabled={isPending}
-              className="text-xs text-destructive hover:underline disabled:opacity-50"
-            >
-              Delete position
-            </button>
-          ) : (
-            <div />
-          )}
-          <div className="flex gap-2">
-            <Button variant="ghost" size="sm" onClick={onClose} disabled={isPending}>
-              Cancel
-            </Button>
-            <Button size="sm" onClick={handleSubmit} disabled={isPending}>
-              {isPending ? "Saving…" : editing ? "Save Changes" : "Create Position"}
-            </Button>
-          </div>
+        <div className="flex gap-2">
+          <Button variant="ghost" size="sm" onClick={onClose} disabled={isPending}>
+            Cancel
+          </Button>
+          <Button size="sm" onClick={handleSubmit} disabled={isPending}>
+            {isPending ? "Saving…" : editing ? "Save Changes" : "Create Position"}
+          </Button>
         </div>
       </div>
     </Modal>
