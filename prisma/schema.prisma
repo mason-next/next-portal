@@ -937,6 +937,11 @@ model OrgPosition {
   status              String    @default("open")
   targetHireDate      DateTime? @map("target_hire_date")
   notes               String?
+  salaryMin           Float?    @map("salary_min")
+  salaryMid           Float?    @map("salary_mid")
+  salaryMax           Float?    @map("salary_max")
+  payFrequency        String    @default("annual") @map("pay_frequency")
+  budgetStatus        String    @default("budgeted") @map("budget_status")
   createdAt           DateTime  @default(now()) @map("created_at")
   updatedAt           DateTime  @updatedAt @map("updated_at")
 

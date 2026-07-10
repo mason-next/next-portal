@@ -140,6 +140,11 @@ export async function getOrgPositions(versionId?: string): Promise<OrgPosition[]
     status: r.status,
     targetHireDate: serializeDate(r.targetHireDate),
     notes: r.notes,
+    salaryMin: r.salaryMin,
+    salaryMid: r.salaryMid,
+    salaryMax: r.salaryMax,
+    payFrequency: r.payFrequency,
+    budgetStatus: r.budgetStatus,
     createdAt: r.createdAt.toISOString(),
     updatedAt: r.updatedAt.toISOString(),
     department: r.department

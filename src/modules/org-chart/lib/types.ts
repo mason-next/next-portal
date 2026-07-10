@@ -64,6 +64,11 @@ export interface OrgPosition {
   status: string;
   targetHireDate: string | null;
   notes: string | null;
+  salaryMin: number | null;
+  salaryMid: number | null;
+  salaryMax: number | null;
+  payFrequency: string;
+  budgetStatus: string;
   createdAt: string;
   updatedAt: string;
   department: OrgDepartment | null;
@@ -151,6 +156,11 @@ export interface CreatePositionInput {
   targetHireDate?: string | null;
   notes?: string | null;
   assignedUserId?: string | null;
+  salaryMin?: number | null;
+  salaryMid?: number | null;
+  salaryMax?: number | null;
+  payFrequency?: string;
+  budgetStatus?: string;
   certifications?: CertRequirement[];
   careerPathsTo?: string[];
   successors?: SuccessorEntry[];
@@ -165,6 +175,11 @@ export interface UpdatePositionInput {
   targetHireDate?: string | null;
   notes?: string | null;
   assignedUserId?: string | null;
+  salaryMin?: number | null;
+  salaryMid?: number | null;
+  salaryMax?: number | null;
+  payFrequency?: string;
+  budgetStatus?: string;
   certifications?: CertRequirement[];
   careerPathsTo?: string[];
   successors?: SuccessorEntry[];

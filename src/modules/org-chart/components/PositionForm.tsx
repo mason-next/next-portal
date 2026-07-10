@@ -214,6 +214,11 @@ export function PositionForm({
       : "",
     notes: editing?.notes ?? "",
     assignedUserId: primaryAssignment?.userId ?? "",
+    salaryMin: editing?.salaryMin != null ? String(editing.salaryMin) : "",
+    salaryMid: editing?.salaryMid != null ? String(editing.salaryMid) : "",
+    salaryMax: editing?.salaryMax != null ? String(editing.salaryMax) : "",
+    payFrequency: editing?.payFrequency ?? "annual",
+    budgetStatus: editing?.budgetStatus ?? "budgeted",
   });
 
   const [selectedCerts, setSelectedCerts] = useState<CertRequirement[]>(
@@ -250,6 +255,10 @@ export function PositionForm({
 
     startTransition(async () => {
       try {
+        const salaryMin = form.salaryMin ? parseFloat(form.salaryMin) : null;
+        const salaryMid = form.salaryMid ? parseFloat(form.salaryMid) : null;
+        const salaryMax = form.salaryMax ? parseFloat(form.salaryMax) : null;
+
         if (editing) {
           const input: UpdatePositionInput = {
             title: form.title.trim(),
@@ -260,6 +269,11 @@ export function PositionForm({
             targetHireDate: form.targetHireDate || null,
             notes: form.notes.trim() || null,
             assignedUserId: form.assignedUserId || null,
+            salaryMin,
+            salaryMid,
+            salaryMax,
+            payFrequency: form.payFrequency,
+            budgetStatus: form.budgetStatus,
             certifications: selectedCerts,
             careerPathsTo,
             successors,
@@ -276,6 +290,11 @@ export function PositionForm({
             targetHireDate: form.targetHireDate || null,
             notes: form.notes.trim() || null,
             assignedUserId: form.assignedUserId || null,
+            salaryMin,
+            salaryMid,
+            salaryMax,
+            payFrequency: form.payFrequency,
+            budgetStatus: form.budgetStatus,
             certifications: selectedCerts,
             careerPathsTo,
             successors,
@@ -533,6 +552,60 @@ export function PositionForm({
             </div>
           </div>
         )}
+
+        {/* Compensation & Budget */}
+        <div className="rounded-lg border bg-muted/20 p-3 space-y-3">
+          <p className="text-xs font-medium text-muted-foreground">Compensation &amp; Budget</p>
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="block text-xs font-medium text-muted-foreground mb-1">Pay Frequency</label>
+              <select
+                value={form.payFrequency}
+                onChange={(e) => set("payFrequency", e.target.value)}
+                className="w-full rounded-md border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/40"
+              >
+                <option value="annual">Annual</option>
+                <option value="hourly">Hourly</option>
+                <option value="monthly">Monthly</option>
+              </select>
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-muted-foreground mb-1">Budget Status</label>
+              <select
+                value={form.budgetStatus}
+                onChange={(e) => set("budgetStatus", e.target.value)}
+                className="w-full rounded-md border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/40"
+              >
+                <option value="budgeted">Budgeted</option>
+                <option value="unbudgeted">Unbudgeted</option>
+                <option value="frozen">Frozen</option>
+              </select>
+            </div>
+          </div>
+          <div>
+            <label className="block text-xs font-medium text-muted-foreground mb-1">
+              Salary Band <span className="font-normal text-muted-foreground/60">(optional)</span>
+            </label>
+            <div className="grid grid-cols-3 gap-2">
+              {(["salaryMin", "salaryMid", "salaryMax"] as const).map((field, idx) => (
+                <div key={field}>
+                  <label className="block text-[10px] text-muted-foreground/70 mb-0.5">
+                    {["Min", "Mid", "Max"][idx]}
+                  </label>
+                  <input
+                    type="number"
+                    min={0}
+                    step={1000}
+                    value={form[field]}
+                    onChange={(e) => set(field, e.target.value)}
+                    placeholder="—"
+                    className="w-full rounded-md border bg-background px-2.5 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary/40"
+                  />
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
 
         {/* Successors */}
         <SuccessorsSection
