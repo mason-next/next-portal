@@ -12,6 +12,7 @@ import type {
   CreateVersionInput,
   CreateCertificationInput,
   AddUserCertificationInput,
+  SuccessorEntry,
 } from "./types";
 
 // ─── Versions ─────────────────────────────────────────────────────────────────
@@ -35,8 +36,22 @@ export async function createOrgVersion(input: CreateVersionInput): Promise<OrgCh
 
 // ─── Positions ────────────────────────────────────────────────────────────────
 
+async function applySuccessors(positionId: string, successors: SuccessorEntry[]) {
+  await db.orgSuccessor.deleteMany({ where: { positionId } });
+  if (successors.length > 0) {
+    await db.orgSuccessor.createMany({
+      data: successors.map((s, i) => ({
+        positionId,
+        userId: s.userId,
+        rank: i + 1,
+        notes: s.notes ?? null,
+      })),
+    });
+  }
+}
+
 export async function createOrgPosition(input: CreatePositionInput) {
-  const { assignedUserId, targetHireDate, certifications, careerPathsTo, ...rest } = input;
+  const { assignedUserId, targetHireDate, certifications, careerPathsTo, successors, ...rest } = input;
 
   const position = await db.orgPosition.create({
     data: {
@@ -84,12 +99,16 @@ export async function createOrgPosition(input: CreatePositionInput) {
     });
   }
 
+  if (successors && successors.length > 0) {
+    await applySuccessors(position.id, successors);
+  }
+
   revalidatePath("/org-chart");
   return position;
 }
 
 export async function updateOrgPosition(id: string, input: UpdatePositionInput) {
-  const { assignedUserId, targetHireDate, certifications, careerPathsTo, ...rest } = input;
+  const { assignedUserId, targetHireDate, certifications, careerPathsTo, successors, ...rest } = input;
 
   await db.orgPosition.update({
     where: { id },
@@ -149,6 +168,11 @@ export async function updateOrgPosition(id: string, input: UpdatePositionInput) 
         data: careerPathsTo.map((toId) => ({ fromPositionId: id, toPositionId: toId })),
       });
     }
+  }
+
+  // Replace successors (ranked order = array index + 1)
+  if (successors !== undefined) {
+    await applySuccessors(id, successors);
   }
 
   revalidatePath("/org-chart");

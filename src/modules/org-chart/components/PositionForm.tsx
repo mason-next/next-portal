@@ -1,9 +1,10 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { X } from "lucide-react";
+import { X, Plus, ArrowUp, ArrowDown } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Modal } from "@/components/shared/Modal";
+import { cn } from "@/lib/utils";
 import { useUsersContext } from "@/components/shared/AppShell/UsersProvider";
 import type { AppUser } from "@/types/user";
 import type {
@@ -12,10 +13,159 @@ import type {
   OrgLocation,
   OrgCertification,
   CertRequirement,
+  SuccessorEntry,
   CreatePositionInput,
   UpdatePositionInput,
 } from "../lib/types";
 import { createOrgPosition, updateOrgPosition, deleteOrgPosition } from "../lib/actions";
+
+// ─── Successors section (self-contained) ─────────────────────────────────────
+
+const RANK_LABELS: Record<number, string> = { 1: "#1", 2: "#2", 3: "#3" };
+
+function SuccessorsSection({
+  successors,
+  onChange,
+  users,
+  currentOccupantId,
+}: {
+  successors: SuccessorEntry[];
+  onChange: (s: SuccessorEntry[]) => void;
+  users: import("@/types/user").AppUser[];
+  currentOccupantId: string | null;
+}) {
+  const [addingUserId, setAddingUserId] = useState("");
+  const [addingNotes, setAddingNotes] = useState("");
+  const [showAdd, setShowAdd] = useState(false);
+
+  const takenIds = new Set([
+    ...successors.map((s) => s.userId),
+    ...(currentOccupantId ? [currentOccupantId] : []),
+  ]);
+
+  const available = users
+    .filter((u) => u.isActive && !takenIds.has(u.id))
+    .sort((a, b) => a.name.localeCompare(b.name));
+
+  function addSuccessor() {
+    if (!addingUserId) return;
+    onChange([...successors, { userId: addingUserId, notes: addingNotes.trim() || null }]);
+    setAddingUserId("");
+    setAddingNotes("");
+    setShowAdd(false);
+  }
+
+  function remove(index: number) {
+    onChange(successors.filter((_, i) => i !== index));
+  }
+
+  function moveUp(index: number) {
+    if (index === 0) return;
+    const next = [...successors];
+    [next[index - 1], next[index]] = [next[index], next[index - 1]];
+    onChange(next);
+  }
+
+  function moveDown(index: number) {
+    if (index === successors.length - 1) return;
+    const next = [...successors];
+    [next[index], next[index + 1]] = [next[index + 1], next[index]];
+    onChange(next);
+  }
+
+  function updateNotes(index: number, notes: string) {
+    onChange(successors.map((s, i) => (i === index ? { ...s, notes: notes || null } : s)));
+  }
+
+  const userMap = new Map(users.map((u) => [u.id, u.name]));
+
+  return (
+    <div>
+      <div className="flex items-center justify-between mb-2">
+        <label className="block text-xs font-medium text-muted-foreground">
+          Successors <span className="font-normal text-muted-foreground/60">(ranked candidates for this role)</span>
+        </label>
+        {!showAdd && available.length > 0 && (
+          <button
+            type="button"
+            onClick={() => setShowAdd(true)}
+            className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors"
+          >
+            <Plus className="size-3" /> Add
+          </button>
+        )}
+      </div>
+
+      {successors.length === 0 && !showAdd && (
+        <p className="text-xs text-muted-foreground italic py-1">No successors defined.</p>
+      )}
+
+      <div className="space-y-2">
+        {successors.map((s, i) => (
+          <div key={s.userId} className="rounded-lg border bg-background p-2 space-y-1.5">
+            <div className="flex items-center gap-2">
+              <span className={cn(
+                "rounded px-1.5 py-0.5 text-xs font-bold flex-none",
+                i === 0 ? "bg-emerald-100 text-emerald-700" :
+                i === 1 ? "bg-blue-100 text-blue-700" :
+                           "bg-muted text-muted-foreground"
+              )}>
+                {RANK_LABELS[i + 1] ?? `#${i + 1}`}
+              </span>
+              <span className="flex-1 text-sm font-medium">{userMap.get(s.userId) ?? s.userId}</span>
+              <div className="flex gap-0.5 flex-none">
+                <button type="button" onClick={() => moveUp(i)} disabled={i === 0} className="p-1 rounded text-muted-foreground hover:text-foreground disabled:opacity-30 transition-colors">
+                  <ArrowUp className="size-3" />
+                </button>
+                <button type="button" onClick={() => moveDown(i)} disabled={i === successors.length - 1} className="p-1 rounded text-muted-foreground hover:text-foreground disabled:opacity-30 transition-colors">
+                  <ArrowDown className="size-3" />
+                </button>
+                <button type="button" onClick={() => remove(i)} className="p-1 rounded text-muted-foreground hover:text-destructive transition-colors">
+                  <X className="size-3" />
+                </button>
+              </div>
+            </div>
+            <input
+              type="text"
+              value={s.notes ?? ""}
+              onChange={(e) => updateNotes(i, e.target.value)}
+              placeholder="Development notes (optional)"
+              className="w-full rounded border bg-muted/30 px-2.5 py-1 text-xs focus:outline-none focus:ring-1 focus:ring-primary/40"
+            />
+          </div>
+        ))}
+
+        {showAdd && (
+          <div className="rounded-lg border bg-background p-2 space-y-2">
+            <select
+              autoFocus
+              value={addingUserId}
+              onChange={(e) => setAddingUserId(e.target.value)}
+              className="w-full rounded-md border bg-background px-2.5 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary/40"
+            >
+              <option value="">— Select successor —</option>
+              {available.map((u) => (
+                <option key={u.id} value={u.id}>{u.name}</option>
+              ))}
+            </select>
+            <input
+              type="text"
+              value={addingNotes}
+              onChange={(e) => setAddingNotes(e.target.value)}
+              onKeyDown={(e) => { if (e.key === "Enter") addSuccessor(); if (e.key === "Escape") setShowAdd(false); }}
+              placeholder="Development notes (optional)"
+              className="w-full rounded-md border bg-background px-2.5 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary/40"
+            />
+            <div className="flex gap-2">
+              <Button size="sm" onClick={addSuccessor} disabled={!addingUserId}>Add</Button>
+              <Button size="sm" variant="ghost" onClick={() => { setShowAdd(false); setAddingUserId(""); setAddingNotes(""); }}>Cancel</Button>
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
 
 const POSITION_STATUSES = [
   { value: "open",     label: "Open"     },
@@ -77,6 +227,13 @@ export function PositionForm({
     editing?.careerPaths.map((cp) => cp.toPositionId) ?? []
   );
 
+  const [successors, setSuccessors] = useState<SuccessorEntry[]>(
+    editing?.successors
+      .slice()
+      .sort((a, b) => a.rank - b.rank)
+      .map((s) => ({ userId: s.userId, notes: s.notes })) ?? []
+  );
+
   function set(field: string, value: string) {
     setForm((prev) => ({ ...prev, [field]: value }));
   }
@@ -105,6 +262,7 @@ export function PositionForm({
             assignedUserId: form.assignedUserId || null,
             certifications: selectedCerts,
             careerPathsTo,
+            successors,
           };
           await updateOrgPosition(editing.id, input);
         } else {
@@ -120,6 +278,7 @@ export function PositionForm({
             assignedUserId: form.assignedUserId || null,
             certifications: selectedCerts,
             careerPathsTo,
+            successors,
           };
           await createOrgPosition(input);
         }
@@ -374,6 +533,14 @@ export function PositionForm({
             </div>
           </div>
         )}
+
+        {/* Successors */}
+        <SuccessorsSection
+          successors={successors}
+          onChange={setSuccessors}
+          users={users}
+          currentOccupantId={form.assignedUserId || null}
+        />
 
         {error && (
           <p className="text-xs text-destructive">{error}</p>

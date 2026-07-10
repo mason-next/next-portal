@@ -71,6 +71,7 @@ export interface OrgPosition {
   assignments: OrgPositionAssignment[];
   certifications: OrgPositionCertification[];
   careerPaths: OrgCareerPath[];
+  successors: OrgSuccessor[];
 }
 
 export interface OrgChartStats {
@@ -125,6 +126,17 @@ export interface OrgCareerPath {
   createdAt: string;
 }
 
+export interface OrgSuccessor {
+  id: string;
+  positionId: string;
+  userId: string;
+  rank: number;
+  notes: string | null;
+  createdAt: string;
+  updatedAt: string;
+  user: { id: string; name: string; email: string; avatarUrl: string | null } | null;
+}
+
 // Form input types for create/update operations
 
 export type CertRequirement = { certificationId: string; requirementLevel: "required" | "preferred" };
@@ -141,6 +153,7 @@ export interface CreatePositionInput {
   assignedUserId?: string | null;
   certifications?: CertRequirement[];
   careerPathsTo?: string[];
+  successors?: SuccessorEntry[];
 }
 
 export interface UpdatePositionInput {
@@ -154,6 +167,7 @@ export interface UpdatePositionInput {
   assignedUserId?: string | null;
   certifications?: CertRequirement[];
   careerPathsTo?: string[];
+  successors?: SuccessorEntry[];
 }
 
 export interface CreateCertificationInput {
@@ -169,6 +183,8 @@ export interface AddUserCertificationInput {
   expiryDate?: string | null;
   credentialId?: string | null;
 }
+
+export type SuccessorEntry = { userId: string; notes: string | null };
 
 export interface CreateDepartmentInput {
   name: string;

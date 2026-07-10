@@ -949,6 +949,7 @@ model OrgPosition {
   certifications  OrgPositionCertification[]
   careerPathsFrom OrgCareerPath[]            @relation("CareerPathFrom")
   careerPathsTo   OrgCareerPath[]            @relation("CareerPathTo")
+  successors      OrgSuccessor[]
 
   @@map("org_positions")
 }
@@ -1030,6 +1031,22 @@ model OrgCareerPath {
 
   @@unique([fromPositionId, toPositionId])
   @@map("org_career_paths")
+}
+
+model OrgSuccessor {
+  id         String   @id @default(cuid())
+  positionId String   @map("position_id")
+  userId     String   @map("user_id")
+  rank       Int      @default(1)
+  notes      String?  @db.Text
+  createdAt  DateTime @default(now()) @map("created_at")
+  updatedAt  DateTime @updatedAt @map("updated_at")
+
+  position OrgPosition @relation(fields: [positionId], references: [id], onDelete: Cascade)
+  // user_id is a plain scalar reference to users.id — module isolation pattern
+
+  @@unique([positionId, userId])
+  @@map("org_successors")
 }
 
 // ─── Licenses ─────────────────────────────────────────────────────────────────

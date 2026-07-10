@@ -7,6 +7,7 @@ import type {
   OrgChartStats,
   OrgCertification,
   OrgUserCertification,
+  OrgSuccessor,
 } from "./types";
 
 // ─── Serialization helpers ────────────────────────────────────────────────────
@@ -106,17 +107,19 @@ export async function getOrgPositions(versionId?: string): Promise<OrgPosition[]
         include: { toPosition: { select: { id: true, title: true } } },
         orderBy: { createdAt: "asc" },
       },
+      successors: {
+        orderBy: { rank: "asc" },
+      },
     },
   });
 
-  // Collect unique user IDs and fetch them in one query.
+  // Collect unique user IDs from assignments AND successors in one batch.
   // user_id is a plain scalar (no Prisma relation) so User model stays unmodified.
   const userIds = [
-    ...new Set(
-      rows
-        .flatMap((r) => r.assignments.map((a) => a.userId))
-        .filter((id): id is string => id !== null)
-    ),
+    ...new Set([
+      ...rows.flatMap((r) => r.assignments.map((a) => a.userId)).filter((id): id is string => id !== null),
+      ...rows.flatMap((r) => r.successors.map((s) => s.userId)),
+    ]),
   ];
   const users =
     userIds.length > 0
@@ -182,6 +185,16 @@ export async function getOrgPositions(versionId?: string): Promise<OrgPosition[]
       typicalTimelineMonths: cp.typicalTimelineMonths,
       notes: cp.notes,
       createdAt: cp.createdAt.toISOString(),
+    })),
+    successors: r.successors.map((s) => ({
+      id: s.id,
+      positionId: s.positionId,
+      userId: s.userId,
+      rank: s.rank,
+      notes: s.notes,
+      createdAt: s.createdAt.toISOString(),
+      updatedAt: s.updatedAt.toISOString(),
+      user: userMap.get(s.userId) ?? null,
     })),
   }));
 }
