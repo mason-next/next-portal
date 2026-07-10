@@ -25,14 +25,18 @@ export function ReleaseModal({ releasableDraftReleases, onClose, onGenerate }: R
   const [releaseId, setReleaseId] = useState(releasableDraftReleases[0]?.id ?? "");
   const [shippingType, setShippingType] = useState("Next Day");
   const [shipTo, setShipTo] = useState("NY Warehouse");
+  const [customShipTo, setCustomShipTo] = useState("");
   const [recipients, setRecipients] = useState("Project Coordination Team");
   const [notes, setNotes] = useState("Please release all approved products for procurement.");
   const [submitting, setSubmitting] = useState(false);
 
+  const isCustomShipTo = shipTo === "__custom__";
+  const effectiveShipTo = isCustomShipTo ? customShipTo.trim() : shipTo;
+
   async function handleSubmit() {
-    if (!releaseId) return;
+    if (!releaseId || !effectiveShipTo) return;
     setSubmitting(true);
-    await onGenerate(releaseId, { shippingType, shipTo, recipients, notes });
+    await onGenerate(releaseId, { shippingType, shipTo: effectiveShipTo, recipients, notes });
   }
 
   return (
@@ -81,7 +85,17 @@ export function ReleaseModal({ releasableDraftReleases, onClose, onGenerate }: R
                   <option>NY Warehouse</option>
                   <option>Miami Warehouse</option>
                   <option>Site Address</option>
+                  <option value="__custom__">Custom Address…</option>
                 </select>
+                {isCustomShipTo && (
+                  <input
+                    className={`${FIELD_INPUT_CLASS} mt-2`}
+                    placeholder="Enter shipping address"
+                    value={customShipTo}
+                    onChange={(e) => setCustomShipTo(e.target.value)}
+                    autoFocus
+                  />
+                )}
               </Field>
             </div>
             <Field label="Recipients">
@@ -110,7 +124,7 @@ export function ReleaseModal({ releasableDraftReleases, onClose, onGenerate }: R
             Cancel
           </Button>
           {releasableDraftReleases.length > 0 ? (
-            <Button onClick={handleSubmit} disabled={submitting || !releaseId}>
+            <Button onClick={handleSubmit} disabled={submitting || !releaseId || !effectiveShipTo}>
               {submitting ? "Generating…" : "Generate Release"}
             </Button>
           ) : null}
