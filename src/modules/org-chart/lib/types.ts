@@ -119,3 +119,9 @@ export interface CreateLocationInput {
   region?: string | null;
   status?: string;
 }
+
+export interface CreateVersionInput {
+  name: string;
+  versionType: OrgChartVersionType;
+  description?: string | null;
+}

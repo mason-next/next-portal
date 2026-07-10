@@ -11,6 +11,7 @@ import { PositionList } from "./PositionList";
 import { PositionForm } from "./PositionForm";
 import { DepartmentManager } from "./DepartmentManager";
 import { LocationManager } from "./LocationManager";
+import { VersionSelector } from "./VersionSelector";
 import type {
   OrgChartVersion,
   OrgPosition,
@@ -30,6 +31,7 @@ const TABS: { key: Tab; label: string; icon: React.ReactNode }[] = [
 
 interface OrgChartDashboardProps {
   currentVersion: OrgChartVersion;
+  versions: OrgChartVersion[];
   positions: OrgPosition[];
   departments: OrgDepartment[];
   locations: OrgLocation[];
@@ -38,6 +40,7 @@ interface OrgChartDashboardProps {
 
 export function OrgChartDashboard({
   currentVersion,
+  versions,
   positions,
   departments,
   locations,
@@ -71,10 +74,11 @@ export function OrgChartDashboard({
         <div>
           <h1 className="text-2xl font-semibold tracking-tight">Org Chart</h1>
           <p className="mt-1 text-sm text-muted-foreground">
-            {currentVersion.name} · Position-based organizational structure
+            Position-based organizational structure
           </p>
         </div>
-        <div className="flex gap-2 flex-none">
+        <div className="flex items-center gap-2 flex-none">
+          <VersionSelector currentVersion={currentVersion} versions={versions} />
           <Button onClick={openAddPosition}>
             <Plus className="mr-1.5 size-4" />
             Add Position

@@ -3,11 +3,32 @@
 import { revalidatePath } from "next/cache";
 import { db } from "@/lib/db";
 import type {
+  OrgChartVersion,
   CreatePositionInput,
   UpdatePositionInput,
   CreateDepartmentInput,
   CreateLocationInput,
+  CreateVersionInput,
 } from "./types";
+
+// ─── Versions ─────────────────────────────────────────────────────────────────
+
+export async function createOrgVersion(input: CreateVersionInput): Promise<OrgChartVersion> {
+  const version = await db.orgChartVersion.create({
+    data: {
+      name: input.name,
+      description: input.description ?? null,
+      versionType: input.versionType,
+      isActive: true,
+    },
+  });
+  revalidatePath("/org-chart");
+  return {
+    ...version,
+    createdAt: version.createdAt.toISOString(),
+    updatedAt: version.updatedAt.toISOString(),
+  };
+}
 
 // ─── Positions ────────────────────────────────────────────────────────────────
 
