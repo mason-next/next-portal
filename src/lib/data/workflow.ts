@@ -372,8 +372,10 @@ export async function getWorkflowStepsForProjects(
   });
   const result: Record<string, WorkflowStep[]> = {};
   for (const row of rows) {
+    const step = toStep(row);
+    if (step.isExcluded) continue;
     if (!result[row.projectId]) result[row.projectId] = [];
-    result[row.projectId].push(toStep(row));
+    result[row.projectId].push(step);
   }
   return result;
 }
