@@ -6,6 +6,7 @@ import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import {
   Briefcase,
+  Eye,
   FileBarChart2,
   LayoutDashboard,
   LogOut,
@@ -18,11 +19,13 @@ import {
 } from "lucide-react";
 import { useSession } from "@/lib/auth/client";
 import { usePermissions } from "@/lib/PermissionsContext";
+import { useViewAs } from "@/lib/view-as/ViewAsContext";
 import type { PermissionFeature } from "@/lib/permissions";
 import { NotificationBell } from "@/modules/notifications/components/NotificationBell";
 import { ORG_CHART_ENABLED } from "@/lib/feature-flags";
 import { Nav } from "./Nav";
 import { UserAvatar } from "./UserAvatar";
+import { ViewAsSelector } from "./ViewAsSelector";
 import { cn } from "@/lib/utils";
 
 // feature: null means visibility is gated at the item level (show section if any item is accessible)
@@ -81,7 +84,10 @@ export function Header() {
   const router = useRouter();
   const pathname = usePathname();
   const { hasAccess } = usePermissions();
+  const { isViewAsMode } = useViewAs();
   const [menuOpen, setMenuOpen] = useState(false);
+  const [showViewAsSelector, setShowViewAsSelector] = useState(false);
+  const isAdmin = session.roleTypes.includes("Administrator");
 
   // Close menu on route change
   useEffect(() => { setMenuOpen(false); }, [pathname]);
@@ -137,6 +143,22 @@ export function Header() {
               <Settings className="size-4" />
             </Link>
           ) : null}
+          {isAdmin && (
+            <button
+              type="button"
+              onClick={() => setShowViewAsSelector(true)}
+              title={isViewAsMode ? "Change viewed user" : "View As another user"}
+              className={cn(
+                "hidden md:flex h-8 items-center gap-1.5 rounded-md px-2 text-sm transition-colors",
+                isViewAsMode
+                  ? "bg-amber-400/20 text-amber-700 hover:bg-amber-400/30 dark:text-amber-400"
+                  : "text-muted-foreground hover:bg-muted hover:text-foreground"
+              )}
+            >
+              <Eye className="size-4" />
+              <span className="hidden lg:inline">View As</span>
+            </button>
+          )}
           <NotificationBell />
           <div className="hidden md:block"><UserAvatar /></div>
           <span className="hidden md:block text-sm font-medium">{session.name}</span>
@@ -274,6 +296,19 @@ export function Header() {
               Admin Settings
             </Link>
           )}
+          {isAdmin && (
+            <button
+              type="button"
+              onClick={() => { setMenuOpen(false); setShowViewAsSelector(true); }}
+              className={cn(
+                "flex w-full items-center gap-3 rounded-md px-2 py-2 text-sm hover:bg-muted",
+                isViewAsMode ? "text-amber-700 dark:text-amber-400" : "text-muted-foreground hover:text-foreground"
+              )}
+            >
+              <Eye className="size-4" />
+              {isViewAsMode ? "Change Viewed User" : "View As"}
+            </button>
+          )}
           <button
             onClick={handleLogout}
             className="flex w-full items-center gap-3 rounded-md px-2 py-2 text-sm text-muted-foreground hover:bg-muted hover:text-foreground"
@@ -283,6 +318,8 @@ export function Header() {
           </button>
         </div>
       </div>
+
+      {showViewAsSelector && <ViewAsSelector onClose={() => setShowViewAsSelector(false)} />}
     </>
   );
 }

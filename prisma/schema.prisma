@@ -1077,6 +1077,22 @@ model OrgPositionRelationship {
   @@map("org_position_relationships")
 }
 
+// ─── Admin Audit Log ──────────────────────────────────────────────────────────
+
+model AdminAuditLog {
+  id             String   @id @default(cuid())
+  adminId        String   @map("admin_id")
+  adminName      String   @map("admin_name")
+  action         String
+  targetUserId   String?  @map("target_user_id")
+  targetUserName String?  @map("target_user_name")
+  metadata       Json?
+  createdAt      DateTime @default(now()) @map("created_at")
+
+  @@index([adminId, createdAt(sort: Desc)])
+  @@map("admin_audit_logs")
+}
+
 // ─── Licenses ─────────────────────────────────────────────────────────────────
 
 enum LicenseStatus {

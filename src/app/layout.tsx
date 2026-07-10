@@ -1,10 +1,12 @@
 import type { Metadata, Viewport } from "next";
 import { Geist_Mono, Google_Sans_Flex } from "next/font/google";
 import { Header } from "@/components/shared/AppShell/Header";
+import { ViewAsBanner } from "@/components/shared/AppShell/ViewAsBanner";
 import { UsersProvider } from "@/components/shared/AppShell/UsersProvider";
 import { NotificationsProvider } from "@/modules/notifications/hooks/NotificationsContext";
 import { PermissionsProvider } from "@/lib/PermissionsContext";
 import { SessionProvider } from "@/lib/auth/client";
+import { ViewAsProvider } from "@/lib/view-as/ViewAsContext";
 import { getServerSession } from "@/lib/auth/server";
 import "./globals.css";
 
@@ -54,14 +56,17 @@ export default async function RootLayout({
     <html lang="en" className={htmlClass}>
       <body className="min-h-full flex flex-col overflow-x-hidden">
         <SessionProvider user={session}>
-          <PermissionsProvider>
-            <UsersProvider>
-              <NotificationsProvider>
-                <Header />
-                <main className="flex-1 bg-muted/30">{children}</main>
-              </NotificationsProvider>
-            </UsersProvider>
-          </PermissionsProvider>
+          <ViewAsProvider>
+            <PermissionsProvider>
+              <UsersProvider>
+                <NotificationsProvider>
+                  <Header />
+                  <ViewAsBanner />
+                  <main className="flex-1 bg-muted/30">{children}</main>
+                </NotificationsProvider>
+              </UsersProvider>
+            </PermissionsProvider>
+          </ViewAsProvider>
         </SessionProvider>
       </body>
     </html>
