@@ -65,7 +65,7 @@ function autoMatchRep(cwName: string, users: AppUser[]): AppUser | null {
 
 interface CWImportModalProps {
   companies: SalesCompany[];
-  onImport: (data: CWImportPayload) => Promise<void>;
+  onImport: (data: CWImportPayload, signal: { cancelled: boolean }) => Promise<void>;
   onClose: () => void;
 }
 
@@ -209,8 +209,10 @@ export function CWImportModal({ companies, onImport, onClose }: CWImportModalPro
   const [parsed, setParsed] = useState<MatchedCompany[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [isImporting, setIsImporting] = useState(false);
+  const [isCancelling, setIsCancelling] = useState(false);
   const [done, setDone] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
+  const cancelSignal = useRef<{ cancelled: boolean }>({ cancelled: false });
 
   // Per-company: selected existing company id, or "" = create new
   const [companyMatch, setCompanyMatch] = useState<Record<string, string>>({});
@@ -319,7 +321,9 @@ export function CWImportModal({ companies, onImport, onClose }: CWImportModalPro
 
   async function handleImport() {
     if (!parsed) return;
+    cancelSignal.current = { cancelled: false };
     setIsImporting(true);
+    setIsCancelling(false);
     try {
       const companyMappings = parsed.map((m) => ({
         csvName: m.csvName,
@@ -339,14 +343,24 @@ export function CWImportModal({ companies, onImport, onClose }: CWImportModalPro
           })
           .filter((_, i) => checked.has(oppKey(m.csvName, i)))
       );
-      await onImport({ companyMappings, selectedOpps });
-      setDone(true);
+      await onImport({ companyMappings, selectedOpps }, cancelSignal.current);
+      if (!cancelSignal.current.cancelled) {
+        setDone(true);
+      } else {
+        onClose();
+      }
     } catch (err) {
       console.error("[CWImport] Import failed:", err);
       setError(`Import failed: ${err instanceof Error ? err.message : String(err)}`);
     } finally {
       setIsImporting(false);
+      setIsCancelling(false);
     }
+  }
+
+  function handleCancelDuringImport() {
+    cancelSignal.current.cancelled = true;
+    setIsCancelling(true);
   }
 
   const totalOpps = parsed?.reduce((s, m) => s + m.opps.length, 0) ?? 0;
@@ -549,7 +563,14 @@ export function CWImportModal({ companies, onImport, onClose }: CWImportModalPro
               ← Upload different file
             </button>
             <div className="flex gap-2">
-              <button type="button" onClick={onClose} className="rounded-md border px-4 py-2 text-sm font-medium hover:bg-muted">Cancel</button>
+              <button
+                type="button"
+                onClick={isImporting ? handleCancelDuringImport : onClose}
+                disabled={isCancelling}
+                className="rounded-md border px-4 py-2 text-sm font-medium hover:bg-muted disabled:opacity-50"
+              >
+                {isCancelling ? "Cancelling…" : "Cancel"}
+              </button>
               <button
                 type="button"
                 onClick={handleImport}

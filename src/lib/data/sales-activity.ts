@@ -97,12 +97,14 @@ function toActivity(r: {
 
 // ─── Companies ────────────────────────────────────────────────────────────────
 
-export async function getSalesCompanies(): Promise<SalesCompany[]> {
+export async function getSalesCompanies(ownerName?: string): Promise<SalesCompany[]> {
   const rows = await db.salesCompany.findMany({
     orderBy: { createdAt: "desc" },
+    where: ownerName ? { opportunities: { some: { ownerName } } } : undefined,
     include: {
       opportunities: {
         orderBy: { createdAt: "asc" },
+        where: ownerName ? { ownerName } : undefined,
       },
     },
   });
@@ -167,12 +169,14 @@ export async function updateOpportunityStage(id: string, stage: OppStage): Promi
 
 export async function getSalesActivities(filters?: {
   userId?: string;
+  userName?: string;
   weekStart?: string;
   opportunityId?: string;
 }): Promise<SalesActivity[]> {
   const rows = await db.salesActivity.findMany({
     where: {
       ...(filters?.userId ? { userId: filters.userId } : {}),
+      ...(filters?.userName ? { userName: filters.userName } : {}),
       ...(filters?.weekStart ? { weekStart: new Date(filters.weekStart) } : {}),
       ...(filters?.opportunityId ? { opportunityId: filters.opportunityId } : {}),
     },
@@ -235,9 +239,12 @@ export async function deleteSalesActivity(id: string): Promise<void> {
 
 // ─── Summary ──────────────────────────────────────────────────────────────────
 
-export async function getActivitySummary(weekStart: string): Promise<ActivitySummary> {
+export async function getActivitySummary(weekStart: string, userName?: string): Promise<ActivitySummary> {
   const rows = await db.salesActivity.findMany({
-    where: { weekStart: new Date(weekStart) },
+    where: {
+      weekStart: new Date(weekStart),
+      ...(userName ? { userName } : {}),
+    },
   });
   const byType: Record<string, number> = {};
   const byPerson: Record<string, number> = {};

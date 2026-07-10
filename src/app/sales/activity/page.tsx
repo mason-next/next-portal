@@ -26,13 +26,14 @@ type Modal =
 
 export default function SalesActivityPage() {
   const { userName, isManagement, actuallyManagement, previewAsSalesperson, togglePreview } = useDealDeskUser();
+  const scopeToUser = isManagement ? undefined : userName;
   const {
     companies, activities, allActivities, summary, isLoading,
     weekStart, setWeekStart,
     saveCompany, removeCompany,
     saveOpportunity, removeOpportunity, changeOppStage,
     logActivity, editActivity, removeActivity,
-  } = useSalesActivity();
+  } = useSalesActivity({ scopeToUser });
 
   const [modal, setModal] = useState<Modal>(null);
   const [stageFilter, setStageFilter] = useState("All");
@@ -59,33 +60,46 @@ export default function SalesActivityPage() {
         (c.opportunities ?? []).some((o) => o.stage === stageFilter)
       );
 
-  async function handleCWImport({ companyMappings, selectedOpps }: CWImportPayload) {
-    // Build csvName → companyId map
+  async function handleCWImport(
+    { companyMappings, selectedOpps }: CWImportPayload,
+    signal: { cancelled: boolean }
+  ) {
     const companyIdMap = new Map<string, string>();
 
-    for (const mapping of companyMappings) {
-      if (mapping.matchedId) {
-        companyIdMap.set(mapping.csvName, mapping.matchedId);
-      } else {
-        // Create new company
-        const created = await saveCompany({ name: mapping.csvName, domain: "", notes: "", dealDeskId: null });
-        companyIdMap.set(mapping.csvName, (created as SalesCompany).id);
-      }
-    }
+    // Create new companies in parallel — they're independent of each other
+    await Promise.all(
+      companyMappings.map(async (mapping) => {
+        if (signal.cancelled) return;
+        if (mapping.matchedId) {
+          companyIdMap.set(mapping.csvName, mapping.matchedId);
+        } else {
+          const created = await saveCompany({ name: mapping.csvName, domain: "", notes: "", dealDeskId: null });
+          companyIdMap.set(mapping.csvName, (created as SalesCompany).id);
+        }
+      })
+    );
 
-    for (const o of selectedOpps) {
-      const companyId = companyIdMap.get(o.resolvedCsvName);
-      if (!companyId) continue;
-      await saveOpportunity({
-        companyId,
-        name: o.name,
-        stage: o.stage,
-        ownerId: o.resolvedOwnerId,
-        ownerName: o.resolvedOwnerName,
-        value: Math.round(o.value * 100), // dollars → cents
-        notes: o.cwNumber ? `CW#${o.cwNumber}` : "",
-        closeDate: o.closeDate ?? null,
-      });
+    // Save opps in parallel chunks — check cancel between each chunk
+    const CHUNK = 10;
+    for (let i = 0; i < selectedOpps.length; i += CHUNK) {
+      if (signal.cancelled) break;
+      await Promise.all(
+        selectedOpps.slice(i, i + CHUNK).map(async (o) => {
+          if (signal.cancelled) return;
+          const companyId = companyIdMap.get(o.resolvedCsvName);
+          if (!companyId) return;
+          await saveOpportunity({
+            companyId,
+            name: o.name,
+            stage: o.stage,
+            ownerId: o.resolvedOwnerId,
+            ownerName: o.resolvedOwnerName,
+            value: Math.round(o.value * 100), // dollars → cents
+            notes: o.cwNumber ? `CW#${o.cwNumber}` : "",
+            closeDate: o.closeDate ?? null,
+          });
+        })
+      );
     }
   }
 

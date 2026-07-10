@@ -23,7 +23,7 @@ interface ActivitySummaryState {
   byPerson: Record<string, number>;
 }
 
-export function useSalesActivity() {
+export function useSalesActivity({ scopeToUser }: { scopeToUser?: string } = {}) {
   const [companies, setCompanies] = useState<SalesCompany[]>([]);
   const [activities, setActivities] = useState<SalesActivity[]>([]);
   const [allActivities, setAllActivities] = useState<SalesActivity[]>([]);
@@ -38,10 +38,10 @@ export function useSalesActivity() {
     let active = true;
     setIsLoading(true);
     Promise.all([
-      getSalesCompanies(),
-      getSalesActivities({ weekStart }),
-      getSalesActivities(),
-      getActivitySummary(weekStart),
+      getSalesCompanies(scopeToUser),
+      getSalesActivities({ weekStart, userName: scopeToUser }),
+      getSalesActivities({ userName: scopeToUser }),
+      getActivitySummary(weekStart, scopeToUser),
     ]).then(([c, a, all, s]) => {
       if (!active) return;
       setCompanies(c);
@@ -51,7 +51,7 @@ export function useSalesActivity() {
       setIsLoading(false);
     });
     return () => { active = false; };
-  }, [reloadToken, weekStart]);
+  }, [reloadToken, weekStart, scopeToUser]);
 
   const saveCompany = useCallback(async (
     data: Omit<SalesCompany, "id" | "createdAt" | "updatedAt" | "opportunities"> & { id?: string }
