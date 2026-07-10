@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Plus, Network, List, Building2, MapPin, BarChart3 } from "lucide-react";
+import { Plus, Network, List, Building2, MapPin, BarChart3, Award } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -13,22 +13,26 @@ import { DepartmentManager } from "./DepartmentManager";
 import { LocationManager } from "./LocationManager";
 import { VersionSelector } from "./VersionSelector";
 import { ReportsPanel } from "./ReportsPanel";
+import { CertificationManager } from "./CertificationManager";
 import type {
   OrgChartVersion,
   OrgPosition,
   OrgDepartment,
   OrgLocation,
   OrgChartStats,
+  OrgCertification,
+  OrgUserCertification,
 } from "../lib/types";
 
-type Tab = "chart" | "positions" | "departments" | "locations" | "reports";
+type Tab = "chart" | "positions" | "departments" | "locations" | "reports" | "certifications";
 
 const TABS: { key: Tab; label: string; icon: React.ReactNode }[] = [
-  { key: "chart",       label: "Org Chart",   icon: <Network   className="size-4" /> },
-  { key: "positions",   label: "Positions",   icon: <List      className="size-4" /> },
-  { key: "departments", label: "Departments", icon: <Building2 className="size-4" /> },
-  { key: "locations",   label: "Locations",   icon: <MapPin    className="size-4" /> },
-  { key: "reports",     label: "Reports",     icon: <BarChart3 className="size-4" /> },
+  { key: "chart",           label: "Org Chart",       icon: <Network   className="size-4" /> },
+  { key: "positions",       label: "Positions",       icon: <List      className="size-4" /> },
+  { key: "departments",     label: "Departments",     icon: <Building2 className="size-4" /> },
+  { key: "locations",       label: "Locations",       icon: <MapPin    className="size-4" /> },
+  { key: "reports",         label: "Reports",         icon: <BarChart3 className="size-4" /> },
+  { key: "certifications",  label: "Certifications",  icon: <Award     className="size-4" /> },
 ];
 
 interface OrgChartDashboardProps {
@@ -38,6 +42,8 @@ interface OrgChartDashboardProps {
   departments: OrgDepartment[];
   locations: OrgLocation[];
   stats: OrgChartStats;
+  certifications: OrgCertification[];
+  userCertifications: OrgUserCertification[];
 }
 
 export function OrgChartDashboard({
@@ -47,6 +53,8 @@ export function OrgChartDashboard({
   departments,
   locations,
   stats,
+  certifications,
+  userCertifications,
 }: OrgChartDashboardProps) {
   const router = useRouter();
   const [activeTab, setActiveTab] = useState<Tab>("chart");
@@ -94,14 +102,14 @@ export function OrgChartDashboard({
       </div>
 
       {/* Tab bar */}
-      <div className="mb-4 flex gap-1 border-b">
+      <div className="mb-4 flex gap-1 border-b overflow-x-auto">
         {TABS.map((tab) => (
           <button
             key={tab.key}
             type="button"
             onClick={() => setActiveTab(tab.key)}
             className={cn(
-              "flex items-center gap-2 px-4 py-2.5 text-sm font-medium border-b-2 -mb-px transition-colors",
+              "flex items-center gap-2 px-4 py-2.5 text-sm font-medium border-b-2 -mb-px transition-colors whitespace-nowrap",
               activeTab === tab.key
                 ? "border-primary text-foreground"
                 : "border-transparent text-muted-foreground hover:text-foreground"
@@ -142,6 +150,14 @@ export function OrgChartDashboard({
             locations={locations}
           />
         )}
+
+        {activeTab === "certifications" && (
+          <CertificationManager
+            certifications={certifications}
+            userCertifications={userCertifications}
+            positions={positions}
+          />
+        )}
       </div>
 
       {/* Position create/edit modal */}
@@ -152,6 +168,7 @@ export function OrgChartDashboard({
         departments={departments}
         locations={locations}
         positions={positions}
+        certifications={certifications}
         editing={editingPosition}
       />
     </div>

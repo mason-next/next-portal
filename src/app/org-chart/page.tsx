@@ -8,6 +8,8 @@ import {
   getOrgDepartments,
   getOrgLocations,
   getOrgChartStats,
+  getOrgCertifications,
+  getOrgUserCertifications,
 } from "@/modules/org-chart/lib/queries";
 import { OrgChartDashboard } from "@/modules/org-chart/components/OrgChartDashboard";
 
@@ -31,12 +33,15 @@ export default async function OrgChartPage({ searchParams }: PageProps) {
   const selectedVersion =
     requestedId ? (versions.find((v) => v.id === requestedId) ?? defaultVersion) : defaultVersion;
 
-  const [positions, departments, locations, stats] = await Promise.all([
-    getOrgPositions(selectedVersion.id),
-    getOrgDepartments(),
-    getOrgLocations(),
-    getOrgChartStats(selectedVersion.id),
-  ]);
+  const [positions, departments, locations, stats, certifications, userCertifications] =
+    await Promise.all([
+      getOrgPositions(selectedVersion.id),
+      getOrgDepartments(),
+      getOrgLocations(),
+      getOrgChartStats(selectedVersion.id),
+      getOrgCertifications(),
+      getOrgUserCertifications(),
+    ]);
 
   return (
     <OrgChartDashboard
@@ -46,6 +51,8 @@ export default async function OrgChartPage({ searchParams }: PageProps) {
       departments={departments}
       locations={locations}
       stats={stats}
+      certifications={certifications}
+      userCertifications={userCertifications}
     />
   );
 }

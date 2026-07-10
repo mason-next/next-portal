@@ -10,6 +10,8 @@ import type {
   OrgPosition,
   OrgDepartment,
   OrgLocation,
+  OrgCertification,
+  CertRequirement,
   CreatePositionInput,
   UpdatePositionInput,
 } from "../lib/types";
@@ -29,6 +31,7 @@ interface PositionFormProps {
   departments: OrgDepartment[];
   locations: OrgLocation[];
   positions: OrgPosition[];
+  certifications: OrgCertification[];
   editing?: OrgPosition | null;
 }
 
@@ -39,6 +42,7 @@ export function PositionForm({
   departments,
   locations,
   positions,
+  certifications,
   editing,
 }: PositionFormProps) {
   const { users } = useUsersContext();
@@ -61,6 +65,17 @@ export function PositionForm({
     notes: editing?.notes ?? "",
     assignedUserId: primaryAssignment?.userId ?? "",
   });
+
+  const [selectedCerts, setSelectedCerts] = useState<CertRequirement[]>(
+    editing?.certifications.map((c) => ({
+      certificationId: c.certificationId,
+      requirementLevel: c.requirementLevel,
+    })) ?? []
+  );
+
+  const [careerPathsTo, setCareerPathsTo] = useState<string[]>(
+    editing?.careerPaths.map((cp) => cp.toPositionId) ?? []
+  );
 
   function set(field: string, value: string) {
     setForm((prev) => ({ ...prev, [field]: value }));
@@ -88,6 +103,8 @@ export function PositionForm({
             targetHireDate: form.targetHireDate || null,
             notes: form.notes.trim() || null,
             assignedUserId: form.assignedUserId || null,
+            certifications: selectedCerts,
+            careerPathsTo,
           };
           await updateOrgPosition(editing.id, input);
         } else {
@@ -101,6 +118,8 @@ export function PositionForm({
             targetHireDate: form.targetHireDate || null,
             notes: form.notes.trim() || null,
             assignedUserId: form.assignedUserId || null,
+            certifications: selectedCerts,
+            careerPathsTo,
           };
           await createOrgPosition(input);
         }
@@ -258,6 +277,103 @@ export function PositionForm({
             className="w-full rounded-md border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/40 resize-none"
           />
         </div>
+
+        {/* Certifications */}
+        {certifications.length > 0 && (
+          <div>
+            <label className="block text-xs font-medium text-muted-foreground mb-2">
+              Required Certifications
+            </label>
+            <div className="space-y-1.5 max-h-40 overflow-y-auto rounded-md border bg-background p-2">
+              {certifications.map((cert) => {
+                const existing = selectedCerts.find((c) => c.certificationId === cert.id);
+                return (
+                  <div key={cert.id} className="flex items-center gap-2">
+                    <input
+                      type="checkbox"
+                      id={`cert-${cert.id}`}
+                      checked={!!existing}
+                      onChange={(e) => {
+                        if (e.target.checked) {
+                          setSelectedCerts((prev) => [
+                            ...prev,
+                            { certificationId: cert.id, requirementLevel: "required" },
+                          ]);
+                        } else {
+                          setSelectedCerts((prev) =>
+                            prev.filter((c) => c.certificationId !== cert.id)
+                          );
+                        }
+                      }}
+                      className="rounded"
+                    />
+                    <label htmlFor={`cert-${cert.id}`} className="flex-1 text-sm cursor-pointer">
+                      {cert.name}
+                      {cert.issuingBody && (
+                        <span className="ml-1 text-xs text-muted-foreground">({cert.issuingBody})</span>
+                      )}
+                    </label>
+                    {existing && (
+                      <select
+                        value={existing.requirementLevel}
+                        onChange={(e) =>
+                          setSelectedCerts((prev) =>
+                            prev.map((c) =>
+                              c.certificationId === cert.id
+                                ? { ...c, requirementLevel: e.target.value as "required" | "preferred" }
+                                : c
+                            )
+                          )
+                        }
+                        className="rounded border bg-background px-1.5 py-0.5 text-xs focus:outline-none"
+                      >
+                        <option value="required">Required</option>
+                        <option value="preferred">Preferred</option>
+                      </select>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
+
+        {/* Career Paths */}
+        {positions.filter((p) => p.id !== editing?.id).length > 0 && (
+          <div>
+            <label className="block text-xs font-medium text-muted-foreground mb-2">
+              Career Paths <span className="font-normal text-muted-foreground/60">(this role leads to…)</span>
+            </label>
+            <div className="space-y-1.5 max-h-36 overflow-y-auto rounded-md border bg-background p-2">
+              {positions
+                .filter((p) => p.id !== editing?.id)
+                .sort((a, b) => a.title.localeCompare(b.title))
+                .map((p) => (
+                  <div key={p.id} className="flex items-center gap-2">
+                    <input
+                      type="checkbox"
+                      id={`path-${p.id}`}
+                      checked={careerPathsTo.includes(p.id)}
+                      onChange={(e) => {
+                        if (e.target.checked) {
+                          setCareerPathsTo((prev) => [...prev, p.id]);
+                        } else {
+                          setCareerPathsTo((prev) => prev.filter((id) => id !== p.id));
+                        }
+                      }}
+                      className="rounded"
+                    />
+                    <label htmlFor={`path-${p.id}`} className="text-sm cursor-pointer">
+                      {p.title}
+                      {p.department && (
+                        <span className="ml-1 text-xs text-muted-foreground">({p.department.name})</span>
+                      )}
+                    </label>
+                  </div>
+                ))}
+            </div>
+          </div>
+        )}
 
         {error && (
           <p className="text-xs text-destructive">{error}</p>

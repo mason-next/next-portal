@@ -5,6 +5,8 @@ import type {
   OrgChartVersion,
   OrgPosition,
   OrgChartStats,
+  OrgCertification,
+  OrgUserCertification,
 } from "./types";
 
 // ─── Serialization helpers ────────────────────────────────────────────────────
@@ -96,6 +98,14 @@ export async function getOrgPositions(versionId?: string): Promise<OrgPosition[]
           isActive: true,
         },
       },
+      certifications: {
+        include: { certification: true },
+        orderBy: { createdAt: "asc" },
+      },
+      careerPathsFrom: {
+        include: { toPosition: { select: { id: true, title: true } } },
+        orderBy: { createdAt: "asc" },
+      },
     },
   });
 
@@ -153,6 +163,74 @@ export async function getOrgPositions(versionId?: string): Promise<OrgPosition[]
       isActive: a.isActive,
       user: a.userId ? (userMap.get(a.userId) ?? null) : null,
     })),
+    certifications: r.certifications.map((c) => ({
+      id: c.id,
+      positionId: c.positionId,
+      certificationId: c.certificationId,
+      requirementLevel: c.requirementLevel as "required" | "preferred",
+      certification: {
+        ...c.certification,
+        createdAt: c.certification.createdAt.toISOString(),
+        updatedAt: c.certification.updatedAt.toISOString(),
+      },
+    })),
+    careerPaths: r.careerPathsFrom.map((cp) => ({
+      id: cp.id,
+      fromPositionId: cp.fromPositionId,
+      toPositionId: cp.toPositionId,
+      toPositionTitle: cp.toPosition.title,
+      typicalTimelineMonths: cp.typicalTimelineMonths,
+      notes: cp.notes,
+      createdAt: cp.createdAt.toISOString(),
+    })),
+  }));
+}
+
+// ─── Certifications ───────────────────────────────────────────────────────────
+
+export async function getOrgCertifications(): Promise<OrgCertification[]> {
+  const rows = await db.orgCertification.findMany({
+    where: { status: "active" },
+    orderBy: { name: "asc" },
+  });
+  return rows.map((r) => ({
+    ...r,
+    createdAt: r.createdAt.toISOString(),
+    updatedAt: r.updatedAt.toISOString(),
+  }));
+}
+
+export async function getOrgUserCertifications(): Promise<OrgUserCertification[]> {
+  const rows = await db.orgUserCertification.findMany({
+    include: { certification: true },
+    orderBy: { createdAt: "asc" },
+  });
+
+  const userIds = [...new Set(rows.map((r) => r.userId))];
+  const users =
+    userIds.length > 0
+      ? await db.user.findMany({
+          where: { id: { in: userIds } },
+          select: { id: true, name: true, email: true },
+        })
+      : [];
+  const userMap = new Map(users.map((u) => [u.id, u]));
+
+  return rows.map((r) => ({
+    id: r.id,
+    userId: r.userId,
+    certificationId: r.certificationId,
+    issuedDate: serializeDate(r.issuedDate),
+    expiryDate: serializeDate(r.expiryDate),
+    credentialId: r.credentialId,
+    createdAt: r.createdAt.toISOString(),
+    updatedAt: r.updatedAt.toISOString(),
+    certification: {
+      ...r.certification,
+      createdAt: r.certification.createdAt.toISOString(),
+      updatedAt: r.certification.updatedAt.toISOString(),
+    },
+    user: userMap.get(r.userId) ?? null,
   }));
 }
 

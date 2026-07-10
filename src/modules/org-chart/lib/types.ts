@@ -69,6 +69,8 @@ export interface OrgPosition {
   department: OrgDepartment | null;
   location: OrgLocation | null;
   assignments: OrgPositionAssignment[];
+  certifications: OrgPositionCertification[];
+  careerPaths: OrgCareerPath[];
 }
 
 export interface OrgChartStats {
@@ -80,7 +82,52 @@ export interface OrgChartStats {
   totalLocations: number;
 }
 
+// ─── Phase 4: Certifications + Career Paths ───────────────────────────────────
+
+export interface OrgCertification {
+  id: string;
+  name: string;
+  description: string | null;
+  issuingBody: string | null;
+  status: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface OrgPositionCertification {
+  id: string;
+  positionId: string;
+  certificationId: string;
+  requirementLevel: "required" | "preferred";
+  certification: OrgCertification;
+}
+
+export interface OrgUserCertification {
+  id: string;
+  userId: string;
+  certificationId: string;
+  issuedDate: string | null;
+  expiryDate: string | null;
+  credentialId: string | null;
+  createdAt: string;
+  updatedAt: string;
+  certification: OrgCertification;
+  user: { id: string; name: string; email: string } | null;
+}
+
+export interface OrgCareerPath {
+  id: string;
+  fromPositionId: string;
+  toPositionId: string;
+  toPositionTitle: string;
+  typicalTimelineMonths: number | null;
+  notes: string | null;
+  createdAt: string;
+}
+
 // Form input types for create/update operations
+
+export type CertRequirement = { certificationId: string; requirementLevel: "required" | "preferred" };
 
 export interface CreatePositionInput {
   orgChartVersionId: string;
@@ -92,6 +139,8 @@ export interface CreatePositionInput {
   targetHireDate?: string | null;
   notes?: string | null;
   assignedUserId?: string | null;
+  certifications?: CertRequirement[];
+  careerPathsTo?: string[];
 }
 
 export interface UpdatePositionInput {
@@ -103,6 +152,22 @@ export interface UpdatePositionInput {
   targetHireDate?: string | null;
   notes?: string | null;
   assignedUserId?: string | null;
+  certifications?: CertRequirement[];
+  careerPathsTo?: string[];
+}
+
+export interface CreateCertificationInput {
+  name: string;
+  description?: string | null;
+  issuingBody?: string | null;
+}
+
+export interface AddUserCertificationInput {
+  userId: string;
+  certificationId: string;
+  issuedDate?: string | null;
+  expiryDate?: string | null;
+  credentialId?: string | null;
 }
 
 export interface CreateDepartmentInput {

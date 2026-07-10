@@ -4,11 +4,14 @@ import { revalidatePath } from "next/cache";
 import { db } from "@/lib/db";
 import type {
   OrgChartVersion,
+  OrgCertification,
   CreatePositionInput,
   UpdatePositionInput,
   CreateDepartmentInput,
   CreateLocationInput,
   CreateVersionInput,
+  CreateCertificationInput,
+  AddUserCertificationInput,
 } from "./types";
 
 // ─── Versions ─────────────────────────────────────────────────────────────────
@@ -33,7 +36,7 @@ export async function createOrgVersion(input: CreateVersionInput): Promise<OrgCh
 // ─── Positions ────────────────────────────────────────────────────────────────
 
 export async function createOrgPosition(input: CreatePositionInput) {
-  const { assignedUserId, targetHireDate, ...rest } = input;
+  const { assignedUserId, targetHireDate, certifications, careerPathsTo, ...rest } = input;
 
   const position = await db.orgPosition.create({
     data: {
@@ -54,7 +57,6 @@ export async function createOrgPosition(input: CreatePositionInput) {
         isActive: true,
       },
     });
-    // Sync status to "filled" if a user is assigned
     if (position.status !== "filled") {
       await db.orgPosition.update({
         where: { id: position.id },
@@ -63,12 +65,31 @@ export async function createOrgPosition(input: CreatePositionInput) {
     }
   }
 
+  if (certifications && certifications.length > 0) {
+    await db.orgPositionCertification.createMany({
+      data: certifications.map((c) => ({
+        positionId: position.id,
+        certificationId: c.certificationId,
+        requirementLevel: c.requirementLevel,
+      })),
+    });
+  }
+
+  if (careerPathsTo && careerPathsTo.length > 0) {
+    await db.orgCareerPath.createMany({
+      data: careerPathsTo.map((toId) => ({
+        fromPositionId: position.id,
+        toPositionId: toId,
+      })),
+    });
+  }
+
   revalidatePath("/org-chart");
   return position;
 }
 
 export async function updateOrgPosition(id: string, input: UpdatePositionInput) {
-  const { assignedUserId, targetHireDate, ...rest } = input;
+  const { assignedUserId, targetHireDate, certifications, careerPathsTo, ...rest } = input;
 
   await db.orgPosition.update({
     where: { id },
@@ -102,6 +123,30 @@ export async function updateOrgPosition(id: string, input: UpdatePositionInput) 
       await db.orgPosition.update({
         where: { id },
         data: { status: newStatus },
+      });
+    }
+  }
+
+  // Replace certifications (delete all, recreate)
+  if (certifications !== undefined) {
+    await db.orgPositionCertification.deleteMany({ where: { positionId: id } });
+    if (certifications.length > 0) {
+      await db.orgPositionCertification.createMany({
+        data: certifications.map((c) => ({
+          positionId: id,
+          certificationId: c.certificationId,
+          requirementLevel: c.requirementLevel,
+        })),
+      });
+    }
+  }
+
+  // Replace career paths (delete all from-side, recreate)
+  if (careerPathsTo !== undefined) {
+    await db.orgCareerPath.deleteMany({ where: { fromPositionId: id } });
+    if (careerPathsTo.length > 0) {
+      await db.orgCareerPath.createMany({
+        data: careerPathsTo.map((toId) => ({ fromPositionId: id, toPositionId: toId })),
       });
     }
   }
@@ -176,5 +221,61 @@ export async function deleteOrgLocation(id: string) {
     data: { locationId: null },
   });
   await db.orgLocation.delete({ where: { id } });
+  revalidatePath("/org-chart");
+}
+
+// ─── Certifications ───────────────────────────────────────────────────────────
+
+export async function createOrgCertification(
+  input: CreateCertificationInput
+): Promise<OrgCertification> {
+  const cert = await db.orgCertification.create({
+    data: {
+      name: input.name,
+      description: input.description ?? null,
+      issuingBody: input.issuingBody ?? null,
+    },
+  });
+  revalidatePath("/org-chart");
+  return { ...cert, createdAt: cert.createdAt.toISOString(), updatedAt: cert.updatedAt.toISOString() };
+}
+
+export async function updateOrgCertification(
+  id: string,
+  input: Partial<CreateCertificationInput>
+): Promise<void> {
+  await db.orgCertification.update({ where: { id }, data: input });
+  revalidatePath("/org-chart");
+}
+
+export async function deleteOrgCertification(id: string): Promise<void> {
+  // Junction rows cascade on delete; remove the cert from the library.
+  await db.orgCertification.delete({ where: { id } });
+  revalidatePath("/org-chart");
+}
+
+// ─── User Certifications ──────────────────────────────────────────────────────
+
+export async function addUserCertification(input: AddUserCertificationInput): Promise<void> {
+  await db.orgUserCertification.upsert({
+    where: { userId_certificationId: { userId: input.userId, certificationId: input.certificationId } },
+    create: {
+      userId: input.userId,
+      certificationId: input.certificationId,
+      issuedDate: input.issuedDate ? new Date(input.issuedDate) : null,
+      expiryDate: input.expiryDate ? new Date(input.expiryDate) : null,
+      credentialId: input.credentialId ?? null,
+    },
+    update: {
+      issuedDate: input.issuedDate ? new Date(input.issuedDate) : null,
+      expiryDate: input.expiryDate ? new Date(input.expiryDate) : null,
+      credentialId: input.credentialId ?? null,
+    },
+  });
+  revalidatePath("/org-chart");
+}
+
+export async function removeUserCertification(id: string): Promise<void> {
+  await db.orgUserCertification.delete({ where: { id } });
   revalidatePath("/org-chart");
 }

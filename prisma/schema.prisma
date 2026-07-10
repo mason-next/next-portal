@@ -945,7 +945,10 @@ model OrgPosition {
   location      OrgLocation?            @relation(fields: [locationId], references: [id], onDelete: SetNull)
   reportsTo     OrgPosition?            @relation("OrgReportsTo", fields: [reportsToPositionId], references: [id], onDelete: SetNull)
   directReports OrgPosition[]           @relation("OrgReportsTo")
-  assignments   OrgPositionAssignment[]
+  assignments     OrgPositionAssignment[]
+  certifications  OrgPositionCertification[]
+  careerPathsFrom OrgCareerPath[]            @relation("CareerPathFrom")
+  careerPathsTo   OrgCareerPath[]            @relation("CareerPathTo")
 
   @@map("org_positions")
 }
@@ -966,6 +969,67 @@ model OrgPositionAssignment {
   // remains unmodified. User data is fetched via a separate query in queries.ts.
 
   @@map("org_position_assignments")
+}
+
+model OrgCertification {
+  id          String   @id @default(cuid())
+  name        String
+  description String?  @db.Text
+  issuingBody String?  @map("issuing_body")
+  status      String   @default("active")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  positionCerts OrgPositionCertification[]
+  userCerts     OrgUserCertification[]
+
+  @@map("org_certifications")
+}
+
+model OrgPositionCertification {
+  id               String   @id @default(cuid())
+  positionId       String   @map("position_id")
+  certificationId  String   @map("certification_id")
+  requirementLevel String   @default("required") @map("requirement_level")
+  createdAt        DateTime @default(now()) @map("created_at")
+
+  position      OrgPosition      @relation(fields: [positionId],      references: [id], onDelete: Cascade)
+  certification OrgCertification @relation(fields: [certificationId], references: [id], onDelete: Cascade)
+
+  @@unique([positionId, certificationId])
+  @@map("org_position_certifications")
+}
+
+model OrgUserCertification {
+  id              String    @id @default(cuid())
+  userId          String    @map("user_id")
+  certificationId String    @map("certification_id")
+  issuedDate      DateTime? @map("issued_date")
+  expiryDate      DateTime? @map("expiry_date")
+  credentialId    String?   @map("credential_id")
+  createdAt       DateTime  @default(now()) @map("created_at")
+  updatedAt       DateTime  @updatedAt @map("updated_at")
+
+  certification OrgCertification @relation(fields: [certificationId], references: [id], onDelete: Cascade)
+  // user_id is a plain scalar reference to users.id — module isolation pattern
+
+  @@unique([userId, certificationId])
+  @@map("org_user_certifications")
+}
+
+model OrgCareerPath {
+  id                    String   @id @default(cuid())
+  fromPositionId        String   @map("from_position_id")
+  toPositionId          String   @map("to_position_id")
+  typicalTimelineMonths Int?     @map("typical_timeline_months")
+  notes                 String?  @db.Text
+  createdAt             DateTime @default(now()) @map("created_at")
+
+  fromPosition OrgPosition @relation("CareerPathFrom", fields: [fromPositionId], references: [id], onDelete: Cascade)
+  toPosition   OrgPosition @relation("CareerPathTo",   fields: [toPositionId],   references: [id], onDelete: Cascade)
+
+  @@unique([fromPositionId, toPositionId])
+  @@map("org_career_paths")
 }
 
 // ─── Licenses ─────────────────────────────────────────────────────────────────
