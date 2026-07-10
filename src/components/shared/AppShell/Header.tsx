@@ -84,10 +84,15 @@ export function Header() {
   const router = useRouter();
   const pathname = usePathname();
   const { hasAccess } = usePermissions();
-  const { isViewAsMode } = useViewAs();
+  const { isViewAsMode, viewAsUser } = useViewAs();
   const [menuOpen, setMenuOpen] = useState(false);
   const [showViewAsSelector, setShowViewAsSelector] = useState(false);
   const isAdmin = session.roleTypes.includes("Administrator");
+  // In view-as mode, admin-settings visibility reflects the viewed user's roles.
+  const effectiveRoles = isViewAsMode ? (viewAsUser?.roleTypes ?? []) : session.roleTypes;
+  const showAdminLink =
+    effectiveRoles.includes("Administrator") ||
+    effectiveRoles.some((r) => ["Sales", "Engineering", "ProjectManagement", "Management"].includes(r));
 
   // Close menu on route change
   useEffect(() => { setMenuOpen(false); }, [pathname]);
@@ -133,8 +138,7 @@ export function Header() {
               <Network className="size-4" />
             </Link>
           )}
-          {session.roleTypes.includes("Administrator") ||
-           session.roleTypes.some((r) => ["Sales", "Engineering", "ProjectManagement", "Management"].includes(r)) ? (
+          {showAdminLink ? (
             <Link
               href="/admin"
               title="Admin Settings"
@@ -285,8 +289,7 @@ export function Header() {
               </div>
             </div>
           </div>
-          {(session.roleTypes.includes("Administrator") ||
-            session.roleTypes.some((r) => ["Sales", "Engineering", "ProjectManagement", "Management"].includes(r))) && (
+          {showAdminLink && (
             <Link
               href="/admin"
               onClick={() => setMenuOpen(false)}

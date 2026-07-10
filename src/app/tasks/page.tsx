@@ -21,6 +21,7 @@ import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { useSession } from "@/lib/auth/client";
 import { useUsersContext } from "@/components/shared/AppShell/UsersProvider";
+import { useViewAs } from "@/lib/view-as/ViewAsContext";
 import { usePersistentFilter } from "@/lib/storage/use-persistent-filter";
 import { TaskDrawer } from "@/modules/implementation/components/TaskDrawer";
 import { TaskImportModal } from "@/modules/implementation/components/TaskImportModal";
@@ -127,6 +128,7 @@ const FILTER_SELECT_CLASS =
 export default function TasksPage() {
   const session = useSession();
   const { users } = useUsersContext();
+  const { isViewAsMode, viewAsUser } = useViewAs();
   const isAdmin = session.roleTypes.includes("Administrator");
   const [adminUserId, setAdminUserId] = usePersistentFilter<string | null>("tasks:adminUserId", null);
   const [tasks, setTasks] = useState<ApiTask[] | null>(null);
@@ -153,8 +155,13 @@ export default function TasksPage() {
     setTasks(null);
     setError(false);
     let url = "/api/tasks/mine";
-    if (isAdmin && adminUserId === "__all__") url = "/api/tasks/mine?userId=all";
-    else if (isAdmin && adminUserId) url = `/api/tasks/mine?userId=${adminUserId}`;
+    if (isViewAsMode && viewAsUser) {
+      url = `/api/tasks/mine?userId=${viewAsUser.id}`;
+    } else if (isAdmin && adminUserId === "__all__") {
+      url = "/api/tasks/mine?userId=all";
+    } else if (isAdmin && adminUserId) {
+      url = `/api/tasks/mine?userId=${adminUserId}`;
+    }
     fetch(url)
       .then((r) => {
         if (!r.ok) throw new Error(r.statusText);
@@ -171,7 +178,7 @@ export default function TasksPage() {
         setNotifications([]);
       });
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [adminUserId, isAdmin, reloadKey]);
+  }, [adminUserId, isAdmin, isViewAsMode, viewAsUser, reloadKey]);
 
   const loading = tasks === null && !error;
   const taskCount = (tasks?.length ?? 0) + ownedSteps.length;
@@ -261,7 +268,7 @@ export default function TasksPage() {
         />
       )}
 
-      {isAdmin ? (
+      {isAdmin && !isViewAsMode ? (
         <div className="flex items-center gap-2">
           <label className="text-sm text-muted-foreground">View:</label>
           <select

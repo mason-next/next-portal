@@ -160,7 +160,8 @@ export function getEffectiveLevel(
   let maxIdx = 0; // "none" at index 0
 
   for (const role of roleTypes) {
-    const perms = source[role];
+    // Fall back to built-in defaults for roles not explicitly in the custom config.
+    const perms = source[role] ?? DEFAULT_ROLE_PERMISSIONS[role];
     if (!perms) continue;
     const level: ModulePermLevel = perms[module] ?? "none";
     const idx = PERM_LEVELS.indexOf(level);
