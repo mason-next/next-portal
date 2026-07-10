@@ -45,6 +45,7 @@ export interface SalesOpportunity {
   value: number; // cents
   notes: string;
   closeDate: string | null;
+  cwNumber: string | null;
   createdAt: string;
   updatedAt: string;
   company?: Pick<SalesCompany, "id" | "name" | "domain">;

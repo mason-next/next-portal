@@ -330,10 +330,15 @@ export function CWImportModal({ companies, onImport, onClose }: CWImportModalPro
       if (!companyId) continue;
       const company = companies.find((c) => c.id === companyId);
       if (!company) continue;
+      // Match by cwNumber field (preferred) or legacy CW# notes prefix
       const cwIndex = new Map<string, string>();
       for (const opp of company.opportunities ?? []) {
-        const match = opp.notes?.match(/^CW#(\d+)/);
-        if (match) cwIndex.set(match[1], opp.id);
+        if (opp.cwNumber) {
+          cwIndex.set(opp.cwNumber, opp.id);
+        } else {
+          const match = opp.notes?.match(/^CW#(\d+)/);
+          if (match) cwIndex.set(match[1], opp.id);
+        }
       }
       m.opps.forEach((o, i) => {
         if (o.cwNumber && cwIndex.has(o.cwNumber)) {

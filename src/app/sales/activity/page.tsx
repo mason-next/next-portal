@@ -28,13 +28,14 @@ type Modal =
 
 export default function SalesActivityPage() {
   const { userName, isManagement, actuallyManagement, previewAsSalesperson, previewUser, setPreviewAs } = useDealDeskUser();
+  const scopeToUser = isManagement ? undefined : userName;
   const {
     companies, activities, allActivities, summary, isLoading,
     weekStart, setWeekStart,
     saveCompany, removeCompany,
     saveOpportunity, removeOpportunity, changeOppStage,
     logActivity, editActivity, removeActivity,
-  } = useSalesActivity();
+  } = useSalesActivity({ scopeToUser });
 
   const [modal, setModal] = useState<Modal>(null);
   const [stageFilter, setStageFilter] = useState("All");
@@ -168,8 +169,9 @@ export default function SalesActivityPage() {
         ownerId: o.resolvedOwnerId,
         ownerName: o.resolvedOwnerName,
         value: Math.round(o.value * 100),
-        notes: o.cwNumber ? `CW#${o.cwNumber}` : "",
+        notes: "",
         closeDate: o.closeDate ?? null,
+        cwNumber: o.cwNumber || null,
       });
       done++;
       onProgress(done, total, `${o.existingId ? "Updated" : "Saved"}: ${o.name}`);
@@ -532,7 +534,7 @@ export default function SalesActivityPage() {
             return company as SalesCompany;
           }}
           onCreateOpportunity={async (companyId, name, stage) => {
-            const opp = await saveOpportunity({ companyId, name, stage: stage ?? "Prospecting", ownerId: null, ownerName: "", value: 0, notes: "", closeDate: null });
+            const opp = await saveOpportunity({ companyId, name, stage: stage ?? "Prospecting", ownerId: null, ownerName: "", value: 0, notes: "", closeDate: null, cwNumber: null });
             return opp as { id: string; name: string };
           }}
           onClose={() => setModal(null)}

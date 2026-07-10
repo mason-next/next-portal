@@ -48,7 +48,8 @@ function toCompany(r: {
 function toOpp(r: {
   id: string; companyId: string; name: string; stage: string;
   ownerId: string | null; ownerName: string; value: number;
-  notes: string; closeDate: Date | null; createdAt: Date; updatedAt: Date;
+  notes: string; closeDate: Date | null; cwNumber: string | null;
+  createdAt: Date; updatedAt: Date;
   company?: { id: string; name: string; domain: string };
 }): SalesOpportunity {
   return {
@@ -61,6 +62,7 @@ function toOpp(r: {
     value: r.value,
     notes: r.notes,
     closeDate: r.closeDate?.toISOString() ?? null,
+    cwNumber: r.cwNumber,
     createdAt: r.createdAt.toISOString(),
     updatedAt: r.updatedAt.toISOString(),
     company: r.company,
@@ -97,12 +99,14 @@ function toActivity(r: {
 
 // ─── Companies ────────────────────────────────────────────────────────────────
 
-export async function getSalesCompanies(): Promise<SalesCompany[]> {
+export async function getSalesCompanies(ownerName?: string): Promise<SalesCompany[]> {
   const rows = await db.salesCompany.findMany({
     orderBy: { createdAt: "desc" },
+    where: ownerName ? { opportunities: { some: { ownerName } } } : undefined,
     include: {
       opportunities: {
         orderBy: { createdAt: "asc" },
+        where: ownerName ? { ownerName } : undefined,
       },
     },
   });
@@ -169,16 +173,34 @@ export async function normalizeOppOwnerNames(): Promise<number> {
 export async function upsertSalesOpportunity(
   data: Omit<SalesOpportunity, "id" | "createdAt" | "updatedAt" | "company"> & { id?: string }
 ): Promise<SalesOpportunity> {
+  const stage = (STAGE_TO_DB[data.stage] ?? data.stage) as "Prospecting" | "Qualifying" | "Proposal" | "Negotiation" | "ClosedWon" | "ClosedLost";
   const payload = {
     companyId: data.companyId,
     name: data.name,
-    stage: (STAGE_TO_DB[data.stage] ?? data.stage) as "Prospecting" | "Qualifying" | "Proposal" | "Negotiation" | "ClosedWon" | "ClosedLost",
+    stage,
     ownerId: data.ownerId,
     ownerName: data.ownerName,
     value: data.value,
     notes: data.notes,
     closeDate: data.closeDate ? new Date(data.closeDate) : null,
+    cwNumber: data.cwNumber ?? null,
   };
+
+  // CW-imported opps: upsert by cwNumber to avoid duplicates on reimport
+  if (data.cwNumber) {
+    const existing = await db.salesOpportunity.findFirst({
+      where: { cwNumber: data.cwNumber },
+    });
+    if (existing) {
+      const row = await db.salesOpportunity.update({
+        where: { id: existing.id },
+        // On reimport: refresh CW-owned fields only; preserve user-managed fields
+        data: { name: payload.name, value: payload.value, closeDate: payload.closeDate },
+      });
+      return toOpp(row);
+    }
+  }
+
   const row = data.id
     ? await db.salesOpportunity.update({ where: { id: data.id }, data: payload })
     : await db.salesOpportunity.create({ data: payload });
@@ -200,12 +222,14 @@ export async function updateOpportunityStage(id: string, stage: OppStage): Promi
 
 export async function getSalesActivities(filters?: {
   userId?: string;
+  userName?: string;
   weekStart?: string;
   opportunityId?: string;
 }): Promise<SalesActivity[]> {
   const rows = await db.salesActivity.findMany({
     where: {
       ...(filters?.userId ? { userId: filters.userId } : {}),
+      ...(filters?.userName ? { userName: filters.userName } : {}),
       ...(filters?.weekStart ? { weekStart: new Date(filters.weekStart) } : {}),
       ...(filters?.opportunityId ? { opportunityId: filters.opportunityId } : {}),
     },
@@ -268,9 +292,12 @@ export async function deleteSalesActivity(id: string): Promise<void> {
 
 // ─── Summary ──────────────────────────────────────────────────────────────────
 
-export async function getActivitySummary(weekStart: string): Promise<ActivitySummary> {
+export async function getActivitySummary(weekStart: string, userName?: string): Promise<ActivitySummary> {
   const rows = await db.salesActivity.findMany({
-    where: { weekStart: new Date(weekStart) },
+    where: {
+      weekStart: new Date(weekStart),
+      ...(userName ? { userName } : {}),
+    },
   });
   const byType: Record<string, number> = {};
   const byPerson: Record<string, number> = {};

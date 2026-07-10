@@ -35,6 +35,39 @@ function escapeHtml(s: string) {
   return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
 }
 
+function unavailablePage(heading: string, body: string): NextResponse {
+  const html = `<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Presentation Unavailable</title>
+  <style>
+    *{box-sizing:border-box;margin:0;padding:0}
+    body{min-height:100vh;display:flex;align-items:center;justify-content:center;
+         background:linear-gradient(135deg,#0d1b2a 0%,#1a2d42 60%,#0a1520 100%);
+         font-family:'Segoe UI',-apple-system,BlinkMacSystemFont,sans-serif;color:#fff;padding:24px}
+    .card{background:rgba(255,255,255,0.04);border:1px solid rgba(200,168,75,0.2);
+          border-radius:16px;padding:48px 40px;max-width:420px;width:100%;text-align:center;
+          box-shadow:0 24px 48px rgba(0,0,0,.4)}
+    h1{font-size:20px;font-weight:700;color:#c8a84b;margin:16px 0 12px}
+    p{font-size:14px;color:#a8b8cc;line-height:1.6}
+  </style>
+</head>
+<body>
+  <div class="card">
+    <div style="font-size:40px">🔒</div>
+    <h1>${escapeHtml(heading)}</h1>
+    <p>${escapeHtml(body)}</p>
+  </div>
+</body>
+</html>`;
+  return new NextResponse(html, {
+    status: 404,
+    headers: { "Content-Type": "text/html; charset=utf-8", "Cache-Control": "no-store" },
+  });
+}
+
 export async function GET(
   _request: NextRequest,
   { params }: { params: Promise<{ slug: string }> }
@@ -47,11 +80,17 @@ export async function GET(
   });
 
   if (!quote || !quote.isActive) {
-    return new NextResponse("Presentation not found or no longer available.", { status: 404 });
+    return unavailablePage(
+      "Not Available",
+      "This proposal link has expired or been deactivated. Contact your Mason Technologies representative for assistance."
+    );
   }
 
   if (!quote.storageKey) {
-    return new NextResponse("No presentation file has been uploaded yet.", { status: 404 });
+    return unavailablePage(
+      "Presentation Coming Soon",
+      "Your proposal is being prepared. Please check back shortly or contact your Mason Technologies representative."
+    );
   }
 
   const quoteDir = path.join(STORAGE_ROOT, "quotes", quote.id);
@@ -59,7 +98,10 @@ export async function GET(
   const absPath = path.join(quoteDir, htmlFileName);
 
   if (!fs.existsSync(absPath)) {
-    return new NextResponse("Presentation file not found on server.", { status: 404 });
+    return unavailablePage(
+      "Presentation Temporarily Unavailable",
+      "We're experiencing a technical issue retrieving your presentation. Please contact your Mason Technologies representative and we'll get this resolved right away."
+    );
   }
 
   let html = fs.readFileSync(absPath, "utf-8");
