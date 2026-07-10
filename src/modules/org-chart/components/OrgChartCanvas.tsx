@@ -41,11 +41,58 @@ const NODE_H = 138; // approximate rendered height used for vertical spacing
 const X_GAP  = 56;
 const Y_GAP  = 72;
 
+// ─── Department group layout ──────────────────────────────────────────────────
+
+const LABEL_H  = 52;  // vertical space above position cards reserved for dept label
+const PAD_H    = 28;  // horizontal padding inside each dept container
+const PAD_B    = 28;  // bottom padding inside each dept container
+
+function buildDeptGroups(
+  positionNodes: Node[],
+  posById: Map<string, OrgPosition>,
+  departments: OrgDepartment[],
+): Node[] {
+  const buckets = new Map<string, Array<{ x: number; y: number }>>();
+  for (const n of positionNodes) {
+    const dept = posById.get(n.id)?.departmentId;
+    if (!dept) continue;
+    if (!buckets.has(dept)) buckets.set(dept, []);
+    buckets.get(dept)!.push(n.position);
+  }
+
+  const groups: Node[] = [];
+  for (const dept of departments) {
+    const pts = buckets.get(dept.id);
+    if (!pts || pts.length === 0) continue;
+
+    const minX = Math.min(...pts.map((p) => p.x));
+    const minY = Math.min(...pts.map((p) => p.y));
+    const maxX = Math.max(...pts.map((p) => p.x));
+    const maxY = Math.max(...pts.map((p) => p.y));
+
+    const w = maxX - minX + NODE_W + PAD_H * 2;
+    const h = maxY - minY + NODE_H + LABEL_H + PAD_B;
+
+    groups.push({
+      id:       `dg-${dept.id}`,
+      type:     "deptGroup",
+      position: { x: minX - PAD_H, y: minY - LABEL_H },
+      style:    { width: w, height: h },
+      data:     { label: dept.name, color: dept.color ?? "#6366f1" },
+      zIndex:   -1,
+      draggable:  false,
+      selectable: false,
+    });
+  }
+  return groups;
+}
+
 // ─── Tree layout algorithm ─────────────────────────────────────────────────────
 
 function buildLayout(
-  positions: OrgPosition[],
-  collapsed: Set<string>,
+  positions:   OrgPosition[],
+  departments: OrgDepartment[],
+  collapsed:   Set<string>,
 ): { nodes: Node[]; edges: Edge[] } {
   if (positions.length === 0) return { nodes: [], edges: [] };
 
@@ -136,7 +183,10 @@ function buildLayout(
     }
   }
 
-  return { nodes, edges };
+  // Prepend department group containers (rendered below position nodes)
+  const deptGroups = buildDeptGroups(nodes, posById, departments);
+
+  return { nodes: [...deptGroups, ...nodes], edges };
 }
 
 // ─── Context — callbacks + live position lookup ───────────────────────────────
@@ -259,7 +309,35 @@ function PositionNode({ data, id }: NodeProps) {
   );
 }
 
-const NODE_TYPES = { orgPosition: PositionNode };
+// ─── Department group container node ─────────────────────────────────────────
+
+function DeptGroupNode({ data }: NodeProps) {
+  const { label, color } = data as { label: string; color: string };
+  const c = color ?? "#6366f1";
+  return (
+    <div
+      className="h-full w-full rounded-2xl pointer-events-none"
+      style={{
+        border:     `1.5px solid ${c}35`,
+        background: `${c}08`,
+      }}
+    >
+      <div
+        className="m-3 inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[11px] font-semibold"
+        style={{
+          background: `${c}18`,
+          color:       c,
+          border:     `1px solid ${c}30`,
+        }}
+      >
+        <span className="size-2 flex-none rounded-full" style={{ background: c }} />
+        {label}
+      </div>
+    </div>
+  );
+}
+
+const NODE_TYPES = { orgPosition: PositionNode, deptGroup: DeptGroupNode };
 
 // ─── Inner canvas (must be inside ReactFlowProvider) ──────────────────────────
 
@@ -297,8 +375,11 @@ function OrgChartInner({
     [onEdit, onToggle, positionsById],
   );
 
-  // Compute layout from positions + collapsed state
-  const layout = useMemo(() => buildLayout(positions, collapsed), [positions, collapsed]);
+  // Compute layout from positions + departments + collapsed state
+  const layout = useMemo(
+    () => buildLayout(positions, departments, collapsed),
+    [positions, departments, collapsed],
+  );
 
   // Compute which nodes to dim based on active filters
   const dimmedIds = useMemo<Set<string>>(() => {
@@ -314,7 +395,12 @@ function OrgChartInner({
         })
         .map((p) => p.id),
     );
-    return new Set(layout.nodes.filter((n) => !matched.has(n.id)).map((n) => n.id));
+    // Only dim position nodes, never group containers
+    return new Set(
+      layout.nodes
+        .filter((n) => !n.id.startsWith("dg-") && !matched.has(n.id))
+        .map((n) => n.id),
+    );
   }, [positions, layout.nodes, search, deptFilter, statusFilter]);
 
   const displayNodes = useMemo(

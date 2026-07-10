@@ -9,6 +9,7 @@ export interface OrgDepartment {
   id: string;
   name: string;
   description: string | null;
+  color: string;
   status: string;
   createdAt: string;
   updatedAt: string;
@@ -218,6 +219,7 @@ export type SuccessorEntry = { userId: string; notes: string | null };
 export interface CreateDepartmentInput {
   name: string;
   description?: string | null;
+  color?: string;
   status?: string;
 }
 

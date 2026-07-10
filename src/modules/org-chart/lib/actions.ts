@@ -219,6 +219,7 @@ export async function createOrgDepartment(input: CreateDepartmentInput) {
     data: {
       name: input.name,
       description: input.description ?? null,
+      color: input.color ?? "#6366f1",
       status: input.status ?? "active",
     },
   });
