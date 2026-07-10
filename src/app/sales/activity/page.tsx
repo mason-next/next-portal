@@ -95,8 +95,9 @@ export default function SalesActivityPage() {
             ownerId: o.resolvedOwnerId,
             ownerName: o.resolvedOwnerName,
             value: Math.round(o.value * 100), // dollars → cents
-            notes: o.cwNumber ? `CW#${o.cwNumber}` : "",
+            notes: "",
             closeDate: o.closeDate ?? null,
+            cwNumber: o.cwNumber || null,
           });
         })
       );
@@ -349,7 +350,7 @@ export default function SalesActivityPage() {
             return company as SalesCompany;
           }}
           onCreateOpportunity={async (companyId, name, stage) => {
-            const opp = await saveOpportunity({ companyId, name, stage: stage ?? "Prospecting", ownerId: null, ownerName: "", value: 0, notes: "", closeDate: null });
+            const opp = await saveOpportunity({ companyId, name, stage: stage ?? "Prospecting", ownerId: null, ownerName: "", value: 0, notes: "", closeDate: null, cwNumber: null });
             return opp as { id: string; name: string };
           }}
           onClose={() => setModal(null)}
