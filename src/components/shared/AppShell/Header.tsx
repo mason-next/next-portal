@@ -10,6 +10,7 @@ import {
   LayoutDashboard,
   LogOut,
   Menu,
+  Network,
   Settings,
   TrendingUp,
   Wrench,
@@ -19,6 +20,7 @@ import { useSession } from "@/lib/auth/client";
 import { usePermissions } from "@/lib/PermissionsContext";
 import type { PermissionFeature } from "@/lib/permissions";
 import { NotificationBell } from "@/modules/notifications/components/NotificationBell";
+import { ORG_CHART_ENABLED } from "@/lib/feature-flags";
 import { Nav } from "./Nav";
 import { UserAvatar } from "./UserAvatar";
 import { cn } from "@/lib/utils";
@@ -113,6 +115,18 @@ export function Header() {
         {/* Right: desktop controls + hamburger */}
         <div className="flex items-center gap-2 md:gap-3">
           {/* Desktop-only controls */}
+          {ORG_CHART_ENABLED && (
+            <Link
+              href="/org-chart"
+              title="Org Chart"
+              className={cn(
+                "hidden md:flex h-8 w-8 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-foreground",
+                pathname.startsWith("/org-chart") && "bg-accent text-foreground",
+              )}
+            >
+              <Network className="size-4" />
+            </Link>
+          )}
           {session.roleTypes.includes("Administrator") ||
            session.roleTypes.some((r) => ["Sales", "Engineering", "ProjectManagement", "Management"].includes(r)) ? (
             <Link
@@ -188,6 +202,19 @@ export function Header() {
             >
               <LayoutDashboard className="size-4 shrink-0" />
               Dashboard
+            </Link>
+          )}
+          {ORG_CHART_ENABLED && (
+            <Link
+              href="/org-chart"
+              onClick={() => setMenuOpen(false)}
+              className={cn(
+                "flex items-center gap-3 px-4 py-3 text-sm font-medium text-muted-foreground hover:bg-muted hover:text-foreground",
+                pathname.startsWith("/org-chart") && "text-foreground bg-muted",
+              )}
+            >
+              <Network className="size-4 shrink-0" />
+              Org Chart
             </Link>
           )}
           {MOBILE_NAV_SECTIONS.map((section) => {
