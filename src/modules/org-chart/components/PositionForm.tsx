@@ -14,6 +14,7 @@ import type {
   OrgCertification,
   CertRequirement,
   SuccessorEntry,
+  RelationshipEntry,
   CreatePositionInput,
   UpdatePositionInput,
 } from "../lib/types";
@@ -167,6 +168,159 @@ function SuccessorsSection({
   );
 }
 
+// ─── Matrix relationships section ────────────────────────────────────────────
+
+const REL_TYPE_LABELS: Record<string, string> = {
+  dotted_line: "Dotted line",
+  project: "Project",
+  mentorship: "Mentorship",
+};
+
+const REL_TYPE_COLORS: Record<string, string> = {
+  dotted_line: "bg-violet-100 text-violet-700",
+  project:     "bg-amber-100 text-amber-700",
+  mentorship:  "bg-teal-100 text-teal-700",
+};
+
+function MatrixRelationshipsSection({
+  relationships,
+  onChange,
+  positions,
+  currentPositionId,
+}: {
+  relationships: RelationshipEntry[];
+  onChange: (r: RelationshipEntry[]) => void;
+  positions: OrgPosition[];
+  currentPositionId?: string;
+}) {
+  const [showAdd, setShowAdd] = useState(false);
+  const [addingToId, setAddingToId] = useState("");
+  const [addingType, setAddingType] = useState("dotted_line");
+  const [addingNotes, setAddingNotes] = useState("");
+
+  const positionOptions = positions
+    .filter((p) => p.id !== currentPositionId)
+    .sort((a, b) => a.title.localeCompare(b.title));
+
+  const positionMap = new Map(positions.map((p) => [p.id, p.title]));
+
+  function add() {
+    if (!addingToId) return;
+    if (relationships.some((r) => r.toPositionId === addingToId && r.relationshipType === addingType)) return;
+    onChange([...relationships, { toPositionId: addingToId, relationshipType: addingType, notes: addingNotes.trim() || null }]);
+    setAddingToId("");
+    setAddingType("dotted_line");
+    setAddingNotes("");
+    setShowAdd(false);
+  }
+
+  function remove(index: number) {
+    onChange(relationships.filter((_, i) => i !== index));
+  }
+
+  function updateNotes(index: number, notes: string) {
+    onChange(relationships.map((r, i) => (i === index ? { ...r, notes: notes || null } : r)));
+  }
+
+  function updateType(index: number, type: string) {
+    onChange(relationships.map((r, i) => (i === index ? { ...r, relationshipType: type } : r)));
+  }
+
+  return (
+    <div>
+      <div className="flex items-center justify-between mb-2">
+        <label className="block text-xs font-medium text-muted-foreground">
+          Matrix Relationships <span className="font-normal text-muted-foreground/60">(dotted-line, project, mentorship)</span>
+        </label>
+        {!showAdd && positionOptions.length > 0 && (
+          <button
+            type="button"
+            onClick={() => setShowAdd(true)}
+            className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors"
+          >
+            <Plus className="size-3" /> Add
+          </button>
+        )}
+      </div>
+
+      {relationships.length === 0 && !showAdd && (
+        <p className="text-xs text-muted-foreground italic py-1">No matrix relationships defined.</p>
+      )}
+
+      <div className="space-y-2">
+        {relationships.map((r, i) => (
+          <div key={`${r.toPositionId}-${r.relationshipType}-${i}`} className="rounded-lg border bg-background p-2 space-y-1.5">
+            <div className="flex items-center gap-2">
+              <span className={cn("rounded px-1.5 py-0.5 text-xs font-medium flex-none", REL_TYPE_COLORS[r.relationshipType] ?? "bg-muted text-muted-foreground")}>
+                {REL_TYPE_LABELS[r.relationshipType] ?? r.relationshipType}
+              </span>
+              <span className="flex-1 text-sm font-medium truncate">→ {positionMap.get(r.toPositionId) ?? r.toPositionId}</span>
+              <button type="button" onClick={() => remove(i)} className="p-1 rounded text-muted-foreground hover:text-destructive transition-colors flex-none">
+                <X className="size-3" />
+              </button>
+            </div>
+            <div className="flex gap-2">
+              <select
+                value={r.relationshipType}
+                onChange={(e) => updateType(i, e.target.value)}
+                className="rounded border bg-background px-1.5 py-0.5 text-xs focus:outline-none"
+              >
+                <option value="dotted_line">Dotted line</option>
+                <option value="project">Project</option>
+                <option value="mentorship">Mentorship</option>
+              </select>
+              <input
+                type="text"
+                value={r.notes ?? ""}
+                onChange={(e) => updateNotes(i, e.target.value)}
+                placeholder="Notes (optional)"
+                className="flex-1 rounded border bg-muted/30 px-2 py-0.5 text-xs focus:outline-none focus:ring-1 focus:ring-primary/40"
+              />
+            </div>
+          </div>
+        ))}
+
+        {showAdd && (
+          <div className="rounded-lg border bg-background p-2 space-y-2">
+            <select
+              autoFocus
+              value={addingToId}
+              onChange={(e) => setAddingToId(e.target.value)}
+              className="w-full rounded-md border bg-background px-2.5 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary/40"
+            >
+              <option value="">— Select position —</option>
+              {positionOptions.map((p) => (
+                <option key={p.id} value={p.id}>{p.title}</option>
+              ))}
+            </select>
+            <select
+              value={addingType}
+              onChange={(e) => setAddingType(e.target.value)}
+              className="w-full rounded-md border bg-background px-2.5 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary/40"
+            >
+              <option value="dotted_line">Dotted line</option>
+              <option value="project">Project</option>
+              <option value="mentorship">Mentorship</option>
+            </select>
+            <input
+              type="text"
+              value={addingNotes}
+              onChange={(e) => setAddingNotes(e.target.value)}
+              onKeyDown={(e) => { if (e.key === "Enter") add(); if (e.key === "Escape") { setShowAdd(false); setAddingToId(""); setAddingNotes(""); } }}
+              placeholder="Notes (optional)"
+              className="w-full rounded-md border bg-background px-2.5 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary/40"
+            />
+            <div className="flex gap-2">
+              <Button size="sm" onClick={add} disabled={!addingToId}>Add</Button>
+              <Button size="sm" variant="ghost" onClick={() => { setShowAdd(false); setAddingToId(""); setAddingType("dotted_line"); setAddingNotes(""); }}>Cancel</Button>
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
 const POSITION_STATUSES = [
   { value: "open",     label: "Open"     },
   { value: "filled",   label: "Filled"   },
@@ -239,6 +393,14 @@ export function PositionForm({
       .map((s) => ({ userId: s.userId, notes: s.notes })) ?? []
   );
 
+  const [matrixRelationships, setMatrixRelationships] = useState<RelationshipEntry[]>(
+    editing?.relationships.map((r) => ({
+      toPositionId: r.toPositionId,
+      relationshipType: r.relationshipType,
+      notes: r.notes,
+    })) ?? []
+  );
+
   function set(field: string, value: string) {
     setForm((prev) => ({ ...prev, [field]: value }));
   }
@@ -277,6 +439,7 @@ export function PositionForm({
             certifications: selectedCerts,
             careerPathsTo,
             successors,
+            relationships: matrixRelationships,
           };
           await updateOrgPosition(editing.id, input);
         } else {
@@ -298,6 +461,7 @@ export function PositionForm({
             certifications: selectedCerts,
             careerPathsTo,
             successors,
+            relationships: matrixRelationships,
           };
           await createOrgPosition(input);
         }
@@ -613,6 +777,14 @@ export function PositionForm({
           onChange={setSuccessors}
           users={users}
           currentOccupantId={form.assignedUserId || null}
+        />
+
+        {/* Matrix Relationships */}
+        <MatrixRelationshipsSection
+          relationships={matrixRelationships}
+          onChange={setMatrixRelationships}
+          positions={positions}
+          currentPositionId={editing?.id}
         />
 
         {error && (

@@ -77,6 +77,7 @@ export interface OrgPosition {
   certifications: OrgPositionCertification[];
   careerPaths: OrgCareerPath[];
   successors: OrgSuccessor[];
+  relationships: OrgPositionRelationship[];
 }
 
 export interface OrgChartStats {
@@ -142,9 +143,20 @@ export interface OrgSuccessor {
   user: { id: string; name: string; email: string; avatarUrl: string | null } | null;
 }
 
+export interface OrgPositionRelationship {
+  id: string;
+  fromPositionId: string;
+  toPositionId: string;
+  toPositionTitle: string;
+  relationshipType: string;
+  notes: string | null;
+  createdAt: string;
+}
+
 // Form input types for create/update operations
 
 export type CertRequirement = { certificationId: string; requirementLevel: "required" | "preferred" };
+export type RelationshipEntry = { toPositionId: string; relationshipType: string; notes: string | null };
 
 export interface CreatePositionInput {
   orgChartVersionId: string;
@@ -164,6 +176,7 @@ export interface CreatePositionInput {
   certifications?: CertRequirement[];
   careerPathsTo?: string[];
   successors?: SuccessorEntry[];
+  relationships?: RelationshipEntry[];
 }
 
 export interface UpdatePositionInput {
@@ -183,6 +196,7 @@ export interface UpdatePositionInput {
   certifications?: CertRequirement[];
   careerPathsTo?: string[];
   successors?: SuccessorEntry[];
+  relationships?: RelationshipEntry[];
 }
 
 export interface CreateCertificationInput {

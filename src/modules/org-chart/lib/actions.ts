@@ -13,6 +13,7 @@ import type {
   CreateCertificationInput,
   AddUserCertificationInput,
   SuccessorEntry,
+  RelationshipEntry,
 } from "./types";
 
 // ─── Versions ─────────────────────────────────────────────────────────────────
@@ -36,6 +37,20 @@ export async function createOrgVersion(input: CreateVersionInput): Promise<OrgCh
 
 // ─── Positions ────────────────────────────────────────────────────────────────
 
+async function applyRelationships(positionId: string, relationships: RelationshipEntry[]) {
+  await db.orgPositionRelationship.deleteMany({ where: { fromPositionId: positionId } });
+  if (relationships.length > 0) {
+    await db.orgPositionRelationship.createMany({
+      data: relationships.map((r) => ({
+        fromPositionId: positionId,
+        toPositionId: r.toPositionId,
+        relationshipType: r.relationshipType,
+        notes: r.notes ?? null,
+      })),
+    });
+  }
+}
+
 async function applySuccessors(positionId: string, successors: SuccessorEntry[]) {
   await db.orgSuccessor.deleteMany({ where: { positionId } });
   if (successors.length > 0) {
@@ -51,7 +66,7 @@ async function applySuccessors(positionId: string, successors: SuccessorEntry[])
 }
 
 export async function createOrgPosition(input: CreatePositionInput) {
-  const { assignedUserId, targetHireDate, certifications, careerPathsTo, successors, ...rest } = input;
+  const { assignedUserId, targetHireDate, certifications, careerPathsTo, successors, relationships, ...rest } = input;
 
   const position = await db.orgPosition.create({
     data: {
@@ -103,12 +118,16 @@ export async function createOrgPosition(input: CreatePositionInput) {
     await applySuccessors(position.id, successors);
   }
 
+  if (relationships && relationships.length > 0) {
+    await applyRelationships(position.id, relationships);
+  }
+
   revalidatePath("/org-chart");
   return position;
 }
 
 export async function updateOrgPosition(id: string, input: UpdatePositionInput) {
-  const { assignedUserId, targetHireDate, certifications, careerPathsTo, successors, ...rest } = input;
+  const { assignedUserId, targetHireDate, certifications, careerPathsTo, successors, relationships, ...rest } = input;
 
   await db.orgPosition.update({
     where: { id },
@@ -173,6 +192,11 @@ export async function updateOrgPosition(id: string, input: UpdatePositionInput) 
   // Replace successors (ranked order = array index + 1)
   if (successors !== undefined) {
     await applySuccessors(id, successors);
+  }
+
+  // Replace matrix relationships (delete-all-recreate)
+  if (relationships !== undefined) {
+    await applyRelationships(id, relationships);
   }
 
   revalidatePath("/org-chart");

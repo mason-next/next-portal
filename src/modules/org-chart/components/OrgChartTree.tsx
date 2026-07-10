@@ -6,6 +6,12 @@ import { cn } from "@/lib/utils";
 import { StatusBadge } from "@/components/shared/StatusBadge";
 import type { OrgPosition } from "../lib/types";
 
+const REL_BADGE: Record<string, { label: string; className: string }> = {
+  dotted_line: { label: "Dotted",    className: "border-dashed border-violet-300 bg-violet-50 text-violet-700" },
+  project:     { label: "Project",   className: "border-dashed border-amber-300 bg-amber-50 text-amber-700"   },
+  mentorship:  { label: "Mentorship",className: "border-dashed border-teal-300 bg-teal-50 text-teal-700"     },
+};
+
 function positionStatusBadge(status: string) {
   switch (status) {
     case "filled":   return <StatusBadge label="Filled"   tone="success" />;
@@ -101,6 +107,26 @@ function OrgTreeNode({
           {children.length > 0 && (
             <div className="mt-1 text-xs text-muted-foreground">
               {children.length} direct report{children.length !== 1 ? "s" : ""}
+            </div>
+          )}
+
+          {position.relationships.length > 0 && (
+            <div className="mt-1.5 flex flex-wrap gap-1">
+              {position.relationships.map((rel) => {
+                const badge = REL_BADGE[rel.relationshipType];
+                return (
+                  <span
+                    key={rel.id}
+                    title={rel.notes ?? undefined}
+                    className={cn(
+                      "inline-flex items-center gap-1 rounded border px-1.5 py-0.5 text-[10px] font-medium",
+                      badge?.className ?? "border-dashed border-muted-foreground/40 text-muted-foreground"
+                    )}
+                  >
+                    {badge?.label ?? rel.relationshipType} → {rel.toPositionTitle}
+                  </span>
+                );
+              })}
             </div>
           )}
         </div>

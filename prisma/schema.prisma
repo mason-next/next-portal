@@ -950,11 +950,13 @@ model OrgPosition {
   location      OrgLocation?            @relation(fields: [locationId], references: [id], onDelete: SetNull)
   reportsTo     OrgPosition?            @relation("OrgReportsTo", fields: [reportsToPositionId], references: [id], onDelete: SetNull)
   directReports OrgPosition[]           @relation("OrgReportsTo")
-  assignments     OrgPositionAssignment[]
-  certifications  OrgPositionCertification[]
-  careerPathsFrom OrgCareerPath[]            @relation("CareerPathFrom")
-  careerPathsTo   OrgCareerPath[]            @relation("CareerPathTo")
-  successors      OrgSuccessor[]
+  assignments       OrgPositionAssignment[]
+  certifications    OrgPositionCertification[]
+  careerPathsFrom   OrgCareerPath[]              @relation("CareerPathFrom")
+  careerPathsTo     OrgCareerPath[]              @relation("CareerPathTo")
+  successors        OrgSuccessor[]
+  relationshipsFrom OrgPositionRelationship[]    @relation("RelationshipFrom")
+  relationshipsTo   OrgPositionRelationship[]    @relation("RelationshipTo")
 
   @@map("org_positions")
 }
@@ -1054,6 +1056,24 @@ model OrgSuccessor {
   @@map("org_successors")
 }
 
+model OrgPositionRelationship {
+  id               String   @id @default(cuid())
+  fromPositionId   String   @map("from_position_id")
+  toPositionId     String   @map("to_position_id")
+  relationshipType String   @map("relationship_type")
+  notes            String?  @db.Text
+  createdAt        DateTime @default(now()) @map("created_at")
+  updatedAt        DateTime @updatedAt @map("updated_at")
+
+  fromPosition OrgPosition @relation("RelationshipFrom", fields: [fromPositionId], references: [id], onDelete: Cascade)
+  toPosition   OrgPosition @relation("RelationshipTo",   fields: [toPositionId],   references: [id], onDelete: Cascade)
+
+  @@unique([fromPositionId, toPositionId, relationshipType])
+  @@index([fromPositionId])
+  @@index([toPositionId])
+  @@map("org_position_relationships")
+}
+
 // ─── Licenses ─────────────────────────────────────────────────────────────────
 
 enum LicenseStatus {
@@ -1079,3 +1099,4 @@ model License {
 
   @@map("licenses")
 }
+

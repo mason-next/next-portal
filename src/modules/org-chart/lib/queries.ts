@@ -8,6 +8,7 @@ import type {
   OrgCertification,
   OrgUserCertification,
   OrgSuccessor,
+  OrgPositionRelationship,
 } from "./types";
 
 // ─── Serialization helpers ────────────────────────────────────────────────────
@@ -110,6 +111,10 @@ export async function getOrgPositions(versionId?: string): Promise<OrgPosition[]
       successors: {
         orderBy: { rank: "asc" },
       },
+      relationshipsFrom: {
+        include: { toPosition: { select: { id: true, title: true } } },
+        orderBy: { createdAt: "asc" },
+      },
     },
   });
 
@@ -200,6 +205,15 @@ export async function getOrgPositions(versionId?: string): Promise<OrgPosition[]
       createdAt: s.createdAt.toISOString(),
       updatedAt: s.updatedAt.toISOString(),
       user: userMap.get(s.userId) ?? null,
+    })),
+    relationships: r.relationshipsFrom.map((rel) => ({
+      id: rel.id,
+      fromPositionId: rel.fromPositionId,
+      toPositionId: rel.toPositionId,
+      toPositionTitle: rel.toPosition.title,
+      relationshipType: rel.relationshipType,
+      notes: rel.notes,
+      createdAt: rel.createdAt.toISOString(),
     })),
   }));
 }
