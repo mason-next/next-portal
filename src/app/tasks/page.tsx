@@ -638,14 +638,24 @@ function TaskRow({
   );
 
   return (
-    <button
-      type="button"
+    <div
+      role="button"
+      tabIndex={taskLoading ? -1 : 0}
       onClick={() => !taskLoading && onOpenTask(task.id)}
-      className="flex w-full items-center gap-3 px-5 py-3.5 hover:bg-accent transition-colors text-left disabled:opacity-60"
-      disabled={taskLoading}
+      onKeyDown={(e) => {
+        if ((e.key === "Enter" || e.key === " ") && !taskLoading) {
+          e.preventDefault();
+          onOpenTask(task.id);
+        }
+      }}
+      aria-disabled={taskLoading}
+      className={cn(
+        "flex w-full items-center gap-3 px-5 py-3.5 hover:bg-accent transition-colors text-left cursor-pointer",
+        taskLoading && "opacity-60 cursor-not-allowed"
+      )}
     >
       {inner}
-    </button>
+    </div>
   );
 }
 
