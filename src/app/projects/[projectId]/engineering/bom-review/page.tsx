@@ -226,7 +226,7 @@ export default function BomReviewPage({
     const emailSubject = buildEmailSubject(emailDetails);
     const emailPlainText = buildEmailPlainText(emailDetails, rowSnapshot);
     const emailHtml = buildEmailHtml(emailDetails, rowSnapshot);
-    const pdf = buildReleasePdf(emailDetails, rowSnapshot);
+    const pdf = await buildReleasePdf(emailDetails, rowSnapshot);
     const pdfFilename = releasePdfFilename(emailDetails);
 
     await updateRelease(projectId, releaseId, {
