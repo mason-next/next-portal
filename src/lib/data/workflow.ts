@@ -515,6 +515,9 @@ export async function removeWorkflowStep(projectId: string, key: string): Promis
 
   const section = step.section as unknown as ProjectSectionKey;
 
+  // Delete tasks tied to this step so they don't persist as orphans on the Tasks page.
+  await db.implementationTask.deleteMany({ where: { workflowStepId: step.id } });
+
   if (step.isCustom) {
     // Custom (user-added) steps are truly deleted since they're never re-seeded.
     await db.workflowStep.delete({
@@ -601,6 +604,16 @@ export async function addPhaseToProject(projectId: string, section: ProjectSecti
 // Use addPhaseToProject to restore it.
 export async function removePhaseFromProject(projectId: string, section: ProjectSectionKey): Promise<void> {
   await requireEditPermission();
+
+  const stepsInSection = await db.workflowStep.findMany({
+    where: { projectId, section: SECTION_TO_DB[section] },
+    select: { id: true },
+  });
+  if (stepsInSection.length > 0) {
+    await db.implementationTask.deleteMany({
+      where: { workflowStepId: { in: stepsInSection.map((s) => s.id) } },
+    });
+  }
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   await (db as any).workflowStep.updateMany({
