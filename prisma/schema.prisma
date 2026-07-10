@@ -194,8 +194,6 @@ model User {
   implTaskComments      ImplementationTaskComment[] @relation("ImplTaskCommentAuthor")
   technicianAssignments  ProjectTechnician[]         @relation("ProjectTechUser")
   certifications         UserCertification[]
-  // Org Chart module backrelation — no column added to users table; FK lives on org_position_assignments.
-  orgPositionAssignments OrgPositionAssignment[]
 
   @@map("users")
 }
@@ -964,7 +962,8 @@ model OrgPositionAssignment {
   updatedAt      DateTime  @updatedAt @map("updated_at")
 
   position OrgPosition @relation(fields: [positionId], references: [id], onDelete: Cascade)
-  user     User?       @relation(fields: [userId], references: [id], onDelete: SetNull)
+  // user_id is a plain scalar reference to users.id — no Prisma relation so the User model
+  // remains unmodified. User data is fetched via a separate query in queries.ts.
 
   @@map("org_position_assignments")
 }

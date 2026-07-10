@@ -86,14 +86,36 @@ export async function getOrgPositions(versionId?: string): Promise<OrgPosition[]
       location: true,
       assignments: {
         where: { isActive: true },
-        include: {
-          user: {
-            select: { id: true, name: true, email: true, avatarUrl: true },
-          },
+        select: {
+          id: true,
+          positionId: true,
+          userId: true,
+          assignmentType: true,
+          startDate: true,
+          endDate: true,
+          isActive: true,
         },
       },
     },
   });
+
+  // Collect unique user IDs and fetch them in one query.
+  // user_id is a plain scalar (no Prisma relation) so User model stays unmodified.
+  const userIds = [
+    ...new Set(
+      rows
+        .flatMap((r) => r.assignments.map((a) => a.userId))
+        .filter((id): id is string => id !== null)
+    ),
+  ];
+  const users =
+    userIds.length > 0
+      ? await db.user.findMany({
+          where: { id: { in: userIds } },
+          select: { id: true, name: true, email: true, avatarUrl: true },
+        })
+      : [];
+  const userMap = new Map(users.map((u) => [u.id, u]));
 
   return rows.map((r) => ({
     id: r.id,
@@ -129,14 +151,7 @@ export async function getOrgPositions(versionId?: string): Promise<OrgPosition[]
       startDate: serializeDate(a.startDate),
       endDate: serializeDate(a.endDate),
       isActive: a.isActive,
-      user: a.user
-        ? {
-            id: a.user.id,
-            name: a.user.name,
-            email: a.user.email,
-            avatarUrl: a.user.avatarUrl,
-          }
-        : null,
+      user: a.userId ? (userMap.get(a.userId) ?? null) : null,
     })),
   }));
 }
