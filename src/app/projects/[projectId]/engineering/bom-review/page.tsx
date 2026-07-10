@@ -53,6 +53,7 @@ export default function BomReviewPage({
     bulkAssignRelease,
     markRowsReleased,
     addRow,
+    copyRow,
     deleteRows,
     reorderRows,
     refetch,
@@ -317,6 +318,7 @@ export default function BomReviewPage({
             onAssignRelease={handleAssignRelease}
             onRowsReorder={handleRowsReorder}
             onDeleteRow={handleDeleteRow}
+            onCopyRow={copyRow}
           />
           <Button variant="outline" onClick={addRow} className="w-full">
             + Add Row

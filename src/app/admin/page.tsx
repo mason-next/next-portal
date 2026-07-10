@@ -1,7 +1,22 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { Building2, Download, FileCheck, FileText, Layers, MapPin, Settings2, ShieldCheck, Upload, Users, X } from "lucide-react";
+import {
+  Building2,
+  Download,
+  ExternalLink,
+  FileCheck,
+  FileText,
+  Layers,
+  ListTodo,
+  MapPin,
+  Settings2,
+  ShieldCheck,
+  Upload,
+  Users,
+  Warehouse,
+  X,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { StatusBadge } from "@/components/shared/StatusBadge";
 import { Skeleton } from "@/components/shared/Skeleton";
@@ -14,9 +29,15 @@ import { WorkflowTemplateTab } from "@/modules/admin/components/WorkflowTemplate
 import { TaskTemplatesTab } from "@/modules/admin/components/TaskTemplatesTab";
 import { UserFormModal } from "@/modules/admin/components/UserFormModal";
 import { SubcontractorFormModal } from "@/modules/admin/components/SubcontractorFormModal";
+import { WarehouseFormModal } from "@/modules/admin/components/WarehouseFormModal";
 import { LicensesTab } from "@/modules/admin/components/LicensesTab";
 import { PermissionsTab } from "@/modules/admin/components/PermissionsTab";
 import { getAllSubcontractors } from "@/lib/data/subcontractors";
+import {
+  deleteWarehouse,
+  getWarehouses,
+  seedDefaultWarehouses,
+} from "@/lib/data/warehouses";
 import {
   TEMPLATE_NAMES,
   downloadTemplate,
@@ -29,12 +50,11 @@ import { cn } from "@/lib/utils";
 import { ROLE_TYPE_LABELS } from "@/types/user";
 import type { AppUser } from "@/types/user";
 import type { Subcontractor } from "@/types/subcontractor";
+import type { Warehouse as WarehouseType } from "@/types/warehouse";
 import { useIsAdmin } from "@/lib/hooks/useCanEdit";
 
-// Kept for tree-shaking — these were previously inlined in the admin page.
-// PermissionsConfig and permission constants now live in PermissionsTab component.
-
-type Tab = "users" | "subcontractors" | "licenses" | "templates" | "permissions" | "workflow" | "defaults";
+type Tab = "users" | "subcontractors" | "licenses" | "templates" | "permissions" | "defaults" | "warehouses";
+type TemplatesSubTab = "sop" | "tasks" | "workflow";
 
 function StarDisplay({ rating }: { rating: number | null }) {
   if (!rating) return <span className="text-xs text-muted-foreground">—</span>;
@@ -53,15 +73,14 @@ function StarDisplay({ rating }: { rating: number | null }) {
 export default function AdminPage() {
   const isAdmin = useIsAdmin();
   const session = useSession();
-  // "users: administrator" module level = can manage (see all + create/edit) users.
-  // Literal Administrator role always qualifies; others need explicit "administrator" level on the users module.
   const canManageUsers = isAdmin || getEffectiveLevel(session.roleTypes, "users") === "administrator";
   const [tab, setTab] = useState<Tab>("users");
+  const [templatesSubTab, setTemplatesSubTab] = useState<TemplatesSubTab>("sop");
 
   return (
     <div className="mx-auto max-w-4xl p-8">
-      {/* Tab bar */}
-      <div className="mb-6 flex items-center gap-0 border-b">
+      {/* Main tab bar */}
+      <div className="mb-0 flex items-center gap-0 border-b">
         <TabButton active={tab === "users"} onClick={() => setTab("users")}>
           <Users className="size-4" />
           Users
@@ -84,9 +103,9 @@ export default function AdminPage() {
               <ShieldCheck className="size-4" />
               Permissions
             </TabButton>
-            <TabButton active={tab === "workflow"} onClick={() => setTab("workflow")}>
-              <Layers className="size-4" />
-              Workflow
+            <TabButton active={tab === "warehouses"} onClick={() => setTab("warehouses")}>
+              <Warehouse className="size-4" />
+              Warehouses
             </TabButton>
             <TabButton active={tab === "defaults"} onClick={() => setTab("defaults")}>
               <Settings2 className="size-4" />
@@ -96,6 +115,26 @@ export default function AdminPage() {
         ) : null}
       </div>
 
+      {/* Templates sub-tab bar */}
+      {tab === "templates" && isAdmin ? (
+        <div className="mb-6 flex items-center gap-0 border-b bg-muted/30 -mx-8 px-8">
+          <SubTabButton active={templatesSubTab === "sop"} onClick={() => setTemplatesSubTab("sop")}>
+            <FileText className="size-3.5" />
+            SOP Templates
+          </SubTabButton>
+          <SubTabButton active={templatesSubTab === "tasks"} onClick={() => setTemplatesSubTab("tasks")}>
+            <ListTodo className="size-3.5" />
+            Task Templates
+          </SubTabButton>
+          <SubTabButton active={templatesSubTab === "workflow"} onClick={() => setTemplatesSubTab("workflow")}>
+            <Layers className="size-3.5" />
+            Workflow Templates
+          </SubTabButton>
+        </div>
+      ) : (
+        <div className="mb-6" />
+      )}
+
       {tab === "users" ? (
         <UsersTab isAdmin={canManageUsers} />
       ) : tab === "subcontractors" ? (
@@ -103,14 +142,15 @@ export default function AdminPage() {
       ) : tab === "licenses" ? (
         <LicensesTab />
       ) : tab === "templates" ? (
-        <>
+        templatesSubTab === "sop" ? (
           <TemplatesTab />
-          <div className="mt-10">
-            <TaskTemplatesTab />
-          </div>
-        </>
-      ) : tab === "workflow" ? (
-        <WorkflowTemplateTab />
+        ) : templatesSubTab === "tasks" ? (
+          <TaskTemplatesTab />
+        ) : (
+          <WorkflowTemplateTab />
+        )
+      ) : tab === "warehouses" ? (
+        <WarehousesTab />
       ) : tab === "defaults" ? (
         <DefaultsTab />
       ) : (
@@ -145,6 +185,31 @@ function TabButton({
   );
 }
 
+function SubTabButton({
+  active,
+  onClick,
+  children,
+}: {
+  active: boolean;
+  onClick: () => void;
+  children: React.ReactNode;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={cn(
+        "flex items-center gap-1.5 border-b-2 px-3 py-2 text-xs font-medium transition-colors",
+        active
+          ? "border-primary text-foreground"
+          : "border-transparent text-muted-foreground hover:text-foreground"
+      )}
+    >
+      {children}
+    </button>
+  );
+}
+
 // ─── Users tab ────────────────────────────────────────────────────────────────
 
 function UsersTab({ isAdmin }: { isAdmin: boolean }) {
@@ -153,7 +218,6 @@ function UsersTab({ isAdmin }: { isAdmin: boolean }) {
   const [editingUser, setEditingUser] = useState<AppUser | null>(null);
   const [showForm, setShowForm] = useState(false);
 
-  // Non-managers can only see their own profile.
   const displayUsers = isAdmin ? users : users.filter((u) => u.id === session.id);
 
   return (
@@ -241,7 +305,6 @@ function UsersTab({ isAdmin }: { isAdmin: boolean }) {
           })}
         </ul>
       )}
-
 
       {isAdmin && showForm ? (
         <UserFormModal
@@ -359,7 +422,140 @@ function SubcontractorsTab() {
   );
 }
 
-// ─── Templates tab ────────────────────────────────────────────────────────────
+// ─── Warehouses tab ───────────────────────────────────────────────────────────
+
+function WarehousesTab() {
+  const [warehouses, setWarehouses] = useState<WarehouseType[] | null>(null);
+  const [editing, setEditing] = useState<WarehouseType | null>(null);
+  const [showForm, setShowForm] = useState(false);
+  const [seeding, setSeeding] = useState(false);
+
+  function load() {
+    getWarehouses().then(setWarehouses);
+  }
+
+  useEffect(() => {
+    load();
+  }, []);
+
+  async function handleSeedDefaults() {
+    setSeeding(true);
+    try {
+      await seedDefaultWarehouses();
+      load();
+    } finally {
+      setSeeding(false);
+    }
+  }
+
+  const locationLine = (w: WarehouseType) => {
+    const parts = [w.city, w.state].filter(Boolean).join(", ");
+    return parts || w.address || null;
+  };
+
+  const mapsQuery = (w: WarehouseType) =>
+    [w.address, w.city, w.state, w.zip].filter(Boolean).join(", ");
+
+  return (
+    <>
+      <div className="mb-6 flex items-center justify-between">
+        <div>
+          <h1 className="text-xl font-semibold tracking-tight">Warehouses</h1>
+          <p className="text-sm text-muted-foreground">
+            Shipping destinations used in BOM releases. Active warehouses appear in the Ship To dropdown.
+          </p>
+        </div>
+        <div className="flex items-center gap-2">
+          {warehouses?.length === 0 ? (
+            <Button variant="outline" onClick={handleSeedDefaults} disabled={seeding}>
+              {seeding ? "Seeding…" : "Seed Defaults"}
+            </Button>
+          ) : null}
+          <Button
+            onClick={() => {
+              setEditing(null);
+              setShowForm(true);
+            }}
+          >
+            New Warehouse
+          </Button>
+        </div>
+      </div>
+
+      {warehouses === null ? (
+        <p className="text-sm text-muted-foreground">Loading…</p>
+      ) : warehouses.length === 0 ? (
+        <p className="text-sm text-muted-foreground">
+          No warehouses yet. Click &ldquo;Seed Defaults&rdquo; to add NY and Miami, or add one manually.
+        </p>
+      ) : (
+        <ul className="divide-y rounded-xl border bg-card">
+          {warehouses.map((w) => (
+            <li key={w.id}>
+              <button
+                type="button"
+                onClick={() => {
+                  setEditing(w);
+                  setShowForm(true);
+                }}
+                className={cn(
+                  "flex w-full items-center gap-4 px-5 py-4 text-left hover:bg-accent",
+                  !w.isActive && "opacity-50"
+                )}
+              >
+                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-muted">
+                  <Warehouse className="size-5 text-muted-foreground" />
+                </div>
+                <div className="min-w-0 flex-1">
+                  <div className="text-sm font-semibold">{w.name}</div>
+                  {locationLine(w) ? (
+                    <div className="flex items-center gap-1 text-xs text-muted-foreground">
+                      <MapPin className="size-3" />
+                      {locationLine(w)}
+                    </div>
+                  ) : null}
+                  {w.contact ? (
+                    <div className="text-xs text-muted-foreground">{w.contact}</div>
+                  ) : null}
+                </div>
+                {mapsQuery(w) ? (
+                  <a
+                    href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(mapsQuery(w))}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    onClick={(e) => e.stopPropagation()}
+                    className="flex items-center gap-1 text-xs text-primary underline-offset-2 hover:underline shrink-0"
+                  >
+                    <ExternalLink className="size-3" />
+                    Maps
+                  </a>
+                ) : null}
+                {!w.isActive ? <StatusBadge label="Inactive" tone="warning" /> : null}
+              </button>
+            </li>
+          ))}
+        </ul>
+      )}
+
+      {showForm ? (
+        <WarehouseFormModal
+          warehouse={editing}
+          onClose={() => setShowForm(false)}
+          onSaved={() => {
+            setShowForm(false);
+            load();
+          }}
+          onDeleted={() => {
+            setShowForm(false);
+            load();
+          }}
+        />
+      ) : null}
+    </>
+  );
+}
+
+// ─── Templates tab (SOP) ──────────────────────────────────────────────────────
 
 function TemplatesTab() {
   const [stored, setStored] = useState<Record<string, StoredTemplate | null>>(() => {

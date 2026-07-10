@@ -221,6 +221,44 @@ export function useBomRows(projectId: string) {
     }
   }
 
+  async function copyRow(rowId: string) {
+    if (!loaded) return;
+    const original = loaded.rows.find((r) => r.id === rowId);
+    if (!original) return;
+
+    const now = new Date().toISOString();
+    const newRow: BomRow = {
+      id: crypto.randomUUID(),
+      seq: original.seq,
+      mfr: original.mfr,
+      part: original.part,
+      desc: original.desc ? `${original.desc} (Copy)` : "(Copy)",
+      qty: original.qty,
+      unitCost: original.unitCost,
+      status: "Not Reviewed",
+      releaseId: null,
+      release: null,
+      releasedAt: null,
+      shippingType: null,
+      shipTo: null,
+      notes: "",
+      audit: [],
+      updatedAt: now,
+    };
+
+    const originalIndex = loaded.rows.findIndex((r) => r.id === rowId);
+    const nextRows = [...loaded.rows];
+    nextRows.splice(originalIndex + 1, 0, newRow);
+
+    const prevLoaded = loaded;
+    setLoaded({ ...loaded, rows: nextRows });
+    try {
+      await saveBomRows(projectId, nextRows);
+    } catch {
+      setLoaded(prevLoaded);
+    }
+  }
+
   function reorderRows(fromIndex: number, toIndex: number) {
     if (!loaded || fromIndex === toIndex) return;
     const rows = [...loaded.rows];
@@ -251,6 +289,7 @@ export function useBomRows(projectId: string) {
     bulkAssignRelease,
     markRowsReleased,
     addRow,
+    copyRow,
     deleteRows,
     reorderRows,
     refetch: () => setReloadToken((token) => token + 1),

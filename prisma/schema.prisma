@@ -1093,6 +1093,27 @@ model AdminAuditLog {
   @@map("admin_audit_logs")
 }
 
+// ─── Warehouses ───────────────────────────────────────────────────────────────
+
+model Warehouse {
+  id        String   @id @default(cuid())
+  name      String
+  address   String   @default("")
+  city      String   @default("")
+  state     String   @default("")
+  zip       String   @default("")
+  country   String   @default("US")
+  contact   String   @default("")
+  phone     String   @default("")
+  email     String   @default("")
+  notes     String   @default("")
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("warehouses")
+}
+
 // ─── Licenses ─────────────────────────────────────────────────────────────────
 
 enum LicenseStatus {
