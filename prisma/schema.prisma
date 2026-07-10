@@ -180,6 +180,7 @@ model User {
   region           String      @default("")
   emergencyContact String      @default("")
   adminNotes       String      @default("")
+  bioDescription   String?     @map("bio_description")
   createdAt        DateTime    @default(now())
   updatedAt        DateTime    @updatedAt
 
@@ -943,6 +944,7 @@ model OrgPosition {
   salaryMax           Float?    @map("salary_max")
   payFrequency        String    @default("annual") @map("pay_frequency")
   budgetStatus        String    @default("budgeted") @map("budget_status")
+  sortOrder           Int?      @map("sort_order")
   createdAt           DateTime  @default(now()) @map("created_at")
   updatedAt           DateTime  @updatedAt @map("updated_at")
 

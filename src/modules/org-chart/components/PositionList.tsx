@@ -5,6 +5,7 @@ import { Plus, Search, Building2, MapPin, Pencil } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { StatusBadge } from "@/components/shared/StatusBadge";
 import { UserAvatarImage } from "@/components/shared/AppShell/UserAvatarImage";
+import { cn } from "@/lib/utils";
 import type { OrgPosition } from "../lib/types";
 
 function positionStatusBadge(status: string) {
@@ -19,11 +20,12 @@ function positionStatusBadge(status: string) {
 
 interface PositionListProps {
   positions: OrgPosition[];
-  onAdd: () => void;
-  onEdit: (p: OrgPosition) => void;
+  onAdd?: () => void;
+  onEdit?: (p: OrgPosition) => void;
+  isAdmin?: boolean;
 }
 
-export function PositionList({ positions, onAdd, onEdit }: PositionListProps) {
+export function PositionList({ positions, onAdd, onEdit, isAdmin = false }: PositionListProps) {
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
 
@@ -65,10 +67,12 @@ export function PositionList({ positions, onAdd, onEdit }: PositionListProps) {
           <option value="planned">Planned</option>
           <option value="inactive">Inactive</option>
         </select>
-        <Button size="sm" onClick={onAdd}>
-          <Plus className="mr-1.5 size-3.5" />
-          Add Position
-        </Button>
+        {isAdmin && onAdd && (
+          <Button size="sm" onClick={onAdd}>
+            <Plus className="mr-1.5 size-3.5" />
+            Add Position
+          </Button>
+        )}
       </div>
 
       {/* Table */}
@@ -99,8 +103,8 @@ export function PositionList({ positions, onAdd, onEdit }: PositionListProps) {
                 return (
                   <tr
                     key={p.id}
-                    className="hover:bg-muted/20 transition-colors cursor-pointer"
-                    onClick={() => onEdit(p)}
+                    className={cn("hover:bg-muted/20 transition-colors", isAdmin && "cursor-pointer")}
+                    onClick={() => isAdmin && onEdit?.(p)}
                   >
                     <td className="px-4 py-3 font-medium">{p.title}</td>
                     <td className="px-4 py-3 hidden sm:table-cell text-muted-foreground">

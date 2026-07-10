@@ -9,6 +9,7 @@ interface ReportsPanelProps {
   positions: OrgPosition[];
   departments: OrgDepartment[];
   locations: OrgLocation[];
+  isAdmin?: boolean;
 }
 
 // ─── Shared primitives ────────────────────────────────────────────────────────
@@ -428,7 +429,7 @@ function StatusPill({ status }: { status: string }) {
 
 // ─── Root export ──────────────────────────────────────────────────────────────
 
-export function ReportsPanel({ positions, departments, locations }: ReportsPanelProps) {
+export function ReportsPanel({ positions, departments, locations, isAdmin = false }: ReportsPanelProps) {
   return (
     <div className="space-y-10">
       <SpanOfControlSection positions={positions} />

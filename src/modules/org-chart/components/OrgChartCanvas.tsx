@@ -7,6 +7,7 @@ import {
   useEffect,
   useMemo,
   useState,
+  useTransition,
 } from "react";
 import {
   Background,
@@ -27,9 +28,14 @@ import "@xyflow/react/dist/style.css";
 import {
   ChevronDown,
   ChevronUp,
+  ChevronLeft,
+  ChevronRight,
   Maximize2,
+  Plus,
   Search,
 } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { swapOrgPositionOrder } from "../lib/actions";
 import { cn } from "@/lib/utils";
 import { UserAvatarImage } from "@/components/shared/AppShell/UserAvatarImage";
 import type { OrgDepartment, OrgPosition } from "../lib/types";
@@ -194,10 +200,13 @@ function buildLayout(
 // here so clicks never use a stale snapshot from React Flow's internal state.
 
 const OrgCtx = createContext<{
-  onEdit:       (p: OrgPosition) => void;
-  onToggle:     (id: string)     => void;
+  onEdit?:       (p: OrgPosition) => void;
+  onAdd?:        (reportsToId: string) => void;
+  onToggle:      (id: string) => void;
+  onReorder?:    (id: string, dir: "left" | "right") => void;
   positionsById: Map<string, OrgPosition>;
-}>({ onEdit: () => {}, onToggle: () => {}, positionsById: new Map() });
+  isAdmin:       boolean;
+}>({ onToggle: () => {}, positionsById: new Map(), isAdmin: false });
 
 // ─── Status config ────────────────────────────────────────────────────────────
 
@@ -217,7 +226,7 @@ type PositionNodeData = {
 };
 
 function PositionNode({ data, id }: NodeProps) {
-  const { onEdit, onToggle, positionsById } = useContext(OrgCtx);
+  const { onEdit, onAdd, onToggle, onReorder, positionsById, isAdmin } = useContext(OrgCtx);
   const d = data as unknown as PositionNodeData;
   const { positionId, childCount, isCollapsed } = d;
 
@@ -233,12 +242,56 @@ function PositionNode({ data, id }: NodeProps) {
   const displayName = primary?.user?.name
     ?? (isPlanned ? "— Planned —" : "— Vacant —");
 
+  // Sibling reorder state (admin only) — siblings sorted by sortOrder then createdAt
+  const siblings = useMemo(() => {
+    if (!isAdmin || !onReorder) return [];
+    const parentKey = position.reportsToPositionId ?? "__root__";
+    return [...positionsById.values()]
+      .filter((p) => (p.reportsToPositionId ?? "__root__") === parentKey)
+      .sort((a, b) => {
+        if (a.sortOrder == null && b.sortOrder == null) return a.createdAt < b.createdAt ? -1 : 1;
+        if (a.sortOrder == null) return 1;
+        if (b.sortOrder == null) return -1;
+        return a.sortOrder - b.sortOrder;
+      });
+  }, [isAdmin, onReorder, position, positionsById]);
+
+  const siblingIdx = siblings.findIndex((p) => p.id === position.id);
+  const canMoveLeft  = isAdmin && siblingIdx > 0;
+  const canMoveRight = isAdmin && siblingIdx >= 0 && siblingIdx < siblings.length - 1;
+
   return (
     <div
-      className="relative cursor-pointer"
+      className={cn("relative", onEdit ? "cursor-pointer" : "cursor-default")}
       style={{ width: NODE_W }}
-      onClick={() => onEdit(position)}
+      onClick={() => onEdit?.(position)}
     >
+      {/* Admin reorder arrows — visible on hover, above the card */}
+      {isAdmin && (canMoveLeft || canMoveRight) && (
+        <div className="absolute -top-6 left-0 right-0 flex justify-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity z-30"
+          style={{ opacity: undefined }} // React Flow doesn't propagate group-hover, use inline
+        >
+          <button
+            type="button"
+            disabled={!canMoveLeft}
+            onClick={(e) => { e.stopPropagation(); onReorder?.(position.id, "left"); }}
+            className="flex h-5 w-5 items-center justify-center rounded border border-slate-200 bg-white shadow-sm text-slate-400 hover:text-slate-700 hover:border-slate-300 disabled:opacity-20 disabled:cursor-not-allowed transition-colors"
+            title="Move left"
+          >
+            <ChevronLeft className="size-3" />
+          </button>
+          <button
+            type="button"
+            disabled={!canMoveRight}
+            onClick={(e) => { e.stopPropagation(); onReorder?.(position.id, "right"); }}
+            className="flex h-5 w-5 items-center justify-center rounded border border-slate-200 bg-white shadow-sm text-slate-400 hover:text-slate-700 hover:border-slate-300 disabled:opacity-20 disabled:cursor-not-allowed transition-colors"
+            title="Move right"
+          >
+            <ChevronRight className="size-3" />
+          </button>
+        </div>
+      )}
+
       {/* White card */}
       <div className="rounded-xl border border-slate-200 bg-white shadow-sm transition-shadow hover:shadow-md">
         {/* Colored status accent bar */}
@@ -303,6 +356,18 @@ function PositionNode({ data, id }: NodeProps) {
         </button>
       )}
 
+      {/* Admin: add direct report "+" button — bottom-right of card */}
+      {isAdmin && onAdd && (
+        <button
+          type="button"
+          title="Add direct report"
+          onClick={(e) => { e.stopPropagation(); onAdd(position.id); }}
+          className="absolute -bottom-2 -right-2 z-30 flex size-5 items-center justify-center rounded-full border border-slate-200 bg-white shadow-sm text-slate-400 hover:text-emerald-600 hover:border-emerald-300 transition-colors"
+        >
+          <Plus className="size-3" />
+        </button>
+      )}
+
       <Handle type="target" position={Position.Top}    style={{ opacity: 0, pointerEvents: "none" }} />
       <Handle type="source" position={Position.Bottom} style={{ opacity: 0, pointerEvents: "none" }} />
     </div>
@@ -345,12 +410,18 @@ function OrgChartInner({
   positions,
   departments,
   onEdit,
+  onAdd,
+  isAdmin,
 }: {
   positions:   OrgPosition[];
   departments: OrgDepartment[];
-  onEdit:      (p: OrgPosition) => void;
+  onEdit?:     (p: OrgPosition) => void;
+  onAdd?:      (reportsToId: string) => void;
+  isAdmin:     boolean;
 }) {
   const { fitView } = useReactFlow();
+  const router = useRouter();
+  const [, startReorderTransition] = useTransition();
 
   const [collapsed,    setCollapsed]    = useState<Set<string>>(new Set());
   const [search,       setSearch]       = useState("");
@@ -370,9 +441,33 @@ function OrgChartInner({
     [positions],
   );
 
+  const onReorder = useCallback((id: string, dir: "left" | "right") => {
+    const pos = positionsById.get(id);
+    if (!pos) return;
+    const parentKey = pos.reportsToPositionId ?? "__root__";
+    const sorted = [...positionsById.values()]
+      .filter((p) => (p.reportsToPositionId ?? "__root__") === parentKey)
+      .sort((a, b) => {
+        if (a.sortOrder == null && b.sortOrder == null) return a.createdAt < b.createdAt ? -1 : 1;
+        if (a.sortOrder == null) return 1;
+        if (b.sortOrder == null) return -1;
+        return a.sortOrder - b.sortOrder;
+      });
+    const idx = sorted.findIndex((p) => p.id === id);
+    const targetIdx = dir === "left" ? idx - 1 : idx + 1;
+    if (targetIdx < 0 || targetIdx >= sorted.length) return;
+    const other = sorted[targetIdx];
+    const myOrder    = pos.sortOrder    ?? idx;
+    const otherOrder = other.sortOrder  ?? targetIdx;
+    startReorderTransition(async () => {
+      await swapOrgPositionOrder(id, myOrder, other.id, otherOrder);
+      router.refresh();
+    });
+  }, [positionsById, router, startReorderTransition]);
+
   const ctx = useMemo(
-    () => ({ onEdit, onToggle, positionsById }),
-    [onEdit, onToggle, positionsById],
+    () => ({ onEdit, onAdd, onToggle, onReorder: isAdmin ? onReorder : undefined, positionsById, isAdmin }),
+    [onEdit, onAdd, onToggle, onReorder, positionsById, isAdmin],
   );
 
   // Compute layout from positions + departments + collapsed state
@@ -547,10 +642,14 @@ export function OrgChartCanvas({
   positions,
   departments,
   onEdit,
+  onAdd,
+  isAdmin = false,
 }: {
   positions:   OrgPosition[];
   departments: OrgDepartment[];
-  onEdit:      (p: OrgPosition) => void;
+  onEdit?:     (p: OrgPosition) => void;
+  onAdd?:      (reportsToId: string) => void;
+  isAdmin?:    boolean;
 }) {
   return (
     <ReactFlowProvider>
@@ -558,6 +657,8 @@ export function OrgChartCanvas({
         positions={positions}
         departments={departments}
         onEdit={onEdit}
+        onAdd={onAdd}
+        isAdmin={isAdmin}
       />
     </ReactFlowProvider>
   );

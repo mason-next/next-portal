@@ -1,6 +1,7 @@
 import { notFound } from "next/navigation";
 import { requireSession } from "@/lib/auth/server";
 import { ORG_CHART_ENABLED } from "@/lib/feature-flags";
+import { canManageOrgChart } from "@/modules/org-chart/lib/permissions";
 import {
   getOrCreateDefaultVersion,
   getOrgChartVersions,
@@ -22,7 +23,8 @@ interface PageProps {
 export default async function OrgChartPage({ searchParams }: PageProps) {
   if (!ORG_CHART_ENABLED) notFound();
 
-  await requireSession();
+  const session = await requireSession();
+  const isAdmin = canManageOrgChart(session.roleTypes);
 
   // Ensure at least the default "Current State" version exists, then fetch all.
   const defaultVersion = await getOrCreateDefaultVersion();
@@ -35,12 +37,12 @@ export default async function OrgChartPage({ searchParams }: PageProps) {
 
   const [positions, departments, locations, stats, certifications, userCertifications] =
     await Promise.all([
-      getOrgPositions(selectedVersion.id),
+      getOrgPositions(selectedVersion.id, isAdmin),
       getOrgDepartments(),
       getOrgLocations(),
       getOrgChartStats(selectedVersion.id),
-      getOrgCertifications(),
-      getOrgUserCertifications(),
+      isAdmin ? getOrgCertifications() : Promise.resolve([]),
+      isAdmin ? getOrgUserCertifications() : Promise.resolve([]),
     ]);
 
   return (
@@ -53,6 +55,7 @@ export default async function OrgChartPage({ searchParams }: PageProps) {
       stats={stats}
       certifications={certifications}
       userCertifications={userCertifications}
+      isAdmin={isAdmin}
     />
   );
 }

@@ -19,7 +19,12 @@ import type {
   CreatePositionInput,
   UpdatePositionInput,
 } from "../lib/types";
-import { createOrgPosition, updateOrgPosition, deleteOrgPosition } from "../lib/actions";
+import {
+  createOrgPosition,
+  updateOrgPosition,
+  deleteOrgPosition,
+  updateUserBioDescription,
+} from "../lib/actions";
 
 // ─── Successors section (self-contained) ─────────────────────────────────────
 
@@ -339,6 +344,7 @@ interface PositionFormProps {
   positions: OrgPosition[];
   certifications: OrgCertification[];
   editing?: OrgPosition | null;
+  defaultReportsToPositionId?: string;
 }
 
 export function PositionForm({
@@ -350,6 +356,7 @@ export function PositionForm({
   positions,
   certifications,
   editing,
+  defaultReportsToPositionId,
 }: PositionFormProps) {
   const { users } = useUsersContext();
   const [isPending, startTransition] = useTransition();
@@ -363,7 +370,7 @@ export function PositionForm({
     title: editing?.title ?? "",
     departmentId: editing?.departmentId ?? "",
     locationId: editing?.locationId ?? "",
-    reportsToPositionId: editing?.reportsToPositionId ?? "",
+    reportsToPositionId: editing?.reportsToPositionId ?? defaultReportsToPositionId ?? "",
     status: editing?.status ?? "open",
     targetHireDate: editing?.targetHireDate
       ? editing.targetHireDate.split("T")[0]
@@ -376,6 +383,10 @@ export function PositionForm({
     payFrequency: editing?.payFrequency ?? "annual",
     budgetStatus: editing?.budgetStatus ?? "budgeted",
   });
+
+  const [bio, setBio] = useState<string>(
+    primaryAssignment?.user?.bioDescription ?? "",
+  );
 
   const [selectedCerts, setSelectedCerts] = useState<CertRequirement[]>(
     editing?.certifications.map((c) => ({
@@ -422,6 +433,12 @@ export function PositionForm({
         const salaryMin = form.salaryMin ? parseFloat(form.salaryMin) : null;
         const salaryMid = form.salaryMid ? parseFloat(form.salaryMid) : null;
         const salaryMax = form.salaryMax ? parseFloat(form.salaryMax) : null;
+
+        // Save bio for the assigned user if one is set (updating or keeping)
+        const bioUserId = form.assignedUserId || primaryAssignment?.userId;
+        if (bioUserId) {
+          await updateUserBioDescription(bioUserId, bio.trim() || null);
+        }
 
         if (editing) {
           const input: UpdatePositionInput = {
@@ -596,6 +613,23 @@ export function PositionForm({
               ))}
           </select>
         </div>
+
+        {/* Bio Description — shown when a user is assigned */}
+        {(form.assignedUserId || primaryAssignment?.userId) && (
+          <div>
+            <label className="block text-xs font-medium text-muted-foreground mb-1">
+              Bio Description{" "}
+              <span className="font-normal text-muted-foreground/60">(about the person in this role)</span>
+            </label>
+            <textarea
+              value={bio}
+              onChange={(e) => setBio(e.target.value)}
+              rows={3}
+              placeholder="Short professional bio or background summary…"
+              className="w-full rounded-md border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/40 resize-none"
+            />
+          </div>
+        )}
 
         {/* Target Hire Date */}
         <div>

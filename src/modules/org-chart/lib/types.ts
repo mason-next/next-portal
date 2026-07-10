@@ -42,6 +42,7 @@ export interface OrgAssignedUser {
   name: string;
   email: string;
   avatarUrl: string | null;
+  bioDescription: string | null;
 }
 
 export interface OrgPositionAssignment {
@@ -62,6 +63,7 @@ export interface OrgPosition {
   departmentId: string | null;
   locationId: string | null;
   reportsToPositionId: string | null;
+  sortOrder: number | null;
   status: string;
   targetHireDate: string | null;
   notes: string | null;
@@ -185,6 +187,7 @@ export interface UpdatePositionInput {
   departmentId?: string | null;
   locationId?: string | null;
   reportsToPositionId?: string | null;
+  sortOrder?: number | null;
   status?: string;
   targetHireDate?: string | null;
   notes?: string | null;

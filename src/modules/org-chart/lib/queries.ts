@@ -81,10 +81,10 @@ export async function getOrgLocations(): Promise<OrgLocation[]> {
 
 // ─── Positions ────────────────────────────────────────────────────────────────
 
-export async function getOrgPositions(versionId?: string): Promise<OrgPosition[]> {
+export async function getOrgPositions(versionId?: string, isAdmin = false): Promise<OrgPosition[]> {
   const rows = await db.orgPosition.findMany({
     where: versionId ? { orgChartVersionId: versionId } : undefined,
-    orderBy: { createdAt: "asc" },
+    orderBy: [{ sortOrder: "asc" }, { createdAt: "asc" }],
     include: {
       department: true,
       location: true,
@@ -123,14 +123,14 @@ export async function getOrgPositions(versionId?: string): Promise<OrgPosition[]
   const userIds = [
     ...new Set([
       ...rows.flatMap((r) => r.assignments.map((a) => a.userId)).filter((id): id is string => id !== null),
-      ...rows.flatMap((r) => r.successors.map((s) => s.userId)),
+      ...(isAdmin ? rows.flatMap((r) => r.successors.map((s) => s.userId)) : []),
     ]),
   ];
   const users =
     userIds.length > 0
       ? await db.user.findMany({
           where: { id: { in: userIds } },
-          select: { id: true, name: true, email: true, avatarUrl: true },
+          select: { id: true, name: true, email: true, avatarUrl: true, bioDescription: true },
         })
       : [];
   const userMap = new Map(users.map((u) => [u.id, u]));
@@ -142,14 +142,16 @@ export async function getOrgPositions(versionId?: string): Promise<OrgPosition[]
     departmentId: r.departmentId,
     locationId: r.locationId,
     reportsToPositionId: r.reportsToPositionId,
+    sortOrder: r.sortOrder,
     status: r.status,
     targetHireDate: serializeDate(r.targetHireDate),
     notes: r.notes,
-    salaryMin: r.salaryMin,
-    salaryMid: r.salaryMid,
-    salaryMax: r.salaryMax,
-    payFrequency: r.payFrequency,
-    budgetStatus: r.budgetStatus,
+    // Sensitive compensation fields — only returned for admins
+    salaryMin:    isAdmin ? r.salaryMin    : null,
+    salaryMid:    isAdmin ? r.salaryMid    : null,
+    salaryMax:    isAdmin ? r.salaryMax    : null,
+    payFrequency: isAdmin ? r.payFrequency : "annual",
+    budgetStatus: isAdmin ? r.budgetStatus : "budgeted",
     createdAt: r.createdAt.toISOString(),
     updatedAt: r.updatedAt.toISOString(),
     department: r.department
@@ -166,16 +168,27 @@ export async function getOrgPositions(versionId?: string): Promise<OrgPosition[]
           updatedAt: r.location.updatedAt.toISOString(),
         }
       : null,
-    assignments: r.assignments.map((a) => ({
-      id: a.id,
-      positionId: a.positionId,
-      userId: a.userId,
-      assignmentType: a.assignmentType,
-      startDate: serializeDate(a.startDate),
-      endDate: serializeDate(a.endDate),
-      isActive: a.isActive,
-      user: a.userId ? (userMap.get(a.userId) ?? null) : null,
-    })),
+    assignments: r.assignments.map((a) => {
+      const u = a.userId ? (userMap.get(a.userId) ?? null) : null;
+      return {
+        id: a.id,
+        positionId: a.positionId,
+        userId: a.userId,
+        assignmentType: a.assignmentType,
+        startDate: serializeDate(a.startDate),
+        endDate: serializeDate(a.endDate),
+        isActive: a.isActive,
+        user: u
+          ? {
+              id:             u.id,
+              name:           u.name,
+              email:          u.email,
+              avatarUrl:      u.avatarUrl,
+              bioDescription: u.bioDescription ?? null,
+            }
+          : null,
+      };
+    }),
     certifications: r.certifications.map((c) => ({
       id: c.id,
       positionId: c.positionId,
@@ -196,25 +209,30 @@ export async function getOrgPositions(versionId?: string): Promise<OrgPosition[]
       notes: cp.notes,
       createdAt: cp.createdAt.toISOString(),
     })),
-    successors: r.successors.map((s) => ({
-      id: s.id,
-      positionId: s.positionId,
-      userId: s.userId,
-      rank: s.rank,
-      notes: s.notes,
-      createdAt: s.createdAt.toISOString(),
-      updatedAt: s.updatedAt.toISOString(),
-      user: userMap.get(s.userId) ?? null,
-    })),
-    relationships: r.relationshipsFrom.map((rel) => ({
-      id: rel.id,
-      fromPositionId: rel.fromPositionId,
-      toPositionId: rel.toPositionId,
-      toPositionTitle: rel.toPosition.title,
-      relationshipType: rel.relationshipType,
-      notes: rel.notes,
-      createdAt: rel.createdAt.toISOString(),
-    })),
+    // Sensitive: successors + matrix relationships hidden from non-admins
+    successors: isAdmin
+      ? r.successors.map((s) => ({
+          id: s.id,
+          positionId: s.positionId,
+          userId: s.userId,
+          rank: s.rank,
+          notes: s.notes,
+          createdAt: s.createdAt.toISOString(),
+          updatedAt: s.updatedAt.toISOString(),
+          user: userMap.get(s.userId) ?? null,
+        }))
+      : [],
+    relationships: isAdmin
+      ? r.relationshipsFrom.map((rel) => ({
+          id: rel.id,
+          fromPositionId: rel.fromPositionId,
+          toPositionId: rel.toPositionId,
+          toPositionTitle: rel.toPosition.title,
+          relationshipType: rel.relationshipType,
+          notes: rel.notes,
+          createdAt: rel.createdAt.toISOString(),
+        }))
+      : [],
   }));
 }
 

@@ -2,6 +2,8 @@
 
 import { revalidatePath } from "next/cache";
 import { db } from "@/lib/db";
+import { requireSession } from "@/lib/auth/server";
+import { canManageOrgChart } from "./permissions";
 import type {
   OrgChartVersion,
   OrgCertification,
@@ -18,7 +20,15 @@ import type {
 
 // ─── Versions ─────────────────────────────────────────────────────────────────
 
+async function requireAdmin(): Promise<void> {
+  const session = await requireSession();
+  if (!canManageOrgChart(session.roleTypes)) throw new Error("Forbidden");
+}
+
+// ─── Versions ─────────────────────────────────────────────────────────────────
+
 export async function createOrgVersion(input: CreateVersionInput): Promise<OrgChartVersion> {
+  await requireAdmin();
   const version = await db.orgChartVersion.create({
     data: {
       name: input.name,
@@ -66,6 +76,7 @@ async function applySuccessors(positionId: string, successors: SuccessorEntry[])
 }
 
 export async function createOrgPosition(input: CreatePositionInput) {
+  await requireAdmin();
   const { assignedUserId, targetHireDate, certifications, careerPathsTo, successors, relationships, ...rest } = input;
 
   const position = await db.orgPosition.create({
@@ -127,6 +138,7 @@ export async function createOrgPosition(input: CreatePositionInput) {
 }
 
 export async function updateOrgPosition(id: string, input: UpdatePositionInput) {
+  await requireAdmin();
   const { assignedUserId, targetHireDate, certifications, careerPathsTo, successors, relationships, ...rest } = input;
 
   await db.orgPosition.update({
@@ -203,6 +215,7 @@ export async function updateOrgPosition(id: string, input: UpdatePositionInput) 
 }
 
 export async function deleteOrgPosition(id: string) {
+  await requireAdmin();
   // Clear any self-referential children first (set their parent to null)
   await db.orgPosition.updateMany({
     where: { reportsToPositionId: id },
@@ -215,6 +228,7 @@ export async function deleteOrgPosition(id: string) {
 // ─── Departments ──────────────────────────────────────────────────────────────
 
 export async function createOrgDepartment(input: CreateDepartmentInput) {
+  await requireAdmin();
   const dept = await db.orgDepartment.create({
     data: {
       name: input.name,
@@ -228,11 +242,13 @@ export async function createOrgDepartment(input: CreateDepartmentInput) {
 }
 
 export async function updateOrgDepartment(id: string, input: Partial<CreateDepartmentInput>) {
+  await requireAdmin();
   await db.orgDepartment.update({ where: { id }, data: input });
   revalidatePath("/org-chart");
 }
 
 export async function deleteOrgDepartment(id: string) {
+  await requireAdmin();
   // Unlink positions from this department before deleting
   await db.orgPosition.updateMany({
     where: { departmentId: id },
@@ -245,6 +261,7 @@ export async function deleteOrgDepartment(id: string) {
 // ─── Locations ────────────────────────────────────────────────────────────────
 
 export async function createOrgLocation(input: CreateLocationInput) {
+  await requireAdmin();
   const loc = await db.orgLocation.create({
     data: {
       name: input.name,
@@ -260,11 +277,13 @@ export async function createOrgLocation(input: CreateLocationInput) {
 }
 
 export async function updateOrgLocation(id: string, input: Partial<CreateLocationInput>) {
+  await requireAdmin();
   await db.orgLocation.update({ where: { id }, data: input });
   revalidatePath("/org-chart");
 }
 
 export async function deleteOrgLocation(id: string) {
+  await requireAdmin();
   await db.orgPosition.updateMany({
     where: { locationId: id },
     data: { locationId: null },
@@ -276,8 +295,9 @@ export async function deleteOrgLocation(id: string) {
 // ─── Certifications ───────────────────────────────────────────────────────────
 
 export async function createOrgCertification(
-  input: CreateCertificationInput
+  input: CreateCertificationInput,
 ): Promise<OrgCertification> {
+  await requireAdmin();
   const cert = await db.orgCertification.create({
     data: {
       name: input.name,
@@ -291,13 +311,15 @@ export async function createOrgCertification(
 
 export async function updateOrgCertification(
   id: string,
-  input: Partial<CreateCertificationInput>
+  input: Partial<CreateCertificationInput>,
 ): Promise<void> {
+  await requireAdmin();
   await db.orgCertification.update({ where: { id }, data: input });
   revalidatePath("/org-chart");
 }
 
 export async function deleteOrgCertification(id: string): Promise<void> {
+  await requireAdmin();
   // Junction rows cascade on delete; remove the cert from the library.
   await db.orgCertification.delete({ where: { id } });
   revalidatePath("/org-chart");
@@ -306,6 +328,7 @@ export async function deleteOrgCertification(id: string): Promise<void> {
 // ─── User Certifications ──────────────────────────────────────────────────────
 
 export async function addUserCertification(input: AddUserCertificationInput): Promise<void> {
+  await requireAdmin();
   await db.orgUserCertification.upsert({
     where: { userId_certificationId: { userId: input.userId, certificationId: input.certificationId } },
     create: {
@@ -325,6 +348,36 @@ export async function addUserCertification(input: AddUserCertificationInput): Pr
 }
 
 export async function removeUserCertification(id: string): Promise<void> {
+  await requireAdmin();
   await db.orgUserCertification.delete({ where: { id } });
+  revalidatePath("/org-chart");
+}
+
+// ─── Bio Description ──────────────────────────────────────────────────────────
+
+export async function updateUserBioDescription(
+  userId: string,
+  bio: string | null,
+): Promise<void> {
+  await requireAdmin();
+  await db.user.update({ where: { id: userId }, data: { bioDescription: bio ?? null } });
+  revalidatePath("/org-chart");
+}
+
+// ─── Position reorder ─────────────────────────────────────────────────────────
+// Swaps sort_order between two sibling positions. The caller sends both IDs
+// so the swap is atomic — no intermediate state where orders collide.
+
+export async function swapOrgPositionOrder(
+  idA: string,
+  orderA: number,
+  idB: string,
+  orderB: number,
+): Promise<void> {
+  await requireAdmin();
+  await db.$transaction([
+    db.orgPosition.update({ where: { id: idA }, data: { sortOrder: orderB } }),
+    db.orgPosition.update({ where: { id: idB }, data: { sortOrder: orderA } }),
+  ]);
   revalidatePath("/org-chart");
 }

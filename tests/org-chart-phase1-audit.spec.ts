@@ -128,22 +128,22 @@ test.describe("Org Chart — Phase 1 audit", () => {
 
 // ─── Navigation ───────────────────────────────────────────────────────────────
 
-test.describe("Navigation — Org Chart link (feature flag enabled)", () => {
-  test("Org Chart link is visible in nav", async ({ page }) => {
+test.describe("Navigation — Org Chart icon button (feature flag enabled)", () => {
+  test("Org Chart icon button is visible in header", async ({ page }) => {
     await page.goto("/dashboard", { waitUntil: "domcontentloaded", timeout: 30000 });
     await page.waitForLoadState("networkidle", { timeout: 15000 });
 
-    // Nav should contain an "Org Chart" link
-    const orgChartLink = page.locator("nav").getByRole("link", { name: /org chart/i });
-    await expect(orgChartLink).toBeVisible({ timeout: 10000 });
+    // Org Chart is now a header icon button (link with title="Org Chart"), not a nav text link
+    const orgChartBtn = page.locator('header a[title="Org Chart"], header a[href="/org-chart"]');
+    await expect(orgChartBtn.first()).toBeVisible({ timeout: 10000 });
   });
 
-  test("Org Chart nav link navigates to /org-chart", async ({ page }) => {
+  test("Org Chart header button navigates to /org-chart", async ({ page }) => {
     await page.goto("/dashboard", { waitUntil: "domcontentloaded", timeout: 30000 });
     await page.waitForLoadState("networkidle", { timeout: 15000 });
 
-    const orgChartLink = page.locator("nav").getByRole("link", { name: /org chart/i });
-    await orgChartLink.click();
+    const orgChartBtn = page.locator('header a[title="Org Chart"], header a[href="/org-chart"]').first();
+    await orgChartBtn.click();
 
     await page.waitForURL("**/org-chart", { timeout: 15000 });
     await expect(page).toHaveURL(/\/org-chart/);
