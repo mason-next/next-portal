@@ -138,6 +138,32 @@ export async function saveBomRows(projectId: string, rows: BomRow[]): Promise<vo
   );
 }
 
+// Targeted single-row insert — used by useBomRows.addRow.
+// Avoids the full delete-and-recreate cycle of saveBomRows for a simple append.
+export async function createBomRow(projectId: string, row: BomRow, sortOrder: number): Promise<void> {
+  await requireEditPermission();
+  await db.bomRow.create({
+    data: {
+      id: row.id,
+      projectId,
+      seq: row.seq,
+      mfr: row.mfr,
+      part: row.part,
+      desc: row.desc,
+      qty: row.qty,
+      unitCost: row.unitCost,
+      status: APP_TO_PRISMA[row.status] as PrismaBomStatus,
+      releaseId: null,
+      releaseLabel: null,
+      releasedAt: null,
+      shippingType: null,
+      shipTo: null,
+      notes: row.notes,
+      sortOrder,
+    },
+  });
+}
+
 // Updatable fields for targeted single-row writes.
 // status is the app string union; releaseId/releaseLabel move together.
 export interface BomRowPatch {

@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { getBomRows, saveBomRows, updateBomRow, type BomRowPatch } from "@/lib/data/bom-rows";
+import { createBomRow, getBomRows, saveBomRows, updateBomRow, type BomRowPatch } from "@/lib/data/bom-rows";
 import { useSession } from "@/lib/auth/client";
 import type { AuditEntry } from "@/types/audit";
 import type { BomRow, BomRowSnapshot, BomStatus } from "@/types/bom";
@@ -188,7 +188,7 @@ export function useBomRows(projectId: string) {
     saveBomRows(projectId, nextRows);
   }
 
-  function addRow() {
+  async function addRow() {
     if (!loaded) return;
     const now = new Date().toISOString();
 
@@ -204,14 +204,21 @@ export function useBomRows(projectId: string) {
       releaseId: null,
       release: null,
       releasedAt: null,
+      shippingType: null,
+      shipTo: null,
       notes: "",
       audit: [],
       updatedAt: now,
     };
 
+    const prevLoaded = loaded;
     const nextRows = [...loaded.rows, newRow];
     setLoaded({ ...loaded, rows: nextRows });
-    saveBomRows(projectId, nextRows);
+    try {
+      await createBomRow(projectId, newRow, nextRows.length - 1);
+    } catch {
+      setLoaded(prevLoaded);
+    }
   }
 
   function reorderRows(fromIndex: number, toIndex: number) {

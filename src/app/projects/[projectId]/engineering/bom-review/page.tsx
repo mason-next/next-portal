@@ -268,30 +268,25 @@ export default function BomReviewPage({
       </Link>
       {hasRows ? (
         <>
-          <div className="flex justify-between gap-2">
-            <Button variant="outline" onClick={addRow}>
-              + Add Row
+          <div className="flex justify-end gap-2">
+            <Button variant="outline" onClick={() => fileInputRef.current?.click()} disabled={isParsing}>
+              {isParsing ? "Parsing…" : "Import / Merge CSV"}
             </Button>
-            <div className="flex gap-2">
-              <Button variant="outline" onClick={() => fileInputRef.current?.click()} disabled={isParsing}>
-                {isParsing ? "Parsing…" : "Import / Merge CSV"}
-              </Button>
-              <input
-                ref={fileInputRef}
-                type="file"
-                accept=".csv"
-                className="hidden"
-                onChange={(e) => {
-                  const file = e.target.files?.[0];
-                  if (file) importFile(file);
-                  e.target.value = "";
-                }}
-              />
-              <Button variant="outline" onClick={() => setShowViewOptions(true)}>
-                View Options
-              </Button>
-              <Button onClick={() => setShowReleaseModal(true)}>Create Release</Button>
-            </div>
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept=".csv"
+              className="hidden"
+              onChange={(e) => {
+                const file = e.target.files?.[0];
+                if (file) importFile(file);
+                e.target.value = "";
+              }}
+            />
+            <Button variant="outline" onClick={() => setShowViewOptions(true)}>
+              View Options
+            </Button>
+            <Button onClick={() => setShowReleaseModal(true)}>Create Release</Button>
           </div>
           <CostSummaryCards
             summary={summary}
@@ -323,6 +318,9 @@ export default function BomReviewPage({
             onRowsReorder={handleRowsReorder}
             onDeleteRow={handleDeleteRow}
           />
+          <Button variant="outline" onClick={addRow} className="w-full">
+            + Add Row
+          </Button>
         </>
       ) : (
         <BomImportDropzone onFileSelected={importFile} onUseSample={importSample} isParsing={isParsing} />
