@@ -3,6 +3,10 @@ export interface EmailContact {
   name: string;
   blurb?: string;
   avatarUrl?: string | null;
+  // When present, the avatar is served via the public /api/email-assets/avatar/[userId]
+  // endpoint instead of the raw avatarUrl — required for Outlook compatibility since
+  // Outlook blocks base64 data: URLs in email HTML.
+  userId?: string | null;
 }
 
 // A labeled progress bar row, e.g. for status/progress-style reports — renders as an

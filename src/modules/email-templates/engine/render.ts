@@ -58,10 +58,28 @@ function initialsOf(name: string): string {
 // Outlook desktop (the Word rendering engine) ignores CSS border-radius entirely, on both
 // <img> and <div> — the only way to get an actually-round avatar there is VML. Every avatar
 // renders twice: a <v:oval> for mso, and the normal CSS version for every other client.
+//
+// Avatar URL priority:
+//   1. contact.userId → absolute public API URL (/api/email-assets/avatar/[userId])
+//      This is the only Outlook-safe path — Outlook blocks base64 data: URLs entirely.
+//   2. contact.avatarUrl, only if it's already an absolute https:// URL (not a data: URL)
+//   3. Initials circle fallback — no broken-image icon
 function renderAvatar(contact: EmailContact): string {
   const size = 52;
-  if (contact.avatarUrl) {
-    const url = escapeHtml(contact.avatarUrl);
+
+  let resolvedUrl: string | null = null;
+  if (contact.userId) {
+    resolvedUrl = resolveAssetUrl(`/api/email-assets/avatar/${contact.userId}`);
+  } else if (
+    contact.avatarUrl &&
+    !contact.avatarUrl.startsWith("data:") &&
+    (contact.avatarUrl.startsWith("https://") || contact.avatarUrl.startsWith("http://"))
+  ) {
+    resolvedUrl = contact.avatarUrl;
+  }
+
+  if (resolvedUrl) {
+    const url = escapeHtml(resolvedUrl);
     return `<!--[if mso]>
         <v:oval style="width:${size}px;height:${size}px;" strokecolor="${AVATAR_BORDER}" strokeweight="1px" fillcolor="none">
           <v:fill type="frame" src="${url}" />
@@ -71,6 +89,7 @@ function renderAvatar(contact: EmailContact): string {
         <img src="${url}" width="${size}" height="${size}" alt="${escapeHtml(contact.name)}" style="display:block; width:${size}px; height:${size}px; border-radius:50%; border:1px solid ${AVATAR_BORDER}; object-fit:cover;" />
         <!--<![endif]-->`;
   }
+
   const initials = escapeHtml(initialsOf(contact.name));
   return `<!--[if mso]>
       <v:oval style="width:${size}px;height:${size}px;" strokecolor="none" fillcolor="#334155">

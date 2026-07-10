@@ -30,13 +30,19 @@ export interface WelcomeLetterInput {
   projectName: string;
   projectNumber: string;
   fieldProjectManagerName: string | null;
+  fieldProjectManagerId?: string | null;
   fieldProjectManagerAvatarUrl?: string | null;
   solutionsEngineerName: string | null;
+  solutionsEngineerId?: string | null;
   solutionsEngineerAvatarUrl?: string | null;
   solutionsExecutiveName: string | null;
+  solutionsExecutiveId?: string | null;
   solutionsExecutiveAvatarUrl?: string | null;
+  srInsideProjectManagerId?: string | null;
   srInsideProjectManagerAvatarUrl?: string | null;
+  insideProjectManagerId?: string | null;
   insideProjectManagerAvatarUrl?: string | null;
+  managingDirectorId?: string | null;
   managingDirectorAvatarUrl?: string | null;
 }
 
@@ -64,6 +70,7 @@ export function buildWelcomeLetterEmail(
     projectTeamContacts.push({
       role: "Field Project Manager",
       name: input.fieldProjectManagerName,
+      userId: input.fieldProjectManagerId,
       avatarUrl: input.fieldProjectManagerAvatarUrl,
       blurb: `${firstNameOf(input.fieldProjectManagerName)} will oversee onsite execution, field coordination, and ensure installation activities are aligned with the overall project schedule.`,
     });
@@ -72,12 +79,14 @@ export function buildWelcomeLetterEmail(
     {
       role: "Sr. Inside Project Manager",
       name: SR_INSIDE_PROJECT_MANAGER_NAME,
+      userId: input.srInsideProjectManagerId,
       avatarUrl: input.srInsideProjectManagerAvatarUrl,
       blurb: `${firstNameOf(SR_INSIDE_PROJECT_MANAGER_NAME)} will be your primary point of contact and will oversee all coordination, scheduling, and day-to-day communication.`,
     },
     {
       role: "Inside Project Manager",
       name: INSIDE_PROJECT_MANAGER_NAME,
+      userId: input.insideProjectManagerId,
       avatarUrl: input.insideProjectManagerAvatarUrl,
       blurb: `${firstNameOf(INSIDE_PROJECT_MANAGER_NAME)} will be supporting ${firstNameOf(SR_INSIDE_PROJECT_MANAGER_NAME)} and helping drive timelines, logistics, and overall project flow.`,
     }
@@ -88,6 +97,7 @@ export function buildWelcomeLetterEmail(
     engineeringContacts.push({
       role: "Principal Solutions Engineer",
       name: input.solutionsEngineerName,
+      userId: input.solutionsEngineerId,
       avatarUrl: input.solutionsEngineerAvatarUrl,
       blurb: `${firstNameOf(input.solutionsEngineerName)} is leading the technical execution, ensuring the system is implemented, tested, and delivered to meet your expectations.`,
     });
@@ -98,6 +108,7 @@ export function buildWelcomeLetterEmail(
     accountContacts.push({
       role: "Solutions Executive",
       name: input.solutionsExecutiveName,
+      userId: input.solutionsExecutiveId,
       avatarUrl: input.solutionsExecutiveAvatarUrl,
       blurb: `${firstNameOf(input.solutionsExecutiveName)} will remain closely involved to ensure alignment from both a technical and account perspective throughout the project.`,
     });
@@ -113,6 +124,7 @@ export function buildWelcomeLetterEmail(
         {
           role: "Managing Director",
           name: MANAGING_DIRECTOR_NAME,
+          userId: input.managingDirectorId,
           avatarUrl: input.managingDirectorAvatarUrl,
           blurb:
             "I’ll be supporting overall execution and alignment across our teams. If anything requires escalation or additional attention at any point, please don’t hesitate to reach out directly.",

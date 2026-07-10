@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import { AddressLink } from "@/components/shared/AddressLink";
 
 interface ProjectHeaderCardProps {
   name: string;
@@ -26,7 +27,12 @@ export function ProjectHeaderCard({
           <Field label="Project" value={name} />
           <Field label="Project #" value={projectNumber} />
           <Field label="Customer" value={customerName} />
-          <Field label="Site Address" value={siteAddress || "—"} />
+          <div>
+            <div className="mb-1 text-xs text-muted-foreground">Site Address</div>
+            <div className="truncate text-sm font-semibold">
+              <AddressLink address={siteAddress} />
+            </div>
+          </div>
           <div>
             <div className="mb-1 text-xs text-muted-foreground">Status</div>
             {stateBadge}
