@@ -8,7 +8,6 @@ import { Button } from "@/components/ui/button";
 import { CollapsibleCard } from "@/components/shared/CollapsibleCard";
 import { EditProjectOverviewModal } from "@/components/shared/AppShell/EditProjectOverviewModal";
 import { DeleteProjectModal } from "@/components/shared/AppShell/DeleteProjectModal";
-import { ProjectBriefModal } from "@/modules/project-brief/components/ProjectBriefModal";
 import { UserInlineLabel } from "@/components/shared/UserInlineLabel";
 import { UserAvatarImage } from "@/components/shared/AppShell/UserAvatarImage";
 import { useUsersContext } from "@/components/shared/AppShell/UsersProvider";
@@ -27,7 +26,6 @@ export function ProjectOverviewCard() {
   const { users } = useUsersContext();
   const [showEdit, setShowEdit] = useState(false);
   const [showDelete, setShowDelete] = useState(false);
-  const [showBrief, setShowBrief] = useState(false);
   const [showAutoAssign, setShowAutoAssign] = useState(false);
   const [autoAssignResult, setAutoAssignResult] = useState<BulkAutoAssignResult | null>(null);
   const [autoAssignRunning, setAutoAssignRunning] = useState(false);
@@ -67,9 +65,6 @@ export function ProjectOverviewCard() {
       storageKey="project-overview"
       headerExtra={
         <div className="flex items-center gap-1.5">
-          <Button variant="outline" size="sm" onClick={() => setShowBrief(true)}>
-            Brief Report
-          </Button>
           {canEdit && (
             <Button
               variant="outline"
@@ -241,14 +236,6 @@ export function ProjectOverviewCard() {
         />
       ) : null}
 
-      {showBrief ? (
-        <ProjectBriefModal
-          project={project}
-          steps={steps}
-          users={users}
-          onClose={() => setShowBrief(false)}
-        />
-      ) : null}
     </CollapsibleCard>
   );
 }
