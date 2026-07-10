@@ -126,7 +126,7 @@ export function Header() {
         {/* Right: desktop controls + hamburger */}
         <div className="flex items-center gap-2 md:gap-3">
           {/* Desktop-only controls */}
-          {ORG_CHART_ENABLED && (
+          {ORG_CHART_ENABLED && hasAccess("orgChart") && (
             <Link
               href="/org-chart"
               title="Org Chart"
@@ -230,7 +230,7 @@ export function Header() {
               Dashboard
             </Link>
           )}
-          {ORG_CHART_ENABLED && (
+          {ORG_CHART_ENABLED && hasAccess("orgChart") && (
             <Link
               href="/org-chart"
               onClick={() => setMenuOpen(false)}

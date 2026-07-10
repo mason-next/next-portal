@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { db } from "@/lib/db";
 import { requireSession } from "@/lib/auth/server";
+import { getRolePermissions } from "@/lib/data/role-permissions";
 import { canManageOrgChart } from "./permissions";
 import type {
   OrgChartVersion,
@@ -22,7 +23,8 @@ import type {
 
 async function requireAdmin(): Promise<void> {
   const session = await requireSession();
-  if (!canManageOrgChart(session.roleTypes)) throw new Error("Forbidden");
+  const permConfig = await getRolePermissions();
+  if (!canManageOrgChart(session.roleTypes, permConfig)) throw new Error("Forbidden");
 }
 
 // ─── Versions ─────────────────────────────────────────────────────────────────

@@ -2,7 +2,8 @@ import type { BomRow, BomStatus } from "@/types/bom";
 import type { WorkflowStepStatus } from "@/types/workflow";
 
 // Procurement progress stages in ascending order.
-// "Do Not Order" rows are excluded from procurement progress — they won't be purchased.
+// "Do Not Order" and "Swap/Replace" rows are excluded from procurement progress —
+// they won't be purchased in the current release cycle.
 //
 // Stage weights: each status is worth one step in the procurement journey:
 //   Released → Ordered → Received → Installed (each step = 25% of a row's contribution)
@@ -10,7 +11,7 @@ import type { WorkflowStepStatus } from "@/types/workflow";
 // "Released" alone means the PO hasn't been placed yet, so it starts at 25%.
 //
 // BOM progress (bomCompletionPercent) counts an item as done only when it has been
-// Released (or further along the chain), or explicitly marked "Do Not Order".
+// Released (or further along the chain), or explicitly skipped ("Do Not Order" / "Swap/Replace").
 // "Approved" alone does not count — the item must be released to procurement first.
 
 const PROCUREMENT_PROGRESS: Partial<Record<BomStatus, number>> = {
@@ -21,13 +22,14 @@ const PROCUREMENT_PROGRESS: Partial<Record<BomStatus, number>> = {
 };
 
 // Rows excluded from procurement progress entirely.
-const EXCLUDED_STATUSES = new Set<BomStatus>(["Do Not Order"]);
+const EXCLUDED_STATUSES = new Set<BomStatus>(["Do Not Order", "Swap/Replace"]);
 
 // Items that count as fully resolved for BOM progress:
-// released to procurement OR explicitly skipped (Do Not Order).
+// released to procurement OR explicitly skipped (Do Not Order / Swap/Replace).
 // "Approved" alone is not done — it still needs to be released.
 const BOM_PROGRESS_DONE = new Set<BomStatus>([
   "Do Not Order",
+  "Swap/Replace",
   "Released",
   "Ordered",
   "Received",
@@ -48,7 +50,7 @@ export function procurementProgressPercent(rows: BomRow[]): number {
 }
 
 // BOM progress: what fraction of items have been released to procurement or resolved.
-// "Approved" alone doesn't count — the item must be Released (or Do Not Order).
+// "Approved" alone doesn't count — the item must be Released, "Do Not Order", or "Swap/Replace".
 // Used for the BOM Review workflow step and the progress card.
 export function bomCompletionPercent(rows: BomRow[]): number {
   if (rows.length === 0) return 0;
@@ -60,7 +62,8 @@ export function bomCompletionPercent(rows: BomRow[]): number {
 export interface BomProgressSummary {
   total: number;
   doNotOrder: number;
-  orderable: number; // total - doNotOrder
+  swapReplace: number;
+  orderable: number; // total - doNotOrder - swapReplace
   approved: number;  // approved but not yet released
   released: number;
   ordered: number;
@@ -73,7 +76,8 @@ export interface BomProgressSummary {
 export function getBomProgressSummary(rows: BomRow[]): BomProgressSummary {
   const total = rows.length;
   const doNotOrder = rows.filter((r) => r.status === "Do Not Order").length;
-  const orderable = total - doNotOrder;
+  const swapReplace = rows.filter((r) => r.status === "Swap/Replace").length;
+  const orderable = total - doNotOrder - swapReplace;
   const approved = rows.filter((r) => r.status === "Approved").length;
   const released = rows.filter((r) => r.status === "Released").length;
   const ordered = rows.filter((r) => r.status === "Ordered").length;
@@ -83,6 +87,7 @@ export function getBomProgressSummary(rows: BomRow[]): BomProgressSummary {
   return {
     total,
     doNotOrder,
+    swapReplace,
     orderable,
     approved,
     released,

@@ -1,14 +1,18 @@
-// Org Chart permission helpers — isolated to this module.
-// Uses the existing roleTypes[] from SessionUser; no new permission concept.
+import { getEffectiveLevel, type RolePermissionsConfig } from "@/lib/module-permissions";
 
-export function canEditOrgChart(roleTypes: string[]): boolean {
-  return roleTypes.includes("Administrator");
+export function canViewOrgChart(roleTypes: string[], config?: RolePermissionsConfig): boolean {
+  return getEffectiveLevel(roleTypes, "orgChart", config) !== "none";
 }
 
-export function canViewSensitiveOrgChartData(roleTypes: string[]): boolean {
-  return roleTypes.includes("Administrator");
+export function canEditOrgChart(roleTypes: string[], config?: RolePermissionsConfig): boolean {
+  const level = getEffectiveLevel(roleTypes, "orgChart", config);
+  return level === "member" || level === "administrator";
 }
 
-export function canManageOrgChart(roleTypes: string[]): boolean {
-  return roleTypes.includes("Administrator");
+export function canViewSensitiveOrgChartData(roleTypes: string[], config?: RolePermissionsConfig): boolean {
+  return getEffectiveLevel(roleTypes, "orgChart", config) === "administrator";
+}
+
+export function canManageOrgChart(roleTypes: string[], config?: RolePermissionsConfig): boolean {
+  return getEffectiveLevel(roleTypes, "orgChart", config) === "administrator";
 }

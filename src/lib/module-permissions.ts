@@ -15,6 +15,7 @@ export const MODULE_KEYS = [
   "licenses",
   "adminSettings",
   "permissions",
+  "orgChart",
 ] as const;
 
 export type ModuleKey = (typeof MODULE_KEYS)[number];
@@ -34,6 +35,7 @@ export const MODULE_LABELS: Record<ModuleKey, string> = {
   licenses:          "Licenses",
   adminSettings:     "Admin Settings",
   permissions:       "Permissions",
+  orgChart:          "Org Chart",
 };
 
 // ─── Action definitions ───────────────────────────────────────────────────────
@@ -68,63 +70,63 @@ export const DEFAULT_ROLE_PERMISSIONS: RolePermissionsConfig = {
     sales: "administrator", bom: "administrator", serviceCalculator: "administrator",
     reports: "administrator", activity: "administrator", users: "administrator",
     subcontractors: "administrator", templates: "administrator", licenses: "administrator",
-    adminSettings: "administrator", permissions: "administrator",
+    adminSettings: "administrator", permissions: "administrator", orgChart: "administrator",
   },
   Sales: {
     dashboard: "member", projects: "viewer", tasks: "member",
     sales: "administrator", bom: "viewer", serviceCalculator: "member",
     reports: "member", activity: "member", users: "none",
     subcontractors: "none", templates: "viewer", licenses: "none",
-    adminSettings: "none", permissions: "none",
+    adminSettings: "none", permissions: "none", orgChart: "none",
   },
   Engineering: {
     dashboard: "member", projects: "member", tasks: "member",
     sales: "viewer", bom: "member", serviceCalculator: "member",
     reports: "viewer", activity: "member", users: "none",
     subcontractors: "none", templates: "viewer", licenses: "none",
-    adminSettings: "none", permissions: "none",
+    adminSettings: "none", permissions: "none", orgChart: "none",
   },
   ProjectManagement: {
     dashboard: "member", projects: "administrator", tasks: "member",
     sales: "viewer", bom: "member", serviceCalculator: "viewer",
     reports: "member", activity: "member", users: "viewer",
     subcontractors: "member", templates: "viewer", licenses: "viewer",
-    adminSettings: "none", permissions: "none",
+    adminSettings: "none", permissions: "none", orgChart: "none",
   },
   Management: {
     dashboard: "administrator", projects: "administrator", tasks: "member",
     sales: "administrator", bom: "viewer", serviceCalculator: "viewer",
     reports: "administrator", activity: "member", users: "member",
     subcontractors: "member", templates: "member", licenses: "member",
-    adminSettings: "none", permissions: "none",
+    adminSettings: "none", permissions: "none", orgChart: "none",
   },
   Installation: {
     dashboard: "viewer", projects: "viewer", tasks: "member",
     sales: "none", bom: "viewer", serviceCalculator: "none",
     reports: "none", activity: "member", users: "none",
     subcontractors: "none", templates: "viewer", licenses: "none",
-    adminSettings: "none", permissions: "none",
+    adminSettings: "none", permissions: "none", orgChart: "none",
   },
   Finance: {
     dashboard: "viewer", projects: "viewer", tasks: "viewer",
     sales: "viewer", bom: "viewer", serviceCalculator: "none",
     reports: "administrator", activity: "viewer", users: "none",
     subcontractors: "none", templates: "none", licenses: "viewer",
-    adminSettings: "none", permissions: "none",
+    adminSettings: "none", permissions: "none", orgChart: "none",
   },
   Customer: {
     dashboard: "viewer", projects: "viewer", tasks: "viewer",
     sales: "none", bom: "none", serviceCalculator: "none",
     reports: "none", activity: "viewer", users: "none",
     subcontractors: "none", templates: "none", licenses: "none",
-    adminSettings: "none", permissions: "none",
+    adminSettings: "none", permissions: "none", orgChart: "none",
   },
   Subcontractor: {
     dashboard: "viewer", projects: "viewer", tasks: "viewer",
     sales: "none", bom: "none", serviceCalculator: "none",
     reports: "none", activity: "viewer", users: "none",
     subcontractors: "none", templates: "none", licenses: "none",
-    adminSettings: "none", permissions: "none",
+    adminSettings: "none", permissions: "none", orgChart: "none",
   },
 };
 

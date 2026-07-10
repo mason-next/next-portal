@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { db } from "@/lib/db";
 import { requireSession } from "@/lib/auth/server";
+import { getRolePermissions } from "@/lib/data/role-permissions";
 import { canManageOrgChart } from "./permissions";
 import type { OrgChartFormSections } from "./types";
 import { DEFAULT_FORM_SECTIONS } from "./form-settings-constants";
@@ -18,7 +19,8 @@ export async function getOrgChartFormSections(): Promise<OrgChartFormSections> {
 
 export async function updateOrgChartFormSections(sections: OrgChartFormSections): Promise<void> {
   const session = await requireSession();
-  if (!canManageOrgChart(session.roleTypes)) throw new Error("Forbidden");
+  const permConfig = await getRolePermissions();
+  if (!canManageOrgChart(session.roleTypes, permConfig)) throw new Error("Forbidden");
   await db.appSetting.upsert({
     where: { key: SETTING_KEY },
     update: { value: sections as object },

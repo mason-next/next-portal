@@ -1,7 +1,8 @@
 import { notFound } from "next/navigation";
 import { requireSession } from "@/lib/auth/server";
 import { ORG_CHART_ENABLED } from "@/lib/feature-flags";
-import { canManageOrgChart } from "@/modules/org-chart/lib/permissions";
+import { getRolePermissions } from "@/lib/data/role-permissions";
+import { canViewOrgChart, canManageOrgChart } from "@/modules/org-chart/lib/permissions";
 import {
   getOrCreateDefaultVersion,
   getOrgChartVersions,
@@ -25,7 +26,9 @@ export default async function OrgChartPage({ searchParams }: PageProps) {
   if (!ORG_CHART_ENABLED) notFound();
 
   const session = await requireSession();
-  const isAdmin = canManageOrgChart(session.roleTypes);
+  const permConfig = await getRolePermissions();
+  if (!canViewOrgChart(session.roleTypes, permConfig)) notFound();
+  const isAdmin = canManageOrgChart(session.roleTypes, permConfig);
 
   // Ensure at least the default "Current State" version exists, then fetch all.
   const defaultVersion = await getOrCreateDefaultVersion();
