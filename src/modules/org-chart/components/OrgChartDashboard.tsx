@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Plus, Network, List, Building2, MapPin } from "lucide-react";
+import { Plus, Network, List, Building2, MapPin, BarChart3 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -12,6 +12,7 @@ import { PositionForm } from "./PositionForm";
 import { DepartmentManager } from "./DepartmentManager";
 import { LocationManager } from "./LocationManager";
 import { VersionSelector } from "./VersionSelector";
+import { ReportsPanel } from "./ReportsPanel";
 import type {
   OrgChartVersion,
   OrgPosition,
@@ -20,13 +21,14 @@ import type {
   OrgChartStats,
 } from "../lib/types";
 
-type Tab = "chart" | "positions" | "departments" | "locations";
+type Tab = "chart" | "positions" | "departments" | "locations" | "reports";
 
 const TABS: { key: Tab; label: string; icon: React.ReactNode }[] = [
   { key: "chart",       label: "Org Chart",   icon: <Network   className="size-4" /> },
   { key: "positions",   label: "Positions",   icon: <List      className="size-4" /> },
   { key: "departments", label: "Departments", icon: <Building2 className="size-4" /> },
   { key: "locations",   label: "Locations",   icon: <MapPin    className="size-4" /> },
+  { key: "reports",     label: "Reports",     icon: <BarChart3 className="size-4" /> },
 ];
 
 interface OrgChartDashboardProps {
@@ -131,6 +133,14 @@ export function OrgChartDashboard({
 
         {activeTab === "locations" && (
           <LocationManager locations={locations} />
+        )}
+
+        {activeTab === "reports" && (
+          <ReportsPanel
+            positions={positions}
+            departments={departments}
+            locations={locations}
+          />
         )}
       </div>
 
