@@ -116,7 +116,7 @@ function buildLayout(
       type: "orgPosition",
       position: xy,
       data: {
-        position: pos,
+        positionId:  id,
         childCount:  kids.length,
         isCollapsed: collapsed.has(id),
       },
@@ -139,12 +139,15 @@ function buildLayout(
   return { nodes, edges };
 }
 
-// ─── Callbacks context (avoids passing fns through React Flow node data) ───────
+// ─── Context — callbacks + live position lookup ───────────────────────────────
+// Node data stores only primitive IDs; the full OrgPosition is always looked up
+// here so clicks never use a stale snapshot from React Flow's internal state.
 
 const OrgCtx = createContext<{
-  onEdit:   (p: OrgPosition) => void;
-  onToggle: (id: string)     => void;
-}>({ onEdit: () => {}, onToggle: () => {} });
+  onEdit:       (p: OrgPosition) => void;
+  onToggle:     (id: string)     => void;
+  positionsById: Map<string, OrgPosition>;
+}>({ onEdit: () => {}, onToggle: () => {}, positionsById: new Map() });
 
 // ─── Status config ────────────────────────────────────────────────────────────
 
@@ -158,15 +161,19 @@ const STATUS: Record<string, { bar: string; dot: string; label: string }> = {
 // ─── Position card node ───────────────────────────────────────────────────────
 
 type PositionNodeData = {
-  position:    OrgPosition;
+  positionId:  string;
   childCount:  number;
   isCollapsed: boolean;
 };
 
 function PositionNode({ data, id }: NodeProps) {
-  const { onEdit, onToggle } = useContext(OrgCtx);
+  const { onEdit, onToggle, positionsById } = useContext(OrgCtx);
   const d = data as unknown as PositionNodeData;
-  const { position, childCount, isCollapsed } = d;
+  const { positionId, childCount, isCollapsed } = d;
+
+  // Always look up the live position from context — never use stale React Flow snapshots
+  const position = positionsById.get(positionId)!;
+  if (!position) return null;
 
   const primary   = position.assignments.find((a) => a.isActive && a.assignmentType === "primary");
   const isVacant  = !primary?.user;
@@ -280,7 +287,15 @@ function OrgChartInner({
     });
   }, []);
 
-  const ctx = useMemo(() => ({ onEdit, onToggle }), [onEdit, onToggle]);
+  const positionsById = useMemo(
+    () => new Map(positions.map((p) => [p.id, p])),
+    [positions],
+  );
+
+  const ctx = useMemo(
+    () => ({ onEdit, onToggle, positionsById }),
+    [onEdit, onToggle, positionsById],
+  );
 
   // Compute layout from positions + collapsed state
   const layout = useMemo(() => buildLayout(positions, collapsed), [positions, collapsed]);

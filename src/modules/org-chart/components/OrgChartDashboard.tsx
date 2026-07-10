@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useCallback, useState } from "react";
 import { Plus, Network, List, Building2, MapPin, BarChart3, Award } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
@@ -61,15 +61,15 @@ export function OrgChartDashboard({
   const [positionFormOpen, setPositionFormOpen] = useState(false);
   const [editingPosition, setEditingPosition] = useState<OrgPosition | null>(null);
 
-  function openAddPosition() {
+  const openAddPosition = useCallback(() => {
     setEditingPosition(null);
     setPositionFormOpen(true);
-  }
+  }, []);
 
-  function openEditPosition(p: OrgPosition) {
+  const openEditPosition = useCallback((p: OrgPosition) => {
     setEditingPosition(p);
     setPositionFormOpen(true);
-  }
+  }, []);
 
   function closePositionForm() {
     setPositionFormOpen(false);
@@ -171,6 +171,7 @@ export function OrgChartDashboard({
 
       {/* Position create/edit modal */}
       <PositionForm
+        key={editingPosition?.id ?? "new-position"}
         open={positionFormOpen}
         onClose={closePositionForm}
         versionId={currentVersion.id}
