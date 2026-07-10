@@ -5,19 +5,9 @@ import { db } from "@/lib/db";
 import { requireSession } from "@/lib/auth/server";
 import { canManageOrgChart } from "./permissions";
 import type { OrgChartFormSections } from "./types";
+import { DEFAULT_FORM_SECTIONS } from "./form-settings-constants";
 
 const SETTING_KEY = "org_chart_form_sections";
-
-export const DEFAULT_FORM_SECTIONS: OrgChartFormSections = {
-  bio: true,
-  certifications: true,
-  careerPaths: true,
-  compensation: true,
-  successors: true,
-  matrixRelationships: true,
-  targetHireDate: true,
-  notes: true,
-};
 
 export async function getOrgChartFormSections(): Promise<OrgChartFormSections> {
   const row = await db.appSetting.findUnique({ where: { key: SETTING_KEY } });

@@ -5,8 +5,8 @@ import { Network } from "lucide-react";
 import {
   getOrgChartFormSections,
   updateOrgChartFormSections,
-  DEFAULT_FORM_SECTIONS,
 } from "../lib/form-settings";
+import { DEFAULT_FORM_SECTIONS } from "../lib/form-settings-constants";
 import type { OrgChartFormSections } from "../lib/types";
 
 const SECTIONS: { key: keyof OrgChartFormSections; label: string; description: string }[] = [

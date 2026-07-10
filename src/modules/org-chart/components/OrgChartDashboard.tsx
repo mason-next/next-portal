@@ -24,7 +24,7 @@ import type {
   OrgUserCertification,
   OrgChartFormSections,
 } from "../lib/types";
-import { DEFAULT_FORM_SECTIONS } from "../lib/form-settings";
+import { DEFAULT_FORM_SECTIONS } from "../lib/form-settings-constants";
 
 type Tab = "chart" | "positions" | "departments" | "locations" | "reports" | "certifications";
 
