@@ -6,7 +6,7 @@ import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { DashboardCards } from "./DashboardCards";
-import { OrgChartTree } from "./OrgChartTree";
+import { OrgChartCanvas } from "./OrgChartCanvas";
 import { PositionList } from "./PositionList";
 import { PositionForm } from "./PositionForm";
 import { DepartmentManager } from "./DepartmentManager";
@@ -78,7 +78,10 @@ export function OrgChartDashboard({
   }
 
   return (
-    <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
+    <div className={cn(
+      "px-4 py-8 sm:px-6 lg:px-8",
+      activeTab === "chart" ? "mx-auto max-w-[1600px]" : "mx-auto max-w-7xl",
+    )}>
       {/* Page header */}
       <div className="mb-6 flex items-start justify-between gap-4">
         <div>
@@ -124,7 +127,13 @@ export function OrgChartDashboard({
       {/* Tab content */}
       <div>
         {activeTab === "chart" && (
-          <OrgChartTree positions={positions} onEdit={openEditPosition} />
+          <div className="h-[calc(100vh-260px)] min-h-[520px]">
+            <OrgChartCanvas
+              positions={positions}
+              departments={departments}
+              onEdit={openEditPosition}
+            />
+          </div>
         )}
 
         {activeTab === "positions" && (
