@@ -23,14 +23,24 @@ function effectiveWeight(steps: WorkflowStep[]): number {
 // Each section contributes up to PHASE_WEIGHT[section] points; within a section the
 // individual step weights only determine relative contribution among siblings.
 // In-Progress steps contribute 50% of their weighted value.
+// Sections with zero active steps are excluded from both the numerator and denominator,
+// so removing a phase never permanently caps the achievable progress below 100%.
 export function calculateActualProgress(steps: WorkflowStep[]): number {
   const sections = [...new Set(steps.map((s) => s.section))] as ProjectSectionKey[];
-  return sections.reduce((total, section) => {
+  if (sections.length === 0) return 0;
+
+  // Only count the weight budgets of sections that have at least one active step.
+  const activeBudget = sections.reduce((sum, s) => sum + (PHASE_WEIGHT[s] ?? 0), 0);
+  if (activeBudget === 0) return 0;
+
+  const earned = sections.reduce((total, section) => {
     const sectionSteps = steps.filter((s) => s.section === section);
     const sectionTotal = sectionSteps.reduce((sum, s) => sum + s.weight, 0);
     if (sectionTotal === 0) return total;
     return total + (effectiveWeight(sectionSteps) / sectionTotal) * (PHASE_WEIGHT[section] ?? 0);
   }, 0);
+
+  return Math.min(100, (earned / activeBudget) * 100);
 }
 
 // How complete a single phase is as a 0-100% value.

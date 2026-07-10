@@ -15,6 +15,7 @@ import {
   shouldIncludeStepForTypesWithConfig,
   DEFAULT_PROJECT_TYPE_CONFIG,
   WORKFLOW_STEP_TEMPLATE,
+  SECTION_LABEL,
 } from "@/modules/project-command-center/lib/workflow-steps";
 import { PROJECT_SECTION_KEYS } from "@/types/workflow";
 import {
@@ -530,6 +531,91 @@ export async function removeWorkflowStep(projectId: string, key: string): Promis
   }
 
   await redistributeWeightsDb(projectId, section);
+}
+
+// ─── Phase-level add / remove ────────────────────────────────────────────────
+
+// Adds a predefined phase back to a project.
+// 1. Un-excludes any existing steps in that section (template or custom) that were previously
+//    hidden via removePhaseFromProject.
+// 2. Creates any template steps that don't yet exist in the DB for this section.
+// 3. Redistributes weights across the now-active steps.
+export async function addPhaseToProject(projectId: string, section: ProjectSectionKey): Promise<void> {
+  await requireEditPermission();
+
+  // Un-exclude all steps in the section (template and custom soft-deleted by removePhase)
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  await (db as any).workflowStep.updateMany({
+    where: { projectId, section: SECTION_TO_DB[section] },
+    data: { isExcluded: false },
+  });
+
+  // Find which template steps are still missing entirely from the DB
+  const existing = await db.workflowStep.findMany({
+    where: { projectId, section: SECTION_TO_DB[section] },
+    select: { key: true },
+  });
+  const existingKeys = new Set(existing.map((s) => s.key));
+  const missing = WORKFLOW_STEP_TEMPLATE.filter((e) => e.section === section && !existingKeys.has(e.key));
+
+  if (missing.length > 0) {
+    const now = new Date().toISOString();
+    const newSteps: WorkflowStep[] = missing.map((entry) => ({
+      id: `${projectId}:${entry.key}`,
+      projectId,
+      key: entry.key,
+      name: entry.name,
+      section: entry.section,
+      weight: 0,
+      sortOrder: entry.sortOrder,
+      status: "Not Started" as WorkflowStepStatus,
+      ownerId: null,
+      dueDate: null,
+      completedDate: null,
+      updatedAt: now,
+      statusOverridden: false,
+      weightOverridden: false,
+      isCustom: false,
+      isExcluded: false,
+      description: "",
+      dependsOnKeys: [],
+      completionRule: "manual" as const,
+    }));
+    await db.workflowStep.createMany({ data: newSteps.map(toDbCreate) });
+  }
+
+  await redistributeWeightsDb(projectId, section);
+
+  const session = await getServerSession();
+  await logProjectActivity(projectId, {
+    category: "workflow",
+    activityType: "phase_added",
+    userName: session?.name ?? "System",
+    userId: session?.id,
+    message: `Added "${SECTION_LABEL[section]}" phase to project`,
+  });
+}
+
+// Removes a phase from a project by soft-deleting all its steps (template + custom).
+// Data (status, audit, tasks) is preserved in the DB; the phase simply becomes inactive.
+// Use addPhaseToProject to restore it.
+export async function removePhaseFromProject(projectId: string, section: ProjectSectionKey): Promise<void> {
+  await requireEditPermission();
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  await (db as any).workflowStep.updateMany({
+    where: { projectId, section: SECTION_TO_DB[section] },
+    data: { isExcluded: true },
+  });
+
+  const session = await getServerSession();
+  await logProjectActivity(projectId, {
+    category: "workflow",
+    activityType: "phase_removed",
+    userName: session?.name ?? "System",
+    userId: session?.id,
+    message: `Removed "${SECTION_LABEL[section]}" phase from project`,
+  });
 }
 
 // ─── Bulk auto-assign ─────────────────────────────────────────────────────────

@@ -22,6 +22,7 @@ import { cn } from "@/lib/utils";
 import { useSession } from "@/lib/auth/client";
 import { useUsersContext } from "@/components/shared/AppShell/UsersProvider";
 import { useViewAs } from "@/lib/view-as/ViewAsContext";
+import { mutationBus } from "@/lib/mutation-bus";
 import { usePersistentFilter } from "@/lib/storage/use-persistent-filter";
 import { TaskDrawer } from "@/modules/implementation/components/TaskDrawer";
 import { TaskImportModal } from "@/modules/implementation/components/TaskImportModal";
@@ -140,6 +141,7 @@ export default function TasksPage() {
   const [showImport, setShowImport] = useState(false);
   const [outlookTask, setOutlookTask] = useState<OutlookTaskInfo | null>(null);
   const [reloadKey, setReloadKey] = useState(0);
+  const [bgReloadKey, setBgReloadKey] = useState(0);
 
   // Task drawer (personal and project tasks)
   const [activeTaskLoading, setActiveTaskLoading] = useState(false);
@@ -150,6 +152,44 @@ export default function TasksPage() {
   useEffect(() => {
     if (isAllTeam && tab === "followups") setTab("tasks");
   }, [isAllTeam, tab]);
+
+  // Subscribe to mutation bus — immediately background-refresh when another component mutates tasks
+  useEffect(() => {
+    return mutationBus.subscribe(() => setBgReloadKey((k) => k + 1));
+  }, []);
+
+  // Cross-user background poll every 30 seconds — no loading flash
+  useEffect(() => {
+    const id = setInterval(() => setBgReloadKey((k) => k + 1), 30_000);
+    return () => clearInterval(id);
+  }, []);
+
+  // Background refresh (silent — does not reset tasks to null)
+  useEffect(() => {
+    if (tasks === null) return; // Wait until initial load completes
+    let active = true;
+    let url = "/api/tasks/mine";
+    if (isViewAsMode && viewAsUser) {
+      url = `/api/tasks/mine?userId=${viewAsUser.id}`;
+    } else if (isAdmin && adminUserId === "__all__") {
+      url = "/api/tasks/mine?userId=all";
+    } else if (isAdmin && adminUserId) {
+      url = `/api/tasks/mine?userId=${adminUserId}`;
+    }
+    fetch(url)
+      .then((r) => (r.ok ? r.json() : null))
+      .then((data) => {
+        if (!active || !data) return;
+        setTasks(data.tasks ?? []);
+        setOwnedSteps(data.ownedSteps ?? []);
+        setNotifications(data.notifications ?? []);
+      })
+      .catch(() => {});
+    return () => {
+      active = false;
+    };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [bgReloadKey]);
 
   useEffect(() => {
     setTasks(null);

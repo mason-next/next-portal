@@ -11,10 +11,16 @@ interface PhaseProgressPanelProps {
 }
 
 export function PhaseProgressPanel({ projectId, steps }: PhaseProgressPanelProps) {
+  // Only render sections that have at least one active step.
+  const activeSections = new Set(steps.map((s) => s.section));
+  const visibleSections = PROJECT_SECTION_KEYS.filter((k) => activeSections.has(k));
+
+  if (visibleSections.length === 0) return null;
+
   return (
     <CollapsibleCard title="Phase Progress" storageKey="phase-progress">
       <div className="space-y-3">
-        {PROJECT_SECTION_KEYS.map((section) => {
+        {visibleSections.map((section) => {
           const percent = calculatePhaseProgress(steps, section);
           return (
             <div key={section}>
