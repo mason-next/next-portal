@@ -25,7 +25,7 @@ type Modal =
   | null;
 
 export default function SalesActivityPage() {
-  const { userName, isManagement, actuallyManagement } = useDealDeskUser();
+  const { userName, isManagement } = useDealDeskUser();
   const scopeToUser = isManagement ? undefined : userName;
   const {
     companies, activities, allActivities, summary, isLoading,
@@ -183,7 +183,7 @@ export default function SalesActivityPage() {
         </div>
         <div className="flex items-center gap-3 flex-wrap">
           {/* Fetch logos — management only */}
-          {actuallyManagement && (
+          {isManagement && (
             <button
               onClick={fetchMissingLogos}
               disabled={!!logoFetch || isLoading}
