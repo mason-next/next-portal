@@ -9,6 +9,7 @@ import type {
   OrgUserCertification,
   OrgSuccessor,
   OrgPositionRelationship,
+  OrgPositionLayout,
 } from "./types";
 
 // ─── Serialization helpers ────────────────────────────────────────────────────
@@ -286,6 +287,24 @@ export async function getOrgUserCertifications(): Promise<OrgUserCertification[]
       updatedAt: r.certification.updatedAt.toISOString(),
     },
     user: userMap.get(r.userId) ?? null,
+  }));
+}
+
+// ─── Position layouts ─────────────────────────────────────────────────────────
+
+export async function getOrgPositionLayouts(versionId: string): Promise<OrgPositionLayout[]> {
+  const rows = await db.orgPositionLayout.findMany({
+    where: { versionId },
+  });
+  return rows.map((r) => ({
+    id: r.id,
+    positionId: r.positionId,
+    versionId: r.versionId,
+    viewType: r.viewType,
+    layoutX: r.layoutX,
+    layoutY: r.layoutY,
+    createdAt: r.createdAt.toISOString(),
+    updatedAt: r.updatedAt.toISOString(),
   }));
 }
 

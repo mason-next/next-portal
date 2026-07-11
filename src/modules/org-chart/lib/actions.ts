@@ -400,6 +400,33 @@ export async function swapOrgDepartmentOrder(
   revalidatePath("/org-chart");
 }
 
+// ─── Position layouts (manual drag-to-reposition) ────────────────────────────
+
+export async function savePositionLayout(
+  positionId: string,
+  versionId: string,
+  viewType: string,
+  x: number,
+  y: number,
+): Promise<void> {
+  await requireAdmin();
+  await db.orgPositionLayout.upsert({
+    where: { positionId_versionId_viewType: { positionId, versionId, viewType } },
+    create: { positionId, versionId, viewType, layoutX: x, layoutY: y },
+    update: { layoutX: x, layoutY: y },
+  });
+  // No revalidatePath — positions are tracked client-side; page reloads reflect DB state
+}
+
+export async function clearPositionLayouts(
+  versionId: string,
+  viewType: string,
+): Promise<void> {
+  await requireAdmin();
+  await db.orgPositionLayout.deleteMany({ where: { versionId, viewType } });
+  revalidatePath("/org-chart");
+}
+
 // ─── Reparent position (drag-to-restructure) ─────────────────────────────────
 
 export async function reparentOrgPosition(

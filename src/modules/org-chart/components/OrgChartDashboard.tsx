@@ -23,6 +23,7 @@ import type {
   OrgCertification,
   OrgUserCertification,
   OrgChartFormSections,
+  OrgPositionLayout,
 } from "../lib/types";
 import { DEFAULT_FORM_SECTIONS } from "../lib/form-settings-constants";
 
@@ -53,6 +54,7 @@ interface OrgChartDashboardProps {
   userCertifications: OrgUserCertification[];
   isAdmin: boolean;
   formSections?: OrgChartFormSections;
+  layouts?: OrgPositionLayout[];
 }
 
 export function OrgChartDashboard({
@@ -66,6 +68,7 @@ export function OrgChartDashboard({
   userCertifications,
   isAdmin,
   formSections = DEFAULT_FORM_SECTIONS,
+  layouts = [],
 }: OrgChartDashboardProps) {
   const router = useRouter();
   const [activeTab, setActiveTab] = useState<Tab>("chart");
@@ -156,6 +159,8 @@ export function OrgChartDashboard({
             <OrgChartCanvas
               positions={positions}
               departments={departments}
+              layouts={layouts}
+              versionId={currentVersion.id}
               onEdit={isAdmin ? openEditPosition : undefined}
               onAdd={isAdmin ? openAddPosition : undefined}
               isAdmin={isAdmin}

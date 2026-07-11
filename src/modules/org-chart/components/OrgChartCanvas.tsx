@@ -6,6 +6,7 @@ import {
   useContext,
   useEffect,
   useMemo,
+  useRef,
   useState,
   useTransition,
 } from "react";
@@ -24,6 +25,7 @@ import {
   type Node,
   type NodeProps,
   type NodeMouseHandler,
+  type OnNodeDrag,
 } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
 import {
@@ -36,29 +38,37 @@ import {
   Search,
   Network,
   GitBranch,
+  Lock,
+  Unlock,
+  RotateCcw,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { swapOrgPositionOrder, swapOrgDepartmentOrder } from "../lib/actions";
+import {
+  swapOrgPositionOrder,
+  swapOrgDepartmentOrder,
+  savePositionLayout,
+  clearPositionLayouts,
+} from "../lib/actions";
 import { cn } from "@/lib/utils";
 import { UserAvatarImage } from "@/components/shared/AppShell/UserAvatarImage";
-import type { OrgDepartment, OrgPosition } from "../lib/types";
+import type { OrgDepartment, OrgPosition, OrgPositionLayout } from "../lib/types";
 
 // ─── Layout constants ─────────────────────────────────────────────────────────
 
 const NODE_W = 215;
 const NODE_H = 138;
-const X_GAP  = 140;   // was 56 — wider sibling separation
-const Y_GAP  = 100;   // was 72 — more space between levels
+const X_GAP  = 140;
+const Y_GAP  = 100;
 
 // Department group overlay
-const LABEL_H  = 60;  // was 52
-const PAD_H    = 44;  // was 28 — horizontal padding inside group box
-const PAD_B    = 44;  // was 28 — bottom padding inside group box
-const GROUP_GAP = 32; // min gap between dept group bounding boxes (nudge pass)
+const LABEL_H  = 60;
+const PAD_H    = 44;
+const PAD_B    = 44;
+const GROUP_GAP = 32;
 
 // Mind map layout
-const MM_X_GAP = 80;  // horizontal gap between tree levels
-const MM_Y_GAP = 24;  // vertical gap between sibling subtrees
+const MM_X_GAP = 80;
+const MM_Y_GAP = 24;
 
 // ─── Dept group nudge pass ────────────────────────────────────────────────────
 
@@ -139,14 +149,13 @@ function buildDeptGroups(
   }));
 }
 
-// ─── Top-down tree layout ─────────────────────────────────────────────────────
+// ─── Top-down tree layout (position nodes only, no dept groups) ───────────────
 
 function buildLayout(
-  positions:   OrgPosition[],
-  departments: OrgDepartment[],
-  collapsed:   Set<string>,
-): { nodes: Node[]; edges: Edge[] } {
-  if (positions.length === 0) return { nodes: [], edges: [] };
+  positions: OrgPosition[],
+  collapsed: Set<string>,
+): { positionNodes: Node[]; edges: Edge[] } {
+  if (positions.length === 0) return { positionNodes: [], edges: [] };
 
   const idSet      = new Set(positions.map((p) => p.id));
   const childrenOf = new Map<string, string[]>(positions.map((p) => [p.id, []]));
@@ -199,7 +208,7 @@ function buildLayout(
   for (const r of roots) markVisible(r);
 
   const posById = new Map(positions.map((p) => [p.id, p]));
-  const nodes: Node[] = [];
+  const positionNodes: Node[] = [];
   const edges: Edge[] = [];
 
   for (const [id, xy] of xyMap) {
@@ -207,7 +216,7 @@ function buildLayout(
     const pos  = posById.get(id)!;
     const kids = childrenOf.get(id) ?? [];
 
-    nodes.push({
+    positionNodes.push({
       id,
       type:       "orgPosition",
       position:   xy,
@@ -230,18 +239,16 @@ function buildLayout(
     }
   }
 
-  const deptGroups = buildDeptGroups(nodes, posById, departments);
-  return { nodes: [...deptGroups, ...nodes], edges };
+  return { positionNodes, edges };
 }
 
-// ─── Left-to-right mind map layout ───────────────────────────────────────────
+// ─── Left-to-right mind map layout (position nodes only) ─────────────────────
 
 function buildMindMapLayout(
-  positions:   OrgPosition[],
-  departments: OrgDepartment[],
-  collapsed:   Set<string>,
-): { nodes: Node[]; edges: Edge[] } {
-  if (positions.length === 0) return { nodes: [], edges: [] };
+  positions: OrgPosition[],
+  collapsed: Set<string>,
+): { positionNodes: Node[]; edges: Edge[] } {
+  if (positions.length === 0) return { positionNodes: [], edges: [] };
 
   const idSet      = new Set(positions.map((p) => p.id));
   const childrenOf = new Map<string, string[]>(positions.map((p) => [p.id, []]));
@@ -296,7 +303,7 @@ function buildMindMapLayout(
   for (const r of roots) markVisible(r);
 
   const posById = new Map(positions.map((p) => [p.id, p]));
-  const nodes: Node[] = [];
+  const positionNodes: Node[] = [];
   const edges: Edge[] = [];
 
   for (const [id, xy] of xyMap) {
@@ -304,7 +311,7 @@ function buildMindMapLayout(
     const pos  = posById.get(id)!;
     const kids = childrenOf.get(id) ?? [];
 
-    nodes.push({
+    positionNodes.push({
       id,
       type:       "orgPosition",
       position:   xy,
@@ -327,8 +334,7 @@ function buildMindMapLayout(
     }
   }
 
-  const deptGroups = buildDeptGroups(nodes, posById, departments);
-  return { nodes: [...deptGroups, ...nodes], edges };
+  return { positionNodes, edges };
 }
 
 // ─── Context ──────────────────────────────────────────────────────────────────
@@ -343,12 +349,14 @@ const OrgCtx = createContext<{
   departmentsById: Map<string, OrgDepartment>;
   isAdmin:         boolean;
   viewMode:        "chart" | "mindmap";
+  layoutMode:      "auto" | "manual";
 }>({
   onToggle:        () => {},
   positionsById:   new Map(),
   departmentsById: new Map(),
   isAdmin:         false,
   viewMode:        "chart",
+  layoutMode:      "auto",
 });
 
 // ─── Status config ────────────────────────────────────────────────────────────
@@ -370,7 +378,7 @@ type PositionNodeData = {
 };
 
 function PositionNode({ data, id }: NodeProps) {
-  const { onEdit, onAdd, onToggle, onReorder, positionsById, departmentsById, isAdmin, viewMode } = useContext(OrgCtx);
+  const { onEdit, onAdd, onToggle, onReorder, positionsById, departmentsById, isAdmin, viewMode, layoutMode } = useContext(OrgCtx);
   const d = data as unknown as PositionNodeData;
   const { positionId, childCount, isCollapsed } = d;
 
@@ -382,7 +390,6 @@ function PositionNode({ data, id }: NodeProps) {
   const isPlanned = position.status === "planned";
   const st        = STATUS[position.status] ?? STATUS.inactive;
 
-  // Department color drives the top accent bar
   const deptColor = position.departmentId
     ? (departmentsById.get(position.departmentId)?.color ?? "#6366f1")
     : "#e2e8f0";
@@ -391,9 +398,10 @@ function PositionNode({ data, id }: NodeProps) {
     ?? (isPlanned ? "— Planned —" : "— Vacant —");
 
   const isMindmap = viewMode === "mindmap";
+  const isManual  = layoutMode === "manual";
 
   const siblings = useMemo(() => {
-    if (!isAdmin || !onReorder) return [];
+    if (!isAdmin || !onReorder || isManual) return [];
     const parentKey = position.reportsToPositionId ?? "__root__";
     return [...positionsById.values()]
       .filter((p) => (p.reportsToPositionId ?? "__root__") === parentKey)
@@ -403,20 +411,26 @@ function PositionNode({ data, id }: NodeProps) {
         if (b.sortOrder == null) return -1;
         return a.sortOrder - b.sortOrder;
       });
-  }, [isAdmin, onReorder, position, positionsById]);
+  }, [isAdmin, onReorder, isManual, position, positionsById]);
 
   const siblingIdx   = siblings.findIndex((p) => p.id === position.id);
   const canMoveLeft  = isAdmin && siblingIdx > 0;
   const canMoveRight = isAdmin && siblingIdx >= 0 && siblingIdx < siblings.length - 1;
-  const showReorder  = isAdmin && (canMoveLeft || canMoveRight);
+  const showReorder  = isAdmin && !isManual && (canMoveLeft || canMoveRight);
+
+  const isDraggable = isAdmin && isManual;
 
   return (
     <div
-      className={cn("relative", onEdit ? "cursor-pointer" : "cursor-default")}
+      className={cn(
+        "relative",
+        onEdit ? "cursor-pointer" : "cursor-default",
+        isDraggable && "cursor-grab active:cursor-grabbing",
+      )}
       style={{ width: NODE_W }}
       onClick={() => onEdit?.(position)}
     >
-      {/* Sibling reorder arrows */}
+      {/* Sibling reorder arrows — hidden in manual mode (drag does the job) */}
       {showReorder && (
         <div className={cn(
           "absolute z-30 flex gap-1",
@@ -450,6 +464,7 @@ function PositionNode({ data, id }: NodeProps) {
         "rounded-xl border shadow-sm transition-all hover:shadow-md",
         isVacant || isPlanned ? "bg-slate-50/90" : "bg-white",
         "border-slate-200",
+        isDraggable && "hover:border-slate-300 hover:ring-1 hover:ring-primary/20",
       )}>
         {/* Department color accent bar */}
         <div
@@ -505,7 +520,7 @@ function PositionNode({ data, id }: NodeProps) {
         </div>
       </div>
 
-      {/* Expand / collapse badge — below card in chart mode, right side in mind map */}
+      {/* Expand / collapse badge */}
       {childCount > 0 && (
         <button
           type="button"
@@ -540,11 +555,9 @@ function PositionNode({ data, id }: NodeProps) {
         </button>
       )}
 
-      {/* Invisible connection handles — chart mode (top / bottom) */}
+      {/* Connection handles */}
       <Handle id="tgt-top"    type="target" position={Position.Top}    style={{ opacity: 0, pointerEvents: "none" }} />
       <Handle id="src-bottom" type="source" position={Position.Bottom} style={{ opacity: 0, pointerEvents: "none" }} />
-
-      {/* Invisible connection handles — mind map mode (left / right) */}
       <Handle id="tgt-left"  type="target" position={Position.Left}  style={{ opacity: 0, pointerEvents: "none" }} />
       <Handle id="src-right" type="source" position={Position.Right} style={{ opacity: 0, pointerEvents: "none" }} />
     </div>
@@ -557,14 +570,14 @@ function DeptGroupNode({ data }: NodeProps) {
   const { label, color, deptId, deptIndex, deptTotal } = data as {
     label: string; color: string; deptId: string; deptIndex: number; deptTotal: number;
   };
-  const { onDeptReorder, isAdmin } = useContext(OrgCtx);
+  const { onDeptReorder, isAdmin, layoutMode } = useContext(OrgCtx);
   const c = color ?? "#6366f1";
   const canMoveLeft  = isAdmin && deptIndex > 0;
   const canMoveRight = isAdmin && deptIndex < (deptTotal - 1);
+  const showControls = isAdmin && layoutMode === "auto" && (canMoveLeft || canMoveRight) && onDeptReorder;
 
   return (
     <div className="relative h-full w-full">
-      {/* Background (non-interactive) */}
       <div
         className="h-full w-full rounded-2xl pointer-events-none"
         style={{ border: `1.5px solid ${c}35`, background: `${c}08` }}
@@ -578,13 +591,12 @@ function DeptGroupNode({ data }: NodeProps) {
         </div>
       </div>
 
-      {/* Admin department reorder controls — pointer-events enabled */}
-      {isAdmin && (canMoveLeft || canMoveRight) && onDeptReorder && (
+      {showControls && (
         <div className="absolute top-2 right-2 z-10 flex gap-1">
           <button
             type="button"
             disabled={!canMoveLeft}
-            onClick={() => onDeptReorder(deptId, "left")}
+            onClick={() => onDeptReorder!(deptId, "left")}
             className="flex h-5 w-5 items-center justify-center rounded border border-slate-200 bg-white/90 shadow-sm text-slate-400 hover:text-slate-700 disabled:opacity-20 disabled:cursor-not-allowed transition-colors"
             title="Move department left"
             style={{ pointerEvents: "all" }}
@@ -594,7 +606,7 @@ function DeptGroupNode({ data }: NodeProps) {
           <button
             type="button"
             disabled={!canMoveRight}
-            onClick={() => onDeptReorder(deptId, "right")}
+            onClick={() => onDeptReorder!(deptId, "right")}
             className="flex h-5 w-5 items-center justify-center rounded border border-slate-200 bg-white/90 shadow-sm text-slate-400 hover:text-slate-700 disabled:opacity-20 disabled:cursor-not-allowed transition-colors"
             title="Move department right"
             style={{ pointerEvents: "all" }}
@@ -614,12 +626,16 @@ const NODE_TYPES = { orgPosition: PositionNode, deptGroup: DeptGroupNode };
 function OrgChartInner({
   positions,
   departments,
+  layouts,
+  versionId,
   onEdit,
   onAdd,
   isAdmin,
 }: {
   positions:   OrgPosition[];
   departments: OrgDepartment[];
+  layouts:     OrgPositionLayout[];
+  versionId:   string;
   onEdit?:     (p: OrgPosition) => void;
   onAdd?:      (reportsToId: string) => void;
   isAdmin:     boolean;
@@ -633,6 +649,29 @@ function OrgChartInner({
   const [deptFilter,   setDeptFilter]   = useState("");
   const [statusFilter, setStatusFilter] = useState("");
   const [viewMode,     setViewMode]     = useState<"chart" | "mindmap">("chart");
+  const [layoutMode,   setLayoutMode]   = useState<"auto" | "manual">("auto");
+
+  // In-session dragged positions — override saved DB positions within this page visit
+  const [sessionPositions, setSessionPositions] = useState<Map<string, { x: number; y: number }>>(new Map());
+
+  // Clear session positions when switching back to auto
+  useEffect(() => {
+    if (layoutMode === "auto") setSessionPositions(new Map());
+  }, [layoutMode]);
+
+  const viewType = viewMode === "mindmap" ? "mind_map" : "org_chart";
+
+  // Saved DB positions for current view type, keyed by positionId
+  const layoutsById = useMemo(
+    () => new Map(
+      layouts
+        .filter((l) => l.viewType === viewType)
+        .map((l) => [l.positionId, l]),
+    ),
+    [layouts, viewType],
+  );
+
+  const hasManualLayouts = layoutsById.size > 0;
 
   const onToggle = useCallback((id: string) => {
     setCollapsed((prev) => {
@@ -652,8 +691,9 @@ function OrgChartInner({
     [departments],
   );
 
-  // Position sibling reorder
+  // Position sibling reorder (only available in auto layout)
   const onReorder = useCallback((id: string, dir: "left" | "right") => {
+    if (layoutMode !== "auto") return;
     const pos = positionsById.get(id);
     if (!pos) return;
     const parentKey = pos.reportsToPositionId ?? "__root__";
@@ -675,10 +715,11 @@ function OrgChartInner({
       await swapOrgPositionOrder(id, myOrder, other.id, otherOrder);
       router.refresh();
     });
-  }, [positionsById, router, startTransition]);
+  }, [positionsById, router, startTransition, layoutMode]);
 
-  // Department order reorder
+  // Department order reorder (only available in auto layout)
   const onDeptReorder = useCallback((deptId: string, dir: "left" | "right") => {
+    if (layoutMode !== "auto") return;
     const sorted = [...departments].sort((a, b) => {
       if (a.sortOrder == null && b.sortOrder == null) return a.name.localeCompare(b.name);
       if (a.sortOrder == null) return 1;
@@ -695,7 +736,33 @@ function OrgChartInner({
       await swapOrgDepartmentOrder(deptId, myOrder, other.id, otherOrder);
       router.refresh();
     });
-  }, [departments, router, startTransition]);
+  }, [departments, router, startTransition, layoutMode]);
+
+  // Compute auto layout (tree positions, no dept groups)
+  const { positionNodes: autoPositionNodes, edges } = useMemo(
+    () => viewMode === "mindmap"
+      ? buildMindMapLayout(positions, collapsed)
+      : buildLayout(positions, collapsed),
+    [positions, collapsed, viewMode],
+  );
+
+  // In manual mode: apply saved DB positions, then override with session drags
+  const positionNodes = useMemo(() => {
+    if (layoutMode === "auto") return autoPositionNodes;
+    return autoPositionNodes.map((n) => {
+      const session = sessionPositions.get(n.id);
+      if (session) return { ...n, position: session, draggable: isAdmin };
+      const saved = layoutsById.get(n.id);
+      if (saved) return { ...n, position: { x: saved.layoutX, y: saved.layoutY }, draggable: isAdmin };
+      return { ...n, draggable: isAdmin };
+    });
+  }, [autoPositionNodes, layoutMode, sessionPositions, layoutsById, isAdmin]);
+
+  // Dept group bounding boxes — recomputed from current position nodes
+  const deptGroupNodes = useMemo(
+    () => buildDeptGroups(positionNodes, positionsById, departments),
+    [positionNodes, positionsById, departments],
+  );
 
   const ctx = useMemo(
     () => ({
@@ -708,15 +775,9 @@ function OrgChartInner({
       departmentsById,
       isAdmin,
       viewMode,
+      layoutMode,
     }),
-    [onEdit, onAdd, onToggle, onReorder, onDeptReorder, positionsById, departmentsById, isAdmin, viewMode],
-  );
-
-  const layout = useMemo(
-    () => viewMode === "mindmap"
-      ? buildMindMapLayout(positions, departments, collapsed)
-      : buildLayout(positions, departments, collapsed),
-    [positions, departments, collapsed, viewMode],
+    [onEdit, onAdd, onToggle, onReorder, onDeptReorder, positionsById, departmentsById, isAdmin, viewMode, layoutMode],
   );
 
   const dimmedIds = useMemo<Set<string>>(() => {
@@ -732,16 +793,15 @@ function OrgChartInner({
         })
         .map((p) => p.id),
     );
-    return new Set(
-      layout.nodes
-        .filter((n) => !n.id.startsWith("dg-") && !matched.has(n.id))
-        .map((n) => n.id),
-    );
-  }, [positions, layout.nodes, search, deptFilter, statusFilter]);
+    const allNodeIds = new Set([...positionNodes.map((n) => n.id), ...deptGroupNodes.map((n) => n.id)]);
+    return new Set([...allNodeIds].filter((id) => !id.startsWith("dg-") && !matched.has(id)));
+  }, [positions, positionNodes, deptGroupNodes, search, deptFilter, statusFilter]);
 
-  const displayNodes = useMemo(() => {
-    if (dimmedIds.size === 0) return layout.nodes;
-    return layout.nodes.map((n) => ({
+  // All nodes with opacity applied
+  const allNodes = useMemo(() => {
+    const combined = [...deptGroupNodes, ...positionNodes];
+    if (dimmedIds.size === 0) return combined;
+    return combined.map((n) => ({
       ...n,
       style: {
         ...n.style,
@@ -749,17 +809,38 @@ function OrgChartInner({
         transition: "opacity 0.15s",
       },
     }));
-  }, [layout.nodes, dimmedIds]);
+  }, [deptGroupNodes, positionNodes, dimmedIds]);
 
-  const [nodes, setNodes, onNodesChange] = useNodesState(displayNodes);
-  const [edges, setEdges, onEdgesChange] = useEdgesState(layout.edges);
+  const [nodes, setNodes, onNodesChange] = useNodesState(allNodes);
+  const [rfEdges, setEdges, onEdgesChange] = useEdgesState(edges);
 
-  useEffect(() => { setNodes(displayNodes); }, [displayNodes, setNodes]);
-  useEffect(() => { setEdges(layout.edges); }, [layout.edges, setEdges]);
+  // Sync nodes from computed state.
+  // In manual mode: keep current React Flow positions for position nodes (preserves drags),
+  // but always update dept groups and opacity changes.
+  useEffect(() => {
+    if (layoutMode === "manual") {
+      setNodes((curr) => {
+        const currPosMap = new Map(
+          curr.filter((n) => !n.id.startsWith("dg-")).map((n) => [n.id, n.position]),
+        );
+        return allNodes.map((n) => {
+          // Dept groups and new nodes: use computed position
+          if (n.id.startsWith("dg-") || !currPosMap.has(n.id)) return n;
+          // Existing position nodes: keep their current React Flow position
+          return { ...n, position: currPosMap.get(n.id)! };
+        });
+      });
+    } else {
+      setNodes(allNodes);
+    }
+  }, [allNodes, setNodes, layoutMode]);
+
+  useEffect(() => { setEdges(edges); }, [edges, setEdges]);
+
   useEffect(() => {
     const t = setTimeout(() => fitView({ duration: 350, padding: 0.12 }), 60);
     return () => clearTimeout(t);
-  }, [layout, fitView]);
+  }, [edges, fitView]); // fit on layout change (edges change = tree changed)
 
   const parentIds = useMemo(
     () => new Set(positions.filter((p) => positions.some((q) => q.reportsToPositionId === p.id)).map((p) => p.id)),
@@ -774,6 +855,43 @@ function OrgChartInner({
     const pos = positionsById.get(node.id);
     if (pos) onEdit(pos);
   }, [onEdit, isAdmin, positionsById]);
+
+  // Drag stop: save position to session + DB, recompute dept groups immediately
+  const onNodeDragStop: OnNodeDrag = useCallback((_: MouseEvent | TouchEvent, node: Node, _nodes: Node[]) => {
+    if (!isAdmin || !versionId || node.id.startsWith("dg-")) return;
+
+    const newPos = { x: node.position.x, y: node.position.y };
+
+    // Update session positions (triggers positionNodes → deptGroupNodes → allNodes recompute)
+    setSessionPositions((prev) => {
+      const next = new Map(prev);
+      next.set(node.id, newPos);
+      return next;
+    });
+
+    // Immediately recompute dept groups from current React Flow state (no render delay)
+    setNodes((curr) => {
+      const currPositionNodes = curr.filter((n) => !n.id.startsWith("dg-"));
+      const newDeptGroups = buildDeptGroups(currPositionNodes, positionsById, departments);
+      return [...newDeptGroups, ...currPositionNodes];
+    });
+
+    // Persist to DB in the background — no revalidatePath so page doesn't reload
+    startTransition(async () => {
+      await savePositionLayout(node.id, versionId, viewType, newPos.x, newPos.y);
+    });
+  }, [isAdmin, versionId, viewType, positionsById, departments, setNodes, startTransition]);
+
+  // Reset manual layout: clear DB records, clear session state, switch to auto
+  const handleResetLayout = useCallback(() => {
+    if (!versionId) return;
+    startTransition(async () => {
+      await clearPositionLayouts(versionId, viewType);
+      setSessionPositions(new Map());
+      setLayoutMode("auto");
+      router.refresh();
+    });
+  }, [versionId, viewType, startTransition, router]);
 
   return (
     <OrgCtx.Provider value={ctx}>
@@ -862,12 +980,58 @@ function OrgChartInner({
               <GitBranch className="size-3.5" /> Mind Map
             </button>
           </div>
+
+          {/* Layout mode toggle — admin only */}
+          {isAdmin && (
+            <div className="flex items-center gap-1.5">
+              <div className="flex rounded-md border overflow-hidden">
+                <button
+                  type="button"
+                  onClick={() => setLayoutMode("auto")}
+                  className={cn(
+                    "flex items-center gap-1.5 px-3 py-1.5 text-sm transition-colors",
+                    layoutMode === "auto"
+                      ? "bg-primary text-primary-foreground"
+                      : "bg-background hover:bg-muted/40",
+                  )}
+                  title="Auto layout — tree computed from reporting relationships"
+                >
+                  <Lock className="size-3.5" /> Auto
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setLayoutMode("manual")}
+                  className={cn(
+                    "flex items-center gap-1.5 px-3 py-1.5 text-sm transition-colors border-l",
+                    layoutMode === "manual"
+                      ? "bg-primary text-primary-foreground"
+                      : "bg-background hover:bg-muted/40",
+                  )}
+                  title="Manual layout — drag cards to reposition"
+                >
+                  <Unlock className="size-3.5" /> Manual
+                </button>
+              </div>
+              {layoutMode === "manual" && hasManualLayouts && (
+                <button
+                  type="button"
+                  onClick={handleResetLayout}
+                  className="flex items-center gap-1.5 rounded-md border px-3 py-1.5 text-sm text-muted-foreground transition-colors hover:bg-muted/40 hover:text-foreground"
+                  title="Reset manual positions back to auto layout"
+                >
+                  <RotateCcw className="size-3.5" /> Reset
+                </button>
+              )}
+            </div>
+          )}
         </div>
 
         {/* Admin hint */}
         {isAdmin && positions.length > 1 && (
           <p className="text-[11px] text-muted-foreground/70 px-0.5">
-            Use ← → arrows to reorder siblings. Click any card to edit. Use + to add a direct report.
+            {layoutMode === "manual"
+              ? "Manual layout — drag cards to reposition. Reporting relationships unchanged. Click any card to edit."
+              : "Auto layout — use ← → arrows to reorder siblings. Click any card to edit. Use + to add a direct report."}
           </p>
         )}
 
@@ -880,7 +1044,7 @@ function OrgChartInner({
           ) : (
             <ReactFlow
               nodes={nodes}
-              edges={edges}
+              edges={rfEdges}
               onNodesChange={onNodesChange}
               onEdgesChange={onEdgesChange}
               nodeTypes={NODE_TYPES}
@@ -893,6 +1057,7 @@ function OrgChartInner({
               nodesConnectable={false}
               elementsSelectable={false}
               onNodeClick={onNodeClick}
+              onNodeDragStop={onNodeDragStop}
             >
               <Background variant={BackgroundVariant.Dots} gap={22} size={1} color="#e2e8f0" />
               <Controls position="bottom-right" showInteractive={false} />
@@ -909,12 +1074,16 @@ function OrgChartInner({
 export function OrgChartCanvas({
   positions,
   departments,
+  layouts = [],
+  versionId,
   onEdit,
   onAdd,
   isAdmin = false,
 }: {
   positions:   OrgPosition[];
   departments: OrgDepartment[];
+  layouts?:    OrgPositionLayout[];
+  versionId:   string;
   onEdit?:     (p: OrgPosition) => void;
   onAdd?:      (reportsToId: string) => void;
   isAdmin?:    boolean;
@@ -924,6 +1093,8 @@ export function OrgChartCanvas({
       <OrgChartInner
         positions={positions}
         departments={departments}
+        layouts={layouts}
+        versionId={versionId}
         onEdit={onEdit}
         onAdd={onAdd}
         isAdmin={isAdmin}

@@ -242,6 +242,19 @@ export interface CreateVersionInput {
   description?: string | null;
 }
 
+// ─── Position layout (manual drag-to-reposition) ─────────────────────────────
+
+export interface OrgPositionLayout {
+  id: string;
+  positionId: string;
+  versionId: string;
+  viewType: string;
+  layoutX: number;
+  layoutY: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
 // ─── Admin-configurable Position Form section visibility ──────────────────────
 
 export interface OrgChartFormSections {

@@ -926,7 +926,8 @@ model OrgChartVersion {
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
 
-  positions OrgPosition[]
+  positions       OrgPosition[]
+  positionLayouts OrgPositionLayout[]
 
   @@map("org_chart_versions")
 }
@@ -962,6 +963,7 @@ model OrgPosition {
   successors        OrgSuccessor[]
   relationshipsFrom OrgPositionRelationship[]    @relation("RelationshipFrom")
   relationshipsTo   OrgPositionRelationship[]    @relation("RelationshipTo")
+  layouts           OrgPositionLayout[]
 
   @@map("org_positions")
 }
@@ -1142,3 +1144,20 @@ model License {
   @@map("licenses")
 }
 
+
+model OrgPositionLayout {
+  id         String   @id @default(cuid())
+  positionId String   @map("position_id")
+  versionId  String   @map("version_id")
+  viewType   String   @default("org_chart") @map("view_type")
+  layoutX    Float    @map("layout_x")
+  layoutY    Float    @map("layout_y")
+  createdAt  DateTime @default(now()) @map("created_at")
+  updatedAt  DateTime @updatedAt @map("updated_at")
+
+  position OrgPosition    @relation(fields: [positionId], references: [id], onDelete: Cascade)
+  version  OrgChartVersion @relation(fields: [versionId], references: [id], onDelete: Cascade)
+
+  @@unique([positionId, versionId, viewType])
+  @@map("org_position_layouts")
+}
