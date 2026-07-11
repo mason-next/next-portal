@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useRef, useState } from "react";
 import Link from "next/link";
 import { useSalesActivity } from "@/modules/sales-activity/hooks/useSalesActivity";
 import { useDealDeskUser } from "@/modules/deal-desk/hooks/useDealDeskUser";
@@ -16,8 +16,6 @@ import { SalesPulseReport } from "@/modules/sales-activity/components/SalesPulse
 import { formatWeekLabel } from "@/types/sales";
 import type { SalesCompany, SalesOpportunity, SalesActivity } from "@/types/sales";
 import type { CWImportPayload, ImportProgressCallback } from "@/modules/sales-activity/components/CWImportModal";
-import type { AppUser } from "@/types/user";
-
 type Modal =
   | { type: "company"; data?: SalesCompany }
   | { type: "opportunity"; companyId: string; data?: SalesOpportunity }
@@ -27,7 +25,7 @@ type Modal =
   | null;
 
 export default function SalesActivityPage() {
-  const { userName, isManagement, actuallyManagement, previewAsSalesperson, previewUser, setPreviewAs } = useDealDeskUser();
+  const { userName, isManagement, actuallyManagement } = useDealDeskUser();
   const scopeToUser = isManagement ? undefined : userName;
   const {
     companies, activities, allActivities, summary, isLoading,
@@ -45,17 +43,7 @@ export default function SalesActivityPage() {
   const [detailCompany, setDetailCompany] = useState<SalesCompany | null>(null);
   const [importOpen, setImportOpen] = useState(false);
   const [logoFetch, setLogoFetch] = useState<{ done: number; total: number } | null>(null);
-  const [previewOpen, setPreviewOpen] = useState(false);
-  const [allUsers, setAllUsers] = useState<AppUser[]>([]);
   const importRef = useRef<HTMLDivElement>(null);
-  const previewRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    if (!actuallyManagement) return;
-    fetch("/api/users").then((r) => r.json()).then((users: AppUser[]) =>
-      setAllUsers(users.filter((u) => u.isActive).sort((a, b) => a.name.localeCompare(b.name)))
-    ).catch(() => {});
-  }, [actuallyManagement]);
 
   function prevWeek() {
     const d = new Date(weekStart);
@@ -194,66 +182,6 @@ export default function SalesActivityPage() {
           <p className="text-sm text-muted-foreground mt-0.5">Track prospects and log weekly sales activities</p>
         </div>
         <div className="flex items-center gap-3 flex-wrap">
-          {actuallyManagement && (
-            <div className="relative" ref={previewRef}>
-              <button
-                onClick={() => setPreviewOpen((o) => !o)}
-                className={`inline-flex items-center gap-1.5 rounded-md border px-3 py-1.5 text-xs font-medium transition-colors ${
-                  previewAsSalesperson
-                    ? "bg-amber-50 border-amber-300 text-amber-700 dark:bg-amber-900/20 dark:border-amber-700 dark:text-amber-400"
-                    : "text-muted-foreground hover:bg-muted"
-                }`}
-              >
-                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" /><circle cx="12" cy="12" r="3" />
-                </svg>
-                {previewAsSalesperson ? `Previewing as ${previewUser!.name.split(" ")[0]}` : "Management View"}
-                <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                  <polyline points="6 9 12 15 18 9" />
-                </svg>
-              </button>
-
-              {previewOpen && (
-                <>
-                  <div className="fixed inset-0 z-40" onClick={() => setPreviewOpen(false)} />
-                  <div className="absolute left-0 top-full mt-1 z-50 w-64 rounded-lg border bg-card shadow-lg py-1">
-                    {/* Admin view option */}
-                    <button
-                      type="button"
-                      onClick={() => { setPreviewAs(null); setPreviewOpen(false); }}
-                      className={`w-full flex items-center gap-2 px-3 py-2 text-sm hover:bg-muted text-left ${!previewAsSalesperson ? "font-medium text-foreground" : "text-muted-foreground"}`}
-                    >
-                      <span className="w-4 shrink-0 text-center text-xs">{!previewAsSalesperson ? "✓" : ""}</span>
-                      <span>Administrator View</span>
-                    </button>
-
-                    {allUsers.length > 0 && (
-                      <>
-                        <div className="mx-3 my-1 border-t" />
-                        <div className="px-3 py-1 text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Preview as</div>
-                        {allUsers.map((u) => {
-                          const isActive = previewUser?.name === u.name;
-                          return (
-                            <button
-                              key={u.id}
-                              type="button"
-                              onClick={() => { setPreviewAs({ name: u.name, accountType: u.roleTypes.includes("Administrator") ? "Administrator" : "Member" }); setPreviewOpen(false); }}
-                              className={`w-full flex items-center gap-2 px-3 py-2 text-sm hover:bg-muted text-left ${isActive ? "font-medium text-foreground" : "text-muted-foreground"}`}
-                            >
-                              <span className="w-4 shrink-0 text-center text-xs">{isActive ? "✓" : ""}</span>
-                              <span className="flex-1 truncate">{u.name}</span>
-                              <span className="text-[10px] text-muted-foreground shrink-0">{u.roleTypes[0] ?? ""}</span>
-                            </button>
-                          );
-                        })}
-                      </>
-                    )}
-                  </div>
-                </>
-              )}
-            </div>
-          )}
-
           {/* Fetch logos — management only */}
           {actuallyManagement && (
             <button
@@ -342,8 +270,23 @@ export default function SalesActivityPage() {
           <button
             key={t}
             onClick={() => setTab(t)}
-            className={`rounded-md px-4 py-1.5 text-sm font-medium transition-colors ${tab === t ? "bg-card shadow-sm text-foreground" : "text-muted-foreground hover:text-foreground"}`}
+            className={`inline-flex items-center gap-1.5 rounded-md px-4 py-1.5 text-sm font-medium transition-colors ${tab === t ? "bg-card shadow-sm text-foreground" : "text-muted-foreground hover:text-foreground"}`}
           >
+            {t === "board" && (
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <rect x="3" y="3" width="7" height="9" rx="1"/><rect x="14" y="3" width="7" height="5" rx="1"/><rect x="14" y="12" width="7" height="9" rx="1"/><rect x="3" y="16" width="7" height="5" rx="1"/>
+              </svg>
+            )}
+            {t === "activity" && (
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="9" y1="13" x2="15" y2="13"/><line x1="9" y1="17" x2="13" y2="17"/>
+              </svg>
+            )}
+            {t === "pulse" && (
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/>
+              </svg>
+            )}
             {t === "board" ? "Opportunity Board" : t === "activity" ? "Activity Log" : "Sales Pulse"}
           </button>
         ))}

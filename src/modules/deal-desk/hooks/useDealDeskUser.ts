@@ -1,48 +1,42 @@
 "use client";
 
-import { useCallback, useState } from "react";
 import { useSession } from "@/lib/auth/client";
+import { useViewAs } from "@/lib/view-as/ViewAsContext";
 import type { AccountType } from "@/types/user";
-
-const LS_KEY = "deal-desk:preview-user";
 
 export interface PreviewUser {
   name: string;
   accountType: AccountType;
 }
 
-function readPreviewUser(): PreviewUser | null {
-  if (typeof window === "undefined") return null;
-  try {
-    return JSON.parse(localStorage.getItem(LS_KEY) ?? "null");
-  } catch {
-    return null;
-  }
-}
-
 export function useDealDeskUser() {
   const session = useSession();
-  const actuallyManagement = session.roleTypes.includes("Administrator") ||
-    session.roleTypes.includes("Management") || session.roleTypes.includes("Sales");
+  const { viewAsUser, isViewAsMode } = useViewAs();
 
-  const [previewUser, setPreviewUserState] = useState<PreviewUser | null>(readPreviewUser);
+  const actuallyManagement =
+    session.roleTypes.includes("Administrator") ||
+    session.roleTypes.includes("Management") ||
+    session.roleTypes.includes("Sales");
 
-  const setPreviewAs = useCallback((user: PreviewUser | null) => {
-    setPreviewUserState(user);
-    localStorage.setItem(LS_KEY, JSON.stringify(user));
-  }, []);
-
-  const previewAsSalesperson = actuallyManagement && previewUser !== null;
-  const isManagement = actuallyManagement && !previewAsSalesperson;
+  // When global ViewAs is active, scope data to the viewed user
+  const isManagement = actuallyManagement && !isViewAsMode;
+  const userName = isViewAsMode ? (viewAsUser?.name ?? session.name) : session.name;
 
   return {
-    userName: previewUser?.name ?? session.name,
+    userName,
     isManagement,
     actuallyManagement,
-    previewAsSalesperson,
-    previewUser,
-    setPreviewAs,
-    // kept for any existing callers — clears the preview
-    togglePreview: useCallback(() => setPreviewAs(null), [setPreviewAs]),
+    previewAsSalesperson: isViewAsMode,
+    previewUser: viewAsUser
+      ? {
+          name: viewAsUser.name,
+          accountType: (viewAsUser.roleTypes.includes("Administrator")
+            ? "Administrator"
+            : "Member") as AccountType,
+        }
+      : null,
+    // no-ops — ViewAs is now handled globally via the header
+    setPreviewAs: (_user: PreviewUser | null) => {},
+    togglePreview: () => {},
   };
 }
