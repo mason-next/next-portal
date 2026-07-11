@@ -14,7 +14,7 @@ interface Props {
 export function ViewAsSelector({ onClose }: Props) {
   const session = useSession();
   const { users } = useUsersContext();
-  const { viewAsUser, isViewAsMode, startViewAs, switchViewAs } = useViewAs();
+  const { viewAsUser, isViewAsMode, startViewAs, switchViewAs, exitViewAs } = useViewAs();
   const [query, setQuery] = useState("");
   const [pending, setPending] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -45,6 +45,16 @@ export function ViewAsSelector({ onClose }: Props) {
       } else {
         await startViewAs(user);
       }
+      onClose();
+    } finally {
+      setPending(false);
+    }
+  }
+
+  async function handleExit() {
+    setPending(true);
+    try {
+      await exitViewAs();
       onClose();
     } finally {
       setPending(false);
@@ -86,6 +96,26 @@ export function ViewAsSelector({ onClose }: Props) {
 
         {/* User list */}
         <ul className="max-h-80 overflow-y-auto py-1">
+          {/* Exit option — shown at top when already in View As mode */}
+          {isViewAsMode && !query && (
+            <li>
+              <button
+                type="button"
+                disabled={pending}
+                onClick={handleExit}
+                className="flex w-full items-center gap-3 px-4 py-2.5 text-left transition-colors hover:bg-muted disabled:opacity-50 border-b mb-1"
+              >
+                <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-primary/10 text-xs font-semibold text-primary">
+                  {session.name.charAt(0).toUpperCase()}
+                </div>
+                <div className="min-w-0 flex-1">
+                  <div className="text-sm font-medium leading-tight">{session.name}</div>
+                  <div className="text-xs text-muted-foreground">Back to your account</div>
+                </div>
+                <span className="text-xs text-primary font-medium shrink-0">Exit</span>
+              </button>
+            </li>
+          )}
           {filtered.length === 0 ? (
             <li className="px-4 py-6 text-center text-sm text-muted-foreground">No users found</li>
           ) : (
