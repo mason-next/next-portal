@@ -1,7 +1,10 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
+import { useSession } from "@/lib/auth/client";
+import { useViewAs } from "@/lib/view-as/ViewAsContext";
+import { usePermissions } from "@/lib/PermissionsContext";
 import { getSalesCompanies, getSalesActivities } from "@/lib/data/sales-activity";
 import { getWeekStart } from "@/types/sales";
 import type { SalesActivity, SalesCompany } from "@/types/sales";
@@ -14,6 +17,19 @@ const TYPE_ICONS: Record<string, string> = {
 };
 
 export default function SalesDashboardPage() {
+  const session = useSession();
+  const { viewAsUser, isViewAsMode } = useViewAs();
+  const { getLevel } = usePermissions();
+
+  const salesLevel = getLevel("salesActivity");
+  const isAdmin = salesLevel === "administrator";
+  const effectiveName = isViewAsMode ? (viewAsUser?.name ?? session.name) : session.name;
+  // Admins see all data unless View As is active; members/viewers see only their own.
+  const scopeToUser = useMemo(
+    () => (isAdmin && !isViewAsMode ? undefined : effectiveName),
+    [isAdmin, isViewAsMode, effectiveName]
+  );
+
   const [companies, setCompanies] = useState<SalesCompany[]>([]);
   const [weekActivities, setWeekActivities] = useState<SalesActivity[]>([]);
   const [recentActivities, setRecentActivities] = useState<SalesActivity[]>([]);
@@ -22,9 +38,9 @@ export default function SalesDashboardPage() {
 
   useEffect(() => {
     Promise.all([
-      getSalesCompanies(),
-      getSalesActivities({ weekStart: getWeekStart() }),
-      getSalesActivities({}),
+      getSalesCompanies(scopeToUser),
+      getSalesActivities({ weekStart: getWeekStart(), userName: scopeToUser }),
+      getSalesActivities({ userName: scopeToUser }),
     ]).then(([cos, week, all]) => {
       setCompanies(cos);
       setWeekActivities(week);
@@ -38,7 +54,7 @@ export default function SalesDashboardPage() {
       .then((r) => r.json())
       .then((data) => setNews(data))
       .catch(() => {});
-  }, []);
+  }, [scopeToUser]);
 
   const allOpps = companies.flatMap((c) => c.opportunities ?? []);
   const activeOpps = allOpps.filter((o) => !["Closed Won", "Closed Lost"].includes(o.stage));

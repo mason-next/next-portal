@@ -27,7 +27,7 @@ export default function QuoteDetailPage({ params }: { params: Promise<{ quoteId:
   const router = useRouter();
   const [quote, setQuote] = useState<DealDeskQuote | null>(null);
   const [tab, setTab] = useState<Tab>("report");
-  const { isManagement, userName, actuallyManagement, previewAsSalesperson, togglePreview } = useDealDeskUser();
+  const { isManagement, userName } = useDealDeskUser();
 
   useEffect(() => {
     let active = true;
@@ -89,23 +89,6 @@ export default function QuoteDetailPage({ params }: { params: Promise<{ quoteId:
             <p className="text-sm text-muted-foreground mt-0.5">{quote.customer} · {quote.quoteNumber} {quote.revision} · {quote.projectType}</p>
           </div>
           <div className="flex items-center gap-3">
-            {actuallyManagement && (
-              <button
-                onClick={togglePreview}
-                className={cn(
-                  "inline-flex items-center gap-1.5 rounded-md border px-3 py-1.5 text-xs font-medium transition-colors",
-                  previewAsSalesperson
-                    ? "bg-amber-50 border-amber-300 text-amber-700 dark:bg-amber-900/20 dark:border-amber-700 dark:text-amber-400"
-                    : "bg-primary/5 border-primary/30 text-primary"
-                )}
-                title="Toggle salesperson preview"
-              >
-                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/>
-                </svg>
-                {previewAsSalesperson ? "Salesperson View" : "Management View"}
-              </button>
-            )}
             <span className={cn("inline-flex items-center rounded-full px-3 py-1 text-sm font-semibold", STATUS_TONE[quote.status] ?? "bg-muted")}>{quote.status}</span>
           </div>
         </div>
