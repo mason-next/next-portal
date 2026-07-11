@@ -24,6 +24,7 @@
   "dependencies": {
     "@anthropic-ai/sdk": "^0.106.0",
     "@base-ui/react": "^1.6.0",
+    "@dagrejs/dagre": "^3.0.0",
     "@prisma/client": "^6.0.0",
     "@tiptap/core": "^3.27.1",
     "@tiptap/extension-link": "^3.27.1",
