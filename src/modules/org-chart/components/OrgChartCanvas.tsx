@@ -41,12 +41,15 @@ import {
   Lock,
   Unlock,
   RotateCcw,
+  AlignCenter,
+  Layers,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import {
   swapOrgPositionOrder,
   swapOrgDepartmentOrder,
   savePositionLayout,
+  batchSavePositionLayouts,
   clearPositionLayouts,
 } from "../lib/actions";
 import { cn } from "@/lib/utils";
@@ -54,6 +57,8 @@ import { UserAvatarImage } from "@/components/shared/AppShell/UserAvatarImage";
 import type { OrgDepartment, OrgPosition, OrgPositionLayout } from "../lib/types";
 
 // ─── Layout constants ─────────────────────────────────────────────────────────
+
+const SNAP_GRID = 20; // px — align button and live drag snap granularity
 
 const NODE_W = 215;
 const NODE_H = 138;
@@ -644,12 +649,13 @@ function OrgChartInner({
   const router = useRouter();
   const [, startTransition] = useTransition();
 
-  const [collapsed,    setCollapsed]    = useState<Set<string>>(new Set());
-  const [search,       setSearch]       = useState("");
-  const [deptFilter,   setDeptFilter]   = useState("");
-  const [statusFilter, setStatusFilter] = useState("");
-  const [viewMode,     setViewMode]     = useState<"chart" | "mindmap">("chart");
-  const [layoutMode,   setLayoutMode]   = useState<"auto" | "manual">("auto");
+  const [collapsed,      setCollapsed]      = useState<Set<string>>(new Set());
+  const [search,         setSearch]         = useState("");
+  const [deptFilter,     setDeptFilter]     = useState("");
+  const [statusFilter,   setStatusFilter]   = useState("");
+  const [viewMode,       setViewMode]       = useState<"chart" | "mindmap">("chart");
+  const [layoutMode,     setLayoutMode]     = useState<"auto" | "manual">("auto");
+  const [showDeptGroups, setShowDeptGroups] = useState(true);
 
   // In-session dragged positions — override saved DB positions within this page visit
   const [sessionPositions, setSessionPositions] = useState<Map<string, { x: number; y: number }>>(new Map());
@@ -797,9 +803,12 @@ function OrgChartInner({
     return new Set([...allNodeIds].filter((id) => !id.startsWith("dg-") && !matched.has(id)));
   }, [positions, positionNodes, deptGroupNodes, search, deptFilter, statusFilter]);
 
-  // All nodes with opacity applied
+  // All nodes with opacity applied; dept groups conditionally included
   const allNodes = useMemo(() => {
-    const combined = [...deptGroupNodes, ...positionNodes];
+    const combined = [
+      ...(showDeptGroups ? deptGroupNodes : []),
+      ...positionNodes,
+    ];
     if (dimmedIds.size === 0) return combined;
     return combined.map((n) => ({
       ...n,
@@ -809,7 +818,7 @@ function OrgChartInner({
         transition: "opacity 0.15s",
       },
     }));
-  }, [deptGroupNodes, positionNodes, dimmedIds]);
+  }, [deptGroupNodes, positionNodes, dimmedIds, showDeptGroups]);
 
   const [nodes, setNodes, onNodesChange] = useNodesState(allNodes);
   const [rfEdges, setEdges, onEdgesChange] = useEdgesState(edges);
@@ -881,6 +890,43 @@ function OrgChartInner({
       await savePositionLayout(node.id, versionId, viewType, newPos.x, newPos.y);
     });
   }, [isAdmin, versionId, viewType, positionsById, departments, setNodes, startTransition]);
+
+  // Snap all manual positions to the nearest SNAP_GRID pixel boundary
+  const handleSnapToGrid = useCallback(() => {
+    if (layoutMode !== "manual") return;
+
+    // Snap all current position nodes in React Flow state
+    let snapped: Array<{ positionId: string; x: number; y: number }> = [];
+
+    setNodes((curr) => {
+      const posNodes = curr
+        .filter((n) => !n.id.startsWith("dg-"))
+        .map((n) => ({
+          ...n,
+          position: {
+            x: Math.round(n.position.x / SNAP_GRID) * SNAP_GRID,
+            y: Math.round(n.position.y / SNAP_GRID) * SNAP_GRID,
+          },
+        }));
+      snapped = posNodes.map((n) => ({
+        positionId: n.id,
+        x: n.position.x,
+        y: n.position.y,
+      }));
+      const newDeptGroups = buildDeptGroups(posNodes, positionsById, departments);
+      return [...newDeptGroups, ...posNodes];
+    });
+
+    // Update session positions to match snapped values
+    setSessionPositions(() => new Map(snapped.map((s) => [s.positionId, { x: s.x, y: s.y }])));
+
+    // Persist snapped positions to DB
+    if (versionId && snapped.length > 0) {
+      startTransition(async () => {
+        await batchSavePositionLayouts(snapped, versionId, viewType);
+      });
+    }
+  }, [layoutMode, positionsById, departments, versionId, viewType, startTransition]);
 
   // Reset manual layout: clear DB records, clear session state, switch to auto
   const handleResetLayout = useCallback(() => {
@@ -981,6 +1027,22 @@ function OrgChartInner({
             </button>
           </div>
 
+          {/* Dept group visibility toggle */}
+          <button
+            type="button"
+            onClick={() => setShowDeptGroups((v) => !v)}
+            className={cn(
+              "flex items-center gap-1.5 rounded-md border px-3 py-1.5 text-sm transition-colors",
+              showDeptGroups
+                ? "bg-muted/40 text-foreground"
+                : "bg-background text-muted-foreground hover:bg-muted/40 hover:text-foreground",
+            )}
+            title={showDeptGroups ? "Hide department groups" : "Show department groups"}
+          >
+            <Layers className="size-3.5" />
+            {showDeptGroups ? "Depts" : "Depts"}
+          </button>
+
           {/* Layout mode toggle — admin only */}
           {isAdmin && (
             <div className="flex items-center gap-1.5">
@@ -1012,15 +1074,27 @@ function OrgChartInner({
                   <Unlock className="size-3.5" /> Manual
                 </button>
               </div>
-              {layoutMode === "manual" && hasManualLayouts && (
-                <button
-                  type="button"
-                  onClick={handleResetLayout}
-                  className="flex items-center gap-1.5 rounded-md border px-3 py-1.5 text-sm text-muted-foreground transition-colors hover:bg-muted/40 hover:text-foreground"
-                  title="Reset manual positions back to auto layout"
-                >
-                  <RotateCcw className="size-3.5" /> Reset
-                </button>
+              {layoutMode === "manual" && (
+                <>
+                  <button
+                    type="button"
+                    onClick={handleSnapToGrid}
+                    className="flex items-center gap-1.5 rounded-md border px-3 py-1.5 text-sm text-muted-foreground transition-colors hover:bg-muted/40 hover:text-foreground"
+                    title={`Snap all cards to the nearest ${SNAP_GRID}px grid`}
+                  >
+                    <AlignCenter className="size-3.5" /> Align
+                  </button>
+                  {hasManualLayouts && (
+                    <button
+                      type="button"
+                      onClick={handleResetLayout}
+                      className="flex items-center gap-1.5 rounded-md border px-3 py-1.5 text-sm text-muted-foreground transition-colors hover:bg-muted/40 hover:text-foreground"
+                      title="Reset manual positions back to auto layout"
+                    >
+                      <RotateCcw className="size-3.5" /> Reset
+                    </button>
+                  )}
+                </>
               )}
             </div>
           )}
@@ -1056,6 +1130,8 @@ function OrgChartInner({
               nodesDraggable={false}
               nodesConnectable={false}
               elementsSelectable={false}
+              snapToGrid={layoutMode === "manual"}
+              snapGrid={[SNAP_GRID, SNAP_GRID]}
               onNodeClick={onNodeClick}
               onNodeDragStop={onNodeDragStop}
             >

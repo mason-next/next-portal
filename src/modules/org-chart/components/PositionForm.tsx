@@ -545,7 +545,7 @@ export function PositionForm({
       />
 
       {/* Drawer */}
-      <div className="fixed inset-y-0 right-0 z-50 flex flex-col w-[480px] max-w-full bg-background border-l shadow-2xl">
+      <div className="fixed inset-y-0 right-0 z-50 flex flex-col w-[580px] max-w-full bg-background border-l shadow-2xl">
         {/* Header */}
         <div className="flex items-center justify-between px-5 py-4 border-b shrink-0">
           <h2 className="text-base font-semibold">
@@ -562,7 +562,7 @@ export function PositionForm({
 
         {/* Tab bar */}
         {visibleTabs.length > 1 && (
-          <div className="border-b flex gap-0 px-2 overflow-x-auto shrink-0">
+          <div className="border-b flex gap-0 px-2 shrink-0">
             {visibleTabs.map((tab) => (
               <button
                 key={tab.key}

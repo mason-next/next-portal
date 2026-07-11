@@ -418,6 +418,23 @@ export async function savePositionLayout(
   // No revalidatePath — positions are tracked client-side; page reloads reflect DB state
 }
 
+export async function batchSavePositionLayouts(
+  entries: Array<{ positionId: string; x: number; y: number }>,
+  versionId: string,
+  viewType: string,
+): Promise<void> {
+  await requireAdmin();
+  await db.$transaction(
+    entries.map(({ positionId, x, y }) =>
+      db.orgPositionLayout.upsert({
+        where: { positionId_versionId_viewType: { positionId, versionId, viewType } },
+        create: { positionId, versionId, viewType, layoutX: x, layoutY: y },
+        update: { layoutX: x, layoutY: y },
+      }),
+    ),
+  );
+}
+
 export async function clearPositionLayouts(
   versionId: string,
   viewType: string,
