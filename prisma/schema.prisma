@@ -896,7 +896,8 @@ model OrgDepartment {
   createdAt   DateTime @default(now()) @map("created_at")
   updatedAt   DateTime @updatedAt @map("updated_at")
 
-  positions OrgPosition[]
+  positions   OrgPosition[]
+  deptLayouts OrgDeptLayout[]
 
   @@map("org_departments")
 }
@@ -928,6 +929,7 @@ model OrgChartVersion {
 
   positions       OrgPosition[]
   positionLayouts OrgPositionLayout[]
+  deptLayouts     OrgDeptLayout[]
 
   @@map("org_chart_versions")
 }
@@ -1160,4 +1162,23 @@ model OrgPositionLayout {
 
   @@unique([positionId, versionId, viewType])
   @@map("org_position_layouts")
+}
+
+model OrgDeptLayout {
+  id        String   @id @default(cuid())
+  deptId    String   @map("dept_id")
+  versionId String   @map("version_id")
+  viewType  String   @default("org_chart") @map("view_type")
+  layoutX   Float    @map("layout_x")
+  layoutY   Float    @map("layout_y")
+  layoutW   Float    @map("layout_w")
+  layoutH   Float    @map("layout_h")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  dept    OrgDepartment   @relation(fields: [deptId],    references: [id], onDelete: Cascade)
+  version OrgChartVersion @relation(fields: [versionId], references: [id], onDelete: Cascade)
+
+  @@unique([deptId, versionId, viewType])
+  @@map("org_dept_layouts")
 }

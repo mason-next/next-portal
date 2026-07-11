@@ -10,6 +10,7 @@ import type {
   OrgSuccessor,
   OrgPositionRelationship,
   OrgPositionLayout,
+  OrgDeptLayout,
 } from "./types";
 
 // ─── Serialization helpers ────────────────────────────────────────────────────
@@ -303,6 +304,26 @@ export async function getOrgPositionLayouts(versionId: string): Promise<OrgPosit
     viewType: r.viewType,
     layoutX: r.layoutX,
     layoutY: r.layoutY,
+    createdAt: r.createdAt.toISOString(),
+    updatedAt: r.updatedAt.toISOString(),
+  }));
+}
+
+// ─── Dept group layouts ───────────────────────────────────────────────────────
+
+export async function getOrgDeptLayouts(versionId: string): Promise<OrgDeptLayout[]> {
+  const rows = await db.orgDeptLayout.findMany({
+    where: { versionId },
+  });
+  return rows.map((r) => ({
+    id: r.id,
+    deptId: r.deptId,
+    versionId: r.versionId,
+    viewType: r.viewType,
+    layoutX: r.layoutX,
+    layoutY: r.layoutY,
+    layoutW: r.layoutW,
+    layoutH: r.layoutH,
     createdAt: r.createdAt.toISOString(),
     updatedAt: r.updatedAt.toISOString(),
   }));

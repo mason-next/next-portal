@@ -444,6 +444,34 @@ export async function clearPositionLayouts(
   revalidatePath("/org-chart");
 }
 
+// ─── Dept group layouts (manual drag/resize of department boxes) ──────────────
+
+export async function saveDeptLayout(
+  deptId: string,
+  versionId: string,
+  viewType: string,
+  x: number,
+  y: number,
+  w: number,
+  h: number,
+): Promise<void> {
+  await requireAdmin();
+  await db.orgDeptLayout.upsert({
+    where: { deptId_versionId_viewType: { deptId, versionId, viewType } },
+    create: { deptId, versionId, viewType, layoutX: x, layoutY: y, layoutW: w, layoutH: h },
+    update: { layoutX: x, layoutY: y, layoutW: w, layoutH: h },
+  });
+}
+
+export async function clearDeptLayouts(
+  versionId: string,
+  viewType: string,
+): Promise<void> {
+  await requireAdmin();
+  await db.orgDeptLayout.deleteMany({ where: { versionId, viewType } });
+  revalidatePath("/org-chart");
+}
+
 // ─── Reparent position (drag-to-restructure) ─────────────────────────────────
 
 export async function reparentOrgPosition(

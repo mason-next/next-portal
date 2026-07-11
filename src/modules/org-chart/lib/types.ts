@@ -255,6 +255,21 @@ export interface OrgPositionLayout {
   updatedAt: string;
 }
 
+// ─── Dept group layout (manual drag/resize of department boxes) ───────────────
+
+export interface OrgDeptLayout {
+  id: string;
+  deptId: string;
+  versionId: string;
+  viewType: string;
+  layoutX: number;
+  layoutY: number;
+  layoutW: number;
+  layoutH: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
 // ─── Admin-configurable Position Form section visibility ──────────────────────
 
 export interface OrgChartFormSections {
