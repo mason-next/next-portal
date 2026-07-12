@@ -7,11 +7,13 @@ const DEFAULTS: {
   emergencyContact: string;
   mustChangePassword: boolean;
   certifications: UserCertification[];
+  lastActiveAt: null;
 } = {
   location: "",
   emergencyContact: "",
   mustChangePassword: false,
   certifications: [],
+  lastActiveAt: null,
 };
 
 export const SAMPLE_USERS: AppUser[] = [

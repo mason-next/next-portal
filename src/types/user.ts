@@ -49,8 +49,20 @@ export interface AppUser {
   location: string;
   emergencyContact: string;
   certifications: UserCertification[];
+  lastActiveAt: string | null;
   createdAt: string;
   updatedAt: string;
+}
+
+export type PresenceStatus = "online" | "away" | "offline";
+
+/** Derives presence status from lastActiveAt. */
+export function getPresenceStatus(lastActiveAt: string | null): PresenceStatus {
+  if (!lastActiveAt) return "offline";
+  const diffMs = Date.now() - new Date(lastActiveAt).getTime();
+  if (diffMs < 2 * 60 * 1000) return "online";
+  if (diffMs < 15 * 60 * 1000) return "away";
+  return "offline";
 }
 
 export interface NewUserInput {

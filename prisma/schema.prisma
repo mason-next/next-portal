@@ -181,6 +181,7 @@ model User {
   emergencyContact String      @default("")
   adminNotes       String      @default("")
   bioDescription   String?     @map("bio_description")
+  lastActiveAt     DateTime?   @map("last_active_at")
   createdAt        DateTime    @default(now())
   updatedAt        DateTime    @updatedAt
 

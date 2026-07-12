@@ -42,6 +42,8 @@ import {
 interface TaskDrawerProps {
   task: ImplementationTask | null;
   users: AppUser[];
+  /** IDs of users on the project team — passed to @mention for prioritized ordering. */
+  projectTeamIds?: Set<string>;
   availableSteps: WorkflowStep[];
   defaultWorkflowStepId?: string | null;
   allTasks: ImplementationTask[];
@@ -103,6 +105,7 @@ function emptyForm(defaultStepId: string | null = null): FormState {
 export function TaskDrawer({
   task,
   users,
+  projectTeamIds,
   availableSteps,
   defaultWorkflowStepId = null,
   allTasks,
@@ -746,6 +749,7 @@ export function TaskDrawer({
                 <RichCommentEditor
                   ref={commentEditorRef}
                   users={users}
+                  projectTeamIds={projectTeamIds}
                   placeholder="Add a comment… (@mention to notify)"
                   onSubmitShortcut={handleAddComment}
                   onEmptyChange={setCommentEmpty}
