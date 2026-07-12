@@ -66,6 +66,7 @@ function toStep(p: PrismaStep): WorkflowStep {
     weight: p.weight,
     status: STATUS_FROM_DB[p.status] ?? "Not Started",
     ownerId: p.ownerId,
+    startDate: (p as unknown as { startDate?: Date | null }).startDate?.toISOString() ?? null,
     dueDate: p.dueDate?.toISOString() ?? null,
     completedDate: p.completedDate?.toISOString() ?? null,
     sortOrder: p.sortOrder,
@@ -237,6 +238,7 @@ async function reconcileTemplateStepsDb(
     sortOrder: entry.sortOrder,
     status: "Not Started" as WorkflowStepStatus,
     ownerId: null,
+    startDate: null,
     dueDate: null,
     completedDate: null,
     updatedAt: now,
@@ -408,6 +410,7 @@ export async function updateWorkflowStep(
   if ("name" in patch)             data.name = patch.name;
   if ("status" in patch)           data.status = STATUS_TO_DB[patch.status!];
   if ("ownerId" in patch)          data.ownerId = patch.ownerId ?? null;
+  if ("startDate" in patch)        (data as Record<string, unknown>).startDate = patch.startDate ? new Date(patch.startDate) : null;
   if ("dueDate" in patch)          data.dueDate = patch.dueDate ? new Date(patch.dueDate) : null;
   if ("weight" in patch)           data.weight = patch.weight;
   if ("weightOverridden" in patch) data.weightOverridden = patch.weightOverridden;
@@ -573,6 +576,7 @@ export async function addPhaseToProject(projectId: string, section: ProjectSecti
       sortOrder: entry.sortOrder,
       status: "Not Started" as WorkflowStepStatus,
       ownerId: null,
+      startDate: null,
       dueDate: null,
       completedDate: null,
       updatedAt: now,

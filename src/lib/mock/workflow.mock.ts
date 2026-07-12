@@ -33,6 +33,7 @@ function step(
     sortOrder: template.sortOrder,
     status,
     ownerId,
+    startDate: null,
     dueDate,
     completedDate,
     updatedAt,
