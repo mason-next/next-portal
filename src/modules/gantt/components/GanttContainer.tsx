@@ -17,6 +17,12 @@ import {
   Users,
   Upload,
   Trash2,
+  Link2,
+  Link2Off,
+  Undo2,
+  Redo2,
+  GripVertical,
+  Zap,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -26,14 +32,27 @@ import {
   updateGanttTaskProgress,
   updateGanttEntryVisibility,
   removeGanttEntry,
+  reorderGanttEntries,
 } from "@/lib/data/gantt";
+import {
+  addGanttDependency,
+  removeGanttDependency,
+  updateGanttScheduleMode,
+} from "@/lib/data/gantt-deps";
+import { computeAutoSchedule } from "@/modules/gantt/lib/gantt-schedule";
+import { useGanttHistory } from "@/modules/gantt/hooks/useGanttHistory";
+import { GanttDependencyLayer } from "./GanttDependencyLayer";
 import { ImportWorkflowModal } from "./ImportWorkflowModal";
 import type {
   GanttEntryFull,
   GanttDisplayRow,
+  GanttDependencyRecord,
   BarDragState,
+  RowDragState,
+  LinkState,
   EditingCell,
   ZoomLevel,
+  ScheduleMode,
 } from "@/types/gantt";
 import { ROW_H, WBS_W, PX_PER_DAY } from "@/types/gantt";
 import type { WorkflowStep } from "@/types/workflow";
@@ -43,7 +62,7 @@ import type { AppUser } from "@/types/user";
 // ─── Constants ────────────────────────────────────────────────────────────────
 
 const MIN_BAR_W = 6;
-const HEADER_ROW_H = 28; // each of the two timeline header rows
+const HEADER_ROW_H = 28;
 const MS_PER_DAY = 86_400_000;
 
 const SECTION_ORDER = [
@@ -74,12 +93,12 @@ const STATUS_COLORS: Record<string, string> = {
 };
 
 const STATUS_PERCENT: Record<string, number> = {
-  "Complete":    100,
-  "Not Needed":  100,
-  "In Progress":  50,
-  "Blocked":      25,
-  "Not Started":   0,
-  "Cancelled":     0,
+  "Complete":   100,
+  "Not Needed": 100,
+  "In Progress": 50,
+  "Blocked":     25,
+  "Not Started":  0,
+  "Cancelled":    0,
 };
 
 // ─── Props ────────────────────────────────────────────────────────────────────
@@ -87,6 +106,7 @@ const STATUS_PERCENT: Record<string, number> = {
 interface GanttContainerProps {
   projectId: string;
   initialEntries: GanttEntryFull[];
+  initialDeps: GanttDependencyRecord[];
   allSteps: WorkflowStep[];
   allTasks: ImplementationTask[];
   users: AppUser[];
@@ -118,65 +138,74 @@ function buildDisplayRows(
   entries: GanttEntryFull[],
   expandedStepIds: Set<string>,
   localDates: Map<string, { start: Date | null; end: Date | null }>,
-  localProgress: Map<string, number>
+  localProgress: Map<string, number>,
+  localScheduleModes: Map<string, ScheduleMode>,
+  orderedEntryIds: string[],
+  deps: GanttDependencyRecord[]
 ): GanttDisplayRow[] {
-  const stepEntries = entries.filter((e) => e.type === "step");
-  const taskEntries = entries.filter((e) => e.type === "task");
+  // Sort entries by their position in orderedEntryIds (user-defined order)
+  const orderIndex = new Map(orderedEntryIds.map((id, i) => [id, i]));
+  const sortedEntries = [...entries].sort(
+    (a, b) => (orderIndex.get(a.id) ?? 9999) - (orderIndex.get(b.id) ?? 9999)
+  );
 
-  // Map from workflowStepId → step entry id (for matching tasks to steps)
+  const stepEntries = sortedEntries.filter((e) => e.type === "step");
+  const taskEntries = sortedEntries.filter((e) => e.type === "task");
+
   const stepIdToEntryId = new Map<string, string>();
   stepEntries.forEach((e) => {
     if (e.type === "step") stepIdToEntryId.set(e.workflowStepId, e.id);
   });
 
-  // Group steps by section
   const stepsBySection = new Map<string, GanttEntryFull[]>();
   stepEntries.forEach((e) => {
     if (e.type !== "step") return;
-    const sec = e.stepSection;
-    if (!stepsBySection.has(sec)) stepsBySection.set(sec, []);
-    stepsBySection.get(sec)!.push(e);
+    if (!stepsBySection.has(e.stepSection)) stepsBySection.set(e.stepSection, []);
+    stepsBySection.get(e.stepSection)!.push(e);
   });
 
-  // Collect orphan tasks (tasks whose parent step is NOT in the Gantt)
   const claimedTaskIds = new Set<string>();
   const tasksByStepId = new Map<string, GanttEntryFull[]>();
   taskEntries.forEach((e) => {
     if (e.type !== "task") return;
-    const parentStepId = e.taskParentStepId;
-    if (parentStepId && stepIdToEntryId.has(parentStepId)) {
+    const parentId = e.taskParentStepId;
+    if (parentId && stepIdToEntryId.has(parentId)) {
       claimedTaskIds.add(e.id);
-      if (!tasksByStepId.has(parentStepId)) tasksByStepId.set(parentStepId, []);
-      tasksByStepId.get(parentStepId)!.push(e);
+      if (!tasksByStepId.has(parentId)) tasksByStepId.set(parentId, []);
+      tasksByStepId.get(parentId)!.push(e);
     }
   });
   const orphanTasks = taskEntries.filter((e) => !claimedTaskIds.has(e.id));
 
+  // Predecessor map: entryId → fromEntryIds
+  const predMap = new Map<string, string[]>();
+  for (const dep of deps) {
+    if (dep.type === "FS") {
+      if (!predMap.has(dep.toEntryId)) predMap.set(dep.toEntryId, []);
+      predMap.get(dep.toEntryId)!.push(dep.fromEntryId);
+    }
+  }
+
   const rows: GanttDisplayRow[] = [];
 
-  function getDates(
-    entryId: string,
-    rawStart: string | null,
-    rawEnd: string | null
-  ): { startDate: Date | null; endDate: Date | null } {
-    const override = localDates.get(entryId);
-    if (override) return { startDate: override.start, endDate: override.end };
-    return {
-      startDate: rawStart ? new Date(rawStart) : null,
-      endDate: rawEnd ? new Date(rawEnd) : null,
-    };
+  function getDates(id: string, rawStart: string | null, rawEnd: string | null) {
+    const ov = localDates.get(id);
+    if (ov) return { startDate: ov.start, endDate: ov.end };
+    return { startDate: rawStart ? new Date(rawStart) : null, endDate: rawEnd ? new Date(rawEnd) : null };
   }
 
-  function getProgress(entryId: string, baseValue: number): number {
-    return localProgress.get(entryId) ?? baseValue;
+  function getProgress(id: string, base: number) {
+    return localProgress.get(id) ?? base;
   }
 
-  // Phase sections in canonical order
+  function getMode(id: string, base: ScheduleMode): ScheduleMode {
+    return localScheduleModes.get(id) ?? base;
+  }
+
   for (const sec of SECTION_ORDER) {
     const sectionSteps = stepsBySection.get(sec) ?? [];
     if (sectionSteps.length === 0) continue;
 
-    // Compute phase summary dates from children
     let phaseStart: Date | null = null;
     let phaseEnd: Date | null = null;
     let totalPct = 0;
@@ -191,7 +220,6 @@ function buildDisplayRows(
 
     const phasePercent = sectionSteps.length > 0 ? Math.round(totalPct / sectionSteps.length) : 0;
 
-    // Virtual phase row
     rows.push({
       id: `phase-${sec}`,
       type: "phase",
@@ -207,6 +235,7 @@ function buildDisplayRows(
       endDate: phaseEnd,
       percentComplete: phasePercent,
       status: phasePercent === 100 ? "Complete" : phasePercent > 0 ? "In Progress" : "Not Started",
+      scheduleMode: "manual",
       assigneeNames: [],
       customerVisible: true,
       sortOrder: 0,
@@ -214,9 +243,7 @@ function buildDisplayRows(
       predecessorEntryIds: [],
     });
 
-    // Step rows (sorted by sortOrder)
-    const sortedSteps = [...sectionSteps].sort((a, b) => a.sortOrder - b.sortOrder);
-    for (const e of sortedSteps) {
+    for (const e of sectionSteps) {
       if (e.type !== "step") continue;
       const { startDate, endDate } = getDates(e.id, e.stepStartDate, e.stepDueDate);
       const pct = getProgress(e.id, STATUS_PERCENT[e.stepStatus] ?? 0);
@@ -237,20 +264,18 @@ function buildDisplayRows(
         endDate,
         percentComplete: pct,
         status: e.stepStatus,
+        scheduleMode: getMode(e.id, e.scheduleMode),
         assigneeNames: e.stepOwnerName ? [e.stepOwnerName] : [],
         customerVisible: e.customerVisible,
         sortOrder: e.sortOrder,
         hasChildren: childTasks.length > 0,
-        predecessorEntryIds: [],
+        predecessorEntryIds: predMap.get(e.id) ?? [],
       });
 
-      // Task children when step is expanded
       if (expandedStepIds.has(e.id) && childTasks.length > 0) {
-        const sortedTasks = [...childTasks].sort((a, b) => a.sortOrder - b.sortOrder);
-        for (const te of sortedTasks) {
+        for (const te of childTasks) {
           if (te.type !== "task") continue;
           const { startDate: tStart, endDate: tEnd } = getDates(te.id, te.taskStartDate, te.taskDueDate);
-          const tPct = getProgress(te.id, te.taskPercentComplete);
           rows.push({
             id: te.id,
             type: "task",
@@ -264,31 +289,30 @@ function buildDisplayRows(
             depth: 2,
             startDate: tStart,
             endDate: tEnd,
-            percentComplete: tPct,
+            percentComplete: getProgress(te.id, te.taskPercentComplete),
             status: te.taskStatus,
+            scheduleMode: getMode(te.id, te.scheduleMode),
             assigneeNames: te.taskAssigneeNames,
             customerVisible: te.customerVisible,
             sortOrder: te.sortOrder,
             hasChildren: false,
-            predecessorEntryIds: [],
+            predecessorEntryIds: predMap.get(te.id) ?? [],
           });
         }
       }
     }
   }
 
-  // Orphan tasks section (tasks not linked to any step in the Gantt)
   if (orphanTasks.length > 0) {
     let orphanStart: Date | null = null;
     let orphanEnd: Date | null = null;
-    let orphanPctSum = 0;
-
+    let sumPct = 0;
     orphanTasks.forEach((e) => {
       if (e.type !== "task") return;
       const { startDate, endDate } = getDates(e.id, e.taskStartDate, e.taskDueDate);
       if (startDate && (!orphanStart || startDate < orphanStart)) orphanStart = startDate;
       if (endDate && (!orphanEnd || endDate > orphanEnd)) orphanEnd = endDate;
-      orphanPctSum += e.taskPercentComplete;
+      sumPct += e.taskPercentComplete;
     });
 
     rows.push({
@@ -304,8 +328,9 @@ function buildDisplayRows(
       depth: 0,
       startDate: orphanStart,
       endDate: orphanEnd,
-      percentComplete: orphanTasks.length > 0 ? Math.round(orphanPctSum / orphanTasks.length) : 0,
+      percentComplete: orphanTasks.length ? Math.round(sumPct / orphanTasks.length) : 0,
       status: "In Progress",
+      scheduleMode: "manual",
       assigneeNames: [],
       customerVisible: true,
       sortOrder: 9999,
@@ -316,7 +341,6 @@ function buildDisplayRows(
     for (const e of orphanTasks) {
       if (e.type !== "task") continue;
       const { startDate, endDate } = getDates(e.id, e.taskStartDate, e.taskDueDate);
-      const pct = getProgress(e.id, e.taskPercentComplete);
       rows.push({
         id: e.id,
         type: "task",
@@ -330,13 +354,14 @@ function buildDisplayRows(
         depth: 1,
         startDate,
         endDate,
-        percentComplete: pct,
+        percentComplete: getProgress(e.id, e.taskPercentComplete),
         status: e.taskStatus,
+        scheduleMode: getMode(e.id, e.scheduleMode),
         assigneeNames: e.taskAssigneeNames,
         customerVisible: e.customerVisible,
         sortOrder: e.sortOrder,
         hasChildren: false,
-        predecessorEntryIds: [],
+        predecessorEntryIds: predMap.get(e.id) ?? [],
       });
     }
   }
@@ -344,17 +369,13 @@ function buildDisplayRows(
   return rows;
 }
 
-// ─── Compute timeline date range ──────────────────────────────────────────────
+// ─── Date range ───────────────────────────────────────────────────────────────
 
-function computeDateRange(
-  rows: GanttDisplayRow[],
-  zoom: ZoomLevel
-): { start: Date; end: Date; totalDays: number } {
+function computeDateRange(rows: GanttDisplayRow[], zoom: ZoomLevel) {
   const today = startOfDay(new Date());
-
   const scheduledRows = rows.filter((r) => r.startDate || r.endDate);
+
   if (scheduledRows.length === 0) {
-    // Default: show 3 months starting ~2 weeks ago
     const start = addDays(today, -14);
     const end = addDays(today, zoom === "week" ? 56 : zoom === "month" ? 76 : 120);
     return { start, end, totalDays: Math.ceil((end.getTime() - start.getTime()) / MS_PER_DAY) };
@@ -370,11 +391,10 @@ function computeDateRange(
   const padding = zoom === "week" ? 14 : zoom === "month" ? 14 : 30;
   const start = addDays(min, -padding);
   const end = addDays(max, padding);
-  const totalDays = Math.max(60, Math.ceil((end.getTime() - start.getTime()) / MS_PER_DAY));
-  return { start, end, totalDays };
+  return { start, end, totalDays: Math.max(60, Math.ceil((end.getTime() - start.getTime()) / MS_PER_DAY)) };
 }
 
-// ─── Timeline header builder ──────────────────────────────────────────────────
+// ─── Timeline header ──────────────────────────────────────────────────────────
 
 function buildTimelineHeaders(
   rangeStart: Date,
@@ -387,119 +407,75 @@ function buildTimelineHeaders(
   const rangeEnd = addDays(rangeStart, totalDays);
 
   if (zoom === "week") {
-    // Top: months, Bottom: week start dates (Mon)
     let cursor = new Date(rangeStart);
     while (cursor < rangeEnd) {
-      const mo = new Date(cursor.getFullYear(), cursor.getMonth(), 1);
       const nextMo = new Date(cursor.getFullYear(), cursor.getMonth() + 1, 1);
       const segEnd = nextMo < rangeEnd ? nextMo : rangeEnd;
       const days = (segEnd.getTime() - cursor.getTime()) / MS_PER_DAY;
       top.push(
-        <div
-          key={`top-${cursor.toISOString()}`}
-          className="border-r border-border/60 px-2 flex items-center"
-          style={{ width: days * pxPerDay, minWidth: days * pxPerDay }}
-        >
+        <div key={cursor.toISOString()} className="border-r border-border/60 px-2 flex items-center shrink-0" style={{ width: days * pxPerDay, minWidth: days * pxPerDay }}>
           <span className="text-[11px] font-semibold text-muted-foreground truncate">
             {cursor.toLocaleDateString("en-US", { month: "short", year: "numeric" })}
           </span>
         </div>
       );
-      cursor = nextMo < rangeEnd ? nextMo : rangeEnd;
-      if (cursor >= rangeEnd) break;
-      cursor = mo; // reset — actual next block starts from nextMo
       cursor = segEnd;
     }
-
-    // Bottom: days (M T W T F S S) with week separators
     cursor = new Date(rangeStart);
     while (cursor < rangeEnd) {
-      const isMonday = cursor.getDay() === 1;
-      const dayLabel = cursor.toLocaleDateString("en-US", { weekday: "narrow" });
       const isWeekend = cursor.getDay() === 0 || cursor.getDay() === 6;
+      const isMonday = cursor.getDay() === 1;
       bottom.push(
-        <div
-          key={`bot-${cursor.toISOString()}`}
-          className={cn(
-            "border-r border-border/30 flex items-center justify-center",
-            isMonday && "border-l border-l-border/60",
-            isWeekend && "bg-muted/30"
-          )}
-          style={{ width: pxPerDay, minWidth: pxPerDay }}
-        >
-          <span className={cn("text-[10px]", isWeekend ? "text-muted-foreground/50" : "text-muted-foreground")}>
-            {dayLabel}
+        <div key={cursor.toISOString()} className={cn("border-r border-border/20 flex items-center justify-center shrink-0", isMonday && "border-l border-l-border/60", isWeekend && "bg-muted/20")} style={{ width: pxPerDay, minWidth: pxPerDay }}>
+          <span className={cn("text-[10px]", isWeekend ? "text-muted-foreground/40" : "text-muted-foreground")}>
+            {cursor.toLocaleDateString("en-US", { weekday: "narrow" })}
           </span>
         </div>
       );
       cursor = addDays(cursor, 1);
     }
   } else if (zoom === "month") {
-    // Top: year/month, Bottom: week numbers or every 5th day
     let cursor = new Date(rangeStart);
     while (cursor < rangeEnd) {
-      const monthStart = new Date(cursor.getFullYear(), cursor.getMonth(), 1);
       const nextMo = new Date(cursor.getFullYear(), cursor.getMonth() + 1, 1);
       const segEnd = nextMo < rangeEnd ? nextMo : rangeEnd;
-      const segStart = cursor < monthStart ? monthStart : cursor;
-      const days = (segEnd.getTime() - segStart.getTime()) / MS_PER_DAY;
+      const days = (segEnd.getTime() - cursor.getTime()) / MS_PER_DAY;
       top.push(
-        <div
-          key={`top-${cursor.toISOString()}`}
-          className="border-r border-border/60 px-2 flex items-center"
-          style={{ width: days * pxPerDay, minWidth: days * pxPerDay }}
-        >
+        <div key={cursor.toISOString()} className="border-r border-border/60 px-2 flex items-center shrink-0" style={{ width: days * pxPerDay, minWidth: days * pxPerDay }}>
           <span className="text-[11px] font-semibold text-muted-foreground truncate">
-            {segStart.toLocaleDateString("en-US", { month: "short", year: "2-digit" })}
+            {cursor.toLocaleDateString("en-US", { month: "short", year: "2-digit" })}
           </span>
         </div>
       );
       cursor = segEnd;
     }
-
-    // Bottom: week start days (every Mon)
     cursor = new Date(rangeStart);
-    // Advance to first Monday if not already
     const dow = cursor.getDay();
     if (dow !== 1) cursor = addDays(cursor, dow === 0 ? 1 : 8 - dow);
     while (cursor < rangeEnd) {
-      const leftPx = dateToX(cursor, rangeStart, pxPerDay);
       bottom.push(
-        <div
-          key={`bot-${cursor.toISOString()}`}
-          className="absolute top-0 bottom-0 border-l border-border/30 px-1 flex items-center"
-          style={{ left: leftPx, width: 7 * pxPerDay }}
-        >
-          <span className="text-[10px] text-muted-foreground">
-            {cursor.toLocaleDateString("en-US", { month: "numeric", day: "numeric" })}
-          </span>
+        <div key={cursor.toISOString()} className="absolute top-0 bottom-0 border-l border-border/25 px-1 flex items-center" style={{ left: dateToX(cursor, rangeStart, pxPerDay), width: 7 * pxPerDay }}>
+          <span className="text-[10px] text-muted-foreground">{cursor.toLocaleDateString("en-US", { month: "numeric", day: "numeric" })}</span>
         </div>
       );
       cursor = addDays(cursor, 7);
     }
   } else {
-    // Quarter / Year: Top = year, Bottom = months
     let cursor = new Date(rangeStart.getFullYear(), 0, 1);
     while (cursor < rangeEnd) {
       const nextYear = new Date(cursor.getFullYear() + 1, 0, 1);
       const segEnd = nextYear < rangeEnd ? nextYear : rangeEnd;
       const segStart = cursor < rangeStart ? rangeStart : cursor;
       const days = (segEnd.getTime() - segStart.getTime()) / MS_PER_DAY;
-      top.push(
-        <div
-          key={`top-${cursor.toISOString()}`}
-          className="border-r border-border/60 px-2 flex items-center"
-          style={{ width: days * pxPerDay, minWidth: days * pxPerDay }}
-        >
-          <span className="text-[11px] font-semibold text-muted-foreground">
-            {segStart.getFullYear()}
-          </span>
-        </div>
-      );
+      if (days > 0) {
+        top.push(
+          <div key={cursor.toISOString()} className="border-r border-border/60 px-2 flex items-center shrink-0" style={{ width: days * pxPerDay, minWidth: days * pxPerDay }}>
+            <span className="text-[11px] font-semibold text-muted-foreground">{segStart.getFullYear()}</span>
+          </div>
+        );
+      }
       cursor = nextYear;
     }
-
-    // Bottom: months
     cursor = new Date(rangeStart.getFullYear(), rangeStart.getMonth(), 1);
     while (cursor < rangeEnd) {
       const nextMo = new Date(cursor.getFullYear(), cursor.getMonth() + 1, 1);
@@ -508,14 +484,8 @@ function buildTimelineHeaders(
       const days = (segEnd.getTime() - segStart.getTime()) / MS_PER_DAY;
       if (days > 0) {
         bottom.push(
-          <div
-            key={`bot-${cursor.toISOString()}`}
-            className="border-r border-border/30 px-1 flex items-center"
-            style={{ width: days * pxPerDay, minWidth: days * pxPerDay }}
-          >
-            <span className="text-[10px] text-muted-foreground truncate">
-              {segStart.toLocaleDateString("en-US", { month: "short" })}
-            </span>
+          <div key={cursor.toISOString()} className="border-r border-border/25 px-1 flex items-center shrink-0" style={{ width: days * pxPerDay, minWidth: days * pxPerDay }}>
+            <span className="text-[10px] text-muted-foreground truncate">{segStart.toLocaleDateString("en-US", { month: "short" })}</span>
           </div>
         );
       }
@@ -531,42 +501,73 @@ function buildTimelineHeaders(
 export function GanttContainer({
   projectId,
   initialEntries,
+  initialDeps,
   allSteps,
   allTasks,
-  users: _users,
   canEdit,
   isViewAs,
 }: GanttContainerProps) {
   const editable = canEdit && !isViewAs;
 
-  // ── State ──────────────────────────────────────────────────────────────────
-
+  // ── Core data state ────────────────────────────────────────────────────────
   const [entries, setEntries] = useState<GanttEntryFull[]>(initialEntries);
+  const [deps, setDeps] = useState<GanttDependencyRecord[]>(initialDeps);
+
+  // ── View state ─────────────────────────────────────────────────────────────
   const [zoom, setZoom] = useState<ZoomLevel>("month");
   const [expandedStepIds, setExpandedStepIds] = useState<Set<string>>(new Set());
   const [hiddenEntryIds, setHiddenEntryIds] = useState<Set<string>>(new Set());
+
+  // ── Local overrides (optimistic updates) ──────────────────────────────────
   const [localDates, setLocalDates] = useState<Map<string, { start: Date | null; end: Date | null }>>(new Map());
   const [localProgress, setLocalProgress] = useState<Map<string, number>>(new Map());
-  const [dragState, setDragState] = useState<BarDragState | null>(null);
+  const [localScheduleModes, setLocalScheduleModes] = useState<Map<string, ScheduleMode>>(
+    new Map(initialEntries.map((e) => [e.id, e.scheduleMode]))
+  );
+
+  // ── Reorder state ──────────────────────────────────────────────────────────
+  const [orderedEntryIds, setOrderedEntryIds] = useState<string[]>(
+    [...initialEntries].sort((a, b) => a.sortOrder - b.sortOrder).map((e) => e.id)
+  );
+  const [rowDragState, setRowDragState] = useState<RowDragState | null>(null);
+
+  // ── Interaction state ──────────────────────────────────────────────────────
+  const [barDragState, setBarDragState] = useState<BarDragState | null>(null);
   const [editingCell, setEditingCell] = useState<EditingCell>(null);
+  const [linkMode, setLinkMode] = useState<LinkState | null>(null);
   const [showImport, setShowImport] = useState(false);
-  const [saving, setSaving] = useState<string | null>(null); // entryId being saved
+  const [saving, setSaving] = useState<string | null>(null);
+
+  // ── Undo/redo ──────────────────────────────────────────────────────────────
+  const history = useGanttHistory();
 
   // ── Refs ───────────────────────────────────────────────────────────────────
-
   const wbsBodyRef = useRef<HTMLDivElement>(null);
   const timelineBodyRef = useRef<HTMLDivElement>(null);
   const syncingScroll = useRef(false);
   const pxPerDayRef = useRef(PX_PER_DAY[zoom]);
 
   // ── Derived ────────────────────────────────────────────────────────────────
-
   const pxPerDay = PX_PER_DAY[zoom];
   pxPerDayRef.current = pxPerDay;
 
+  // Compute ordered IDs for row-drag preview
+  const activeOrderedIds = useMemo(() => {
+    if (!rowDragState) return orderedEntryIds;
+    const { sourceId, startY, currentY } = rowDragState;
+    const delta = Math.round((currentY - startY) / ROW_H);
+    const srcIdx = orderedEntryIds.indexOf(sourceId);
+    if (srcIdx < 0 || delta === 0) return orderedEntryIds;
+    const result = [...orderedEntryIds];
+    const targetIdx = Math.max(0, Math.min(result.length - 1, srcIdx + delta));
+    result.splice(srcIdx, 1);
+    result.splice(targetIdx, 0, sourceId);
+    return result;
+  }, [rowDragState, orderedEntryIds]);
+
   const allDisplayRows = useMemo(
-    () => buildDisplayRows(entries, expandedStepIds, localDates, localProgress),
-    [entries, expandedStepIds, localDates, localProgress]
+    () => buildDisplayRows(entries, expandedStepIds, localDates, localProgress, localScheduleModes, activeOrderedIds, deps),
+    [entries, expandedStepIds, localDates, localProgress, localScheduleModes, activeOrderedIds, deps]
   );
 
   const visibleRows = useMemo(
@@ -574,11 +575,7 @@ export function GanttContainer({
     [allDisplayRows, hiddenEntryIds]
   );
 
-  const { start: rangeStart, totalDays } = useMemo(
-    () => computeDateRange(visibleRows, zoom),
-    [visibleRows, zoom]
-  );
-
+  const { start: rangeStart, totalDays } = useMemo(() => computeDateRange(visibleRows, zoom), [visibleRows, zoom]);
   const totalTimelineW = totalDays * pxPerDay;
 
   const { top: headerTop, bottom: headerBottom } = useMemo(
@@ -586,10 +583,7 @@ export function GanttContainer({
     [rangeStart, totalDays, pxPerDay, zoom]
   );
 
-  const todayX = useMemo(
-    () => dateToX(startOfDay(new Date()), rangeStart, pxPerDay),
-    [rangeStart, pxPerDay]
-  );
+  const todayX = useMemo(() => dateToX(startOfDay(new Date()), rangeStart, pxPerDay), [rangeStart, pxPerDay]);
 
   const entryStepIds = useMemo(
     () => new Set(entries.filter((e) => e.type === "step").map((e) => (e as { workflowStepId: string }).workflowStepId)),
@@ -600,8 +594,27 @@ export function GanttContainer({
     [entries]
   );
 
-  // ── Scroll sync ────────────────────────────────────────────────────────────
+  // ── Keyboard shortcuts ─────────────────────────────────────────────────────
+  useEffect(() => {
+    function onKey(e: KeyboardEvent) {
+      if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
+      if ((e.metaKey || e.ctrlKey) && e.key === "z" && !e.shiftKey) {
+        e.preventDefault();
+        history.undo();
+      }
+      if ((e.metaKey || e.ctrlKey) && (e.key === "y" || (e.key === "z" && e.shiftKey))) {
+        e.preventDefault();
+        history.redo();
+      }
+      if (e.key === "Escape" && linkMode) {
+        setLinkMode(null);
+      }
+    }
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [history, linkMode]);
 
+  // ── Scroll sync ────────────────────────────────────────────────────────────
   const handleWBSScroll = useCallback((e: React.UIEvent<HTMLDivElement>) => {
     if (syncingScroll.current) return;
     syncingScroll.current = true;
@@ -616,232 +629,283 @@ export function GanttContainer({
     syncingScroll.current = false;
   }, []);
 
-  // ── Drag handlers ──────────────────────────────────────────────────────────
+  // ── Date update helper ─────────────────────────────────────────────────────
+  async function applyDateUpdate(
+    entryId: string,
+    newStart: Date | null,
+    newEnd: Date | null
+  ) {
+    setLocalDates((m) => new Map(m).set(entryId, { start: newStart, end: newEnd }));
+    const entry = entries.find((e) => e.id === entryId);
+    if (!entry) return;
+    if (entry.type === "step") {
+      await updateGanttStepDates(entry.workflowStepId, newStart, newEnd);
+    } else {
+      await updateGanttTaskDates(entry.taskId, newStart, newEnd);
+    }
+    // Auto-scheduling cascade
+    const cascaded = computeAutoSchedule(entries, deps, localScheduleModes, localDates);
+    if (cascaded.size > 0) {
+      setLocalDates((m) => {
+        const next = new Map(m);
+        cascaded.forEach((v, k) => next.set(k, v));
+        return next;
+      });
+      // Persist cascaded dates
+      for (const [cId, cDates] of cascaded) {
+        const cEntry = entries.find((e) => e.id === cId);
+        if (!cEntry) continue;
+        if (cEntry.type === "step") updateGanttStepDates(cEntry.workflowStepId, cDates.start, cDates.end);
+        else updateGanttTaskDates(cEntry.taskId, cDates.start, cDates.end);
+      }
+    }
+  }
 
+  // ── Bar drag ───────────────────────────────────────────────────────────────
   const startBarDrag = useCallback(
-    (
-      e: React.PointerEvent,
-      entryId: string,
-      dragType: BarDragState["dragType"],
-      startDate: Date,
-      endDate: Date
-    ) => {
+    (e: React.PointerEvent, entryId: string, dragType: BarDragState["dragType"], startDate: Date, endDate: Date) => {
       if (!editable) return;
       e.preventDefault();
       e.currentTarget.setPointerCapture(e.pointerId);
-      setDragState({
-        entryId,
-        dragType,
-        startPointerX: e.clientX,
-        originalStartDate: startDate,
-        originalEndDate: endDate,
-        previewStartDate: startDate,
-        previewEndDate: endDate,
-      });
+      setBarDragState({ entryId, dragType, startPointerX: e.clientX, originalStartDate: startDate, originalEndDate: endDate, previewStartDate: startDate, previewEndDate: endDate });
     },
     [editable]
   );
 
   useEffect(() => {
-    if (!dragState) return;
-
+    if (!barDragState) return;
     const handleMove = (e: PointerEvent) => {
-      const delta = Math.round((e.clientX - dragState.startPointerX) / pxPerDayRef.current);
-      setDragState((prev) => {
+      const delta = Math.round((e.clientX - barDragState.startPointerX) / pxPerDayRef.current);
+      setBarDragState((prev) => {
         if (!prev) return null;
         if (prev.dragType === "move") {
-          return {
-            ...prev,
-            previewStartDate: addDays(prev.originalStartDate, delta),
-            previewEndDate: addDays(prev.originalEndDate, delta),
-          };
+          return { ...prev, previewStartDate: addDays(prev.originalStartDate, delta), previewEndDate: addDays(prev.originalEndDate, delta) };
         }
         if (prev.dragType === "resize-end") {
           const newEnd = addDays(prev.originalEndDate, delta);
-          const minEnd = addDays(prev.originalStartDate, 1);
-          return {
-            ...prev,
-            previewEndDate: newEnd > minEnd ? newEnd : minEnd,
-          };
+          return { ...prev, previewEndDate: newEnd > addDays(prev.originalStartDate, 1) ? newEnd : addDays(prev.originalStartDate, 1) };
         }
         if (prev.dragType === "resize-start") {
           const newStart = addDays(prev.originalStartDate, delta);
-          const maxStart = addDays(prev.originalEndDate, -1);
-          return {
-            ...prev,
-            previewStartDate: newStart < maxStart ? newStart : maxStart,
-          };
+          return { ...prev, previewStartDate: newStart < addDays(prev.originalEndDate, -1) ? newStart : addDays(prev.originalEndDate, -1) };
         }
         return prev;
       });
     };
-
-    const handleUp = async () => {
-      setDragState((prev) => {
+    const handleUp = () => {
+      setBarDragState((prev) => {
         if (!prev) return null;
-        const { entryId, previewStartDate, previewEndDate } = prev;
+        const { entryId, previewStartDate, previewEndDate, originalStartDate, originalEndDate } = prev;
+        const row = allDisplayRows.find((r) => r.entryId === entryId);
+        if (!row) return null;
 
         // Optimistic update
-        setLocalDates((map) => {
-          const next = new Map(map);
-          next.set(entryId, { start: previewStartDate, end: previewEndDate });
-          return next;
-        });
+        setLocalDates((m) => new Map(m).set(entryId, { start: previewStartDate, end: previewEndDate }));
 
-        // Find the entry to determine type
-        setEntries((es) => {
-          const entry = es.find((e) => e.id === entryId);
-          if (!entry) return es;
-
-          setSaving(entryId);
-          if (entry.type === "step") {
-            updateGanttStepDates(entry.workflowStepId, previewStartDate, previewEndDate).finally(() =>
-              setSaving(null)
-            );
-          } else if (entry.type === "task") {
-            updateGanttTaskDates(entry.taskId, previewStartDate, previewEndDate).finally(() =>
-              setSaving(null)
-            );
-          }
-          return es;
-        });
-
+        // Persist + push to history
+        setSaving(entryId);
+        const entry = entries.find((e) => e.id === entryId);
+        if (entry) {
+          history.push({
+            description: `Moved "${row.title}"`,
+            undo: async () => {
+              await applyDateUpdate(entryId, originalStartDate, originalEndDate);
+            },
+            redo: async () => {
+              await applyDateUpdate(entryId, previewStartDate, previewEndDate);
+            },
+          });
+          applyDateUpdate(entryId, previewStartDate, previewEndDate).finally(() => setSaving(null));
+        }
         return null;
       });
     };
-
     window.addEventListener("pointermove", handleMove);
     window.addEventListener("pointerup", handleUp);
-    return () => {
-      window.removeEventListener("pointermove", handleMove);
-      window.removeEventListener("pointerup", handleUp);
+    return () => { window.removeEventListener("pointermove", handleMove); window.removeEventListener("pointerup", handleUp); };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [barDragState]);
+
+  // ── Row drag-to-reorder ────────────────────────────────────────────────────
+  const startRowDrag = useCallback(
+    (e: React.PointerEvent, entryId: string) => {
+      if (!editable) return;
+      e.preventDefault();
+      e.currentTarget.setPointerCapture(e.pointerId);
+      setRowDragState({ sourceId: entryId, startY: e.clientY, currentY: e.clientY });
+    },
+    [editable]
+  );
+
+  useEffect(() => {
+    if (!rowDragState) return;
+    const handleMove = (e: PointerEvent) => {
+      setRowDragState((prev) => prev ? { ...prev, currentY: e.clientY } : null);
     };
-  }, [dragState]);
+    const handleUp = () => {
+      setRowDragState((prev) => {
+        if (!prev) return null;
+        // Commit reorder
+        const prevOrder = [...orderedEntryIds];
+        setOrderedEntryIds(activeOrderedIds);
+        const updates = activeOrderedIds.map((id, idx) => ({ id, sortOrder: idx }));
+        setEntries((es) => es.map((e) => {
+          const upd = updates.find((u) => u.id === e.id);
+          return upd ? { ...e, sortOrder: upd.sortOrder } : e;
+        }));
+        history.push({
+          description: "Reordered rows",
+          undo: async () => { setOrderedEntryIds(prevOrder); await reorderGanttEntries(prevOrder.map((id, i) => ({ id, sortOrder: i }))); },
+          redo: async () => { setOrderedEntryIds(activeOrderedIds); await reorderGanttEntries(updates); },
+        });
+        reorderGanttEntries(updates);
+        return null;
+      });
+    };
+    window.addEventListener("pointermove", handleMove);
+    window.addEventListener("pointerup", handleUp);
+    return () => { window.removeEventListener("pointermove", handleMove); window.removeEventListener("pointerup", handleUp); };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [rowDragState]);
 
   // ── Cell editing ───────────────────────────────────────────────────────────
-
   function commitDateEdit(rowId: string, field: "startDate" | "endDate", value: string) {
     setEditingCell(null);
     const row = allDisplayRows.find((r) => r.id === rowId);
     if (!row || row.isVirtual) return;
-
     const newDate = value ? new Date(value + "T12:00:00") : null;
     const current = localDates.get(rowId) ?? { start: row.startDate, end: row.endDate };
-    const updated =
-      field === "startDate"
-        ? { start: newDate, end: current.end }
-        : { start: current.start, end: newDate };
-
-    setLocalDates((m) => new Map(m).set(rowId, updated));
-
-    const entry = entries.find((e) => e.id === rowId);
-    if (!entry) return;
-    if (entry.type === "step") {
-      updateGanttStepDates(entry.workflowStepId, updated.start, updated.end);
-    } else if (entry.type === "task") {
-      updateGanttTaskDates(entry.taskId, updated.start, updated.end);
-    }
+    const prev = field === "startDate" ? { start: current.start, end: current.end } : { start: current.start, end: current.end };
+    const updated = field === "startDate" ? { start: newDate, end: current.end } : { start: current.start, end: newDate };
+    history.push({
+      description: `Edit ${field === "startDate" ? "start" : "end"} date`,
+      undo: async () => { await applyDateUpdate(rowId, prev.start, prev.end); },
+      redo: async () => { await applyDateUpdate(rowId, updated.start, updated.end); },
+    });
+    applyDateUpdate(rowId, updated.start, updated.end);
   }
 
   function commitProgressEdit(rowId: string, value: string) {
     setEditingCell(null);
     const pct = Math.max(0, Math.min(100, parseInt(value) || 0));
+    const prev = localProgress.get(rowId) ?? (allDisplayRows.find((r) => r.id === rowId)?.percentComplete ?? 0);
     setLocalProgress((m) => new Map(m).set(rowId, pct));
     const entry = entries.find((e) => e.id === rowId);
     if (entry?.type === "task") {
+      history.push({
+        description: "Edit progress",
+        undo: async () => { setLocalProgress((m) => new Map(m).set(rowId, prev)); await updateGanttTaskProgress(entry.taskId, prev); },
+        redo: async () => { setLocalProgress((m) => new Map(m).set(rowId, pct)); await updateGanttTaskProgress(entry.taskId, pct); },
+      });
       updateGanttTaskProgress(entry.taskId, pct);
     }
   }
 
-  // ── Visibility toggle ──────────────────────────────────────────────────────
+  // ── Schedule mode toggle ───────────────────────────────────────────────────
+  function toggleScheduleMode(entryId: string) {
+    const current = localScheduleModes.get(entryId) ?? "manual";
+    const next: ScheduleMode = current === "manual" ? "auto" : "manual";
+    setLocalScheduleModes((m) => new Map(m).set(entryId, next));
+    updateGanttScheduleMode(entryId, next);
+    // Trigger cascade if switching to auto
+    if (next === "auto") {
+      const cascaded = computeAutoSchedule(entries, deps, new Map(localScheduleModes).set(entryId, "auto"), localDates);
+      if (cascaded.size > 0) {
+        setLocalDates((m) => { const n = new Map(m); cascaded.forEach((v, k) => n.set(k, v)); return n; });
+        cascaded.forEach((dates, cId) => {
+          const e = entries.find((en) => en.id === cId);
+          if (e?.type === "step") updateGanttStepDates(e.workflowStepId, dates.start, dates.end);
+          else if (e?.type === "task") updateGanttTaskDates(e.taskId, dates.start, dates.end);
+        });
+      }
+    }
+  }
 
-  function toggleHidden(rowId: string) {
-    setHiddenEntryIds((prev) => {
-      const next = new Set(prev);
-      if (next.has(rowId)) next.delete(rowId);
-      else next.add(rowId);
-      return next;
+  // ── Link mode (add dependencies) ──────────────────────────────────────────
+  function handleBarClickInLinkMode(entryId: string) {
+    if (!linkMode) return;
+    if (!linkMode.sourceEntryId) {
+      setLinkMode({ sourceEntryId: entryId });
+      return;
+    }
+    if (linkMode.sourceEntryId === entryId) {
+      setLinkMode({ sourceEntryId: null });
+      return;
+    }
+    // Create dependency
+    const fromId = linkMode.sourceEntryId;
+    const toId = entryId;
+    addGanttDependency(projectId, fromId, toId, "FS", 0).then((dep) => {
+      setDeps((d) => [...d, dep]);
+    });
+    setLinkMode(null);
+  }
+
+  // ── Remove dependency ──────────────────────────────────────────────────────
+  function handleRemoveDep(depId: string) {
+    const dep = deps.find((d) => d.id === depId);
+    if (!dep) return;
+    setDeps((d) => d.filter((x) => x.id !== depId));
+    removeGanttDependency(depId).catch(() => {
+      setDeps((d) => [...d, dep]);
     });
   }
 
+  // ── Visibility ─────────────────────────────────────────────────────────────
+  function toggleHidden(rowId: string) {
+    setHiddenEntryIds((prev) => { const n = new Set(prev); n.has(rowId) ? n.delete(rowId) : n.add(rowId); return n; });
+  }
+
   async function toggleCustomerVisible(entryId: string, current: boolean) {
-    // Optimistic — update entries immediately
-    setEntries((es) =>
-      es.map((e) => (e.id === entryId ? { ...e, customerVisible: !current } : e))
-    );
+    setEntries((es) => es.map((e) => (e.id === entryId ? { ...e, customerVisible: !current } : e)));
     await updateGanttEntryVisibility(entryId, !current);
   }
 
-  // ── Remove from Gantt ──────────────────────────────────────────────────────
-
   async function handleRemoveEntry(entryId: string) {
     setEntries((es) => es.filter((e) => e.id !== entryId));
+    setOrderedEntryIds((ids) => ids.filter((id) => id !== entryId));
     await removeGanttEntry(entryId);
   }
 
-  // ── Import ─────────────────────────────────────────────────────────────────
-
   function handleImportDone(newEntries: GanttEntryFull[]) {
-    setEntries((es) => {
-      const existingIds = new Set(es.map((e) => e.id));
-      return [...es, ...newEntries.filter((e) => !existingIds.has(e.id))];
+    setEntries(newEntries);
+    setOrderedEntryIds(newEntries.sort((a, b) => a.sortOrder - b.sortOrder).map((e) => e.id));
+    setLocalScheduleModes((m) => {
+      const n = new Map(m);
+      newEntries.forEach((e) => { if (!n.has(e.id)) n.set(e.id, e.scheduleMode); });
+      return n;
     });
     setShowImport(false);
   }
 
   // ── Bar geometry ───────────────────────────────────────────────────────────
+  function barGeometry(row: GanttDisplayRow): { left: number; width: number; scheduled: boolean } {
+    const drag = barDragState?.entryId === row.entryId ? barDragState : null;
+    const startDate = drag ? drag.previewStartDate : (localDates.get(row.id)?.start ?? row.startDate);
+    const endDate = drag ? drag.previewEndDate : (localDates.get(row.id)?.end ?? row.endDate);
 
-  function barGeometry(row: GanttDisplayRow): {
-    left: number;
-    width: number;
-    scheduled: boolean;
-    preview: boolean;
-  } {
-    if (!row.entryId) {
-      // Virtual phase row
-      if (!row.startDate || !row.endDate)
-        return { left: 8, width: 0, scheduled: false, preview: false };
-      return {
-        left: Math.max(0, dateToX(row.startDate, rangeStart, pxPerDay)),
-        width: Math.max(MIN_BAR_W, dateToX(row.endDate, rangeStart, pxPerDay) - dateToX(row.startDate, rangeStart, pxPerDay) + pxPerDay),
-        scheduled: true,
-        preview: false,
-      };
-    }
-
-    // Check drag preview
-    if (dragState && dragState.entryId === row.entryId) {
-      const { previewStartDate, previewEndDate } = dragState;
-      return {
-        left: Math.max(0, dateToX(previewStartDate, rangeStart, pxPerDay)),
-        width: Math.max(
-          MIN_BAR_W,
-          dateToX(previewEndDate, rangeStart, pxPerDay) - dateToX(previewStartDate, rangeStart, pxPerDay) + pxPerDay
-        ),
-        scheduled: true,
-        preview: true,
-      };
-    }
-
-    if (!row.startDate && !row.endDate)
-      return { left: 8, width: 0, scheduled: false, preview: false };
-
-    const start = row.startDate ?? row.endDate!;
-    const end = row.endDate ?? row.startDate!;
+    if (!startDate && !endDate) return { left: 8, width: 0, scheduled: false };
+    const s = startDate ?? endDate!;
+    const e = endDate ?? startDate!;
     return {
-      left: Math.max(0, dateToX(start, rangeStart, pxPerDay)),
-      width: Math.max(MIN_BAR_W, dateToX(end, rangeStart, pxPerDay) - dateToX(start, rangeStart, pxPerDay) + pxPerDay),
+      left: Math.max(0, dateToX(s, rangeStart, pxPerDay)),
+      width: Math.max(MIN_BAR_W, dateToX(e, rangeStart, pxPerDay) - dateToX(s, rangeStart, pxPerDay) + pxPerDay),
       scheduled: true,
-      preview: false,
     };
   }
 
   // ── Render ─────────────────────────────────────────────────────────────────
-
   const isEmpty = entries.length === 0;
+  const isLinkingFrom = linkMode?.sourceEntryId != null;
 
   return (
-    <div className="flex flex-col gap-0 rounded-xl border bg-card shadow-sm overflow-hidden" style={{ height: "calc(100vh - 260px)", minHeight: 400 }}>
+    <div
+      className={cn(
+        "flex flex-col gap-0 rounded-xl border bg-card shadow-sm overflow-hidden",
+        linkMode && "cursor-crosshair"
+      )}
+      style={{ height: "calc(100vh - 260px)", minHeight: 400 }}
+    >
       {/* ── Toolbar ─────────────────────────────────────────────────────────── */}
       <div className="flex items-center gap-2 px-4 py-2.5 border-b bg-muted/20 flex-wrap flex-none" data-print-hide>
         <div className="flex items-center gap-1 mr-2">
@@ -849,26 +913,42 @@ export function GanttContainer({
           <span className="text-sm font-medium">Gantt</span>
         </div>
 
-        {/* Zoom controls */}
+        {/* Zoom */}
         <div className="flex items-center rounded-md border bg-card divide-x overflow-hidden">
           {(["week", "month", "quarter", "year"] as ZoomLevel[]).map((z) => (
-            <button
-              key={z}
-              type="button"
-              onClick={() => setZoom(z)}
-              className={cn(
-                "px-2.5 py-1 text-xs font-medium transition-colors",
-                zoom === z
-                  ? "bg-primary text-primary-foreground"
-                  : "text-muted-foreground hover:text-foreground hover:bg-muted"
-              )}
-            >
+            <button key={z} type="button" onClick={() => setZoom(z)}
+              className={cn("px-2.5 py-1 text-xs font-medium transition-colors", zoom === z ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground hover:bg-muted")}>
               {z.charAt(0).toUpperCase() + z.slice(1)}
             </button>
           ))}
         </div>
 
-        <div className="flex items-center gap-1 ml-auto">
+        <div className="flex items-center gap-1 ml-auto flex-wrap">
+          {/* Undo / Redo */}
+          {editable && (
+            <>
+              <Button variant="ghost" size="icon" className="size-8" title="Undo (Ctrl+Z)" disabled={!history.canUndo} onClick={history.undo}>
+                <Undo2 className="size-3.5" />
+              </Button>
+              <Button variant="ghost" size="icon" className="size-8" title="Redo (Ctrl+Y)" disabled={!history.canRedo} onClick={history.redo}>
+                <Redo2 className="size-3.5" />
+              </Button>
+            </>
+          )}
+
+          {/* Link mode */}
+          {editable && (
+            <Button
+              variant={linkMode ? "default" : "outline"}
+              size="sm"
+              onClick={() => setLinkMode(linkMode ? null : { sourceEntryId: null })}
+              title={linkMode ? "Exit link mode (Esc)" : "Add dependency — click a bar then its successor"}
+            >
+              {linkMode ? <Link2Off className="mr-1.5 size-3.5" /> : <Link2 className="mr-1.5 size-3.5" />}
+              {linkMode ? (isLinkingFrom ? "Click successor…" : "Click a bar…") : "Link"}
+            </Button>
+          )}
+
           {hiddenEntryIds.size > 0 && (
             <Button variant="outline" size="sm" onClick={() => setHiddenEntryIds(new Set())}>
               <Eye className="mr-1.5 size-3.5" />
@@ -878,7 +958,7 @@ export function GanttContainer({
           {editable && (
             <Button variant="outline" size="sm" onClick={() => setShowImport(true)}>
               <Upload className="mr-1.5 size-3.5" />
-              Import from Workflow
+              Import
             </Button>
           )}
           <Button variant="outline" size="sm" onClick={() => window.print()}>
@@ -896,9 +976,7 @@ export function GanttContainer({
           </div>
           <div>
             <p className="text-sm font-medium">Your schedule is empty</p>
-            <p className="text-xs text-muted-foreground mt-1">
-              Import steps and tasks from the project workflow to start scheduling.
-            </p>
+            <p className="text-xs text-muted-foreground mt-1">Import steps and tasks from the project workflow to start scheduling.</p>
           </div>
           {editable && (
             <Button size="sm" onClick={() => setShowImport(true)}>
@@ -910,27 +988,29 @@ export function GanttContainer({
       ) : (
         /* ── Split panel ─────────────────────────────────────────────────── */
         <div className="flex flex-1 overflow-hidden min-h-0">
-          {/* ── WBS Panel ─────────────────────────────────────────────────── */}
+          {/* ── WBS ───────────────────────────────────────────────────────── */}
           <div
             className="flex flex-col border-r shrink-0 overflow-y-auto"
             style={{ width: WBS_W }}
             ref={wbsBodyRef}
             onScroll={handleWBSScroll}
           >
-            {/* WBS Column headers */}
+            {/* WBS column headers */}
             <div
               className="sticky top-0 z-10 flex items-center bg-muted/30 border-b text-[11px] font-semibold text-muted-foreground uppercase tracking-wide select-none"
               style={{ height: HEADER_ROW_H * 2 }}
             >
-              <div className="flex-1 px-3 truncate">Name</div>
-              <div className="w-16 text-center border-l px-1 shrink-0">Start</div>
-              <div className="w-16 text-center border-l px-1 shrink-0">Finish</div>
-              <div className="w-10 text-center border-l px-1 shrink-0">%</div>
-              <div className="w-9 border-l shrink-0" />
+              <div className="w-5 shrink-0" />
+              <div className="flex-1 px-2 truncate">Name</div>
+              <div className="w-7 text-center border-l shrink-0 px-0.5" title="Schedule mode: M=Manual, A=Auto">M</div>
+              <div className="w-16 text-center border-l shrink-0 px-1">Start</div>
+              <div className="w-16 text-center border-l shrink-0 px-1">Finish</div>
+              <div className="w-10 text-center border-l shrink-0 px-1">%</div>
+              <div className="w-10 border-l shrink-0" />
             </div>
 
-            {/* WBS Rows */}
-            {visibleRows.map((row) => (
+            {/* WBS rows */}
+            {visibleRows.map((row, _idx) => (
               <WBSRow
                 key={row.id}
                 row={row}
@@ -939,18 +1019,21 @@ export function GanttContainer({
                 editingCell={editingCell}
                 expandedStepIds={expandedStepIds}
                 hiddenEntryIds={hiddenEntryIds}
+                isDraggingRow={rowDragState?.sourceId === row.entryId}
                 onToggleExpand={(id) => setExpandedStepIds((p) => { const n = new Set(p); n.has(id) ? n.delete(id) : n.add(id); return n; })}
                 onToggleHide={toggleHidden}
                 onToggleCustomerVisible={toggleCustomerVisible}
                 onRemove={handleRemoveEntry}
-                onStartEdit={(cell) => editable && setEditingCell(cell)}
+                onToggleScheduleMode={toggleScheduleMode}
+                onStartEdit={(cell) => editable && !row.isVirtual && setEditingCell(cell)}
                 onCommitDate={commitDateEdit}
                 onCommitProgress={commitProgressEdit}
+                onRowDragStart={startRowDrag}
               />
             ))}
           </div>
 
-          {/* ── Timeline Panel ────────────────────────────────────────────── */}
+          {/* ── Timeline ──────────────────────────────────────────────────── */}
           <div
             className="flex-1 overflow-x-auto overflow-y-auto"
             ref={timelineBodyRef}
@@ -958,31 +1041,21 @@ export function GanttContainer({
           >
             <div style={{ width: totalTimelineW, position: "relative" }}>
               {/* Timeline header */}
-              <div
-                className="sticky top-0 z-10 bg-muted/30 border-b select-none"
-                style={{ height: HEADER_ROW_H * 2 }}
-              >
-                {/* Top header row */}
-                <div className="flex overflow-hidden" style={{ height: HEADER_ROW_H }}>
-                  {headerTop}
-                </div>
-                {/* Bottom header row */}
-                <div className={cn("relative overflow-hidden", zoom === "month" ? "relative" : "flex")} style={{ height: HEADER_ROW_H }}>
+              <div className="sticky top-0 z-20 bg-muted/30 border-b select-none" style={{ height: HEADER_ROW_H * 2 }}>
+                <div className="flex overflow-hidden" style={{ height: HEADER_ROW_H }}>{headerTop}</div>
+                <div className={cn("overflow-hidden", zoom === "month" ? "relative" : "flex")} style={{ height: HEADER_ROW_H }}>
                   {headerBottom}
                 </div>
               </div>
 
               {/* Bars area */}
               <div style={{ position: "relative", height: visibleRows.length * ROW_H }}>
-                {/* Background grid lines */}
+                {/* Grid */}
                 <TimelineGrid rangeStart={rangeStart} totalDays={totalDays} pxPerDay={pxPerDay} zoom={zoom} visibleRows={visibleRows} />
 
                 {/* Today marker */}
                 {todayX >= 0 && todayX <= totalTimelineW && (
-                  <div
-                    className="absolute top-0 bottom-0 w-0.5 bg-primary/70 z-20 pointer-events-none"
-                    style={{ left: todayX }}
-                  >
+                  <div className="absolute top-0 bottom-0 w-0.5 bg-primary/70 z-30 pointer-events-none" style={{ left: todayX }}>
                     <div className="absolute -top-0 left-0 -translate-x-1/2 w-2 h-2 rounded-full bg-primary" />
                   </div>
                 )}
@@ -993,15 +1066,14 @@ export function GanttContainer({
                   const isPhaseBar = row.type === "phase";
                   const barH = isPhaseBar ? 12 : 20;
                   const barColor = STATUS_COLORS[row.status] ?? "bg-slate-300";
-                  const isDragging = dragState?.entryId === row.entryId;
+                  const isDragging = barDragState?.entryId === row.entryId;
+                  const isLinkSource = linkMode?.sourceEntryId === row.entryId;
+                  const isInLinkMode = linkMode !== null;
 
                   return (
                     <div
                       key={row.id}
-                      className={cn(
-                        "absolute flex items-center",
-                        row.type === "phase" && "bg-muted/10"
-                      )}
+                      className={cn("absolute flex items-center", row.type === "phase" && "bg-muted/5", rowDragState?.sourceId === row.entryId && "opacity-50")}
                       style={{ top: idx * ROW_H, height: ROW_H, left: 0, right: 0 }}
                     >
                       {geo.scheduled ? (
@@ -1010,63 +1082,44 @@ export function GanttContainer({
                             "absolute rounded flex items-center overflow-hidden select-none",
                             barColor,
                             isDragging && "opacity-80 ring-2 ring-offset-1 ring-primary",
-                            !row.isVirtual && editable && "cursor-grab active:cursor-grabbing"
+                            isLinkSource && "ring-2 ring-offset-1 ring-emerald-400",
+                            isInLinkMode && !isLinkSource && !row.isVirtual && "ring-1 ring-offset-1 ring-muted-foreground/30 hover:ring-primary cursor-pointer",
+                            !isInLinkMode && !row.isVirtual && editable && "cursor-grab active:cursor-grabbing"
                           )}
-                          style={{
-                            left: geo.left,
-                            width: geo.width,
-                            height: barH,
-                            top: (ROW_H - barH) / 2,
-                          }}
+                          style={{ left: geo.left, width: geo.width, height: barH, top: (ROW_H - barH) / 2 }}
                           onPointerDown={
-                            !row.isVirtual && editable
-                              ? (e) =>
-                                  startBarDrag(
-                                    e,
-                                    row.entryId!,
-                                    "move",
-                                    row.startDate ?? new Date(),
-                                    row.endDate ?? new Date()
-                                  )
-                              : undefined
+                            isInLinkMode
+                              ? undefined
+                              : (!row.isVirtual && editable
+                                ? (e) => startBarDrag(e, row.entryId!, "move", row.startDate ?? new Date(), row.endDate ?? new Date())
+                                : undefined)
                           }
+                          onClick={isInLinkMode && row.entryId ? () => handleBarClickInLinkMode(row.entryId!) : undefined}
                         >
                           {/* Progress fill */}
                           {row.percentComplete > 0 && row.percentComplete < 100 && (
-                            <div
-                              className="absolute inset-y-0 left-0 bg-black/20 rounded-l"
-                              style={{ width: `${row.percentComplete}%` }}
-                            />
+                            <div className="absolute inset-y-0 left-0 bg-black/20 rounded-l" style={{ width: `${row.percentComplete}%` }} />
                           )}
-                          {/* Label inside bar */}
+                          {/* Label */}
                           {geo.width > 50 && (
                             <span className="relative z-10 px-1.5 text-[10px] font-medium text-white/90 truncate pointer-events-none">
                               {row.assigneeNames[0] || row.title}
                             </span>
                           )}
-                          {/* Resize handle: right edge */}
-                          {!row.isVirtual && editable && (
+                          {/* Resize handle */}
+                          {!row.isVirtual && editable && !isInLinkMode && (
                             <div
                               className="absolute right-0 top-0 bottom-0 w-2 cursor-ew-resize z-10"
-                              onPointerDown={(e) => {
-                                e.stopPropagation();
-                                startBarDrag(
-                                  e,
-                                  row.entryId!,
-                                  "resize-end",
-                                  row.startDate ?? new Date(),
-                                  row.endDate ?? new Date()
-                                );
-                              }}
+                              onPointerDown={(e) => { e.stopPropagation(); startBarDrag(e, row.entryId!, "resize-end", row.startDate ?? new Date(), row.endDate ?? new Date()); }}
                             />
                           )}
                         </div>
                       ) : (
-                        /* Unscheduled placeholder */
                         !row.isVirtual && (
                           <div
-                            className="absolute flex items-center px-1.5 rounded border-2 border-dashed border-muted-foreground/25"
+                            className={cn("absolute flex items-center px-1.5 rounded border-2 border-dashed border-muted-foreground/25", isInLinkMode && row.entryId && "cursor-pointer hover:border-primary/50")}
                             style={{ left: 8, height: barH, top: (ROW_H - barH) / 2, minWidth: 64 }}
+                            onClick={isInLinkMode && row.entryId ? () => handleBarClickInLinkMode(row.entryId!) : undefined}
                           >
                             <span className="text-[9px] text-muted-foreground/60 truncate">Unscheduled</span>
                           </div>
@@ -1075,13 +1128,29 @@ export function GanttContainer({
                     </div>
                   );
                 })}
+
+                {/* Dependency arrows SVG overlay */}
+                <GanttDependencyLayer
+                  deps={deps}
+                  visibleRows={visibleRows}
+                  rangeStart={rangeStart}
+                  pxPerDay={pxPerDay}
+                  totalWidth={totalTimelineW}
+                  totalHeight={visibleRows.length * ROW_H}
+                  dragPreview={
+                    barDragState
+                      ? { entryId: barDragState.entryId, startDate: barDragState.previewStartDate, endDate: barDragState.previewEndDate }
+                      : null
+                  }
+                  onRemove={editable ? handleRemoveDep : undefined}
+                />
               </div>
             </div>
           </div>
         </div>
       )}
 
-      {/* ── Import modal ──────────────────────────────────────────────────── */}
+      {/* Import modal */}
       {showImport && (
         <ImportWorkflowModal
           projectId={projectId}
@@ -1106,13 +1175,16 @@ interface WBSRowProps {
   editingCell: EditingCell;
   expandedStepIds: Set<string>;
   hiddenEntryIds: Set<string>;
+  isDraggingRow: boolean;
   onToggleExpand: (id: string) => void;
   onToggleHide: (id: string) => void;
   onToggleCustomerVisible: (id: string, current: boolean) => void;
   onRemove: (id: string) => void;
+  onToggleScheduleMode: (id: string) => void;
   onStartEdit: (cell: NonNullable<EditingCell>) => void;
   onCommitDate: (rowId: string, field: "startDate" | "endDate", value: string) => void;
   onCommitProgress: (rowId: string, value: string) => void;
+  onRowDragStart: (e: React.PointerEvent, entryId: string) => void;
 }
 
 function WBSRow({
@@ -1122,26 +1194,27 @@ function WBSRow({
   editingCell,
   expandedStepIds,
   hiddenEntryIds,
+  isDraggingRow,
   onToggleExpand,
   onToggleHide,
   onToggleCustomerVisible,
   onRemove,
+  onToggleScheduleMode,
   onStartEdit,
   onCommitDate,
   onCommitProgress,
+  onRowDragStart,
 }: WBSRowProps) {
   const indent = row.depth * 16;
   const isExpanded = row.entryId ? expandedStepIds.has(row.entryId) : false;
   const isHidden = hiddenEntryIds.has(row.id);
   const isPhase = row.type === "phase";
-  const isStep = row.type === "step";
+  const isAuto = row.scheduleMode === "auto";
 
   const dotColor = STATUS_COLORS[row.status] ?? "bg-slate-300";
 
-  function formatDateShort(d: Date | null): string {
-    if (!d) return "—";
-    return d.toLocaleDateString("en-US", { month: "numeric", day: "numeric" });
-  }
+  const formatDateShort = (d: Date | null) =>
+    d ? d.toLocaleDateString("en-US", { month: "numeric", day: "numeric" }) : "—";
 
   const isEditingStart = editingCell?.rowId === row.id && editingCell.field === "startDate";
   const isEditingEnd = editingCell?.rowId === row.id && editingCell.field === "endDate";
@@ -1151,150 +1224,114 @@ function WBSRow({
     <div
       className={cn(
         "group flex items-center border-b last:border-b-0 text-sm transition-colors",
-        isPhase ? "bg-muted/10 font-semibold" : "hover:bg-muted/10",
+        isPhase ? "bg-muted/10" : "hover:bg-muted/10",
         isHidden && "opacity-50",
-        saving && "opacity-60"
+        saving && "opacity-60",
+        isDraggingRow && "opacity-30 bg-primary/5"
       )}
       style={{ height: ROW_H }}
     >
-      {/* Name cell */}
+      {/* Drag handle */}
       <div
-        className="flex items-center gap-1 flex-1 min-w-0 pr-1 overflow-hidden"
-        style={{ paddingLeft: indent + 12 }}
+        className={cn(
+          "w-5 shrink-0 flex items-center justify-center transition-opacity",
+          !row.isVirtual && editable ? "opacity-0 group-hover:opacity-100 cursor-grab active:cursor-grabbing" : "opacity-0 pointer-events-none"
+        )}
+        onPointerDown={row.entryId ? (e) => onRowDragStart(e, row.entryId!) : undefined}
       >
-        {/* Expand toggle */}
+        <GripVertical className="size-3 text-muted-foreground" />
+      </div>
+
+      {/* Name cell */}
+      <div className="flex items-center gap-1 flex-1 min-w-0 pr-1 overflow-hidden" style={{ paddingLeft: indent + 4 }}>
         {row.hasChildren ? (
-          <button
-            type="button"
-            className="shrink-0 text-muted-foreground hover:text-foreground"
-            onClick={() => row.entryId && onToggleExpand(row.entryId)}
-          >
+          <button type="button" className="shrink-0 text-muted-foreground hover:text-foreground" onClick={() => row.entryId && onToggleExpand(row.entryId)}>
             {isExpanded ? <ChevronDown className="size-3.5" /> : <ChevronRight className="size-3.5" />}
           </button>
-        ) : (
-          <span className="size-3.5 shrink-0" />
-        )}
-
-        {/* Status dot */}
+        ) : <span className="size-3.5 shrink-0" />}
         <span className={cn("size-2 shrink-0 rounded-full flex-none", dotColor)} />
-
-        {/* Title */}
-        <span className={cn("truncate min-w-0 text-[13px]", isPhase && "font-semibold text-foreground", isStep && "font-medium")}>
+        <span className={cn("truncate min-w-0 text-[13px]", isPhase && "font-semibold text-foreground", row.type === "step" && "font-medium")}>
           {row.title}
         </span>
       </div>
 
-      {/* Start date cell */}
+      {/* Schedule mode badge */}
+      <div className="w-7 text-center border-l shrink-0 flex items-center justify-center" style={{ height: ROW_H }}>
+        {!row.isVirtual && editable ? (
+          <button
+            type="button"
+            title={isAuto ? "Auto-scheduled (click for manual)" : "Manual scheduling (click for auto)"}
+            onClick={() => row.entryId && onToggleScheduleMode(row.entryId)}
+            className={cn("text-[10px] font-bold rounded px-0.5", isAuto ? "text-blue-500" : "text-muted-foreground/40 hover:text-muted-foreground")}
+          >
+            {isAuto ? <Zap className="size-3 text-blue-500" /> : "M"}
+          </button>
+        ) : null}
+      </div>
+
+      {/* Start */}
       <div
-        className={cn(
-          "w-16 text-center border-l shrink-0 text-[11px] text-muted-foreground px-1",
-          editable && !row.isVirtual && "cursor-pointer hover:bg-accent hover:text-foreground"
-        )}
-        style={{ height: ROW_H, lineHeight: `${ROW_H}px` }}
+        className={cn("w-16 text-center border-l shrink-0 text-[11px] text-muted-foreground px-1 leading-none flex items-center justify-center", editable && !row.isVirtual && "cursor-pointer hover:bg-accent hover:text-foreground")}
+        style={{ height: ROW_H }}
         onClick={() => editable && !row.isVirtual && onStartEdit({ rowId: row.id, field: "startDate" })}
       >
         {isEditingStart ? (
-          <input
-            type="date"
-            autoFocus
-            defaultValue={row.startDate ? toDateStr(row.startDate) : ""}
-            className="w-full border-0 bg-transparent text-[11px] text-center p-0 focus:outline-none focus:ring-1 focus:ring-primary rounded"
+          <input type="date" autoFocus defaultValue={row.startDate ? toDateStr(row.startDate) : ""}
+            className="w-full border-0 bg-transparent text-[11px] text-center p-0 focus:outline-none"
             onBlur={(e) => onCommitDate(row.id, "startDate", e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === "Enter") (e.target as HTMLInputElement).blur();
-              if (e.key === "Escape") onCommitDate(row.id, "startDate", row.startDate ? toDateStr(row.startDate) : "");
-            }}
+            onKeyDown={(e) => { if (e.key === "Enter") (e.target as HTMLInputElement).blur(); }}
           />
-        ) : (
-          formatDateShort(row.startDate)
-        )}
+        ) : formatDateShort(row.startDate)}
       </div>
 
-      {/* End date cell */}
+      {/* Finish */}
       <div
-        className={cn(
-          "w-16 text-center border-l shrink-0 text-[11px] text-muted-foreground px-1",
-          editable && !row.isVirtual && "cursor-pointer hover:bg-accent hover:text-foreground"
-        )}
-        style={{ height: ROW_H, lineHeight: `${ROW_H}px` }}
+        className={cn("w-16 text-center border-l shrink-0 text-[11px] text-muted-foreground px-1 leading-none flex items-center justify-center", editable && !row.isVirtual && "cursor-pointer hover:bg-accent hover:text-foreground")}
+        style={{ height: ROW_H }}
         onClick={() => editable && !row.isVirtual && onStartEdit({ rowId: row.id, field: "endDate" })}
       >
         {isEditingEnd ? (
-          <input
-            type="date"
-            autoFocus
-            defaultValue={row.endDate ? toDateStr(row.endDate) : ""}
-            className="w-full border-0 bg-transparent text-[11px] text-center p-0 focus:outline-none focus:ring-1 focus:ring-primary rounded"
+          <input type="date" autoFocus defaultValue={row.endDate ? toDateStr(row.endDate) : ""}
+            className="w-full border-0 bg-transparent text-[11px] text-center p-0 focus:outline-none"
             onBlur={(e) => onCommitDate(row.id, "endDate", e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === "Enter") (e.target as HTMLInputElement).blur();
-              if (e.key === "Escape") onCommitDate(row.id, "endDate", row.endDate ? toDateStr(row.endDate) : "");
-            }}
+            onKeyDown={(e) => { if (e.key === "Enter") (e.target as HTMLInputElement).blur(); }}
           />
-        ) : (
-          formatDateShort(row.endDate)
-        )}
+        ) : formatDateShort(row.endDate)}
       </div>
 
-      {/* % Complete cell */}
+      {/* % */}
       <div
-        className={cn(
-          "w-10 text-center border-l shrink-0 text-[11px] text-muted-foreground px-1",
-          editable && !row.isVirtual && row.type === "task" && "cursor-pointer hover:bg-accent hover:text-foreground"
-        )}
-        style={{ height: ROW_H, lineHeight: `${ROW_H}px` }}
+        className={cn("w-10 text-center border-l shrink-0 text-[11px] text-muted-foreground px-1 leading-none flex items-center justify-center", editable && !row.isVirtual && row.type === "task" && "cursor-pointer hover:bg-accent hover:text-foreground")}
+        style={{ height: ROW_H }}
         onClick={() => editable && !row.isVirtual && row.type === "task" && onStartEdit({ rowId: row.id, field: "percentComplete" })}
       >
         {isEditingPct ? (
-          <input
-            type="number"
-            min={0}
-            max={100}
-            autoFocus
-            defaultValue={row.percentComplete}
-            className="w-full border-0 bg-transparent text-[11px] text-center p-0 focus:outline-none focus:ring-1 focus:ring-primary rounded"
+          <input type="number" min={0} max={100} autoFocus defaultValue={row.percentComplete}
+            className="w-full border-0 bg-transparent text-[11px] text-center p-0 focus:outline-none"
             onBlur={(e) => onCommitProgress(row.id, e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === "Enter") (e.target as HTMLInputElement).blur();
-              if (e.key === "Escape") onCommitProgress(row.id, String(row.percentComplete));
-            }}
+            onKeyDown={(e) => { if (e.key === "Enter") (e.target as HTMLInputElement).blur(); }}
           />
-        ) : (
-          `${row.percentComplete}%`
-        )}
+        ) : `${row.percentComplete}%`}
       </div>
 
-      {/* Actions cell */}
-      <div className="w-9 border-l shrink-0 flex items-center justify-center gap-0">
+      {/* Actions */}
+      <div className="w-10 border-l shrink-0 flex items-center justify-center">
         {!row.isVirtual && (
-          <div className="flex items-center opacity-0 group-hover:opacity-100 transition-opacity">
-            <button
-              type="button"
-              title={isHidden ? "Show" : "Hide from view"}
-              onClick={() => onToggleHide(row.id)}
-              className="p-1 text-muted-foreground hover:text-foreground"
-            >
+          <div className="flex items-center opacity-0 group-hover:opacity-100 transition-opacity gap-0.5">
+            <button type="button" title={isHidden ? "Show" : "Hide"} onClick={() => onToggleHide(row.id)} className="p-0.5 text-muted-foreground hover:text-foreground">
               {isHidden ? <Eye className="size-3" /> : <EyeOff className="size-3" />}
             </button>
             {editable && (
               <>
                 <button
                   type="button"
-                  title={row.customerVisible ? "Visible to customer (click to hide)" : "Hidden from customer (click to show)"}
+                  title={row.customerVisible ? "Visible to customer" : "Hidden from customer"}
                   onClick={() => row.entryId && onToggleCustomerVisible(row.entryId, row.customerVisible)}
-                  className={cn(
-                    "p-1",
-                    row.customerVisible ? "text-blue-500" : "text-muted-foreground/40"
-                  )}
+                  className={cn("p-0.5", row.customerVisible ? "text-blue-500" : "text-muted-foreground/30")}
                 >
                   <Users className="size-3" />
                 </button>
-                <button
-                  type="button"
-                  title="Remove from Gantt"
-                  onClick={() => row.entryId && onRemove(row.entryId)}
-                  className="p-1 text-muted-foreground hover:text-destructive"
-                >
+                <button type="button" title="Remove from schedule" onClick={() => row.entryId && onRemove(row.entryId)} className="p-0.5 text-muted-foreground hover:text-destructive">
                   <Trash2 className="size-3" />
                 </button>
               </>
@@ -1308,69 +1345,43 @@ function WBSRow({
 
 // ─── Timeline grid ────────────────────────────────────────────────────────────
 
-function TimelineGrid({
-  rangeStart,
-  totalDays,
-  pxPerDay,
-  zoom,
-  visibleRows,
-}: {
-  rangeStart: Date;
-  totalDays: number;
-  pxPerDay: number;
-  zoom: ZoomLevel;
-  visibleRows: GanttDisplayRow[];
+function TimelineGrid({ rangeStart, totalDays, pxPerDay, zoom, visibleRows }: {
+  rangeStart: Date; totalDays: number; pxPerDay: number; zoom: ZoomLevel; visibleRows: GanttDisplayRow[];
 }) {
-  const lines: { x: number; strong: boolean }[] = [];
+  const lines: { x: number; strong: boolean; isWeekend?: boolean }[] = [];
 
   if (zoom === "week") {
-    // Vertical lines every day; stronger on Monday
     for (let d = 0; d < totalDays; d++) {
       const date = addDays(rangeStart, d);
-      lines.push({ x: d * pxPerDay, strong: date.getDay() === 1 });
+      const isWeekend = date.getDay() === 0 || date.getDay() === 6;
+      lines.push({ x: d * pxPerDay, strong: date.getDay() === 1, isWeekend });
     }
   } else if (zoom === "month") {
-    // Vertical lines every week (Monday)
     let cursor = new Date(rangeStart);
     const dow = cursor.getDay();
     if (dow !== 1) cursor = addDays(cursor, dow === 0 ? 1 : 8 - dow);
     while (cursor < addDays(rangeStart, totalDays)) {
-      lines.push({
-        x: dateToX(cursor, rangeStart, pxPerDay),
-        strong: cursor.getDate() <= 7,
-      });
+      lines.push({ x: dateToX(cursor, rangeStart, pxPerDay), strong: cursor.getDate() <= 7 });
       cursor = addDays(cursor, 7);
     }
   } else {
-    // Month boundaries
     let cursor = new Date(rangeStart.getFullYear(), rangeStart.getMonth(), 1);
     while (cursor < addDays(rangeStart, totalDays)) {
-      if (cursor >= rangeStart)
-        lines.push({ x: dateToX(cursor, rangeStart, pxPerDay), strong: cursor.getMonth() === 0 });
+      if (cursor >= rangeStart) lines.push({ x: dateToX(cursor, rangeStart, pxPerDay), strong: cursor.getMonth() === 0 });
       cursor = new Date(cursor.getFullYear(), cursor.getMonth() + 1, 1);
     }
   }
 
-  // Alternating phase row backgrounds
-  const bgStripes = visibleRows
-    .map((row, idx) => ({ idx, isPhase: row.type === "phase" }))
-    .filter((r) => r.isPhase);
-
   return (
     <>
-      {bgStripes.map(({ idx }) => (
-        <div
-          key={idx}
-          className="absolute inset-x-0 bg-muted/10"
-          style={{ top: idx * ROW_H, height: ROW_H }}
-        />
+      {visibleRows.map((row, idx) => row.type === "phase" ? (
+        <div key={idx} className="absolute inset-x-0 bg-muted/8" style={{ top: idx * ROW_H, height: ROW_H }} />
+      ) : null)}
+      {lines.filter((l) => l.isWeekend).map(({ x }) => (
+        <div key={`we-${x}`} className="absolute top-0 bottom-0 bg-muted/15 pointer-events-none" style={{ left: x, width: pxPerDay }} />
       ))}
-      {lines.map(({ x, strong }) => (
-        <div
-          key={x}
-          className={cn("absolute top-0 bottom-0 pointer-events-none", strong ? "border-l border-border/50" : "border-l border-border/20")}
-          style={{ left: x }}
-        />
+      {lines.filter((l) => !l.isWeekend).map(({ x, strong }) => (
+        <div key={x} className={cn("absolute top-0 bottom-0 pointer-events-none", strong ? "border-l border-border/40" : "border-l border-border/15")} style={{ left: x }} />
       ))}
     </>
   );

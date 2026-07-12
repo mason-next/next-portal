@@ -9,9 +9,10 @@ import { useViewAs } from "@/lib/view-as/ViewAsContext";
 import { useSession } from "@/lib/auth/client";
 import { getProjectTasks } from "@/lib/data/implementation";
 import { getGanttEntries } from "@/lib/data/gantt";
+import { getGanttDeps } from "@/lib/data/gantt-deps";
 import { GanttContainer } from "@/modules/gantt/components/GanttContainer";
 import type { ImplementationTask } from "@/types/implementation";
-import type { GanttEntryFull } from "@/types/gantt";
+import type { GanttEntryFull, GanttDependencyRecord } from "@/types/gantt";
 
 export default function ProjectGanttPage({
   params,
@@ -28,6 +29,7 @@ export default function ProjectGanttPage({
 
   const [tasks, setTasks] = useState<ImplementationTask[]>([]);
   const [ganttEntries, setGanttEntries] = useState<GanttEntryFull[]>([]);
+  const [ganttDeps, setGanttDeps] = useState<GanttDependencyRecord[]>([]);
   const [loading, setLoading] = useState(true);
 
   const canViewProject = hasAccess("projects");
@@ -39,13 +41,16 @@ export default function ProjectGanttPage({
 
   useEffect(() => {
     if (!projectId) return;
-    Promise.all([getProjectTasks(projectId), getGanttEntries(projectId)]).then(
-      ([t, g]) => {
-        setTasks(t);
-        setGanttEntries(g);
-        setLoading(false);
-      }
-    );
+    Promise.all([
+      getProjectTasks(projectId),
+      getGanttEntries(projectId),
+      getGanttDeps(projectId),
+    ]).then(([t, g, d]) => {
+      setTasks(t);
+      setGanttEntries(g);
+      setGanttDeps(d);
+      setLoading(false);
+    });
   }, [projectId]);
 
   if (!canViewProject) {
@@ -68,6 +73,7 @@ export default function ProjectGanttPage({
     <GanttContainer
       projectId={projectId}
       initialEntries={ganttEntries}
+      initialDeps={ganttDeps}
       allSteps={steps}
       allTasks={tasks}
       users={users}

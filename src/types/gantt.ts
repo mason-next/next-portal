@@ -13,6 +13,9 @@ export const ROW_H   = 40;  // px per row in the Gantt grid
 export const WBS_W   = 480; // px width of the left WBS panel
 export const HDR_H   = 52;  // px height of each header row (two rows stacked)
 
+export type ScheduleMode = "manual" | "auto";
+export type DependencyType = "FS" | "SS" | "FF" | "SF";
+
 // ─── Raw server data ───────────────────────────────────────────────────────────
 
 export interface GanttStepEntry {
@@ -21,6 +24,7 @@ export interface GanttStepEntry {
   projectId: string;
   customerVisible: boolean;
   sortOrder: number;
+  scheduleMode: ScheduleMode;
   workflowStepId: string;
   taskId: null;
   stepKey: string;
@@ -39,6 +43,7 @@ export interface GanttTaskEntry {
   projectId: string;
   customerVisible: boolean;
   sortOrder: number;
+  scheduleMode: ScheduleMode;
   workflowStepId: null;
   taskId: string;
   taskTitle: string;
@@ -53,6 +58,17 @@ export interface GanttTaskEntry {
 }
 
 export type GanttEntryFull = GanttStepEntry | GanttTaskEntry;
+
+// ─── Dependencies ──────────────────────────────────────────────────────────────
+
+export interface GanttDependencyRecord {
+  id: string;
+  projectId: string;
+  fromEntryId: string;
+  toEntryId: string;
+  type: DependencyType;
+  lagDays: number;
+}
 
 // ─── Display rows ─────────────────────────────────────────────────────────────
 
@@ -76,6 +92,7 @@ export interface GanttDisplayRow {
   endDate: Date | null;
   percentComplete: number;
   status: string;
+  scheduleMode: ScheduleMode;
 
   assigneeNames: string[];
   customerVisible: boolean;
@@ -95,6 +112,16 @@ export interface BarDragState {
   originalEndDate: Date;
   previewStartDate: Date;
   previewEndDate: Date;
+}
+
+export interface RowDragState {
+  sourceId: string;
+  startY: number;
+  currentY: number;
+}
+
+export interface LinkState {
+  sourceEntryId: string | null; // null = in link mode but no source chosen yet
 }
 
 export type EditingCell = {

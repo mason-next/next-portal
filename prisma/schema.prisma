@@ -259,6 +259,7 @@ model Project {
   technicians          ProjectTechnician[]
   meetingNotes         MeetingNote[]
   ganttEntries         GanttEntry[]
+  ganttDependencies    GanttDependency[]
 
   @@map("projects")
 }
@@ -680,15 +681,38 @@ model GanttEntry {
   taskId          String?  @unique
   customerVisible Boolean  @default(true)
   sortOrder       Int      @default(0)
+  scheduleMode    String   @default("manual") // "manual" | "auto"
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
 
-  project      Project              @relation(fields: [projectId], references: [id], onDelete: Cascade)
-  workflowStep WorkflowStep?        @relation(fields: [workflowStepId], references: [id], onDelete: Cascade)
-  task         ImplementationTask?  @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  project          Project              @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  workflowStep     WorkflowStep?        @relation(fields: [workflowStepId], references: [id], onDelete: Cascade)
+  task             ImplementationTask?  @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  outgoingDeps     GanttDependency[]    @relation("DepFrom")
+  incomingDeps     GanttDependency[]    @relation("DepTo")
 
   @@index([projectId])
   @@map("gantt_entries")
+}
+
+// Directed dependency between two Gantt entries. type = "FS" | "SS" | "FF" | "SF".
+// lagDays > 0 = lag, < 0 = lead.
+model GanttDependency {
+  id          String   @id @default(cuid())
+  projectId   String
+  fromEntryId String
+  toEntryId   String
+  type        String   @default("FS")
+  lagDays     Int      @default(0)
+  createdAt   DateTime @default(now())
+
+  project   Project    @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  fromEntry GanttEntry @relation("DepFrom", fields: [fromEntryId], references: [id], onDelete: Cascade)
+  toEntry   GanttEntry @relation("DepTo",   fields: [toEntryId],   references: [id], onDelete: Cascade)
+
+  @@unique([fromEntryId, toEntryId])
+  @@index([projectId])
+  @@map("gantt_dependencies")
 }
 
 // ─── Task Templates ───────────────────────────────────────────────────────────
