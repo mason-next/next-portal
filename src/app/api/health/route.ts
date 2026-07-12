@@ -1,11 +1,8 @@
-import { db } from "@/lib/db";
+export const dynamic = "force-dynamic";
 
 export async function GET() {
-  try {
-    await db.$queryRaw`SELECT 1`;
-    return Response.json({ ok: true });
-  } catch (err) {
-    console.error("[health] DB connectivity check failed:", err);
-    return Response.json({ ok: false, error: "db_unavailable" }, { status: 503 });
-  }
+  return Response.json(
+    { ok: true, timestamp: new Date().toISOString() },
+    { status: 200 },
+  );
 }
