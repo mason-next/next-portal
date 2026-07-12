@@ -1,5 +1,6 @@
 "use server";
 
+import { Prisma } from "@prisma/client";
 import { db } from "@/lib/db";
 import { requireEditPermission } from "@/lib/access-control";
 import type { GanttEntryFull } from "@/types/gantt";
@@ -101,7 +102,7 @@ export async function importGanttItems(
   });
   let nextOrder = (existing[0]?.sortOrder ?? -1) + 1;
 
-  const creates: Parameters<typeof db.ganttEntry.createMany>[0]["data"] = [];
+  const creates: Prisma.GanttEntryCreateManyInput[] = [];
 
   for (const item of items) {
     if (item.stepId) {
