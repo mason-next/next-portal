@@ -26,7 +26,8 @@ export function useWorkflowSteps(projectId: string) {
       .then(({ steps, percentByKey }) => {
         if (active) setLoaded({ projectId, steps, percentByKey });
       })
-      .catch(() => {
+      .catch((err: unknown) => {
+        console.error("[useWorkflowSteps] Failed to load workflow steps:", err);
         if (active) setLoaded({ projectId, steps: [], percentByKey: {} });
       });
     return () => {
