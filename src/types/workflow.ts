@@ -24,15 +24,16 @@ export const WORKFLOW_STEP_KEYS = [
   "initiateProcurementTracking",
   "scheduleInternalKickoff",
   "scheduleTechnicalKickoff",
-  "bomReview",
   // Engineering
+  "bomReview",
   "cadReview",
-  "pullSchedule",
   "ipScopeSwitchports",
   "functionalNarrative",
   "programmingMockups",
+  "drawingReview",
+  "pullSchedule",
   "engineeringPacket",
-  // Procurement & Kickoff Prep
+  // Procurement & Preparation
   "equipmentTracking",
   "scheduleResources",
   "onsiteWalkthrough",

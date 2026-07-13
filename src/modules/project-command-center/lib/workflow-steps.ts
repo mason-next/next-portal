@@ -33,6 +33,7 @@ export const BOX_SALE_EXCLUDED_STEPS = new Set<string>([
   "functionalNarrative",
   "programmingMockups",
   "engineeringPacket",
+  "drawingReview",
   "scheduleResources",
   "onsiteWalkthrough",
   "engineeringPacketReview",
@@ -72,36 +73,37 @@ export const WORKFLOW_STEP_TEMPLATE: WorkflowStepTemplateEntry[] = [
   { key: "initiateProcurementTracking", name: "Initiate Procurement Tracking",          sortOrder: 5,  section: "setup",            defaultOwnerRole: "insidePMId" },
   { key: "scheduleInternalKickoff",     name: "Internal Kickoff",                       sortOrder: 6,  section: "setup",            defaultOwnerRole: "insidePMId" },
   { key: "scheduleTechnicalKickoff",    name: "Customer Kickoff",                       sortOrder: 7,  section: "setup",            defaultOwnerRole: "solutionsEngineerId" },
-  { key: "bomReview",                   name: "BOM Review",                             sortOrder: 8,  section: "setup",            defaultOwnerRole: "solutionsEngineerId" },
   // ── Engineering ────────────────────────────────────────────────────────────
+  { key: "bomReview",                   name: "BOM Review",                             sortOrder: 8,  section: "engineering",      defaultOwnerRole: "solutionsEngineerId" },
   { key: "cadReview",                   name: "CAD Review",                             sortOrder: 9,  section: "engineering",      defaultOwnerRole: "solutionsEngineerId" },
-  { key: "pullSchedule",                name: "Pull Schedule",                          sortOrder: 10, section: "engineering",      defaultOwnerRole: "solutionsEngineerId" },
-  { key: "ipScopeSwitchports",          name: "IP Scope & Switchport Assignments",      sortOrder: 11, section: "engineering",      defaultOwnerRole: "solutionsEngineerId" },
-  { key: "functionalNarrative",         name: "Draft Functional Narrative",             sortOrder: 12, section: "engineering",      defaultOwnerRole: "solutionsEngineerId" },
-  { key: "programmingMockups",          name: "Programming Mockups",                    sortOrder: 13, section: "engineering",      defaultOwnerRole: "solutionsEngineerId" },
-  { key: "engineeringPacket",           name: "Compile & Submit Engineering Packet",    sortOrder: 14, section: "engineering",      defaultOwnerRole: "solutionsEngineerId" },
-  // ── Procurement & Pre-Construction ─────────────────────────────────────────
-  { key: "equipmentTracking",           name: "Equipment Tracking",                     sortOrder: 15, section: "procurement",      defaultOwnerRole: "insidePMId" },
-  { key: "scheduleResources",           name: "Schedule Resources",                     sortOrder: 16, section: "procurement",      defaultOwnerRole: "insidePMId" },
-  { key: "onsiteWalkthrough",           name: "Onsite Walkthrough",                     sortOrder: 17, section: "procurement",      defaultOwnerRole: "fieldProjectManagerId" },
+  { key: "ipScopeSwitchports",          name: "IP Scope & Switchport Assignments",      sortOrder: 10, section: "engineering",      defaultOwnerRole: "solutionsEngineerId" },
+  { key: "functionalNarrative",         name: "Draft Functional Narrative",             sortOrder: 11, section: "engineering",      defaultOwnerRole: "solutionsEngineerId" },
+  { key: "programmingMockups",          name: "Programming Mockups",                    sortOrder: 12, section: "engineering",      defaultOwnerRole: "solutionsEngineerId" },
+  { key: "drawingReview",               name: "Drawing Review & Red Lines",             sortOrder: 13, section: "engineering",      defaultOwnerRole: "solutionsEngineerId" },
+  { key: "pullSchedule",                name: "Pull Schedule",                          sortOrder: 14, section: "engineering",      defaultOwnerRole: "solutionsEngineerId" },
+  { key: "engineeringPacket",           name: "Compile & Submit Packet to Hub",         sortOrder: 15, section: "engineering",      defaultOwnerRole: "solutionsEngineerId" },
+  // ── Procurement & Preparation ──────────────────────────────────────────────
+  { key: "equipmentTracking",           name: "Equipment Tracking",                     sortOrder: 16, section: "procurement",      defaultOwnerRole: "insidePMId" },
+  { key: "scheduleResources",           name: "Schedule Resources",                     sortOrder: 17, section: "procurement",      defaultOwnerRole: "insidePMId" },
   { key: "engineeringPacketReview",     name: "Engineering Packet Review",              sortOrder: 18, section: "procurement",      defaultOwnerRole: "solutionsEngineerId" },
-  { key: "submitPmReview",              name: "Submit PM Review",                       sortOrder: 19, section: "procurement",      defaultOwnerRole: "insidePMId" },
+  { key: "onsiteWalkthrough",           name: "Onsite Walkthrough",                     sortOrder: 19, section: "procurement",      defaultOwnerRole: "fieldProjectManagerId" },
+  { key: "submitPmReview",              name: "Submit PM Review",                       sortOrder: 20, section: "procurement",      defaultOwnerRole: "insidePMId" },
   // ── Implementation ─────────────────────────────────────────────────────────
-  { key: "installation",                name: "Installation",                           sortOrder: 20, section: "implementation",   defaultOwnerRole: "fieldProjectManagerId" },
-  { key: "programming",                 name: "Programming",                            sortOrder: 21, section: "implementation",   defaultOwnerRole: "fieldProjectManagerId" },
-  { key: "commissioning",               name: "Commissioning",                          sortOrder: 22, section: "implementation",   defaultOwnerRole: "fieldProjectManagerId" },
+  { key: "installation",                name: "Installation",                           sortOrder: 21, section: "implementation",   defaultOwnerRole: "fieldProjectManagerId" },
+  { key: "programming",                 name: "Programming",                            sortOrder: 22, section: "implementation",   defaultOwnerRole: "fieldProjectManagerId" },
+  { key: "commissioning",               name: "Commissioning",                          sortOrder: 23, section: "implementation",   defaultOwnerRole: "fieldProjectManagerId" },
   // ── Implementation (SC variants) ──────────────────────────────────────────
-  { key: "roughIn",                     name: "Rough-In",                               sortOrder: 20, section: "implementation",   defaultOwnerRole: "fieldProjectManagerId" },
-  { key: "termination",                 name: "Termination",                            sortOrder: 21, section: "implementation",   defaultOwnerRole: "fieldProjectManagerId" },
-  { key: "certification",               name: "Certification",                          sortOrder: 22, section: "implementation",   defaultOwnerRole: "fieldProjectManagerId" },
+  { key: "roughIn",                     name: "Rough-In",                               sortOrder: 21, section: "implementation",   defaultOwnerRole: "fieldProjectManagerId" },
+  { key: "termination",                 name: "Termination",                            sortOrder: 22, section: "implementation",   defaultOwnerRole: "fieldProjectManagerId" },
+  { key: "certification",               name: "Certification",                          sortOrder: 23, section: "implementation",   defaultOwnerRole: "fieldProjectManagerId" },
   // ── Closeout ───────────────────────────────────────────────────────────────
-  { key: "customerTraining",            name: "Customer Training",                      sortOrder: 23, section: "closeout",         defaultOwnerRole: "fieldProjectManagerId" },
-  { key: "finalDayDocumentation",       name: "Final Day Documentation",                sortOrder: 24, section: "closeout",         defaultOwnerRole: "fieldProjectManagerId" },
-  { key: "closeoutPacket",              name: "Compile Closeout Packet & Submit",       sortOrder: 25, section: "closeout",         defaultOwnerRole: "seniorInsideId" },
-  { key: "processRmas",                 name: "Process RMAs & Return to Stock",         sortOrder: 26, section: "closeout",         defaultOwnerRole: "insidePMId" },
-  { key: "closeout",                    name: "Closeout",                               sortOrder: 27, section: "closeout",         defaultOwnerRole: "seniorInsideId" },
+  { key: "customerTraining",            name: "Customer Training",                      sortOrder: 24, section: "closeout",         defaultOwnerRole: "fieldProjectManagerId" },
+  { key: "finalDayDocumentation",       name: "Final Day Documentation",                sortOrder: 25, section: "closeout",         defaultOwnerRole: "fieldProjectManagerId" },
+  { key: "closeoutPacket",              name: "Compile Closeout Packet & Submit",       sortOrder: 26, section: "closeout",         defaultOwnerRole: "seniorInsideId" },
+  { key: "processRmas",                 name: "Process RMAs & Return to Stock",         sortOrder: 27, section: "closeout",         defaultOwnerRole: "insidePMId" },
+  { key: "closeout",                    name: "Closeout",                               sortOrder: 28, section: "closeout",         defaultOwnerRole: "seniorInsideId" },
   // ── Service & Warranty ─────────────────────────────────────────────────────
-  { key: "serviceWarranty",             name: "Service & Warranty",                     sortOrder: 28, section: "serviceWarranty",  defaultOwnerRole: "fieldProjectManagerId" },
+  { key: "serviceWarranty",             name: "Service & Warranty",                     sortOrder: 29, section: "serviceWarranty",  defaultOwnerRole: "fieldProjectManagerId" },
 ];
 
 // Each phase's fixed weight budget — independent of how many steps currently exist in it.
@@ -148,7 +150,7 @@ export function stepHasAction(key: string): boolean {
 export const SECTION_LABEL: Record<ProjectSectionKey, string> = {
   setup: "Setup",
   engineering: "Engineering",
-  procurement: "Procurement & Kickoff Prep",
+  procurement: "Procurement & Preparation",
   implementation: "Implementation",
   closeout: "Closeout",
   serviceWarranty: "Service & Warranty",
@@ -179,7 +181,7 @@ export const PROJECT_SECTIONS: { key: "dashboard" | "meetingNotes" | ProjectSect
   { key: "dashboard", label: "Dashboard", href: "" },
   { key: "setup", label: "Setup", href: "/setup" },
   { key: "engineering", label: "Engineering", href: "/engineering" },
-  { key: "procurement", label: "Procurement & Kickoff Prep", href: "/procurement" },
+  { key: "procurement", label: "Procurement & Preparation", href: "/procurement" },
   { key: "implementation", label: "Implementation", href: "/implementation" },
   { key: "closeout", label: "Closeout", href: "/closeout" },
   { key: "serviceWarranty", label: "Service & Warranty", href: "/service-warranty" },
@@ -233,6 +235,7 @@ export const DEFAULT_PROJECT_TYPE_CONFIG: ProjectTypeWorkflowConfig = {
     scheduleInternalKickoff:      ["Box Sale"],
     scheduleTechnicalKickoff:     ["Box Sale"],
     cadReview:                    ["Box Sale"],
+    drawingReview:                ["Box Sale"],
     pullSchedule:                 ["Box Sale"],
     engineeringPacket:            ["Box Sale"],
     scheduleResources:            ["Box Sale"],
@@ -257,12 +260,6 @@ export const DEFAULT_PROJECT_TYPE_CONFIG: ProjectTypeWorkflowConfig = {
     roughIn:                      [...NON_SC],
     termination:                  [...NON_SC],
     certification:                [...NON_SC],
-  },
-  sectionLabelOverrides: {
-    // Box Sale doesn't involve kickoff prep steps, so the shorter label fits better.
-    procurement: {
-      "Box Sale": "Procurement",
-    },
   },
 };
 

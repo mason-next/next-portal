@@ -12,6 +12,21 @@ import { PROJECT_SECTION_KEYS, type WorkflowStep, type WorkflowStepKey } from "@
 // the Setup phase's even split.
 const WEIGHT_EXEMPT_STEPS = new Set<WorkflowStepKey>(["opportunityWon", "projectCreated"]);
 
+// Steps that are due within 48 business hours of project creation (setup housekeeping + BOM review).
+const QUICK_DUE_STEPS = new Set<string>([
+  "assignTeam", "sendWelcomeLetter", "initiateProcurementTracking",
+  "scheduleInternalKickoff", "scheduleTechnicalKickoff", "bomReview",
+]);
+
+// Returns an ISO date string 48 h after `isoDate`, pushed to Monday if the result falls on a weekend.
+function nextBusinessDayFrom48h(isoDate: string): string {
+  const d = new Date(isoDate);
+  d.setTime(d.getTime() + 48 * 60 * 60 * 1000);
+  if (d.getDay() === 6) d.setDate(d.getDate() + 2); // Saturday → Monday
+  if (d.getDay() === 0) d.setDate(d.getDate() + 1); // Sunday  → Monday
+  return d.toISOString().split("T")[0] + "T00:00:00.000Z";
+}
+
 function step(
   projectId: string,
   key: WorkflowStepKey,
@@ -34,6 +49,7 @@ function step(
     sortOrder: template.sortOrder,
     status,
     ownerId,
+    startDate: null,
     dueDate,
     completedDate,
     updatedAt,
@@ -65,7 +81,8 @@ export function defaultWorkflowSteps(
       if (key === "opportunityWon" || key === "projectCreated") {
         return step(projectId, key, "Complete", null, createdAt, createdAt, createdAt);
       }
-      return step(projectId, key, "Not Started", null, null, null, createdAt);
+      const dueDate = QUICK_DUE_STEPS.has(key) ? nextBusinessDayFrom48h(createdAt) : null;
+      return step(projectId, key, "Not Started", null, dueDate, null, createdAt);
     });
   return withSeededWeights(raw);
 }
