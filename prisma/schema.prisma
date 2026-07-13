@@ -331,6 +331,7 @@ model ProjectActivity {
   attachments  Json             @default("[]")
   // User-visible tag: "General" (default project comment) | "Status" (customer-facing status update)
   tag          String           @default("General")
+  pinned       Boolean          @default(false)
   createdAt    DateTime         @default(now())
 
   project         Project          @relation(fields: [projectId], references: [id], onDelete: Cascade)

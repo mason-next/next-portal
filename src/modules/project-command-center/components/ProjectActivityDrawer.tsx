@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { Activity, BarChart2, CheckCircle2, CheckSquare, MessageSquare, RefreshCw, Search, Settings2, X } from "lucide-react";
+import { Activity, BarChart2, CheckCircle2, CheckSquare, MessageSquare, Pin, PinOff, RefreshCw, Search, Settings2, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { UserAvatarImage } from "@/components/shared/AppShell/UserAvatarImage";
 import { useUsersContext } from "@/components/shared/AppShell/UsersProvider";
@@ -15,6 +15,7 @@ import {
   addProjectComment,
   deleteProjectActivity,
   getProjectActivity,
+  pinProjectActivity,
   updateProjectComment,
 } from "@/lib/data/activity";
 import { addTaskComment, getProjectTaskComments, getProjectTasks } from "@/lib/data/implementation";
@@ -261,6 +262,18 @@ export function ProjectActivityDrawer({ projectId }: { projectId: string }) {
     refresh();
   }
 
+  async function handlePin(activityId: string, pinned: boolean) {
+    // Optimistic update
+    setActivity((prev) =>
+      prev ? prev.map((a) => (a.id === activityId ? { ...a, pinned } : a)) : prev
+    );
+    await pinProjectActivity(activityId, pinned);
+  }
+
+  const canPin =
+    session.roleTypes.includes("Administrator") ||
+    session.roleTypes.some((r) => !["Customer", "Subcontractor"].includes(r));
+
   const mentionableUsers = project ? getMentionableUsers(project, users) : [];
 
   // Build the unified feed: merge project activity + task comments, sort newest-first.
@@ -273,11 +286,21 @@ export function ProjectActivityDrawer({ projectId }: { projectId: string }) {
     (item) => !lastViewed || new Date(item.createdAt) > new Date(lastViewed)
   ).length;
 
-  const visibleItems = hideNonComments
+  const allVisibleItems = hideNonComments
     ? feedItems.filter((item) => item._kind === "task" || item.category === "comment")
     : feedItems;
 
-  const groups = groupByDate(visibleItems);
+  const pinnedItems = allVisibleItems.filter(
+    (item) => item._kind === "project" && (item as ProjectActivity & { _kind: "project" }).pinned
+  );
+  const unpinnedItems = allVisibleItems.filter(
+    (item) => !(item._kind === "project" && (item as ProjectActivity & { _kind: "project" }).pinned)
+  );
+
+  // Keep backwards-compat name for the empty-state check
+  const visibleItems = allVisibleItems;
+
+  const groups = groupByDate(unpinnedItems);
 
   const filteredTasks = (projectTasks ?? []).filter(
     (t) => !taskPickerQuery || t.title.toLowerCase().includes(taskPickerQuery.toLowerCase())
@@ -486,6 +509,35 @@ export function ProjectActivityDrawer({ projectId }: { projectId: string }) {
             </p>
           ) : (
             <div className="space-y-5">
+              {/* Pinned section */}
+              {pinnedItems.length > 0 && (
+                <div>
+                  <div className="mb-2 flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-amber-600 dark:text-amber-400">
+                    <Pin className="size-3" />
+                    Pinned
+                  </div>
+                  <div className="space-y-3 rounded-lg border border-amber-200 bg-amber-50/60 p-2.5 dark:border-amber-800/40 dark:bg-amber-950/20">
+                    {pinnedItems.map((item) => (
+                      <ActivityRow
+                        key={item.id}
+                        item={item}
+                        projectId={projectId}
+                        currentUserName={session.name}
+                        currentUserId={session.id}
+                        currentUserAvatar={currentUserAvatar}
+                        mentionableUsers={mentionableUsers}
+                        canPin={canPin}
+                        onDelete={handleDelete}
+                        onPin={handlePin}
+                        onEdited={refresh}
+                        highlighted={item.id === highlightedId}
+                      />
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Chronological feed (unpinned) */}
               {groups.map((group) => (
                 <div key={group.label}>
                   <div className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
@@ -501,7 +553,9 @@ export function ProjectActivityDrawer({ projectId }: { projectId: string }) {
                         currentUserId={session.id}
                         currentUserAvatar={currentUserAvatar}
                         mentionableUsers={mentionableUsers}
+                        canPin={canPin}
                         onDelete={handleDelete}
+                        onPin={handlePin}
                         onEdited={refresh}
                         highlighted={item.id === highlightedId}
                       />
@@ -524,7 +578,9 @@ function ActivityRow({
   currentUserId,
   currentUserAvatar,
   mentionableUsers,
+  canPin,
   onDelete,
+  onPin,
   onEdited,
   highlighted,
 }: {
@@ -534,7 +590,9 @@ function ActivityRow({
   currentUserId: string;
   currentUserAvatar: string | null;
   mentionableUsers: AppUser[];
+  canPin?: boolean;
   onDelete: (activityId: string) => void;
+  onPin?: (activityId: string, pinned: boolean) => void;
   onEdited: () => void;
   highlighted: boolean;
 }) {
@@ -684,22 +742,50 @@ function ActivityRow({
             </div>
           )}
 
-          {isOwn && !editing ? (
+          {!editing && (isOwn || canPin) ? (
             <div className="mt-1 flex gap-3">
-              <button
-                type="button"
-                onClick={handleStartEdit}
-                className="text-xs text-muted-foreground hover:text-foreground hover:underline"
-              >
-                Edit
-              </button>
-              <button
-                type="button"
-                onClick={() => onDelete(projItem.id)}
-                className="text-xs text-muted-foreground hover:text-foreground hover:underline"
-              >
-                Delete
-              </button>
+              {isOwn && (
+                <>
+                  <button
+                    type="button"
+                    onClick={handleStartEdit}
+                    className="text-xs text-muted-foreground hover:text-foreground hover:underline"
+                  >
+                    Edit
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => onDelete(projItem.id)}
+                    className="text-xs text-muted-foreground hover:text-foreground hover:underline"
+                  >
+                    Delete
+                  </button>
+                </>
+              )}
+              {canPin && onPin && (
+                <button
+                  type="button"
+                  onClick={() => onPin(projItem.id, !projItem.pinned)}
+                  className={cn(
+                    "flex items-center gap-1 text-xs hover:underline",
+                    projItem.pinned
+                      ? "text-amber-600 hover:text-amber-700 dark:text-amber-400 dark:hover:text-amber-300"
+                      : "text-muted-foreground hover:text-foreground"
+                  )}
+                >
+                  {projItem.pinned ? (
+                    <>
+                      <PinOff className="size-3" />
+                      Unpin
+                    </>
+                  ) : (
+                    <>
+                      <Pin className="size-3" />
+                      Pin
+                    </>
+                  )}
+                </button>
+              )}
             </div>
           ) : null}
         </div>

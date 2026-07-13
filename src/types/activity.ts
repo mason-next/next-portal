@@ -38,6 +38,7 @@ export interface ProjectActivity {
   attachments?: import("@/types/attachments").CommentAttachment[];
   // Classification tag — defaults to "General" for all pre-existing rows.
   tag: ActivityTag;
+  pinned: boolean;
   createdAt: string; // ISO 8601
 }
 
