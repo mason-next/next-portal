@@ -6,6 +6,7 @@ import {
   useContext,
   useEffect,
   useMemo,
+  useRef,
   useState,
   useTransition,
 } from "react";
@@ -18,6 +19,7 @@ import {
   Position,
   ReactFlow,
   ReactFlowProvider,
+  SelectionMode,
   useNodesState,
   useEdgesState,
   useReactFlow,
@@ -43,12 +45,16 @@ import {
   ChevronUp,
   ChevronLeft,
   ChevronRight,
+  Download,
+  Hand,
   Maximize2,
+  MousePointer2,
   Plus,
   Search,
   Network,
   GitBranch,
   RotateCcw,
+  Upload,
   Wand2,
   Undo2,
   Grid3x3,
@@ -56,6 +62,7 @@ import {
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import {
+  createOrgPosition,
   swapOrgDepartmentOrder,
   savePositionLayout,
   batchSavePositionLayouts,
@@ -91,7 +98,22 @@ type LayoutSnapshot = {
   depts:     Map<string, DeptLayoutState>;
 };
 
-type AlignOp = "top" | "bottom" | "left" | "right" | "centerH" | "centerV" | "distH" | "distV";
+type AlignOp    = "top" | "bottom" | "left" | "right" | "centerH" | "centerV" | "distH" | "distV";
+type CanvasMode = "pan" | "select";
+
+// Quote-aware CSV line splitter
+function parseCsvLine(line: string): string[] {
+  const out: string[] = [];
+  let cur = "", inQ = false;
+  for (let i = 0; i < line.length; i++) {
+    const ch = line[i];
+    if (ch === '"') { inQ = !inQ; }
+    else if (ch === "," && !inQ) { out.push(cur.trim()); cur = ""; }
+    else { cur += ch; }
+  }
+  out.push(cur.trim());
+  return out;
+}
 
 // ─── Dept group nudge: push overlapping boxes apart (used after auto-align) ──
 
@@ -681,6 +703,11 @@ function OrgChartInner({
   // IDs of currently selected position nodes (for multi-select alignment toolbar)
   const [selectedPositionIds, setSelectedPositionIds] = useState<Set<string>>(new Set());
 
+  // Canvas interaction mode: pan (default) or marquee select
+  const [canvasMode,    setCanvasMode]    = useState<CanvasMode>("pan");
+  const [importPending, setImportPending] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
   const viewType = viewMode === "mindmap" ? "mind_map" : "org_chart";
 
   // Saved DB position layouts, keyed by positionId for current viewType
@@ -855,11 +882,9 @@ function OrgChartInner({
   function expandAll()   { setCollapsed(new Set()); }
   function collapseAll() { setCollapsed(new Set(parentIds)); }
 
-  // Node click opens edit form (positions only, not dept boxes)
-  // Modifier+click is multi-select — skip modal so RF can handle selection
-  const onNodeClick: NodeMouseHandler = useCallback((event, node) => {
+  // Double-click opens edit modal; single click is handled by RF for selection
+  const onNodeDoubleClick: NodeMouseHandler = useCallback((_event, node) => {
     if (node.id.startsWith("dg-") || !onEdit || !isAdmin) return;
-    if (event.shiftKey || event.ctrlKey || event.metaKey) return;
     const pos = positionsById.get(node.id);
     if (pos) onEdit(pos);
   }, [onEdit, isAdmin, positionsById]);
@@ -1150,6 +1175,119 @@ function OrgChartInner({
     });
   }, [versionId, selectedPositionIds, nodes, viewType, setNodes, startTransition]);
 
+  // ─── CSV Import ───────────────────────────────────────────────────────────────
+
+  const handleFileSelect = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const text = await file.text();
+    const lines = text.split(/\r?\n/).filter((l) => l.trim());
+    if (lines.length < 2) {
+      alert("CSV must have a header row and at least one data row.");
+      if (fileInputRef.current) fileInputRef.current.value = "";
+      return;
+    }
+
+    const headers    = parseCsvLine(lines[0]).map((h) => h.toLowerCase().replace(/\s+/g, ""));
+    const titleIdx   = headers.findIndex((h) => ["title", "position", "role", "jobtitle"].includes(h));
+    const deptIdx    = headers.findIndex((h) => ["department", "dept"].includes(h));
+    const statusIdx  = headers.findIndex((h) => h === "status");
+
+    if (titleIdx === -1) {
+      alert('CSV must have a "Title" column (also accepted: Position, Role).');
+      if (fileInputRef.current) fileInputRef.current.value = "";
+      return;
+    }
+
+    const deptByName = new Map(departments.map((d) => [d.name.toLowerCase(), d]));
+    const validStatuses = new Set(["filled", "open", "planned", "inactive"]);
+
+    const rows = lines.slice(1).flatMap((line, i) => {
+      const cols  = parseCsvLine(line);
+      const title = cols[titleIdx]?.trim();
+      if (!title) return [];
+      const rawDept  = deptIdx    !== -1 ? (cols[deptIdx]?.trim()   ?? "") : "";
+      const rawStatus = statusIdx !== -1 ? (cols[statusIdx]?.trim()?.toLowerCase() ?? "open") : "open";
+      const dept    = rawDept  ? deptByName.get(rawDept.toLowerCase())  : null;
+      const status  = validStatuses.has(rawStatus) ? rawStatus : "open";
+      const warning = rawDept && !dept ? `Row ${i + 2}: department "${rawDept}" not found — will be unassigned` : "";
+      return [{ title, departmentId: dept?.id ?? null, status, warning }];
+    });
+
+    if (rows.length === 0) {
+      alert("No valid title rows found in CSV.");
+      if (fileInputRef.current) fileInputRef.current.value = "";
+      return;
+    }
+
+    const warnings = rows.filter((r) => r.warning).map((r) => `• ${r.warning}`).join("\n");
+    const msg = `Import ${rows.length} position${rows.length === 1 ? "" : "s"} into the current org chart?${warnings ? `\n\nWarnings:\n${warnings}` : ""}`;
+    if (!confirm(msg)) {
+      if (fileInputRef.current) fileInputRef.current.value = "";
+      return;
+    }
+
+    setImportPending(true);
+    try {
+      for (const row of rows) {
+        await createOrgPosition({ orgChartVersionId: versionId, title: row.title, departmentId: row.departmentId, status: row.status });
+      }
+      router.refresh();
+    } catch {
+      alert("Import failed. Check the console for details.");
+    } finally {
+      setImportPending(false);
+      if (fileInputRef.current) fileInputRef.current.value = "";
+    }
+  }, [departments, versionId, router]);
+
+  // ─── PDF Export ───────────────────────────────────────────────────────────────
+
+  const handleExportPdf = useCallback(async () => {
+    const [{ default: jsPDF }, { default: autoTable }] = await Promise.all([
+      import("jspdf"),
+      import("jspdf-autotable"),
+    ]);
+
+    const doc = new jsPDF({ orientation: "landscape", unit: "mm", format: "a4" });
+    doc.setFontSize(18);
+    doc.text("Org Chart", 14, 14);
+    doc.setFontSize(10);
+    doc.setTextColor(120);
+    doc.text(new Date().toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" }), 14, 21);
+    doc.setTextColor(0);
+
+    const body = [...positions]
+      .sort((a, b) => {
+        const da = a.department?.name ?? "";
+        const db = b.department?.name ?? "";
+        return da.localeCompare(db) || a.title.localeCompare(b.title);
+      })
+      .map((p) => {
+        const dept      = p.departmentId ? departmentsById.get(p.departmentId) : null;
+        const division  = dept?.division?.name ?? "—";
+        const deptName  = dept?.name ?? "—";
+        const assignee  = p.assignments.find((a) => a.isActive && a.assignmentType === "primary");
+        const user      = assignee?.user?.name ?? "Vacant";
+        const statusLbl = p.status.charAt(0).toUpperCase() + p.status.slice(1);
+        const reportsTo = p.reportsToPositionId ? (positions.find((x) => x.id === p.reportsToPositionId)?.title ?? "—") : "—";
+        return [p.title, division, deptName, statusLbl, user, reportsTo];
+      });
+
+    autoTable(doc, {
+      startY: 26,
+      head: [["Position Title", "Division", "Department", "Status", "Assigned To", "Reports To"]],
+      body,
+      styles:          { fontSize: 8.5, cellPadding: 3 },
+      headStyles:      { fillColor: [99, 102, 241], textColor: 255, fontStyle: "bold" },
+      alternateRowStyles: { fillColor: [248, 249, 255] },
+      columnStyles:    { 0: { cellWidth: 65 }, 1: { cellWidth: 38 }, 2: { cellWidth: 38 }, 3: { cellWidth: 22 }, 4: { cellWidth: 50 }, 5: { cellWidth: 50 } },
+    });
+
+    doc.save("org-chart.pdf");
+  }, [positions, departmentsById]);
+
   // ─── Toolbar button style helpers ─────────────────────────────────────────────
 
   const btnBase = "flex items-center gap-1.5 rounded-md border px-3 py-1.5 text-sm transition-colors";
@@ -1257,7 +1395,7 @@ function OrgChartInner({
             {showGrid ? "Grid" : "Grid"}
           </button>
 
-          {/* Admin-only: Auto Align, Undo, Reset */}
+          {/* Admin-only: Auto Align, Undo, Reset, Canvas mode, Import */}
           {isAdmin && (
             <>
               <button
@@ -1291,16 +1429,60 @@ function OrgChartInner({
                   <RotateCcw className="size-3.5" /> Reset
                 </button>
               )}
+
+              {/* Canvas mode toggle — Pan ↔ Select */}
+              <div className="flex rounded-md border overflow-hidden">
+                <button
+                  type="button"
+                  onClick={() => setCanvasMode("pan")}
+                  title="Pan mode — drag to pan the canvas"
+                  className={cn("flex items-center gap-1.5 px-2.5 py-1.5 text-sm transition-colors",
+                    canvasMode === "pan" ? "bg-primary text-primary-foreground" : "bg-background hover:bg-muted/40")}
+                >
+                  <Hand className="size-3.5" />
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setCanvasMode("select")}
+                  title="Select mode — drag to draw a selection box around multiple positions"
+                  className={cn("flex items-center gap-1.5 px-2.5 py-1.5 text-sm transition-colors border-l",
+                    canvasMode === "select" ? "bg-primary text-primary-foreground" : "bg-background hover:bg-muted/40")}
+                >
+                  <MousePointer2 className="size-3.5" />
+                </button>
+              </div>
+
+              {/* Import CSV */}
+              <button
+                type="button"
+                onClick={() => fileInputRef.current?.click()}
+                disabled={importPending}
+                className={`${btnNormal} disabled:opacity-50 disabled:cursor-not-allowed`}
+                title="Import positions from CSV. Columns: Title (required), Department, Status"
+              >
+                <Upload className="size-3.5" />
+                {importPending ? "Importing…" : "Import"}
+              </button>
             </>
           )}
+
+          {/* Export PDF — visible to all users */}
+          <button
+            type="button"
+            onClick={handleExportPdf}
+            className={btnNormal}
+            title="Export org chart to PDF"
+          >
+            <Download className="size-3.5" /> Export
+          </button>
         </div>
 
         {/* Admin hint */}
         {isAdmin && positions.length > 1 && (
           <p className="text-[11px] text-muted-foreground/60 px-0.5">
-            Drag cards or dept boxes to reposition. Click a dept box to select it, then drag handles to resize.
-            ← → sets canonical sibling order for Auto Align. Click any card to edit.
-            Shift+Click or Ctrl+Click to multi-select.
+            <strong>Pan mode:</strong> drag to pan · <strong>Select mode:</strong> drag to draw selection box.
+            Double-click a card to edit. Shift+Click or Ctrl+Click to add to selection.
+            Click a dept box and drag handles to resize.
           </p>
         )}
 
@@ -1354,12 +1536,15 @@ function OrgChartInner({
               proOptions={{ hideAttribution: true }}
               nodesDraggable={false}         // per-node `draggable` overrides this
               nodesConnectable={false}
-              elementsSelectable={isAdmin}   // admins can select (for NodeResizer, multi-select)
+              elementsSelectable={isAdmin}
               multiSelectionKeyCode={["Meta", "Control"]}
               selectionKeyCode="Shift"
+              selectionOnDrag={isAdmin && canvasMode === "select"}
+              selectionMode={SelectionMode.Partial}
+              panOnDrag={canvasMode === "select" ? [1, 2] : true}
               snapToGrid
               snapGrid={[SNAP_GRID, SNAP_GRID]}
-              onNodeClick={onNodeClick}
+              onNodeDoubleClick={onNodeDoubleClick}
               onNodeDragStop={onNodeDragStop}
               onSelectionChange={onSelectionChange}
             >
@@ -1377,6 +1562,15 @@ function OrgChartInner({
           )}
         </div>
       </div>
+
+      {/* Hidden file input for CSV import */}
+      <input
+        ref={fileInputRef}
+        type="file"
+        accept=".csv,.tsv,.txt"
+        className="hidden"
+        onChange={handleFileSelect}
+      />
     </OrgCtx.Provider>
   );
 }
