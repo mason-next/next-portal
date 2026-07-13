@@ -4,7 +4,7 @@ import { use, useState } from "react";
 import Link from "next/link";
 import { notFound, useRouter } from "next/navigation";
 import { ExternalLink, FileText } from "lucide-react";
-import { Button, buttonVariants } from "@/components/ui/button";
+import { Button } from "@/components/ui/button";
 import { ProjectHeaderCard } from "@/components/shared/AppShell/ProjectHeaderCard";
 import { ProjectTabNav } from "@/components/shared/AppShell/ProjectTabNav";
 import { EditProjectModal } from "@/components/shared/AppShell/EditProjectModal";
@@ -115,15 +115,19 @@ function ProjectLayoutBody({
         actions={
           <>
             {project.connectwiseUrl ? (
-              <a
-                href={project.connectwiseUrl}
-                target="_blank"
-                rel="noopener noreferrer"
-                className={buttonVariants({ variant: "outline" })}
+              <Button
+                variant="outline"
+                render={
+                  <a
+                    href={project.connectwiseUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  />
+                }
               >
                 <ExternalLink className="mr-1.5 size-4" />
                 ConnectWise
-              </a>
+              </Button>
             ) : null}
             <Button variant="outline" onClick={() => setShowBrief(true)}>
               <FileText className="mr-1.5 size-4" />
