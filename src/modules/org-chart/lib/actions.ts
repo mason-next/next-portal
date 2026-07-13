@@ -8,6 +8,8 @@ import { canManageOrgChart } from "./permissions";
 import type {
   OrgChartVersion,
   OrgCertification,
+  OrgDivision,
+  CreateDivisionInput,
   CreatePositionInput,
   UpdatePositionInput,
   CreateDepartmentInput,
@@ -227,6 +229,44 @@ export async function deleteOrgPosition(id: string) {
   revalidatePath("/org-chart");
 }
 
+// ─── Divisions ────────────────────────────────────────────────────────────────
+
+export async function createOrgDivision(input: CreateDivisionInput): Promise<OrgDivision> {
+  await requireAdmin();
+  const div = await db.orgDivision.create({
+    data: {
+      name: input.name,
+      description: input.description ?? null,
+      color: input.color ?? "#6366f1",
+      status: input.status ?? "active",
+    },
+  });
+  revalidatePath("/org-chart");
+  return {
+    ...div,
+    createdAt: div.createdAt.toISOString(),
+    updatedAt: div.updatedAt.toISOString(),
+  };
+}
+
+export async function updateOrgDivision(id: string, input: Partial<CreateDivisionInput>) {
+  await requireAdmin();
+  await db.orgDivision.update({ where: { id }, data: input });
+  revalidatePath("/org-chart");
+}
+
+export async function deleteOrgDivision(id: string) {
+  await requireAdmin();
+  // Unlink departments from this division (SetNull in schema handles the FK,
+  // but we updateMany here to keep the Prisma client in sync within the same tx)
+  await db.orgDepartment.updateMany({
+    where: { divisionId: id },
+    data: { divisionId: null },
+  });
+  await db.orgDivision.delete({ where: { id } });
+  revalidatePath("/org-chart");
+}
+
 // ─── Departments ──────────────────────────────────────────────────────────────
 
 export async function createOrgDepartment(input: CreateDepartmentInput) {
@@ -237,6 +277,7 @@ export async function createOrgDepartment(input: CreateDepartmentInput) {
       description: input.description ?? null,
       color: input.color ?? "#6366f1",
       status: input.status ?? "active",
+      divisionId: input.divisionId ?? null,
     },
   });
   revalidatePath("/org-chart");
@@ -245,7 +286,16 @@ export async function createOrgDepartment(input: CreateDepartmentInput) {
 
 export async function updateOrgDepartment(id: string, input: Partial<CreateDepartmentInput>) {
   await requireAdmin();
-  await db.orgDepartment.update({ where: { id }, data: input });
+  await db.orgDepartment.update({
+    where: { id },
+    data: {
+      ...(input.name        !== undefined && { name:        input.name }),
+      ...(input.description !== undefined && { description: input.description }),
+      ...(input.color       !== undefined && { color:       input.color }),
+      ...(input.status      !== undefined && { status:      input.status }),
+      ...("divisionId" in input          && { divisionId:  input.divisionId ?? null }),
+    },
+  });
   revalidatePath("/org-chart");
 }
 

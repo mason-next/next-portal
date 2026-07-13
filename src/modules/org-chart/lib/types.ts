@@ -5,6 +5,17 @@ export type OrgPositionStatus = "filled" | "open" | "planned" | "inactive";
 export type OrgChartVersionType = "current" | "future" | "one_year" | "three_year" | "scenario";
 export type OrgAssignmentType = "primary" | "secondary";
 
+export interface OrgDivision {
+  id: string;
+  name: string;
+  description: string | null;
+  color: string;
+  status: string;
+  sortOrder: number | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
 export interface OrgDepartment {
   id: string;
   name: string;
@@ -12,6 +23,8 @@ export interface OrgDepartment {
   color: string;
   status: string;
   sortOrder: number | null;
+  divisionId: string | null;
+  division: OrgDivision | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -220,11 +233,19 @@ export interface AddUserCertificationInput {
 
 export type SuccessorEntry = { userId: string; notes: string | null };
 
+export interface CreateDivisionInput {
+  name: string;
+  description?: string | null;
+  color?: string;
+  status?: string;
+}
+
 export interface CreateDepartmentInput {
   name: string;
   description?: string | null;
   color?: string;
   status?: string;
+  divisionId?: string | null;
 }
 
 export interface CreateLocationInput {

@@ -939,7 +939,7 @@ model UserCertification {
 // All tables use the org_ prefix and are fully isolated.
 // Removal: drop all org_ tables and remove these models + the User backrelation.
 
-model OrgDepartment {
+model OrgDivision {
   id          String   @id @default(cuid())
   name        String
   description String?
@@ -949,6 +949,23 @@ model OrgDepartment {
   createdAt   DateTime @default(now()) @map("created_at")
   updatedAt   DateTime @updatedAt @map("updated_at")
 
+  departments OrgDepartment[]
+
+  @@map("org_divisions")
+}
+
+model OrgDepartment {
+  id          String   @id @default(cuid())
+  name        String
+  description String?
+  color       String   @default("#6366f1")
+  status      String   @default("active")
+  sortOrder   Int?     @map("sort_order")
+  divisionId  String?  @map("division_id")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  division    OrgDivision?    @relation(fields: [divisionId], references: [id], onDelete: SetNull)
   positions   OrgPosition[]
   deptLayouts OrgDeptLayout[]
 
