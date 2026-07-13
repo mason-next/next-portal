@@ -119,10 +119,10 @@ function ProjectLayoutBody({
                 href={project.connectwiseUrl}
                 target="_blank"
                 rel="noopener noreferrer"
-                title="Open in ConnectWise"
-                className={buttonVariants({ variant: "outline", size: "icon" })}
+                className={buttonVariants({ variant: "outline" })}
               >
-                <ExternalLink className="size-4" />
+                <ExternalLink className="mr-1.5 size-4" />
+                ConnectWise
               </a>
             ) : null}
             <Button variant="outline" onClick={() => setShowBrief(true)}>
