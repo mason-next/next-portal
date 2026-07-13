@@ -32,6 +32,8 @@ export interface RichCommentEditorHandle {
 
 interface RichCommentEditorProps {
   users: AppUser[];
+  /** IDs of users directly assigned to the current project — shown first in @mention results. */
+  projectTeamIds?: Set<string>;
   placeholder?: string;
   className?: string;
   initialContent?: JSONContent;
@@ -51,10 +53,12 @@ interface RichCommentEditorProps {
 // Tiptap's Mention extension — mentions are now structured nodes in the document, not a string
 // token, see lib/mentions/tiptap-mentions.ts.
 export const RichCommentEditor = forwardRef<RichCommentEditorHandle, RichCommentEditorProps>(
-  function RichCommentEditor({ users, placeholder, className, initialContent, onSubmitShortcut, onEmptyChange, onSlashCommand }, ref) {
+  function RichCommentEditor({ users, projectTeamIds, placeholder, className, initialContent, onSubmitShortcut, onEmptyChange, onSlashCommand }, ref) {
     // Keep refs so extension closures (created once at mount) always read the live values.
     const usersRef = useRef<AppUser[]>(users);
     useEffect(() => { usersRef.current = users; }, [users]);
+    const teamIdsRef = useRef<Set<string> | undefined>(projectTeamIds);
+    useEffect(() => { teamIdsRef.current = projectTeamIds; }, [projectTeamIds]);
     const onSlashCommandRef = useRef(onSlashCommand);
     useEffect(() => { onSlashCommandRef.current = onSlashCommand; }, [onSlashCommand]);
 
@@ -86,10 +90,28 @@ export const RichCommentEditor = forwardRef<RichCommentEditorHandle, RichComment
           suggestion: {
             items: ({ query }) => {
               const term = query.toLowerCase();
-              return usersRef.current
-                .filter((u) => u.name.toLowerCase().includes(term))
-                .slice(0, MAX_SUGGESTIONS)
-                .map((u): MentionSuggestionItem => ({ id: u.id, name: u.name, avatarUrl: u.avatarUrl }));
+              const teamIds = teamIdsRef.current;
+              const allUsers = usersRef.current.filter((u) => u.name.toLowerCase().includes(term));
+
+              if (!teamIds || teamIds.size === 0) {
+                return allUsers
+                  .slice(0, MAX_SUGGESTIONS)
+                  .map((u): MentionSuggestionItem => ({ id: u.id, name: u.name, avatarUrl: u.avatarUrl }));
+              }
+
+              // Project team first, then others — deduplicated, capped at MAX_SUGGESTIONS.
+              const team = allUsers.filter((u) => teamIds.has(u.id));
+              const others = allUsers.filter((u) => !teamIds.has(u.id));
+              const combined = [...team, ...others].slice(0, MAX_SUGGESTIONS);
+              const hasTeam = team.length > 0 && combined.some((u) => !teamIds.has(u.id));
+
+              return combined.map((u): MentionSuggestionItem => ({
+                id: u.id,
+                name: u.name,
+                avatarUrl: u.avatarUrl,
+                // Attach group label only when there are actually both groups visible.
+                group: hasTeam ? (teamIds.has(u.id) ? "team" : "all") : undefined,
+              }));
             },
             render: buildSuggestionRender,
           },

@@ -548,7 +548,12 @@ function ActivityRow({
 
   // ── Task comment row ──────────────────────────────────────────────────────────
   if (item._kind === "task") {
-    const implUrl = `/projects/${projectId}/implementation`;
+    // Map WorkflowSection enum identifier to the URL path segment.
+    // "serviceWarranty" is the only value that differs from its URL slug.
+    const sectionPath = item.stepSection === "serviceWarranty"
+      ? "service-warranty"
+      : (item.stepSection ?? "implementation");
+    const taskUrl = `/projects/${projectId}/${sectionPath}?taskId=${item.taskId}`;
     return (
       <div id={`activity-${item.id}`} className={cn("flex gap-2.5", highlighted && "ring-2 ring-primary rounded-lg")}>
         <UserAvatarImage
@@ -562,7 +567,7 @@ function ActivityRow({
             <span className="text-xs text-muted-foreground">{time}</span>
           </div>
           <Link
-            href={implUrl}
+            href={taskUrl}
             className="mt-1 inline-flex items-center gap-1 rounded-full bg-violet-100 dark:bg-violet-900/40 px-2 py-0.5 text-xs font-medium text-violet-700 dark:text-violet-300 hover:bg-violet-200 dark:hover:bg-violet-800/60 transition-colors"
             title={`Open task: ${item.taskName}`}
           >

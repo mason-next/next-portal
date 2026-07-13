@@ -6,10 +6,12 @@ import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import {
   Briefcase,
+  Eye,
   FileBarChart2,
   LayoutDashboard,
   LogOut,
   Menu,
+  Network,
   Settings,
   TrendingUp,
   Wrench,
@@ -17,10 +19,13 @@ import {
 } from "lucide-react";
 import { useSession } from "@/lib/auth/client";
 import { usePermissions } from "@/lib/PermissionsContext";
+import { useViewAs } from "@/lib/view-as/ViewAsContext";
 import type { PermissionFeature } from "@/lib/permissions";
 import { NotificationBell } from "@/modules/notifications/components/NotificationBell";
+import { ORG_CHART_ENABLED } from "@/lib/feature-flags";
 import { Nav } from "./Nav";
 import { UserAvatar } from "./UserAvatar";
+import { ViewAsSelector } from "./ViewAsSelector";
 import { cn } from "@/lib/utils";
 
 // feature: null means visibility is gated at the item level (show section if any item is accessible)
@@ -79,7 +84,15 @@ export function Header() {
   const router = useRouter();
   const pathname = usePathname();
   const { hasAccess } = usePermissions();
+  const { isViewAsMode, viewAsUser } = useViewAs();
   const [menuOpen, setMenuOpen] = useState(false);
+  const [showViewAsSelector, setShowViewAsSelector] = useState(false);
+  const isAdmin = session.roleTypes.includes("Administrator");
+  // In view-as mode, admin-settings visibility reflects the viewed user's roles.
+  const effectiveRoles = isViewAsMode ? (viewAsUser?.roleTypes ?? []) : session.roleTypes;
+  const showAdminLink =
+    effectiveRoles.includes("Administrator") ||
+    effectiveRoles.some((r) => ["Sales", "Engineering", "ProjectManagement", "Management"].includes(r));
 
   // Close menu on route change
   useEffect(() => { setMenuOpen(false); }, [pathname]);
@@ -113,8 +126,19 @@ export function Header() {
         {/* Right: desktop controls + hamburger */}
         <div className="flex items-center gap-2 md:gap-3">
           {/* Desktop-only controls */}
-          {session.roleTypes.includes("Administrator") ||
-           session.roleTypes.some((r) => ["Sales", "Engineering", "ProjectManagement", "Management"].includes(r)) ? (
+          {ORG_CHART_ENABLED && hasAccess("orgChart") && (
+            <Link
+              href="/org-chart"
+              title="Org Chart"
+              className={cn(
+                "hidden md:flex h-8 w-8 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-foreground",
+                pathname.startsWith("/org-chart") && "bg-accent text-foreground",
+              )}
+            >
+              <Network className="size-4" />
+            </Link>
+          )}
+          {showAdminLink ? (
             <Link
               href="/admin"
               title="Admin Settings"
@@ -123,6 +147,22 @@ export function Header() {
               <Settings className="size-4" />
             </Link>
           ) : null}
+          {isAdmin && (
+            <button
+              type="button"
+              onClick={() => setShowViewAsSelector(true)}
+              title={isViewAsMode ? "Change viewed user" : "View As another user"}
+              className={cn(
+                "hidden md:flex h-8 items-center gap-1.5 rounded-md px-2 text-sm transition-colors",
+                isViewAsMode
+                  ? "bg-amber-400/20 text-amber-700 hover:bg-amber-400/30 dark:text-amber-400"
+                  : "text-muted-foreground hover:bg-muted hover:text-foreground"
+              )}
+            >
+              <Eye className="size-4" />
+              <span className="hidden lg:inline">View As</span>
+            </button>
+          )}
           <NotificationBell />
           <div className="hidden md:block"><UserAvatar /></div>
           <span className="hidden md:block text-sm font-medium">{session.name}</span>
@@ -190,6 +230,19 @@ export function Header() {
               Dashboard
             </Link>
           )}
+          {ORG_CHART_ENABLED && hasAccess("orgChart") && (
+            <Link
+              href="/org-chart"
+              onClick={() => setMenuOpen(false)}
+              className={cn(
+                "flex items-center gap-3 px-4 py-3 text-sm font-medium text-muted-foreground hover:bg-muted hover:text-foreground",
+                pathname.startsWith("/org-chart") && "text-foreground bg-muted",
+              )}
+            >
+              <Network className="size-4 shrink-0" />
+              Org Chart
+            </Link>
+          )}
           {MOBILE_NAV_SECTIONS.map((section) => {
             // For sections with a null feature, show if any item is accessible
             const sectionVisible = section.feature
@@ -236,8 +289,7 @@ export function Header() {
               </div>
             </div>
           </div>
-          {(session.roleTypes.includes("Administrator") ||
-            session.roleTypes.some((r) => ["Sales", "Engineering", "ProjectManagement", "Management"].includes(r))) && (
+          {showAdminLink && (
             <Link
               href="/admin"
               onClick={() => setMenuOpen(false)}
@@ -246,6 +298,19 @@ export function Header() {
               <Settings className="size-4" />
               Admin Settings
             </Link>
+          )}
+          {isAdmin && (
+            <button
+              type="button"
+              onClick={() => { setMenuOpen(false); setShowViewAsSelector(true); }}
+              className={cn(
+                "flex w-full items-center gap-3 rounded-md px-2 py-2 text-sm hover:bg-muted",
+                isViewAsMode ? "text-amber-700 dark:text-amber-400" : "text-muted-foreground hover:text-foreground"
+              )}
+            >
+              <Eye className="size-4" />
+              {isViewAsMode ? "Change Viewed User" : "View As"}
+            </button>
           )}
           <button
             onClick={handleLogout}
@@ -256,6 +321,8 @@ export function Header() {
           </button>
         </div>
       </div>
+
+      {showViewAsSelector && <ViewAsSelector onClose={() => setShowViewAsSelector(false)} />}
     </>
   );
 }

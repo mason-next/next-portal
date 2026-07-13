@@ -180,6 +180,8 @@ model User {
   region           String      @default("")
   emergencyContact String      @default("")
   adminNotes       String      @default("")
+  bioDescription   String?     @map("bio_description")
+  lastActiveAt     DateTime?   @map("last_active_at")
   createdAt        DateTime    @default(now())
   updatedAt        DateTime    @updatedAt
 
@@ -192,8 +194,8 @@ model User {
   implTaskAssignments   ImplementationTaskAssignee[] @relation("ImplTaskAssigneeJoin")
   createdImplTasks      ImplementationTask[]        @relation("ImplTaskCreatedBy")
   implTaskComments      ImplementationTaskComment[] @relation("ImplTaskCommentAuthor")
-  technicianAssignments ProjectTechnician[]         @relation("ProjectTechUser")
-  certifications        UserCertification[]
+  technicianAssignments  ProjectTechnician[]         @relation("ProjectTechUser")
+  certifications         UserCertification[]
 
   @@map("users")
 }
@@ -256,6 +258,8 @@ model Project {
   implementationTasks  ImplementationTask[]
   technicians          ProjectTechnician[]
   meetingNotes         MeetingNote[]
+  ganttEntries         GanttEntry[]
+  ganttDependencies    GanttDependency[]
 
   @@map("projects")
 }
@@ -288,6 +292,7 @@ model WorkflowStep {
   weight           Float
   status           WorkflowStepStatus @default(NotStarted)
   ownerId          String?
+  startDate        DateTime?
   dueDate          DateTime?
   completedDate    DateTime?
   sortOrder        Int
@@ -303,6 +308,7 @@ model WorkflowStep {
   project             Project              @relation(fields: [projectId], references: [id], onDelete: Cascade)
   owner               User?                @relation("StepOwner", fields: [ownerId], references: [id], onDelete: SetNull)
   implementationTasks ImplementationTask[] @relation("TaskWorkflowStep")
+  ganttEntry          GanttEntry?
 
   @@unique([projectId, key])
   @@index([projectId, sortOrder])
@@ -615,6 +621,7 @@ model ImplementationTask {
   comments     ImplementationTaskComment[]
   assignees    ImplementationTaskAssignee[]
   workflowStep WorkflowStep? @relation("TaskWorkflowStep", fields: [workflowStepId], references: [id], onDelete: SetNull)
+  ganttEntry   GanttEntry?
 
   @@index([projectId, sortOrder])
   @@index([projectId, parentTaskId])
@@ -659,6 +666,53 @@ model ImplementationTaskAssignee {
 
   @@id([taskId, userId])
   @@map("implementation_task_assignees")
+}
+
+// ─── Gantt Schedule ───────────────────────────────────────────────────────────
+
+// Tracks which workflow items the user has added to the project Gantt schedule.
+// Exactly one of workflowStepId / taskId is set per entry.
+// Removing an entry only removes the scheduling representation; the underlying
+// workflow item (step or task) is not affected.
+model GanttEntry {
+  id              String   @id @default(cuid())
+  projectId       String
+  workflowStepId  String?  @unique
+  taskId          String?  @unique
+  customerVisible Boolean  @default(true)
+  sortOrder       Int      @default(0)
+  scheduleMode    String   @default("manual") // "manual" | "auto"
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  project          Project              @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  workflowStep     WorkflowStep?        @relation(fields: [workflowStepId], references: [id], onDelete: Cascade)
+  task             ImplementationTask?  @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  outgoingDeps     GanttDependency[]    @relation("DepFrom")
+  incomingDeps     GanttDependency[]    @relation("DepTo")
+
+  @@index([projectId])
+  @@map("gantt_entries")
+}
+
+// Directed dependency between two Gantt entries. type = "FS" | "SS" | "FF" | "SF".
+// lagDays > 0 = lag, < 0 = lead.
+model GanttDependency {
+  id          String   @id @default(cuid())
+  projectId   String
+  fromEntryId String
+  toEntryId   String
+  type        String   @default("FS")
+  lagDays     Int      @default(0)
+  createdAt   DateTime @default(now())
+
+  project   Project    @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  fromEntry GanttEntry @relation("DepFrom", fields: [fromEntryId], references: [id], onDelete: Cascade)
+  toEntry   GanttEntry @relation("DepTo",   fields: [toEntryId],   references: [id], onDelete: Cascade)
+
+  @@unique([fromEntryId, toEntryId])
+  @@index([projectId])
+  @@map("gantt_dependencies")
 }
 
 // ─── Task Templates ───────────────────────────────────────────────────────────
@@ -786,6 +840,7 @@ model SalesOpportunity {
   value     Int      @default(0)
   notes     String   @default("")
   closeDate DateTime?
+  cwNumber  String?
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -879,6 +934,245 @@ model UserCertification {
   @@map("user_certifications")
 }
 
+// ─── Org Chart Module (Beta) ──────────────────────────────────────────────────
+// Feature-flagged via NEXT_PUBLIC_ORG_CHART_ENABLED.
+// All tables use the org_ prefix and are fully isolated.
+// Removal: drop all org_ tables and remove these models + the User backrelation.
+
+model OrgDepartment {
+  id          String   @id @default(cuid())
+  name        String
+  description String?
+  color       String   @default("#6366f1")
+  status      String   @default("active")
+  sortOrder   Int?     @map("sort_order")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  positions   OrgPosition[]
+  deptLayouts OrgDeptLayout[]
+
+  @@map("org_departments")
+}
+
+model OrgLocation {
+  id      String  @id @default(cuid())
+  name    String
+  address String?
+  city    String?
+  state   String?
+  region  String?
+  status  String  @default("active")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  positions OrgPosition[]
+
+  @@map("org_locations")
+}
+
+model OrgChartVersion {
+  id          String  @id @default(cuid())
+  name        String
+  description String?
+  versionType String  @default("current") @map("version_type")
+  isActive    Boolean @default(true) @map("is_active")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  positions       OrgPosition[]
+  positionLayouts OrgPositionLayout[]
+  deptLayouts     OrgDeptLayout[]
+
+  @@map("org_chart_versions")
+}
+
+model OrgPosition {
+  id                  String    @id @default(cuid())
+  orgChartVersionId   String    @map("org_chart_version_id")
+  title               String
+  departmentId        String?   @map("department_id")
+  locationId          String?   @map("location_id")
+  reportsToPositionId String?   @map("reports_to_position_id")
+  status              String    @default("open")
+  targetHireDate      DateTime? @map("target_hire_date")
+  notes               String?
+  salaryMin           Float?    @map("salary_min")
+  salaryMid           Float?    @map("salary_mid")
+  salaryMax           Float?    @map("salary_max")
+  payFrequency        String    @default("annual") @map("pay_frequency")
+  budgetStatus        String    @default("budgeted") @map("budget_status")
+  sortOrder           Int?      @map("sort_order")
+  createdAt           DateTime  @default(now()) @map("created_at")
+  updatedAt           DateTime  @updatedAt @map("updated_at")
+
+  version       OrgChartVersion         @relation(fields: [orgChartVersionId], references: [id], onDelete: Cascade)
+  department    OrgDepartment?          @relation(fields: [departmentId], references: [id], onDelete: SetNull)
+  location      OrgLocation?            @relation(fields: [locationId], references: [id], onDelete: SetNull)
+  reportsTo     OrgPosition?            @relation("OrgReportsTo", fields: [reportsToPositionId], references: [id], onDelete: SetNull)
+  directReports OrgPosition[]           @relation("OrgReportsTo")
+  assignments       OrgPositionAssignment[]
+  certifications    OrgPositionCertification[]
+  careerPathsFrom   OrgCareerPath[]              @relation("CareerPathFrom")
+  careerPathsTo     OrgCareerPath[]              @relation("CareerPathTo")
+  successors        OrgSuccessor[]
+  relationshipsFrom OrgPositionRelationship[]    @relation("RelationshipFrom")
+  relationshipsTo   OrgPositionRelationship[]    @relation("RelationshipTo")
+  layouts           OrgPositionLayout[]
+
+  @@map("org_positions")
+}
+
+model OrgPositionAssignment {
+  id             String    @id @default(cuid())
+  positionId     String    @map("position_id")
+  userId         String?   @map("user_id")
+  assignmentType String    @default("primary") @map("assignment_type")
+  startDate      DateTime? @map("start_date")
+  endDate        DateTime? @map("end_date")
+  isActive       Boolean   @default(true) @map("is_active")
+  createdAt      DateTime  @default(now()) @map("created_at")
+  updatedAt      DateTime  @updatedAt @map("updated_at")
+
+  position OrgPosition @relation(fields: [positionId], references: [id], onDelete: Cascade)
+  // user_id is a plain scalar reference to users.id — no Prisma relation so the User model
+  // remains unmodified. User data is fetched via a separate query in queries.ts.
+
+  @@map("org_position_assignments")
+}
+
+model OrgCertification {
+  id          String   @id @default(cuid())
+  name        String
+  description String?  @db.Text
+  issuingBody String?  @map("issuing_body")
+  status      String   @default("active")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  positionCerts OrgPositionCertification[]
+  userCerts     OrgUserCertification[]
+
+  @@map("org_certifications")
+}
+
+model OrgPositionCertification {
+  id               String   @id @default(cuid())
+  positionId       String   @map("position_id")
+  certificationId  String   @map("certification_id")
+  requirementLevel String   @default("required") @map("requirement_level")
+  createdAt        DateTime @default(now()) @map("created_at")
+
+  position      OrgPosition      @relation(fields: [positionId],      references: [id], onDelete: Cascade)
+  certification OrgCertification @relation(fields: [certificationId], references: [id], onDelete: Cascade)
+
+  @@unique([positionId, certificationId])
+  @@map("org_position_certifications")
+}
+
+model OrgUserCertification {
+  id              String    @id @default(cuid())
+  userId          String    @map("user_id")
+  certificationId String    @map("certification_id")
+  issuedDate      DateTime? @map("issued_date")
+  expiryDate      DateTime? @map("expiry_date")
+  credentialId    String?   @map("credential_id")
+  createdAt       DateTime  @default(now()) @map("created_at")
+  updatedAt       DateTime  @updatedAt @map("updated_at")
+
+  certification OrgCertification @relation(fields: [certificationId], references: [id], onDelete: Cascade)
+  // user_id is a plain scalar reference to users.id — module isolation pattern
+
+  @@unique([userId, certificationId])
+  @@map("org_user_certifications")
+}
+
+model OrgCareerPath {
+  id                    String   @id @default(cuid())
+  fromPositionId        String   @map("from_position_id")
+  toPositionId          String   @map("to_position_id")
+  typicalTimelineMonths Int?     @map("typical_timeline_months")
+  notes                 String?  @db.Text
+  createdAt             DateTime @default(now()) @map("created_at")
+
+  fromPosition OrgPosition @relation("CareerPathFrom", fields: [fromPositionId], references: [id], onDelete: Cascade)
+  toPosition   OrgPosition @relation("CareerPathTo",   fields: [toPositionId],   references: [id], onDelete: Cascade)
+
+  @@unique([fromPositionId, toPositionId])
+  @@map("org_career_paths")
+}
+
+model OrgSuccessor {
+  id         String   @id @default(cuid())
+  positionId String   @map("position_id")
+  userId     String   @map("user_id")
+  rank       Int      @default(1)
+  notes      String?  @db.Text
+  createdAt  DateTime @default(now()) @map("created_at")
+  updatedAt  DateTime @updatedAt @map("updated_at")
+
+  position OrgPosition @relation(fields: [positionId], references: [id], onDelete: Cascade)
+  // user_id is a plain scalar reference to users.id — module isolation pattern
+
+  @@unique([positionId, userId])
+  @@map("org_successors")
+}
+
+model OrgPositionRelationship {
+  id               String   @id @default(cuid())
+  fromPositionId   String   @map("from_position_id")
+  toPositionId     String   @map("to_position_id")
+  relationshipType String   @map("relationship_type")
+  notes            String?  @db.Text
+  createdAt        DateTime @default(now()) @map("created_at")
+  updatedAt        DateTime @updatedAt @map("updated_at")
+
+  fromPosition OrgPosition @relation("RelationshipFrom", fields: [fromPositionId], references: [id], onDelete: Cascade)
+  toPosition   OrgPosition @relation("RelationshipTo",   fields: [toPositionId],   references: [id], onDelete: Cascade)
+
+  @@unique([fromPositionId, toPositionId, relationshipType])
+  @@index([fromPositionId])
+  @@index([toPositionId])
+  @@map("org_position_relationships")
+}
+
+// ─── Admin Audit Log ──────────────────────────────────────────────────────────
+
+model AdminAuditLog {
+  id             String   @id @default(cuid())
+  adminId        String   @map("admin_id")
+  adminName      String   @map("admin_name")
+  action         String
+  targetUserId   String?  @map("target_user_id")
+  targetUserName String?  @map("target_user_name")
+  metadata       Json?
+  createdAt      DateTime @default(now()) @map("created_at")
+
+  @@index([adminId, createdAt(sort: Desc)])
+  @@map("admin_audit_logs")
+}
+
+// ─── Warehouses ───────────────────────────────────────────────────────────────
+
+model Warehouse {
+  id        String   @id @default(cuid())
+  name      String
+  address   String   @default("")
+  city      String   @default("")
+  state     String   @default("")
+  zip       String   @default("")
+  country   String   @default("US")
+  contact   String   @default("")
+  phone     String   @default("")
+  email     String   @default("")
+  notes     String   @default("")
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("warehouses")
+}
+
 // ─── Licenses ─────────────────────────────────────────────────────────────────
 
 enum LicenseStatus {
@@ -903,4 +1197,41 @@ model License {
   updatedAt           DateTime      @updatedAt
 
   @@map("licenses")
+}
+
+
+model OrgPositionLayout {
+  id         String   @id @default(cuid())
+  positionId String   @map("position_id")
+  versionId  String   @map("version_id")
+  viewType   String   @default("org_chart") @map("view_type")
+  layoutX    Float    @map("layout_x")
+  layoutY    Float    @map("layout_y")
+  createdAt  DateTime @default(now()) @map("created_at")
+  updatedAt  DateTime @updatedAt @map("updated_at")
+
+  position OrgPosition    @relation(fields: [positionId], references: [id], onDelete: Cascade)
+  version  OrgChartVersion @relation(fields: [versionId], references: [id], onDelete: Cascade)
+
+  @@unique([positionId, versionId, viewType])
+  @@map("org_position_layouts")
+}
+
+model OrgDeptLayout {
+  id        String   @id @default(cuid())
+  deptId    String   @map("dept_id")
+  versionId String   @map("version_id")
+  viewType  String   @default("org_chart") @map("view_type")
+  layoutX   Float    @map("layout_x")
+  layoutY   Float    @map("layout_y")
+  layoutW   Float    @map("layout_w")
+  layoutH   Float    @map("layout_h")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  dept    OrgDepartment   @relation(fields: [deptId],    references: [id], onDelete: Cascade)
+  version OrgChartVersion @relation(fields: [versionId], references: [id], onDelete: Cascade)
+
+  @@unique([deptId, versionId, viewType])
+  @@map("org_dept_layouts")
 }

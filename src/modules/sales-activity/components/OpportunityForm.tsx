@@ -16,6 +16,7 @@ interface OpportunityFormProps {
 }
 
 export function OpportunityForm({ companyId, companies, initial, onSave, onDelete, onCancel }: OpportunityFormProps) {
+  const isCW = Boolean(initial?.cwNumber);
   const [selectedCompanyId, setSelectedCompanyId] = useState(initial?.companyId ?? companyId);
   const [name, setName] = useState(initial?.name ?? "");
   const [stage, setStage] = useState<SalesOpportunity["stage"]>(initial?.stage ?? "Prospecting");
@@ -38,11 +39,18 @@ export function OpportunityForm({ companyId, companies, initial, onSave, onDelet
       value: initial?.value ?? 0,
       notes,
       closeDate: closeDate || null,
+      cwNumber: initial?.cwNumber ?? null,
     });
   }
 
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
+      {isCW && (
+        <div className="flex items-center gap-2 rounded-md border border-blue-200 bg-blue-50 px-3 py-2 text-xs text-blue-700 dark:border-blue-800 dark:bg-blue-950/40 dark:text-blue-300">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="shrink-0"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+          Imported from ConnectWise · CW#{initial?.cwNumber} — name and value are managed by CW
+        </div>
+      )}
       <div className="space-y-3">
         {companies.length > 1 && (
           <label className="block space-y-1">
@@ -50,19 +58,21 @@ export function OpportunityForm({ companyId, companies, initial, onSave, onDelet
             <select
               value={selectedCompanyId}
               onChange={(e) => setSelectedCompanyId(e.target.value)}
-              className="w-full rounded-md border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+              disabled={isCW}
+              className="w-full rounded-md border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring disabled:opacity-60 disabled:cursor-not-allowed"
             >
               {companies.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
             </select>
           </label>
         )}
         <label className="block space-y-1">
-          <span className="text-xs font-medium text-muted-foreground">Opportunity Name *</span>
+          <span className="text-xs font-medium text-muted-foreground">Opportunity Name {!isCW && "*"}</span>
           <input
             value={name}
             onChange={(e) => setName(e.target.value)}
-            required
-            className="w-full rounded-md border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+            required={!isCW}
+            readOnly={isCW}
+            className="w-full rounded-md border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring read-only:opacity-60 read-only:cursor-not-allowed"
             placeholder="Network Infrastructure Refresh"
           />
         </label>

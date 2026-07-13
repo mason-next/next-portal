@@ -1,9 +1,11 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useRef, useState } from "react";
 import Link from "next/link";
+import { useSession } from "@/lib/auth/client";
+import { useViewAs } from "@/lib/view-as/ViewAsContext";
+import { usePermissions } from "@/lib/PermissionsContext";
 import { useSalesActivity } from "@/modules/sales-activity/hooks/useSalesActivity";
-import { useDealDeskUser } from "@/modules/deal-desk/hooks/useDealDeskUser";
 import { CompanyCard } from "@/modules/sales-activity/components/CompanyCard";
 import { CompanyDetailModal } from "@/modules/sales-activity/components/CompanyDetailModal";
 import { CompanyForm } from "@/modules/sales-activity/components/CompanyForm";
@@ -16,7 +18,6 @@ import { SalesPulseReport } from "@/modules/sales-activity/components/SalesPulse
 import { formatWeekLabel } from "@/types/sales";
 import type { SalesCompany, SalesOpportunity, SalesActivity } from "@/types/sales";
 import type { CWImportPayload, ImportProgressCallback } from "@/modules/sales-activity/components/CWImportModal";
-import type { AppUser } from "@/types/user";
 
 type Modal =
   | { type: "company"; data?: SalesCompany }
@@ -27,14 +28,25 @@ type Modal =
   | null;
 
 export default function SalesActivityPage() {
-  const { userName, isManagement, actuallyManagement, previewAsSalesperson, previewUser, setPreviewAs } = useDealDeskUser();
+  const session = useSession();
+  const { viewAsUser, isViewAsMode } = useViewAs();
+  const { getLevel } = usePermissions();
+
+  const salesLevel = getLevel("salesActivity");
+  const isAdmin = salesLevel === "administrator";
+  const canEdit = salesLevel !== "none" && salesLevel !== "viewer" && !isViewAsMode;
+
+  // Effective user name: in View As mode scope to the viewed user; admins see all data.
+  const effectiveName = isViewAsMode ? (viewAsUser?.name ?? session.name) : session.name;
+  const scopeToUser = isAdmin && !isViewAsMode ? undefined : effectiveName;
+
   const {
-    companies, activities, allActivities, summary, isLoading,
+    companies, activities, allActivities, isLoading,
     weekStart, setWeekStart,
     saveCompany, removeCompany,
     saveOpportunity, removeOpportunity, changeOppStage,
     logActivity, editActivity, removeActivity,
-  } = useSalesActivity();
+  } = useSalesActivity({ scopeToUser });
 
   const [modal, setModal] = useState<Modal>(null);
   const [stageFilter, setStageFilter] = useState("All");
@@ -44,17 +56,7 @@ export default function SalesActivityPage() {
   const [detailCompany, setDetailCompany] = useState<SalesCompany | null>(null);
   const [importOpen, setImportOpen] = useState(false);
   const [logoFetch, setLogoFetch] = useState<{ done: number; total: number } | null>(null);
-  const [previewOpen, setPreviewOpen] = useState(false);
-  const [allUsers, setAllUsers] = useState<AppUser[]>([]);
   const importRef = useRef<HTMLDivElement>(null);
-  const previewRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    if (!actuallyManagement) return;
-    fetch("/api/users").then((r) => r.json()).then((users: AppUser[]) =>
-      setAllUsers(users.filter((u) => u.isActive).sort((a, b) => a.name.localeCompare(b.name)))
-    ).catch(() => {});
-  }, [actuallyManagement]);
 
   function prevWeek() {
     const d = new Date(weekStart);
@@ -70,8 +72,9 @@ export default function SalesActivityPage() {
   const stages = ["All", "Prospecting", "Qualifying", "Proposal", "Negotiation", "Closed Won", "Closed Lost"];
   const ACTIVE_STAGES = new Set(["Prospecting", "Qualifying", "Proposal", "Negotiation"]);
 
-  // Non-admins are locked to their own name; admins use the dropdown selection
-  const effectiveRepFilter = isManagement ? repFilter : userName;
+  // Admins (not in view-as mode) can filter by rep; everyone else is locked to their own data.
+  const canFilterByRep = isAdmin && !isViewAsMode;
+  const effectiveRepFilter = canFilterByRep ? repFilter : (effectiveName ?? "");
 
   // Unique rep names that own at least one opp, sorted alphabetically (admin only)
   const boardReps = Array.from(
@@ -168,8 +171,9 @@ export default function SalesActivityPage() {
         ownerId: o.resolvedOwnerId,
         ownerName: o.resolvedOwnerName,
         value: Math.round(o.value * 100),
-        notes: o.cwNumber ? `CW#${o.cwNumber}` : "",
+        notes: "",
         closeDate: o.closeDate ?? null,
+        cwNumber: o.cwNumber || null,
       });
       done++;
       onProgress(done, total, `${o.existingId ? "Updated" : "Saved"}: ${o.name}`);
@@ -192,68 +196,8 @@ export default function SalesActivityPage() {
           <p className="text-sm text-muted-foreground mt-0.5">Track prospects and log weekly sales activities</p>
         </div>
         <div className="flex items-center gap-3 flex-wrap">
-          {actuallyManagement && (
-            <div className="relative" ref={previewRef}>
-              <button
-                onClick={() => setPreviewOpen((o) => !o)}
-                className={`inline-flex items-center gap-1.5 rounded-md border px-3 py-1.5 text-xs font-medium transition-colors ${
-                  previewAsSalesperson
-                    ? "bg-amber-50 border-amber-300 text-amber-700 dark:bg-amber-900/20 dark:border-amber-700 dark:text-amber-400"
-                    : "text-muted-foreground hover:bg-muted"
-                }`}
-              >
-                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" /><circle cx="12" cy="12" r="3" />
-                </svg>
-                {previewAsSalesperson ? `Previewing as ${previewUser!.name.split(" ")[0]}` : "Management View"}
-                <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                  <polyline points="6 9 12 15 18 9" />
-                </svg>
-              </button>
-
-              {previewOpen && (
-                <>
-                  <div className="fixed inset-0 z-40" onClick={() => setPreviewOpen(false)} />
-                  <div className="absolute left-0 top-full mt-1 z-50 w-64 rounded-lg border bg-card shadow-lg py-1">
-                    {/* Admin view option */}
-                    <button
-                      type="button"
-                      onClick={() => { setPreviewAs(null); setPreviewOpen(false); }}
-                      className={`w-full flex items-center gap-2 px-3 py-2 text-sm hover:bg-muted text-left ${!previewAsSalesperson ? "font-medium text-foreground" : "text-muted-foreground"}`}
-                    >
-                      <span className="w-4 shrink-0 text-center text-xs">{!previewAsSalesperson ? "✓" : ""}</span>
-                      <span>Administrator View</span>
-                    </button>
-
-                    {allUsers.length > 0 && (
-                      <>
-                        <div className="mx-3 my-1 border-t" />
-                        <div className="px-3 py-1 text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Preview as</div>
-                        {allUsers.map((u) => {
-                          const isActive = previewUser?.name === u.name;
-                          return (
-                            <button
-                              key={u.id}
-                              type="button"
-                              onClick={() => { setPreviewAs({ name: u.name, accountType: u.roleTypes.includes("Administrator") ? "Administrator" : "Member" }); setPreviewOpen(false); }}
-                              className={`w-full flex items-center gap-2 px-3 py-2 text-sm hover:bg-muted text-left ${isActive ? "font-medium text-foreground" : "text-muted-foreground"}`}
-                            >
-                              <span className="w-4 shrink-0 text-center text-xs">{isActive ? "✓" : ""}</span>
-                              <span className="flex-1 truncate">{u.name}</span>
-                              <span className="text-[10px] text-muted-foreground shrink-0">{u.roleTypes[0] ?? ""}</span>
-                            </button>
-                          );
-                        })}
-                      </>
-                    )}
-                  </div>
-                </>
-              )}
-            </div>
-          )}
-
-          {/* Fetch logos — management only */}
-          {actuallyManagement && (
+          {/* Fetch logos — admin only, blocked in View As mode */}
+          {isAdmin && !isViewAsMode && (
             <button
               onClick={fetchMissingLogos}
               disabled={!!logoFetch || isLoading}
@@ -267,70 +211,74 @@ export default function SalesActivityPage() {
             </button>
           )}
 
-          {/* Import split button */}
-          <div className="relative" ref={importRef}>
-            <div className="flex rounded-md border overflow-hidden">
-              <button
-                onClick={() => setImportOpen((o) => !o)}
-                className="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium hover:bg-muted transition-colors"
-              >
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
-                </svg>
-                Upload Data
-              </button>
-              <div className="w-px bg-border" />
-              <button
-                onClick={() => setImportOpen((o) => !o)}
-                className="px-2 py-1.5 hover:bg-muted transition-colors text-muted-foreground"
-                aria-label="More import options"
-              >
-                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                  <polyline points="6 9 12 15 18 9" />
-                </svg>
-              </button>
+          {/* Import split button — write-blocked in View As mode */}
+          {canEdit && (
+            <div className="relative" ref={importRef}>
+              <div className="flex rounded-md border overflow-hidden">
+                <button
+                  onClick={() => setImportOpen((o) => !o)}
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium hover:bg-muted transition-colors"
+                >
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
+                  </svg>
+                  Upload Data
+                </button>
+                <div className="w-px bg-border" />
+                <button
+                  onClick={() => setImportOpen((o) => !o)}
+                  className="px-2 py-1.5 hover:bg-muted transition-colors text-muted-foreground"
+                  aria-label="More import options"
+                >
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                    <polyline points="6 9 12 15 18 9" />
+                  </svg>
+                </button>
+              </div>
+              {importOpen && (
+                <>
+                  <div className="fixed inset-0 z-40" onClick={() => setImportOpen(false)} />
+                  <div className="absolute right-0 top-full mt-1 z-50 w-52 rounded-lg border bg-card shadow-lg py-1">
+                    <button
+                      type="button"
+                      onClick={() => { setImportOpen(false); setModal({ type: "transcript" }); }}
+                      className="w-full flex items-center gap-2.5 px-3 py-2 text-sm hover:bg-muted text-left"
+                    >
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
+                      </svg>
+                      <div>
+                        <div className="font-medium">Transcript (AI)</div>
+                        <div className="text-xs text-muted-foreground">Paste or upload call notes</div>
+                      </div>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => { setImportOpen(false); setModal({ type: "cwimport" }); }}
+                      className="w-full flex items-center gap-2.5 px-3 py-2 text-sm hover:bg-muted text-left"
+                    >
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/>
+                      </svg>
+                      <div>
+                        <div className="font-medium">ConnectWise Data</div>
+                        <div className="text-xs text-muted-foreground">Import opportunity CSV</div>
+                      </div>
+                    </button>
+                  </div>
+                </>
+              )}
             </div>
-            {importOpen && (
-              <>
-                <div className="fixed inset-0 z-40" onClick={() => setImportOpen(false)} />
-                <div className="absolute right-0 top-full mt-1 z-50 w-52 rounded-lg border bg-card shadow-lg py-1">
-                  <button
-                    type="button"
-                    onClick={() => { setImportOpen(false); setModal({ type: "transcript" }); }}
-                    className="w-full flex items-center gap-2.5 px-3 py-2 text-sm hover:bg-muted text-left"
-                  >
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                      <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
-                    </svg>
-                    <div>
-                      <div className="font-medium">Transcript (AI)</div>
-                      <div className="text-xs text-muted-foreground">Paste or upload call notes</div>
-                    </div>
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => { setImportOpen(false); setModal({ type: "cwimport" }); }}
-                    className="w-full flex items-center gap-2.5 px-3 py-2 text-sm hover:bg-muted text-left"
-                  >
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                      <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/>
-                    </svg>
-                    <div>
-                      <div className="font-medium">ConnectWise Data</div>
-                      <div className="text-xs text-muted-foreground">Import opportunity CSV</div>
-                    </div>
-                  </button>
-                </div>
-              </>
-            )}
-          </div>
+          )}
 
-          <button
-            onClick={() => setModal({ type: "company" })}
-            className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 transition-colors"
-          >
-            + Add Company
-          </button>
+          {canEdit && (
+            <button
+              onClick={() => setModal({ type: "company" })}
+              className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 transition-colors"
+            >
+              + Add Company
+            </button>
+          )}
         </div>
       </div>
 
@@ -340,8 +288,23 @@ export default function SalesActivityPage() {
           <button
             key={t}
             onClick={() => setTab(t)}
-            className={`rounded-md px-4 py-1.5 text-sm font-medium transition-colors ${tab === t ? "bg-card shadow-sm text-foreground" : "text-muted-foreground hover:text-foreground"}`}
+            className={`inline-flex items-center gap-1.5 rounded-md px-4 py-1.5 text-sm font-medium transition-colors ${tab === t ? "bg-card shadow-sm text-foreground" : "text-muted-foreground hover:text-foreground"}`}
           >
+            {t === "board" && (
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <rect x="3" y="3" width="7" height="9" rx="1"/><rect x="14" y="3" width="7" height="5" rx="1"/><rect x="14" y="12" width="7" height="9" rx="1"/><rect x="3" y="16" width="7" height="5" rx="1"/>
+              </svg>
+            )}
+            {t === "activity" && (
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="9" y1="13" x2="15" y2="13"/><line x1="9" y1="17" x2="13" y2="17"/>
+              </svg>
+            )}
+            {t === "pulse" && (
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/>
+              </svg>
+            )}
             {t === "board" ? "Opportunity Board" : t === "activity" ? "Activity Log" : "Sales Pulse"}
           </button>
         ))}
@@ -373,7 +336,8 @@ export default function SalesActivityPage() {
                     })}
                   </div>
 
-                  {isManagement && boardReps.length > 0 && (
+                  {/* Rep filter — admins only when not in View As mode */}
+                  {canFilterByRep && boardReps.length > 0 && (
                     <select
                       value={repFilter}
                       onChange={(e) => setRepFilter(e.target.value)}
@@ -416,7 +380,7 @@ export default function SalesActivityPage() {
                       stageFilter={stageFilter}
                       repFilter={effectiveRepFilter}
                       onClick={() => setDetailCompany(company)}
-                      onEditCompany={(c) => setModal({ type: "company", data: c })}
+                      onEditCompany={(c) => { if (canEdit) setModal({ type: "company", data: c }); }}
                     />
                   ))}
                 </div>
@@ -429,14 +393,15 @@ export default function SalesActivityPage() {
               weekStart={weekStart}
               onPrev={prevWeek}
               onNext={nextWeek}
-              summary={summary}
-              isManagement={isManagement}
+              isAdmin={isAdmin}
+              canFilterByRep={canFilterByRep}
+              canEdit={canEdit}
               companies={companies}
-              userName={userName}
+              userName={effectiveName}
               activities={activities}
               allActivities={allActivities}
               logActivity={logActivity}
-              removeActivity={removeActivity}
+              removeActivity={isAdmin && !isViewAsMode ? removeActivity : undefined}
               onEditActivity={(a) => setModal({ type: "editActivity", activity: a })}
             />
           )}
@@ -445,7 +410,7 @@ export default function SalesActivityPage() {
             <SalesPulseReport
               companies={companies}
               activities={allActivities}
-              isManagement={isManagement}
+              isManagement={isAdmin}
             />
           )}
         </>
@@ -461,18 +426,18 @@ export default function SalesActivityPage() {
             stageFilter={stageFilter}
             repFilter={effectiveRepFilter}
             onClose={() => setDetailCompany(null)}
-            onEditCompany={(c) => setModal({ type: "company", data: c })}
-            onDeleteCompany={async (id) => { await removeCompany(id); setDetailCompany(null); }}
-            onAddOpportunity={(cId) => setModal({ type: "opportunity", companyId: cId })}
-            onEditOpportunity={(o) => setModal({ type: "opportunity", companyId: o.companyId, data: o })}
-            onDeleteOpportunity={removeOpportunity}
-            onStageChange={changeOppStage}
+            onEditCompany={(c) => { if (canEdit) setModal({ type: "company", data: c }); }}
+            onDeleteCompany={async (id) => { if (!canEdit) return; await removeCompany(id); setDetailCompany(null); }}
+            onAddOpportunity={(cId) => { if (canEdit) setModal({ type: "opportunity", companyId: cId }); }}
+            onEditOpportunity={(o) => { if (canEdit) setModal({ type: "opportunity", companyId: o.companyId, data: o }); }}
+            onDeleteOpportunity={(id) => { if (canEdit) removeOpportunity(id); }}
+            onStageChange={(id, stage) => { if (canEdit) changeOppStage(id, stage); }}
           />
         );
       })()}
 
       {/* Modals */}
-      {modal?.type === "company" && (
+      {canEdit && modal?.type === "company" && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
           <div className="w-full max-w-md rounded-xl border bg-card shadow-xl p-6">
             <h2 className="text-base font-semibold mb-4">{modal.data ? "Edit Company" : "Add Company"}</h2>
@@ -486,7 +451,7 @@ export default function SalesActivityPage() {
         </div>
       )}
 
-      {modal?.type === "opportunity" && (
+      {canEdit && modal?.type === "opportunity" && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
           <div className="w-full max-w-md rounded-xl border bg-card shadow-xl p-6">
             <h2 className="text-base font-semibold mb-4">{modal.data ? "Edit Opportunity" : "Add Opportunity"}</h2>
@@ -502,14 +467,14 @@ export default function SalesActivityPage() {
         </div>
       )}
 
-      {modal?.type === "editActivity" && (
+      {canEdit && modal?.type === "editActivity" && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
           <div className="w-full max-w-2xl rounded-xl border bg-card shadow-xl p-6">
             <h2 className="text-base font-semibold mb-4">Edit Activity</h2>
             <ActivityLogForm
               companies={companies}
-              currentUser={userName}
-              isManagement={isManagement}
+              currentUser={effectiveName}
+              isManagement={isAdmin}
               editing={modal.activity}
               onSubmit={async (data) => {
                 await editActivity(modal.activity.id, data);
@@ -521,25 +486,25 @@ export default function SalesActivityPage() {
         </div>
       )}
 
-      {modal?.type === "transcript" && (
+      {canEdit && modal?.type === "transcript" && (
         <TranscriptModal
           companies={companies}
-          currentUser={userName}
-          isManagement={isManagement}
+          currentUser={effectiveName}
+          isManagement={isAdmin}
           onSave={logActivity}
           onCreateCompany={async (name, domain) => {
             const company = await saveCompany({ name, domain: domain ?? "", notes: "", dealDeskId: null });
             return company as SalesCompany;
           }}
           onCreateOpportunity={async (companyId, name, stage) => {
-            const opp = await saveOpportunity({ companyId, name, stage: stage ?? "Prospecting", ownerId: null, ownerName: "", value: 0, notes: "", closeDate: null });
+            const opp = await saveOpportunity({ companyId, name, stage: stage ?? "Prospecting", ownerId: null, ownerName: "", value: 0, notes: "", closeDate: null, cwNumber: null });
             return opp as { id: string; name: string };
           }}
           onClose={() => setModal(null)}
         />
       )}
 
-      {modal?.type === "cwimport" && (
+      {canEdit && modal?.type === "cwimport" && (
         <CWImportModal
           companies={companies}
           onImport={handleCWImport}
@@ -571,11 +536,11 @@ function getViewModeStart(mode: ActivityViewMode): Date | null {
 }
 
 function ActivityTab({
-  weekStart, onPrev, onNext, summary, isManagement, companies, userName,
+  weekStart, onPrev, onNext, isAdmin, canFilterByRep, canEdit, companies, userName,
   activities, allActivities, logActivity, removeActivity, onEditActivity,
 }: {
   weekStart: string; onPrev: () => void; onNext: () => void;
-  summary: SummaryState; isManagement: boolean;
+  isAdmin: boolean; canFilterByRep: boolean; canEdit: boolean;
   companies: SalesCompany[]; userName: string;
   activities: SalesActivity[]; allActivities: SalesActivity[];
   logActivity: (data: Omit<SalesActivity, "id" | "createdAt" | "company" | "opportunity">) => Promise<unknown>;
@@ -640,8 +605,8 @@ function ActivityTab({
               <button onClick={onNext} className="rounded-md border px-2.5 py-1 text-sm hover:bg-muted">→</button>
             </>
           )}
-          {/* Rep filter — management only */}
-          {isManagement && repNames.length > 0 && (
+          {/* Rep filter — admins only when data is unscoped */}
+          {canFilterByRep && repNames.length > 0 && (
             <select
               value={repFilter}
               onChange={(e) => setRepFilter(e.target.value)}
@@ -652,27 +617,29 @@ function ActivityTab({
             </select>
           )}
         </div>
-        <button
-          onClick={() => setFormOpen((o) => !o)}
-          className="inline-flex items-center gap-1.5 rounded-md bg-primary px-4 py-1.5 text-sm font-medium text-primary-foreground hover:bg-primary/90 transition-colors"
-        >
-          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-            {formOpen
-              ? <><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></>
-              : <><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></>}
-          </svg>
-          {formOpen ? "Cancel" : "Log Activity"}
-        </button>
+        {canEdit && (
+          <button
+            onClick={() => setFormOpen((o) => !o)}
+            className="inline-flex items-center gap-1.5 rounded-md bg-primary px-4 py-1.5 text-sm font-medium text-primary-foreground hover:bg-primary/90 transition-colors"
+          >
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+              {formOpen
+                ? <><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></>
+                : <><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></>}
+            </svg>
+            {formOpen ? "Cancel" : "Log Activity"}
+          </button>
+        )}
       </div>
 
-      <ActivitySummaryCards summary={displayedSummary} isManagement={isManagement} />
+      <ActivitySummaryCards summary={displayedSummary} isManagement={isAdmin} />
 
-      {formOpen && (
+      {canEdit && formOpen && (
         <div className="rounded-xl border bg-card p-5">
           <ActivityLogForm
             companies={companies}
             currentUser={userName}
-            isManagement={isManagement}
+            isManagement={isAdmin}
             defaultWeekStart={viewMode === "week" ? weekStart : undefined}
             onSubmit={async (data) => { await logActivity(data); setFormOpen(false); }}
             onCancel={() => setFormOpen(false)}
@@ -682,9 +649,9 @@ function ActivityTab({
 
       <ActivityFeed
         activities={displayedActivities}
-        isManagement={isManagement}
-        onEdit={onEditActivity}
-        onDelete={isManagement ? removeActivity : undefined}
+        isManagement={isAdmin}
+        onEdit={canEdit ? onEditActivity : undefined}
+        onDelete={removeActivity}
       />
     </div>
   );

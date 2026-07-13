@@ -1,48 +1,35 @@
 "use client";
 
-import { useCallback, useState } from "react";
 import { useSession } from "@/lib/auth/client";
-import type { AccountType } from "@/types/user";
+import { useViewAs } from "@/lib/view-as/ViewAsContext";
+import { usePermissions } from "@/lib/PermissionsContext";
 
-const LS_KEY = "deal-desk:preview-user";
-
-export interface PreviewUser {
-  name: string;
-  accountType: AccountType;
-}
-
-function readPreviewUser(): PreviewUser | null {
-  if (typeof window === "undefined") return null;
-  try {
-    return JSON.parse(localStorage.getItem(LS_KEY) ?? "null");
-  } catch {
-    return null;
-  }
-}
-
+/**
+ * Provides the effective Deal Desk user context.
+ *
+ * isManagement reflects the user's salesDealDesk module permission level
+ * (administrator = can see all records). In View As mode, both the identity
+ * and permission level reflect the viewed user.
+ *
+ * The old localStorage-based Management View preview has been removed.
+ * Use the platform-wide View As selector to see the Deal Desk as another user.
+ */
 export function useDealDeskUser() {
   const session = useSession();
-  const actuallyManagement = session.roleTypes.includes("Administrator") ||
-    session.roleTypes.includes("Management") || session.roleTypes.includes("Sales");
+  const { viewAsUser, isViewAsMode } = useViewAs();
+  const { getLevel } = usePermissions();
 
-  const [previewUser, setPreviewUserState] = useState<PreviewUser | null>(readPreviewUser);
-
-  const setPreviewAs = useCallback((user: PreviewUser | null) => {
-    setPreviewUserState(user);
-    localStorage.setItem(LS_KEY, JSON.stringify(user));
-  }, []);
-
-  const previewAsSalesperson = actuallyManagement && previewUser !== null;
-  const isManagement = actuallyManagement && !previewAsSalesperson;
+  const isManagement = getLevel("salesDealDesk") === "administrator";
+  const userName = isViewAsMode ? (viewAsUser?.name ?? session.name) : session.name;
 
   return {
-    userName: previewUser?.name ?? session.name,
+    userName,
     isManagement,
-    actuallyManagement,
-    previewAsSalesperson,
-    previewUser,
-    setPreviewAs,
-    // kept for any existing callers — clears the preview
-    togglePreview: useCallback(() => setPreviewAs(null), [setPreviewAs]),
+    // Legacy aliases kept for backward compatibility — the preview concept is gone.
+    actuallyManagement: isManagement,
+    previewAsSalesperson: false as const,
+    previewUser: null as null,
+    setPreviewAs: () => {},
+    togglePreview: () => {},
   };
 }

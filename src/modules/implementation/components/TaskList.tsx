@@ -1,6 +1,7 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import { Plus, Wand2, ChevronDown, ChevronRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/shared/Skeleton";
@@ -12,6 +13,8 @@ import { TaskDrawer } from "./TaskDrawer";
 import { SeedTemplatesModal } from "./SeedTemplatesModal";
 import { useImplementationTasks } from "@/modules/implementation/hooks/useImplementationTasks";
 import { STEP_TASK_TEMPLATES } from "@/lib/data/task-template-config";
+import { useProjectContext } from "@/modules/project-command-center/hooks/ProjectContext";
+import { ROLE_NOT_NEEDED } from "@/lib/role-assignment";
 
 interface TaskListProps {
   projectId: string;
@@ -22,9 +25,39 @@ interface TaskListProps {
 export function TaskList({ projectId, users, availableSteps = [] }: TaskListProps) {
   const { tasks, isLoading, addTask, editTask, removeTask, refetch } =
     useImplementationTasks(projectId);
+
+  // Build project team IDs for @mention prioritization.
+  const { project } = useProjectContext();
+  const projectTeamIds = project
+    ? new Set(
+        [
+          project.solutionsExecutiveId,
+          project.solutionsEngineerId,
+          project.fieldProjectManagerId,
+          project.seniorInsideId,
+          project.insidePMId,
+          ...project.technicians.map((t) => t.userId),
+        ]
+          .filter((id): id is string => Boolean(id) && id !== ROLE_NOT_NEEDED)
+      )
+    : undefined;
   const [drawerTarget, setDrawerTarget] = useState<ImplementationTask | "new" | null>(null);
   const [drawerDefaultStepId, setDrawerDefaultStepId] = useState<string | null>(null);
   const [seedModalStep, setSeedModalStep] = useState<WorkflowStep | null>(null);
+
+  // Auto-open a specific task when ?taskId= is present in the URL (e.g. from an
+  // activity feed task reference link). Only fires once after tasks are loaded.
+  const searchParams = useSearchParams();
+  const openTaskId = searchParams.get("taskId");
+  const autoOpenedRef = useRef(false);
+  useEffect(() => {
+    if (!openTaskId || !tasks || tasks.length === 0 || autoOpenedRef.current) return;
+    const target = tasks.find((t) => t.id === openTaskId);
+    if (!target) return;
+    autoOpenedRef.current = true;
+    setDrawerTarget(target);
+    setDrawerDefaultStepId(null);
+  }, [tasks, openTaskId]);
 
   function openNew(stepId: string | null = null) {
     setDrawerTarget("new");
@@ -127,6 +160,7 @@ export function TaskList({ projectId, users, availableSteps = [] }: TaskListProp
           key={openTask_?.id ?? "new"}
           task={openTask_}
           users={users}
+          projectTeamIds={projectTeamIds}
           availableSteps={availableSteps}
           defaultWorkflowStepId={drawerDefaultStepId}
           allTasks={tasks ?? []}

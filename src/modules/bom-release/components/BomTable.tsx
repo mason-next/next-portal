@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Trash2 } from "lucide-react";
+import { Copy, Trash2 } from "lucide-react";
 import { BOM_STATUSES, type BomRow, type BomRowSnapshot, type BomStatus } from "@/types/bom";
 import { DataTable, type ColumnDef } from "@/components/shared/data-table/DataTable";
 import { EditableCell } from "@/components/shared/data-table/EditableCell";
@@ -56,6 +56,7 @@ interface BomTableProps {
   onAssignRelease: (rowId: string, releaseLabel: string) => void;
   onRowsReorder: (fromId: string, toId: string) => void;
   onDeleteRow: (rowId: string) => void;
+  onCopyRow: (rowId: string) => void;
 }
 
 export function BomTable({
@@ -74,6 +75,7 @@ export function BomTable({
   onAssignRelease,
   onRowsReorder,
   onDeleteRow,
+  onCopyRow,
 }: BomTableProps) {
   const [auditRowId, setAuditRowId] = useState<string | null>(null);
   const auditRow = rows.find((row) => row.id === auditRowId) ?? null;
@@ -306,21 +308,32 @@ export function BomTable({
     {
       key: "delete",
       header: "",
-      width: 40,
+      width: 60,
       align: "center",
       cell: (row) => (
-        <button
-          type="button"
-          onClick={() => {
-            if (window.confirm(`Delete row ${row.seq || row.part || "this item"}? This cannot be undone.`)) {
-              onDeleteRow(row.id);
-            }
-          }}
-          aria-label={`Delete row ${row.seq}`}
-          className="flex size-6 items-center justify-center rounded text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
-        >
-          <Trash2 className="size-4" />
-        </button>
+        <div className="flex items-center justify-center gap-0.5">
+          <button
+            type="button"
+            onClick={() => onCopyRow(row.id)}
+            aria-label={`Copy row ${row.seq}`}
+            title="Duplicate row"
+            className="flex size-6 items-center justify-center rounded text-muted-foreground hover:bg-primary/10 hover:text-primary"
+          >
+            <Copy className="size-3.5" />
+          </button>
+          <button
+            type="button"
+            onClick={() => {
+              if (window.confirm(`Delete row ${row.seq || row.part || "this item"}? This cannot be undone.`)) {
+                onDeleteRow(row.id);
+              }
+            }}
+            aria-label={`Delete row ${row.seq}`}
+            className="flex size-6 items-center justify-center rounded text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
+          >
+            <Trash2 className="size-4" />
+          </button>
+        </div>
       ),
     },
   ];

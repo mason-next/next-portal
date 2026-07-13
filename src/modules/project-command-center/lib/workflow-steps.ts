@@ -56,8 +56,8 @@ export const WORKFLOW_STEP_TEMPLATE: WorkflowStepTemplateEntry[] = [
   { key: "projectCreated",           name: "Project Created",            sortOrder: 2,  section: "setup" },
   { key: "assignTeam",               name: "Assign Team",                sortOrder: 3,  section: "setup",           defaultOwnerRole: "seniorInsideId" },
   { key: "sendWelcomeLetter",        name: "Send Welcome Letter",        sortOrder: 4,  section: "setup",           defaultOwnerRole: "seniorInsideId" },
-  { key: "scheduleInternalKickoff",  name: "Schedule Internal Kickoff",  sortOrder: 5,  section: "setup",           defaultOwnerRole: "insidePMId" },
-  { key: "scheduleTechnicalKickoff", name: "Schedule Technical Kickoff", sortOrder: 6,  section: "setup",           defaultOwnerRole: "solutionsEngineerId" },
+  { key: "scheduleInternalKickoff",  name: "Internal Kickoff",           sortOrder: 5,  section: "setup",           defaultOwnerRole: "insidePMId" },
+  { key: "scheduleTechnicalKickoff", name: "Technical Kickoff",          sortOrder: 6,  section: "setup",           defaultOwnerRole: "solutionsEngineerId" },
   { key: "cadReview",                name: "CAD Review",                 sortOrder: 7,  section: "engineering",     defaultOwnerRole: "solutionsEngineerId" },
   { key: "bomReview",                name: "BOM Review",                 sortOrder: 8,  section: "engineering",     defaultOwnerRole: "solutionsEngineerId" },
   { key: "equipmentTracking",        name: "Equipment Tracking",         sortOrder: 9,  section: "procurement",     defaultOwnerRole: "insidePMId" },
@@ -139,7 +139,7 @@ export function stepActionHref(projectId: string, step: WorkflowStep): string {
   return `/projects/${projectId}${suffix}`;
 }
 
-export const PROJECT_SECTIONS: { key: "dashboard" | "meetingNotes" | ProjectSectionKey; label: string; href: string }[] = [
+export const PROJECT_SECTIONS: { key: "dashboard" | "meetingNotes" | "gantt" | ProjectSectionKey; label: string; href: string }[] = [
   { key: "dashboard", label: "Dashboard", href: "" },
   { key: "setup", label: "Setup", href: "/setup" },
   { key: "engineering", label: "Engineering", href: "/engineering" },
@@ -148,6 +148,7 @@ export const PROJECT_SECTIONS: { key: "dashboard" | "meetingNotes" | ProjectSect
   { key: "closeout", label: "Closeout", href: "/closeout" },
   { key: "serviceWarranty", label: "Service & Warranty", href: "/service-warranty" },
   { key: "meetingNotes", label: "Meeting Notes", href: "/meeting-notes" },
+  { key: "gantt", label: "Gantt", href: "/gantt" },
 ];
 
 export const WORKFLOW_STATUS_TONE: Record<WorkflowStepStatus, StatusTone> = {

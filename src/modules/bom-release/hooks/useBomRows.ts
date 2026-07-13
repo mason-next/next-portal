@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { getBomRows, saveBomRows, updateBomRow, type BomRowPatch } from "@/lib/data/bom-rows";
+import { createBomRow, getBomRows, saveBomRows, updateBomRow, type BomRowPatch } from "@/lib/data/bom-rows";
 import { useSession } from "@/lib/auth/client";
 import type { AuditEntry } from "@/types/audit";
 import type { BomRow, BomRowSnapshot, BomStatus } from "@/types/bom";
@@ -188,7 +188,7 @@ export function useBomRows(projectId: string) {
     saveBomRows(projectId, nextRows);
   }
 
-  function addRow() {
+  async function addRow() {
     if (!loaded) return;
     const now = new Date().toISOString();
 
@@ -204,14 +204,59 @@ export function useBomRows(projectId: string) {
       releaseId: null,
       release: null,
       releasedAt: null,
+      shippingType: null,
+      shipTo: null,
       notes: "",
       audit: [],
       updatedAt: now,
     };
 
+    const prevLoaded = loaded;
     const nextRows = [...loaded.rows, newRow];
     setLoaded({ ...loaded, rows: nextRows });
-    saveBomRows(projectId, nextRows);
+    try {
+      await createBomRow(projectId, newRow, nextRows.length - 1);
+    } catch {
+      setLoaded(prevLoaded);
+    }
+  }
+
+  async function copyRow(rowId: string) {
+    if (!loaded) return;
+    const original = loaded.rows.find((r) => r.id === rowId);
+    if (!original) return;
+
+    const now = new Date().toISOString();
+    const newRow: BomRow = {
+      id: crypto.randomUUID(),
+      seq: original.seq,
+      mfr: original.mfr,
+      part: original.part,
+      desc: original.desc ? `${original.desc} (Copy)` : "(Copy)",
+      qty: original.qty,
+      unitCost: original.unitCost,
+      status: "Not Reviewed",
+      releaseId: null,
+      release: null,
+      releasedAt: null,
+      shippingType: null,
+      shipTo: null,
+      notes: "",
+      audit: [],
+      updatedAt: now,
+    };
+
+    const originalIndex = loaded.rows.findIndex((r) => r.id === rowId);
+    const nextRows = [...loaded.rows];
+    nextRows.splice(originalIndex + 1, 0, newRow);
+
+    const prevLoaded = loaded;
+    setLoaded({ ...loaded, rows: nextRows });
+    try {
+      await saveBomRows(projectId, nextRows);
+    } catch {
+      setLoaded(prevLoaded);
+    }
   }
 
   function reorderRows(fromIndex: number, toIndex: number) {
@@ -244,6 +289,7 @@ export function useBomRows(projectId: string) {
     bulkAssignRelease,
     markRowsReleased,
     addRow,
+    copyRow,
     deleteRows,
     reorderRows,
     refetch: () => setReloadToken((token) => token + 1),

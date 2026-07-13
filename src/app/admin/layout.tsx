@@ -7,9 +7,10 @@ export default async function AdminLayout({ children }: { children: ReactNode })
   const session = await getServerSession();
   if (!session) redirect("/login");
 
-  // Allow if Administrator role type OR at least viewer access to the users module.
+  // Allow if Administrator, has users module access, or is a role that gets the admin cog in the header.
+  const ADMIN_ROLES = ["Administrator", "Sales", "Engineering", "ProjectManagement", "Management"];
   const canAccessAdmin =
-    session.roleTypes.includes("Administrator") ||
+    session.roleTypes.some((r) => ADMIN_ROLES.includes(r)) ||
     getEffectiveLevel(session.roleTypes, "users") !== "none";
 
   if (!canAccessAdmin) redirect("/projects");

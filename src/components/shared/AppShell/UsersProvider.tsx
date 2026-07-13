@@ -4,6 +4,10 @@ import { createContext, useContext, useEffect, useState, type ReactNode } from "
 import { getUsers } from "@/lib/data/users";
 import type { AppUser } from "@/types/user";
 
+// Refresh presence data every 30 s so online/away/offline badges stay accurate
+// without requiring a page reload.
+const PRESENCE_POLL_MS = 30_000;
+
 interface UsersApi {
   users: AppUser[];
   isLoading: boolean;
@@ -25,6 +29,12 @@ export function UsersProvider({ children }: { children: ReactNode }) {
       active = false;
     };
   }, [reloadToken]);
+
+  // Periodic presence refresh — keeps lastActiveAt values current across the app.
+  useEffect(() => {
+    const id = setInterval(() => setReloadToken((t) => t + 1), PRESENCE_POLL_MS);
+    return () => clearInterval(id);
+  }, []);
 
   return (
     <UsersContext.Provider

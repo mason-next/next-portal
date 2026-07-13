@@ -1,9 +1,16 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { addWorkflowStep, removeWorkflowStep, updateWorkflowStep, type AddWorkflowStepInput } from "@/lib/data/workflow";
+import {
+  addPhaseToProject,
+  addWorkflowStep,
+  removePhaseFromProject,
+  removeWorkflowStep,
+  updateWorkflowStep,
+  type AddWorkflowStepInput,
+} from "@/lib/data/workflow";
 import { getWorkflowStepsWithProgress } from "@/modules/project-command-center/engine/module-progress";
-import type { WorkflowStep } from "@/types/workflow";
+import type { ProjectSectionKey, WorkflowStep } from "@/types/workflow";
 
 export function useWorkflowSteps(projectId: string) {
   const [loaded, setLoaded] = useState<{
@@ -19,7 +26,8 @@ export function useWorkflowSteps(projectId: string) {
       .then(({ steps, percentByKey }) => {
         if (active) setLoaded({ projectId, steps, percentByKey });
       })
-      .catch(() => {
+      .catch((err: unknown) => {
+        console.error("[useWorkflowSteps] Failed to load workflow steps:", err);
         if (active) setLoaded({ projectId, steps: [], percentByKey: {} });
       });
     return () => {
@@ -51,6 +59,16 @@ export function useWorkflowSteps(projectId: string) {
     refetch();
   }
 
+  async function addPhase(section: ProjectSectionKey) {
+    await addPhaseToProject(projectId, section);
+    refetch();
+  }
+
+  async function removePhase(section: ProjectSectionKey) {
+    await removePhaseFromProject(projectId, section);
+    refetch();
+  }
+
   return {
     steps: isLoading ? [] : loaded.steps,
     percentByKey: isLoading ? {} : loaded.percentByKey,
@@ -58,6 +76,8 @@ export function useWorkflowSteps(projectId: string) {
     updateStep,
     addStep,
     deleteStep,
+    addPhase,
+    removePhase,
     refetch,
   };
 }

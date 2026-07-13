@@ -42,4 +42,5 @@ export interface NewProjectInput {
   siteAddress: string;
   coordinatorGroup: string;
   projectTypes: string[];
+  excludedStepKeys?: string[];
 }

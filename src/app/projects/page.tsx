@@ -23,6 +23,7 @@ import { HEALTH_TONE } from "@/modules/project-command-center/lib/project-health
 import { formatCalendarDate, cn } from "@/lib/utils";
 import { readGlobal, writeGlobal } from "@/lib/storage/local-store";
 import { usePersistentFilter } from "@/lib/storage/use-persistent-filter";
+import { useViewAs } from "@/lib/view-as/ViewAsContext";
 import { ProjectsKanbanBoard } from "@/modules/project-command-center/components/ProjectsKanbanBoard";
 import { PROJECT_HEALTH } from "@/types/project";
 import type { Project } from "@/types/project";
@@ -142,6 +143,7 @@ export default function ProjectsPage() {
   const router = useRouter();
   const session = useSession();
   const { users } = useUsersContext();
+  const { isViewAsMode, viewAsUser } = useViewAs();
   const isAdmin = session.roleTypes.includes("Administrator");
   const [projects, setProjects] = useState<Project[] | null>(null);
   const [stepsByProject, setStepsByProject] = useState<Record<string, WorkflowStep[]>>({});
@@ -163,12 +165,19 @@ export default function ProjectsPage() {
   // Performance: load projects + all their steps in 2 parallel queries instead of N+1.
   const loadProjects = useCallback(async () => {
     setProjects(null);
-    const opts = isAdmin && adminFilterUserId ? { filterUserId: adminFilterUserId } : undefined;
+    // In view-as mode, scope exactly like the viewed user would see (respect their non-admin status).
+    let opts: { filterUserId?: string } | undefined;
+    if (isViewAsMode && viewAsUser) {
+      const viewedIsAdmin = viewAsUser.roleTypes.includes("Administrator");
+      opts = viewedIsAdmin ? undefined : { filterUserId: viewAsUser.id };
+    } else {
+      opts = isAdmin && adminFilterUserId ? { filterUserId: adminFilterUserId } : undefined;
+    }
     const loaded = await getProjects(opts);
     setProjects(loaded);
     const byProject = await getWorkflowStepsForProjects(loaded.map((p) => p.id));
     setStepsByProject(byProject);
-  }, [adminFilterUserId, isAdmin]);
+  }, [adminFilterUserId, isAdmin, isViewAsMode, viewAsUser]);
 
   useEffect(() => {
     loadProjects();
@@ -314,7 +323,7 @@ export default function ProjectsPage() {
 
       {projects !== null && projects.length > 0 ? (
         <div className="mb-4 flex flex-wrap items-center gap-2">
-          {isAdmin ? (
+          {isAdmin && !isViewAsMode ? (
             <select
               className="h-9 rounded-md border border-input bg-background px-3 text-sm outline-none focus:border-primary"
               value={adminFilterUserId ?? ""}

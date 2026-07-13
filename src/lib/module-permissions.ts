@@ -5,6 +5,9 @@ export const MODULE_KEYS = [
   "projects",
   "tasks",
   "sales",
+  "salesActivity",
+  "salesDealDesk",
+  "salesQuotes",
   "bom",
   "serviceCalculator",
   "reports",
@@ -15,6 +18,7 @@ export const MODULE_KEYS = [
   "licenses",
   "adminSettings",
   "permissions",
+  "orgChart",
 ] as const;
 
 export type ModuleKey = (typeof MODULE_KEYS)[number];
@@ -23,7 +27,10 @@ export const MODULE_LABELS: Record<ModuleKey, string> = {
   dashboard:         "Dashboard",
   projects:          "Projects",
   tasks:             "Tasks",
-  sales:             "Sales",
+  sales:             "Sales (Overview)",
+  salesActivity:     "Sales — Activity & Opportunities",
+  salesDealDesk:     "Sales — Deal Desk",
+  salesQuotes:       "Sales — Quote Portal",
   bom:               "BOM",
   serviceCalculator: "Service Calculator",
   reports:           "Reports",
@@ -34,6 +41,7 @@ export const MODULE_LABELS: Record<ModuleKey, string> = {
   licenses:          "Licenses",
   adminSettings:     "Admin Settings",
   permissions:       "Permissions",
+  orgChart:          "Org Chart",
 };
 
 // ─── Action definitions ───────────────────────────────────────────────────────
@@ -65,66 +73,77 @@ export type RolePermissionsConfig = Record<string, Record<ModuleKey, ModulePermL
 export const DEFAULT_ROLE_PERMISSIONS: RolePermissionsConfig = {
   Administrator: {
     dashboard: "administrator", projects: "administrator", tasks: "administrator",
-    sales: "administrator", bom: "administrator", serviceCalculator: "administrator",
+    sales: "administrator", salesActivity: "administrator", salesDealDesk: "administrator", salesQuotes: "administrator",
+    bom: "administrator", serviceCalculator: "administrator",
     reports: "administrator", activity: "administrator", users: "administrator",
     subcontractors: "administrator", templates: "administrator", licenses: "administrator",
-    adminSettings: "administrator", permissions: "administrator",
+    adminSettings: "administrator", permissions: "administrator", orgChart: "administrator",
   },
   Sales: {
     dashboard: "member", projects: "viewer", tasks: "member",
-    sales: "administrator", bom: "viewer", serviceCalculator: "member",
+    // Sales reps own their pipeline — member means they see only their records.
+    // Use administrator in Role Permissions to grant a rep team-wide visibility.
+    sales: "member", salesActivity: "member", salesDealDesk: "member", salesQuotes: "member",
+    bom: "viewer", serviceCalculator: "member",
     reports: "member", activity: "member", users: "none",
     subcontractors: "none", templates: "viewer", licenses: "none",
-    adminSettings: "none", permissions: "none",
+    adminSettings: "none", permissions: "none", orgChart: "none",
   },
   Engineering: {
     dashboard: "member", projects: "member", tasks: "member",
-    sales: "viewer", bom: "member", serviceCalculator: "member",
+    sales: "viewer", salesActivity: "viewer", salesDealDesk: "none", salesQuotes: "none",
+    bom: "member", serviceCalculator: "member",
     reports: "viewer", activity: "member", users: "none",
     subcontractors: "none", templates: "viewer", licenses: "none",
-    adminSettings: "none", permissions: "none",
+    adminSettings: "none", permissions: "none", orgChart: "none",
   },
   ProjectManagement: {
     dashboard: "member", projects: "administrator", tasks: "member",
-    sales: "viewer", bom: "member", serviceCalculator: "viewer",
+    sales: "viewer", salesActivity: "viewer", salesDealDesk: "none", salesQuotes: "none",
+    bom: "member", serviceCalculator: "viewer",
     reports: "member", activity: "member", users: "viewer",
     subcontractors: "member", templates: "viewer", licenses: "viewer",
-    adminSettings: "none", permissions: "none",
+    adminSettings: "none", permissions: "none", orgChart: "none",
   },
   Management: {
     dashboard: "administrator", projects: "administrator", tasks: "member",
-    sales: "administrator", bom: "viewer", serviceCalculator: "viewer",
+    sales: "administrator", salesActivity: "administrator", salesDealDesk: "administrator", salesQuotes: "administrator",
+    bom: "viewer", serviceCalculator: "viewer",
     reports: "administrator", activity: "member", users: "member",
     subcontractors: "member", templates: "member", licenses: "member",
-    adminSettings: "none", permissions: "none",
+    adminSettings: "none", permissions: "none", orgChart: "none",
   },
   Installation: {
     dashboard: "viewer", projects: "viewer", tasks: "member",
-    sales: "none", bom: "viewer", serviceCalculator: "none",
+    sales: "none", salesActivity: "none", salesDealDesk: "none", salesQuotes: "none",
+    bom: "viewer", serviceCalculator: "none",
     reports: "none", activity: "member", users: "none",
     subcontractors: "none", templates: "viewer", licenses: "none",
-    adminSettings: "none", permissions: "none",
+    adminSettings: "none", permissions: "none", orgChart: "none",
   },
   Finance: {
     dashboard: "viewer", projects: "viewer", tasks: "viewer",
-    sales: "viewer", bom: "viewer", serviceCalculator: "none",
+    sales: "viewer", salesActivity: "viewer", salesDealDesk: "viewer", salesQuotes: "none",
+    bom: "viewer", serviceCalculator: "none",
     reports: "administrator", activity: "viewer", users: "none",
     subcontractors: "none", templates: "none", licenses: "viewer",
-    adminSettings: "none", permissions: "none",
+    adminSettings: "none", permissions: "none", orgChart: "none",
   },
   Customer: {
     dashboard: "viewer", projects: "viewer", tasks: "viewer",
-    sales: "none", bom: "none", serviceCalculator: "none",
+    sales: "none", salesActivity: "none", salesDealDesk: "none", salesQuotes: "none",
+    bom: "none", serviceCalculator: "none",
     reports: "none", activity: "viewer", users: "none",
     subcontractors: "none", templates: "none", licenses: "none",
-    adminSettings: "none", permissions: "none",
+    adminSettings: "none", permissions: "none", orgChart: "none",
   },
   Subcontractor: {
     dashboard: "viewer", projects: "viewer", tasks: "viewer",
-    sales: "none", bom: "none", serviceCalculator: "none",
+    sales: "none", salesActivity: "none", salesDealDesk: "none", salesQuotes: "none",
+    bom: "none", serviceCalculator: "none",
     reports: "none", activity: "viewer", users: "none",
     subcontractors: "none", templates: "none", licenses: "none",
-    adminSettings: "none", permissions: "none",
+    adminSettings: "none", permissions: "none", orgChart: "none",
   },
 };
 
@@ -160,7 +179,8 @@ export function getEffectiveLevel(
   let maxIdx = 0; // "none" at index 0
 
   for (const role of roleTypes) {
-    const perms = source[role];
+    // Fall back to built-in defaults for roles not explicitly in the custom config.
+    const perms = source[role] ?? DEFAULT_ROLE_PERMISSIONS[role];
     if (!perms) continue;
     const level: ModulePermLevel = perms[module] ?? "none";
     const idx = PERM_LEVELS.indexOf(level);

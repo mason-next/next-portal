@@ -3,6 +3,7 @@
 import { ProjectRoleDefaultsCard } from "@/modules/admin/components/ProjectRoleDefaultsCard";
 import { MeetingDefaultsCard } from "@/modules/admin/components/MeetingDefaultsCard";
 import { WorkflowStepDefaultsCard } from "@/modules/admin/components/WorkflowStepDefaultsCard";
+import { OrgChartSettingsCard } from "@/modules/org-chart/components/OrgChartSettingsCard";
 
 export function DefaultsTab() {
   return (
@@ -17,6 +18,7 @@ export function DefaultsTab() {
         <ProjectRoleDefaultsCard />
         <MeetingDefaultsCard />
         <WorkflowStepDefaultsCard />
+        <OrgChartSettingsCard />
       </div>
     </>
   );

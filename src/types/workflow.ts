@@ -50,6 +50,7 @@ export interface WorkflowStep {
   weight: number; // percentage points; all steps in a section sum to that section's PHASE_WEIGHT
   status: WorkflowStepStatus;
   ownerId: string | null;
+  startDate: string | null;
   dueDate: string | null;
   completedDate: string | null; // auto-stamped on entering/leaving Complete/Not Needed, see lib/data/workflow.ts
   sortOrder: number;

@@ -64,7 +64,7 @@ export function buildEmailHtml(details: EmailDetails, rows: BomRowSnapshot[]): s
 <br/><p><b>${escapeHtml(details.releaseNumber)}</b> has been created and is ready for procurement.</p>
 <br/><table style="width:100%;border-collapse:collapse;margin:12px 0 18px;font-size:12px">
 <tr><td style="${labelCell};width:150px">Project</td><td style="${cell}">${escapeHtml(details.projectNumber)} - ${escapeHtml(details.projectName)}</td></tr>
-<tr><td style="${labelCell}">Site Address</td><td style="${cell}">${escapeHtml(details.siteAddress || "—")}</td></tr>
+<tr><td style="${labelCell}">Site Address</td><td style="${cell}">${details.siteAddress ? `<a href="https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(details.siteAddress)}" style="color:#2563eb;text-decoration:underline">${escapeHtml(details.siteAddress)}</a>` : "—"}</td></tr>
 <tr><td style="${labelCell}">Release</td><td style="${cell}">${escapeHtml(details.releaseNumber)}</td></tr>
 <tr><td style="${labelCell}">Shipping Type</td><td style="${cell}">${escapeHtml(details.shippingType)}</td></tr>
 <tr><td style="${labelCell}">Ship To</td><td style="${cell}">${escapeHtml(details.shipTo)}</td></tr>

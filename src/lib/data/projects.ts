@@ -8,7 +8,7 @@ import { getProjectTechnicians } from "@/lib/data/subcontractors";
 import { removeProjectScoped } from "@/lib/storage/local-store";
 import { getServerSession } from "@/lib/auth/server";
 import { requireEditPermission } from "@/lib/access-control";
-import { autoAssignStepsForRoleChange } from "@/lib/data/workflow";
+import { autoAssignStepsForRoleChange, seedWorkflowStepsForProject } from "@/lib/data/workflow";
 import {
   getProjectRoleDefaults,
   resolveAssigneeTarget,
@@ -205,6 +205,12 @@ export async function createProject(input: NewProjectInput): Promise<Project> {
       projectTypes: input.projectTypes ?? [],
     },
   });
+
+  // Eagerly seed workflow steps so the user's preview exclusions are applied immediately.
+  await seedWorkflowStepsForProject(row.id, input.projectTypes ?? [], input.excludedStepKeys ?? []).catch(
+    (err) => console.error("[createProject] seedWorkflowStepsForProject failed:", err)
+  );
+
   return toProject(row);
 }
 

@@ -21,6 +21,8 @@ import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { useSession } from "@/lib/auth/client";
 import { useUsersContext } from "@/components/shared/AppShell/UsersProvider";
+import { useViewAs } from "@/lib/view-as/ViewAsContext";
+import { mutationBus } from "@/lib/mutation-bus";
 import { usePersistentFilter } from "@/lib/storage/use-persistent-filter";
 import { TaskDrawer } from "@/modules/implementation/components/TaskDrawer";
 import { TaskImportModal } from "@/modules/implementation/components/TaskImportModal";
@@ -127,6 +129,7 @@ const FILTER_SELECT_CLASS =
 export default function TasksPage() {
   const session = useSession();
   const { users } = useUsersContext();
+  const { isViewAsMode, viewAsUser } = useViewAs();
   const isAdmin = session.roleTypes.includes("Administrator");
   const [adminUserId, setAdminUserId] = usePersistentFilter<string | null>("tasks:adminUserId", null);
   const [tasks, setTasks] = useState<ApiTask[] | null>(null);
@@ -138,6 +141,7 @@ export default function TasksPage() {
   const [showImport, setShowImport] = useState(false);
   const [outlookTask, setOutlookTask] = useState<OutlookTaskInfo | null>(null);
   const [reloadKey, setReloadKey] = useState(0);
+  const [bgReloadKey, setBgReloadKey] = useState(0);
 
   // Task drawer (personal and project tasks)
   const [activeTaskLoading, setActiveTaskLoading] = useState(false);
@@ -149,12 +153,55 @@ export default function TasksPage() {
     if (isAllTeam && tab === "followups") setTab("tasks");
   }, [isAllTeam, tab]);
 
+  // Subscribe to mutation bus — immediately background-refresh when another component mutates tasks
+  useEffect(() => {
+    return mutationBus.subscribe(() => setBgReloadKey((k) => k + 1));
+  }, []);
+
+  // Cross-user background poll every 30 seconds — no loading flash
+  useEffect(() => {
+    const id = setInterval(() => setBgReloadKey((k) => k + 1), 30_000);
+    return () => clearInterval(id);
+  }, []);
+
+  // Background refresh (silent — does not reset tasks to null)
+  useEffect(() => {
+    if (tasks === null) return; // Wait until initial load completes
+    let active = true;
+    let url = "/api/tasks/mine";
+    if (isViewAsMode && viewAsUser) {
+      url = `/api/tasks/mine?userId=${viewAsUser.id}`;
+    } else if (isAdmin && adminUserId === "__all__") {
+      url = "/api/tasks/mine?userId=all";
+    } else if (isAdmin && adminUserId) {
+      url = `/api/tasks/mine?userId=${adminUserId}`;
+    }
+    fetch(url)
+      .then((r) => (r.ok ? r.json() : null))
+      .then((data) => {
+        if (!active || !data) return;
+        setTasks(data.tasks ?? []);
+        setOwnedSteps(data.ownedSteps ?? []);
+        setNotifications(data.notifications ?? []);
+      })
+      .catch(() => {});
+    return () => {
+      active = false;
+    };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [bgReloadKey]);
+
   useEffect(() => {
     setTasks(null);
     setError(false);
     let url = "/api/tasks/mine";
-    if (isAdmin && adminUserId === "__all__") url = "/api/tasks/mine?userId=all";
-    else if (isAdmin && adminUserId) url = `/api/tasks/mine?userId=${adminUserId}`;
+    if (isViewAsMode && viewAsUser) {
+      url = `/api/tasks/mine?userId=${viewAsUser.id}`;
+    } else if (isAdmin && adminUserId === "__all__") {
+      url = "/api/tasks/mine?userId=all";
+    } else if (isAdmin && adminUserId) {
+      url = `/api/tasks/mine?userId=${adminUserId}`;
+    }
     fetch(url)
       .then((r) => {
         if (!r.ok) throw new Error(r.statusText);
@@ -171,7 +218,7 @@ export default function TasksPage() {
         setNotifications([]);
       });
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [adminUserId, isAdmin, reloadKey]);
+  }, [adminUserId, isAdmin, isViewAsMode, viewAsUser, reloadKey]);
 
   const loading = tasks === null && !error;
   const taskCount = (tasks?.length ?? 0) + ownedSteps.length;
@@ -261,7 +308,7 @@ export default function TasksPage() {
         />
       )}
 
-      {isAdmin ? (
+      {isAdmin && !isViewAsMode ? (
         <div className="flex items-center gap-2">
           <label className="text-sm text-muted-foreground">View:</label>
           <select
@@ -638,14 +685,24 @@ function TaskRow({
   );
 
   return (
-    <button
-      type="button"
+    <div
+      role="button"
+      tabIndex={taskLoading ? -1 : 0}
       onClick={() => !taskLoading && onOpenTask(task.id)}
-      className="flex w-full items-center gap-3 px-5 py-3.5 hover:bg-accent transition-colors text-left disabled:opacity-60"
-      disabled={taskLoading}
+      onKeyDown={(e) => {
+        if ((e.key === "Enter" || e.key === " ") && !taskLoading) {
+          e.preventDefault();
+          onOpenTask(task.id);
+        }
+      }}
+      aria-disabled={taskLoading}
+      className={cn(
+        "flex w-full items-center gap-3 px-5 py-3.5 hover:bg-accent transition-colors text-left cursor-pointer",
+        taskLoading && "opacity-60 cursor-not-allowed"
+      )}
     >
       {inner}
-    </button>
+    </div>
   );
 }
 

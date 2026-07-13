@@ -47,14 +47,10 @@ export async function createNotification(input: NewNotificationInput): Promise<N
       ? { userId: input.userId, taskCommentId: input.taskCommentId }
       : { userId: input.userId, type: input.type, projectId: input.projectId };
 
-  const isDuplicate = await (db.notification as unknown as {
-    findFirst: (args: unknown) => Promise<{ id: string } | null>;
-  }).findFirst({ where: dedup, select: { id: true } });
+  const isDuplicate = await db.notification.findFirst({ where: dedup, select: { id: true } });
   if (isDuplicate) return null;
 
-  const row = await (db.notification as unknown as {
-    create: (args: unknown) => Promise<PrismaNotification>;
-  }).create({
+  const row = await db.notification.create({
     data: {
       userId: input.userId,
       type: input.type,

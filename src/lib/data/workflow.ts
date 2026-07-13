@@ -12,11 +12,12 @@ import { requireEditPermission } from "@/lib/access-control";
 import { defaultWorkflowSteps } from "@/lib/mock/workflow.mock";
 import {
   redistributeWeights,
-  shouldIncludeStepForTypes,
   shouldIncludeStepForTypesWithConfig,
   DEFAULT_PROJECT_TYPE_CONFIG,
   WORKFLOW_STEP_TEMPLATE,
+  SECTION_LABEL,
 } from "@/modules/project-command-center/lib/workflow-steps";
+import { PROJECT_SECTION_KEYS } from "@/types/workflow";
 import {
   getWorkflowStepDefaults,
   resolveAssigneeTarget,
@@ -65,6 +66,7 @@ function toStep(p: PrismaStep): WorkflowStep {
     weight: p.weight,
     status: STATUS_FROM_DB[p.status] ?? "Not Started",
     ownerId: p.ownerId,
+    startDate: (p as unknown as { startDate?: Date | null }).startDate?.toISOString() ?? null,
     dueDate: p.dueDate?.toISOString() ?? null,
     completedDate: p.completedDate?.toISOString() ?? null,
     sortOrder: p.sortOrder,
@@ -95,6 +97,7 @@ function toDbCreate(s: WorkflowStep) {
     statusOverridden: s.statusOverridden,
     weightOverridden: s.weightOverridden,
     isCustom: s.isCustom,
+    isExcluded: s.isExcluded ?? false,
     description: s.description ?? "",
     dependsOnKeys: s.dependsOnKeys ?? [],
     completionRule: s.completionRule ?? "manual",
@@ -195,12 +198,33 @@ async function reconcileTemplateStepsDb(
     (e) => !existingKeys.has(e.key) && shouldIncludeStepForTypesWithConfig(e.key, projectTypes, config)
   );
 
-  if (toRemove.length === 0 && toAdd.length === 0) return steps.filter((s) => !s.isExcluded);
+  // Sync names for non-custom template steps whose display name changed in the template
+  const toRename = steps.filter((s) => {
+    if (s.isCustom) return false;
+    const entry = WORKFLOW_STEP_TEMPLATE.find((e) => e.key === s.key);
+    return entry && entry.name !== s.name;
+  });
+
+  if (toRemove.length === 0 && toAdd.length === 0 && toRename.length === 0) {
+    return steps.filter((s) => !s.isExcluded);
+  }
 
   if (toRemove.length > 0) {
     await db.workflowStep.deleteMany({
       where: { projectId, key: { in: toRemove.map((s) => s.key) } },
     });
+  }
+
+  if (toRename.length > 0) {
+    await Promise.all(
+      toRename.map((s) => {
+        const entry = WORKFLOW_STEP_TEMPLATE.find((e) => e.key === s.key)!;
+        return db.workflowStep.update({
+          where: { projectId_key: { projectId, key: s.key } },
+          data: { name: entry.name },
+        });
+      })
+    );
   }
 
   const now = new Date().toISOString();
@@ -214,6 +238,7 @@ async function reconcileTemplateStepsDb(
     sortOrder: entry.sortOrder,
     status: "Not Started" as WorkflowStepStatus,
     ownerId: null,
+    startDate: null,
     dueDate: null,
     completedDate: null,
     updatedAt: now,
@@ -288,6 +313,55 @@ export async function getWorkflowSteps(projectId: string): Promise<WorkflowStep[
   return reconcileTemplateStepsDb(projectId, dbSteps.map(toStep), types, config);
 }
 
+// Eagerly seeds the initial workflow steps for a project at creation time, applying
+// project-type filtering and any user-chosen step exclusions from the workflow preview.
+// Called from createProject() so the lazy seed in getWorkflowSteps() is skipped.
+export async function seedWorkflowStepsForProject(
+  projectId: string,
+  projectTypes: string[],
+  excludedStepKeys: string[] = []
+): Promise<void> {
+  const existing = await db.workflowStep.count({ where: { projectId } });
+  if (existing > 0) return; // already seeded
+
+  const project = await db.project.findUnique({
+    where: { id: projectId },
+    select: {
+      createdAt: true,
+      seniorInsideId: true,
+      insidePMId: true,
+      fieldProjectManagerId: true,
+      solutionsEngineerId: true,
+      solutionsExecutiveId: true,
+    },
+  });
+  if (!project) throw new Error(`Project not found: ${projectId}`);
+
+  // defaultWorkflowSteps already applies the project-type filter
+  const all = defaultWorkflowSteps(projectId, project.createdAt.toISOString(), projectTypes);
+
+  // Apply user-chosen exclusions: active steps go into the project normally;
+  // excluded steps are still written to DB with isExcluded:true so that
+  // reconcileTemplateStepsDb sees them in existingKeys and never re-adds them.
+  const excludedSet = new Set(excludedStepKeys);
+  const active = all.filter((s) => !excludedSet.has(s.key));
+  const excludedList = all.filter((s) => excludedSet.has(s.key));
+
+  // Redistribute weights among active steps only
+  const reweighted = PROJECT_SECTION_KEYS.reduce(
+    (acc, section) => redistributeWeights(acc, section),
+    active
+  );
+
+  const adminOverrides = await resolveAdminStepOverrides();
+  const withOwners = autoAssignStepOwners(reweighted, project as unknown as ProjectRoleSnapshot, adminOverrides);
+
+  const activeRows = withOwners.map(toDbCreate);
+  const excludedRows = excludedList.map((s) => ({ ...toDbCreate(s), isExcluded: true, weight: 0 }));
+
+  await db.workflowStep.createMany({ data: [...activeRows, ...excludedRows] });
+}
+
 // Batch-loads steps for many projects in 1 query — used by the Projects list page
 // to avoid N+1 fetching. Skips module progress reconciliation intentionally: the list
 // page only needs last-saved status for health/progress display, not live recalculation.
@@ -301,8 +375,10 @@ export async function getWorkflowStepsForProjects(
   });
   const result: Record<string, WorkflowStep[]> = {};
   for (const row of rows) {
+    const step = toStep(row);
+    if (step.isExcluded) continue;
     if (!result[row.projectId]) result[row.projectId] = [];
-    result[row.projectId].push(toStep(row));
+    result[row.projectId].push(step);
   }
   return result;
 }
@@ -334,6 +410,7 @@ export async function updateWorkflowStep(
   if ("name" in patch)             data.name = patch.name;
   if ("status" in patch)           data.status = STATUS_TO_DB[patch.status!];
   if ("ownerId" in patch)          data.ownerId = patch.ownerId ?? null;
+  if ("startDate" in patch)        (data as Record<string, unknown>).startDate = patch.startDate ? new Date(patch.startDate) : null;
   if ("dueDate" in patch)          data.dueDate = patch.dueDate ? new Date(patch.dueDate) : null;
   if ("weight" in patch)           data.weight = patch.weight;
   if ("weightOverridden" in patch) data.weightOverridden = patch.weightOverridden;
@@ -441,6 +518,9 @@ export async function removeWorkflowStep(projectId: string, key: string): Promis
 
   const section = step.section as unknown as ProjectSectionKey;
 
+  // Delete tasks tied to this step so they don't persist as orphans on the Tasks page.
+  await db.implementationTask.deleteMany({ where: { workflowStepId: step.id } });
+
   if (step.isCustom) {
     // Custom (user-added) steps are truly deleted since they're never re-seeded.
     await db.workflowStep.delete({
@@ -457,6 +537,102 @@ export async function removeWorkflowStep(projectId: string, key: string): Promis
   }
 
   await redistributeWeightsDb(projectId, section);
+}
+
+// ─── Phase-level add / remove ────────────────────────────────────────────────
+
+// Adds a predefined phase back to a project.
+// 1. Un-excludes any existing steps in that section (template or custom) that were previously
+//    hidden via removePhaseFromProject.
+// 2. Creates any template steps that don't yet exist in the DB for this section.
+// 3. Redistributes weights across the now-active steps.
+export async function addPhaseToProject(projectId: string, section: ProjectSectionKey): Promise<void> {
+  await requireEditPermission();
+
+  // Un-exclude all steps in the section (template and custom soft-deleted by removePhase)
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  await (db as any).workflowStep.updateMany({
+    where: { projectId, section: SECTION_TO_DB[section] },
+    data: { isExcluded: false },
+  });
+
+  // Find which template steps are still missing entirely from the DB
+  const existing = await db.workflowStep.findMany({
+    where: { projectId, section: SECTION_TO_DB[section] },
+    select: { key: true },
+  });
+  const existingKeys = new Set(existing.map((s) => s.key));
+  const missing = WORKFLOW_STEP_TEMPLATE.filter((e) => e.section === section && !existingKeys.has(e.key));
+
+  if (missing.length > 0) {
+    const now = new Date().toISOString();
+    const newSteps: WorkflowStep[] = missing.map((entry) => ({
+      id: `${projectId}:${entry.key}`,
+      projectId,
+      key: entry.key,
+      name: entry.name,
+      section: entry.section,
+      weight: 0,
+      sortOrder: entry.sortOrder,
+      status: "Not Started" as WorkflowStepStatus,
+      ownerId: null,
+      startDate: null,
+      dueDate: null,
+      completedDate: null,
+      updatedAt: now,
+      statusOverridden: false,
+      weightOverridden: false,
+      isCustom: false,
+      isExcluded: false,
+      description: "",
+      dependsOnKeys: [],
+      completionRule: "manual" as const,
+    }));
+    await db.workflowStep.createMany({ data: newSteps.map(toDbCreate) });
+  }
+
+  await redistributeWeightsDb(projectId, section);
+
+  const session = await getServerSession();
+  await logProjectActivity(projectId, {
+    category: "workflow",
+    activityType: "phase_added",
+    userName: session?.name ?? "System",
+    userId: session?.id,
+    message: `Added "${SECTION_LABEL[section]}" phase to project`,
+  });
+}
+
+// Removes a phase from a project by soft-deleting all its steps (template + custom).
+// Data (status, audit, tasks) is preserved in the DB; the phase simply becomes inactive.
+// Use addPhaseToProject to restore it.
+export async function removePhaseFromProject(projectId: string, section: ProjectSectionKey): Promise<void> {
+  await requireEditPermission();
+
+  const stepsInSection = await db.workflowStep.findMany({
+    where: { projectId, section: SECTION_TO_DB[section] },
+    select: { id: true },
+  });
+  if (stepsInSection.length > 0) {
+    await db.implementationTask.deleteMany({
+      where: { workflowStepId: { in: stepsInSection.map((s) => s.id) } },
+    });
+  }
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  await (db as any).workflowStep.updateMany({
+    where: { projectId, section: SECTION_TO_DB[section] },
+    data: { isExcluded: true },
+  });
+
+  const session = await getServerSession();
+  await logProjectActivity(projectId, {
+    category: "workflow",
+    activityType: "phase_removed",
+    userName: session?.name ?? "System",
+    userId: session?.id,
+    message: `Removed "${SECTION_LABEL[section]}" phase from project`,
+  });
 }
 
 // ─── Bulk auto-assign ─────────────────────────────────────────────────────────

@@ -53,6 +53,7 @@ export default function BomReviewPage({
     bulkAssignRelease,
     markRowsReleased,
     addRow,
+    copyRow,
     deleteRows,
     reorderRows,
     refetch,
@@ -225,7 +226,7 @@ export default function BomReviewPage({
     const emailSubject = buildEmailSubject(emailDetails);
     const emailPlainText = buildEmailPlainText(emailDetails, rowSnapshot);
     const emailHtml = buildEmailHtml(emailDetails, rowSnapshot);
-    const pdf = buildReleasePdf(emailDetails, rowSnapshot);
+    const pdf = await buildReleasePdf(emailDetails, rowSnapshot);
     const pdfFilename = releasePdfFilename(emailDetails);
 
     await updateRelease(projectId, releaseId, {
@@ -268,30 +269,25 @@ export default function BomReviewPage({
       </Link>
       {hasRows ? (
         <>
-          <div className="flex justify-between gap-2">
-            <Button variant="outline" onClick={addRow}>
-              + Add Row
+          <div className="flex justify-end gap-2">
+            <Button variant="outline" onClick={() => fileInputRef.current?.click()} disabled={isParsing}>
+              {isParsing ? "Parsing…" : "Import / Merge CSV"}
             </Button>
-            <div className="flex gap-2">
-              <Button variant="outline" onClick={() => fileInputRef.current?.click()} disabled={isParsing}>
-                {isParsing ? "Parsing…" : "Import / Merge CSV"}
-              </Button>
-              <input
-                ref={fileInputRef}
-                type="file"
-                accept=".csv"
-                className="hidden"
-                onChange={(e) => {
-                  const file = e.target.files?.[0];
-                  if (file) importFile(file);
-                  e.target.value = "";
-                }}
-              />
-              <Button variant="outline" onClick={() => setShowViewOptions(true)}>
-                View Options
-              </Button>
-              <Button onClick={() => setShowReleaseModal(true)}>Create Release</Button>
-            </div>
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept=".csv"
+              className="hidden"
+              onChange={(e) => {
+                const file = e.target.files?.[0];
+                if (file) importFile(file);
+                e.target.value = "";
+              }}
+            />
+            <Button variant="outline" onClick={() => setShowViewOptions(true)}>
+              View Options
+            </Button>
+            <Button onClick={() => setShowReleaseModal(true)}>Create Release</Button>
           </div>
           <CostSummaryCards
             summary={summary}
@@ -322,7 +318,11 @@ export default function BomReviewPage({
             onAssignRelease={handleAssignRelease}
             onRowsReorder={handleRowsReorder}
             onDeleteRow={handleDeleteRow}
+            onCopyRow={copyRow}
           />
+          <Button variant="outline" onClick={addRow} className="w-full">
+            + Add Row
+          </Button>
         </>
       ) : (
         <BomImportDropzone onFileSelected={importFile} onUseSample={importSample} isParsing={isParsing} />

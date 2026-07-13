@@ -2,6 +2,7 @@
 
 import { createContext, useContext, useEffect, useRef, useState, type ReactNode } from "react";
 import { useSession } from "@/lib/auth/client";
+import { useViewAs } from "@/lib/view-as/ViewAsContext";
 import {
   getNotificationsForUser,
   markAllNotificationsRead,
@@ -25,6 +26,7 @@ const NotificationsContext = createContext<NotificationsApi | null>(null);
 
 export function NotificationsProvider({ children }: { children: ReactNode }) {
   const session = useSession();
+  const { isViewAsMode, viewAsUser } = useViewAs();
   const [notifications, setNotifications] = useState<Notification[] | null>(null);
   const [reloadToken, setReloadToken] = useState(0);
   // Track last fetch time to debounce burst refetches (visibility + mutation bus firing together)
@@ -40,11 +42,13 @@ export function NotificationsProvider({ children }: { children: ReactNode }) {
     refetch();
   }
 
+  const effectiveUserId = isViewAsMode && viewAsUser ? viewAsUser.id : session.id;
+
   useEffect(() => {
     let active = true;
     const poll = () => {
       lastFetchAt.current = Date.now();
-      getNotificationsForUser(session.id).then((loaded) => {
+      getNotificationsForUser(effectiveUserId).then((loaded) => {
         if (active) setNotifications(loaded);
       });
     };
@@ -54,7 +58,7 @@ export function NotificationsProvider({ children }: { children: ReactNode }) {
       active = false;
       clearInterval(interval);
     };
-  }, [session.id, reloadToken]);
+  }, [effectiveUserId, reloadToken]);
 
   // Refetch immediately when the tab becomes visible again after being hidden.
   useEffect(() => {
@@ -78,7 +82,7 @@ export function NotificationsProvider({ children }: { children: ReactNode }) {
   }
 
   async function markAllRead() {
-    await markAllNotificationsRead(session.id);
+    await markAllNotificationsRead(effectiveUserId);
     refetch();
   }
 

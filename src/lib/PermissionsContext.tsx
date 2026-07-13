@@ -2,23 +2,20 @@
 
 import { createContext, useContext, useEffect, useState } from "react";
 import { useSession } from "@/lib/auth/client";
-import {
-  canAccess,
-  type PermissionFeature,
-} from "@/lib/permissions";
-import {
-  DEFAULT_ROLE_PERMISSIONS,
-  type RolePermissionsConfig,
-} from "@/lib/module-permissions";
+import { useViewAs } from "@/lib/view-as/ViewAsContext";
+import { canAccess, type PermissionFeature } from "@/lib/permissions";
+import { DEFAULT_ROLE_PERMISSIONS, getEffectiveLevel, type ModuleKey, type ModulePermLevel, type RolePermissionsConfig } from "@/lib/module-permissions";
 
 interface PermissionsCtx {
   hasAccess: (feature: PermissionFeature) => boolean;
+  getLevel: (module: ModuleKey) => ModulePermLevel;
 }
 
-const Ctx = createContext<PermissionsCtx>({ hasAccess: () => true });
+const Ctx = createContext<PermissionsCtx>({ hasAccess: () => true, getLevel: () => "administrator" });
 
 export function PermissionsProvider({ children }: { children: React.ReactNode }) {
   const session = useSession();
+  const { viewAsUser, isViewAsMode } = useViewAs();
   const [config, setConfig] = useState<RolePermissionsConfig>(DEFAULT_ROLE_PERMISSIONS);
 
   useEffect(() => {
@@ -28,12 +25,23 @@ export function PermissionsProvider({ children }: { children: React.ReactNode })
       .catch(() => setConfig(DEFAULT_ROLE_PERMISSIONS));
   }, []);
 
-  function hasAccess(feature: PermissionFeature): boolean {
-    if (!session?.roleTypes?.length) return false;
-    return canAccess(session.roleTypes, feature, config);
+  function effectiveRoleTypes(): string[] {
+    return isViewAsMode ? (viewAsUser?.roleTypes ?? []) : session.roleTypes;
   }
 
-  return <Ctx.Provider value={{ hasAccess }}>{children}</Ctx.Provider>;
+  function hasAccess(feature: PermissionFeature): boolean {
+    const roles = effectiveRoleTypes();
+    if (!roles.length) return false;
+    return canAccess(roles, feature, config);
+  }
+
+  function getLevel(module: ModuleKey): ModulePermLevel {
+    const roles = effectiveRoleTypes();
+    if (!roles.length) return "none";
+    return getEffectiveLevel(roles, module, config);
+  }
+
+  return <Ctx.Provider value={{ hasAccess, getLevel }}>{children}</Ctx.Provider>;
 }
 
 export function usePermissions() {

@@ -8,6 +8,7 @@ export const PERMISSION_FEATURES = [
   "sales",
   "reports",
   "tools",
+  "orgChart",
 ] as const;
 
 export type PermissionFeature = (typeof PERMISSION_FEATURES)[number];
@@ -19,6 +20,7 @@ export const PERMISSION_FEATURE_LABELS: Record<PermissionFeature, string> = {
   sales:     "Sales",
   reports:   "Reports",
   tools:     "Tools & Process",
+  orgChart:  "Org Chart",
 };
 
 // Kept for PermissionsTab UI compatibility — not used for permission enforcement.
@@ -34,6 +36,7 @@ const FEATURE_TO_MODULE: Record<PermissionFeature, ModuleKey> = {
   sales:     "sales",
   reports:   "reports",
   tools:     "serviceCalculator",
+  orgChart:  "orgChart",
 };
 
 /**
