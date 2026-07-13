@@ -27,11 +27,23 @@ export const ALL_ROLES: Role[] = [
   'CAD Engineer',
 ];
 
+export type ProjectTypeFilter = 'Audio / Visual' | 'Structured Cabling' | 'Security' | 'Box Sale';
+export const PROJECT_TYPE_FILTERS: ProjectTypeFilter[] = ['Audio / Visual', 'Structured Cabling', 'Security', 'Box Sale'];
+export const PROJECT_TYPE_SHORT: Record<ProjectTypeFilter, string> = {
+  'Audio / Visual': 'AV',
+  'Structured Cabling': 'Structured',
+  'Security': 'Security',
+  'Box Sale': 'Box Sale',
+};
+
+// ─── Node interfaces ──────────────────────────────────────────────────────────
+
 export interface MilestoneNode {
   type: 'milestone';
   id: string;
   number: number;
   title: string;
+  excludedFor?: string[];
   children?: WorkflowNode[];
 }
 
@@ -40,6 +52,7 @@ export interface StageNode {
   id: string;
   title: string;
   meta?: string;
+  excludedFor?: string[];
   children?: WorkflowNode[];
 }
 
@@ -54,6 +67,7 @@ export interface TaskNode {
   isCall?: boolean;
   exclusiveGroup?: string;
   wideChildren?: boolean;
+  excludedFor?: string[];
   showWhen?: { decisionId: string; option: 'A' | 'B' | 'any' };
   children?: WorkflowNode[];
 }
@@ -70,6 +84,7 @@ export interface DecisionNode {
   title: string;
   roles: Role[];
   context?: string;
+  excludedFor?: string[];
   showWhen?: { decisionId: string; option: 'A' | 'B' | 'any' };
   optionA: DecisionOption;
   optionB: DecisionOption;
@@ -84,6 +99,7 @@ export interface ParallelNode {
   type: 'parallel';
   id: string;
   description: string;
+  excludedFor?: string[];
   lanes: Lane[];
 }
 
@@ -127,6 +143,67 @@ export function getNodeRoles(node: WorkflowNode): Role[] {
   return [];
 }
 
+// ─── Type-aware filtering ─────────────────────────────────────────────────────
+
+// Recursively filters workflow nodes based on project type.
+// Parallel blocks that collapse to a single non-empty lane are inlined
+// (their nodes are inserted directly rather than wrapped in a parallel container).
+function filterNodeList(nodes: WorkflowNode[], type: string): WorkflowNode[] {
+  const result: WorkflowNode[] = [];
+  for (const node of nodes) {
+    const ef = (node as { excludedFor?: string[] }).excludedFor;
+    if (ef && ef.includes(type)) continue;
+
+    switch (node.type) {
+      case 'milestone':
+        result.push({ ...node, children: filterNodeList(node.children ?? [], type) });
+        break;
+      case 'stage': {
+        const children = filterNodeList(node.children ?? [], type);
+        if (children.length > 0) result.push({ ...node, children });
+        break;
+      }
+      case 'task':
+        result.push({ ...node, children: filterNodeList(node.children ?? [], type) });
+        break;
+      case 'decision':
+        result.push({
+          ...node,
+          optionA: { ...node.optionA, branch: filterNodeList(node.optionA.branch ?? [], type) },
+          optionB: { ...node.optionB, branch: filterNodeList(node.optionB.branch ?? [], type) },
+        });
+        break;
+      case 'parallel': {
+        const filteredLanes = node.lanes
+          .map((lane) => ({ ...lane, nodes: filterNodeList(lane.nodes, type) }))
+          .filter((lane) => lane.nodes.length > 0);
+        if (filteredLanes.length === 0) break;
+        if (filteredLanes.length === 1) {
+          // Collapse: inline the single remaining lane's nodes
+          result.push(...filteredLanes[0].nodes);
+        } else {
+          result.push({ ...node, lanes: filteredLanes });
+        }
+        break;
+      }
+    }
+  }
+  return result;
+}
+
+export function getWorkflowForType(type: ProjectTypeFilter): MilestoneNode[] {
+  return filterNodeList(WORKFLOW, type) as MilestoneNode[];
+}
+
+// ─── Exclusion shorthands ─────────────────────────────────────────────────────
+// Read as: "this step is excluded when the project type is one of these values"
+
+const EXCL_BOX_SALE        = ['Box Sale'] as const;
+const EXCL_SC_AND_BS       = ['Structured Cabling', 'Box Sale'] as const;  // AV + Security only
+const EXCL_NON_AV          = ['Box Sale', 'Structured Cabling', 'Security'] as const; // AV only
+const EXCL_NON_SC          = ['Audio / Visual', 'Security', 'Box Sale'] as const;     // SC only
+const EXCL_NON_BS          = ['Audio / Visual', 'Structured Cabling', 'Security'] as const; // Box Sale only
+
 // ─── Workflow Data ────────────────────────────────────────────────────────────
 
 export const WORKFLOW: MilestoneNode[] = [
@@ -159,6 +236,7 @@ export const WORKFLOW: MilestoneNode[] = [
                     type: 'task',
                     id: 'task-engineering-onboarding',
                     title: 'Engineering Onboarding',
+                    excludedFor: [...EXCL_BOX_SALE],
                     summary: 'Review project scope at high level and prepare for internal kickoff.',
                     details: [
                       'Review the project scope at a high level.',
@@ -187,6 +265,7 @@ export const WORKFLOW: MilestoneNode[] = [
                     type: 'task',
                     id: 'task-schedule-kickoff-calls',
                     title: 'Schedule Kickoff Calls',
+                    excludedFor: [...EXCL_BOX_SALE],
                     summary: 'Admin schedules internal and customer kickoff calls.',
                     details: [
                       'Schedule internal kickoff call with the project team.',
@@ -220,6 +299,7 @@ export const WORKFLOW: MilestoneNode[] = [
         type: 'task',
         id: 'group-prep-calls',
         title: 'Prep Calls',
+        excludedFor: [...EXCL_BOX_SALE],
         summary: 'Internal and customer-facing kickoff calls.',
         details: [],
         roles: ['Solutions Project Manager', 'Solutions Engineer', 'Inside PM', 'Procurement', 'Admin', 'Solutions Executive', 'Solutions Architect'],
@@ -261,6 +341,17 @@ export const WORKFLOW: MilestoneNode[] = [
           },
         ],
       },
+    ],
+  },
+
+  // ── Milestone 2: Engineering ────────────────────────────────────────────────
+  {
+    type: 'milestone',
+    id: 'milestone-2',
+    number: 2,
+    title: 'Engineering',
+    children: [
+      // BOM Review — all project types
       {
         type: 'stage',
         id: 'stage-bom-review',
@@ -319,20 +410,13 @@ export const WORKFLOW: MilestoneNode[] = [
           },
         ],
       },
-    ],
-  },
 
-  // ── Milestone 2: Engineering ────────────────────────────────────────────────
-  {
-    type: 'milestone',
-    id: 'milestone-2',
-    number: 2,
-    title: 'Engineering',
-    children: [
+      // Engineering Packet — excluded for Box Sale
       {
         type: 'stage',
         id: 'stage-engineering-packet',
         title: 'Create Engineering Packet',
+        excludedFor: [...EXCL_BOX_SALE],
         meta: 'Owned by Solutions Engineer. SE may pull in CAD Engineer, Programmer, and UX Designer as needed.',
         children: [
           {
@@ -347,6 +431,7 @@ export const WORKFLOW: MilestoneNode[] = [
                     type: 'task',
                     id: 'task-functional-narrative',
                     title: 'Functional Narrative',
+                    excludedFor: [...EXCL_NON_AV],
                     summary:
                       'System capabilities, workflows, and UX expectations — completed before programming.',
                     details: [
@@ -360,6 +445,7 @@ export const WORKFLOW: MilestoneNode[] = [
                     type: 'task',
                     id: 'task-ux-design-review',
                     title: 'UX Design Review',
+                    excludedFor: [...EXCL_SC_AND_BS],
                     summary: 'If needed, for larger projects',
                     details: [
                       'Conducted before programming begins.',
@@ -372,6 +458,7 @@ export const WORKFLOW: MilestoneNode[] = [
                     type: 'task',
                     id: 'task-programming-mockups',
                     title: 'Programming Mockups',
+                    excludedFor: [...EXCL_NON_AV],
                     summary:
                       'GUI mockups based on approved UX direction; incorporated into Functional Narrative.',
                     details: [
@@ -389,6 +476,7 @@ export const WORKFLOW: MilestoneNode[] = [
                     type: 'task',
                     id: 'task-ip-scope',
                     title: 'IP Scope & Switchport Assignments',
+                    excludedFor: [...EXCL_SC_AND_BS],
                     summary: 'Complete IP scope, switchport assignments, and document all device credentials.',
                     details: [
                       'Complete IP scope and switchport assignments.',
@@ -455,17 +543,46 @@ export const WORKFLOW: MilestoneNode[] = [
     ],
   },
 
-  // ── Milestone 3: Procurement & Kickoff Prep ─────────────────────────────────
+  // ── Milestone 3: Procurement & Preparation ──────────────────────────────────
   {
     type: 'milestone',
     id: 'milestone-3',
     number: 3,
-    title: 'Procurement & Kickoff Prep',
+    title: 'Procurement & Preparation',
     children: [
+      // Box Sale only: Procurement is the primary deliverable (listed first for Box Sale)
+      {
+        type: 'task',
+        id: 'task-box-sale-procurement',
+        title: 'Procurement',
+        excludedFor: [...EXCL_NON_BS],
+        summary: 'Manage purchasing and delivery of all items in the order.',
+        details: [
+          'Coordinate purchasing of all items.',
+          'Track orders and confirm delivery timelines.',
+          'Flag any discrepancies or back-ordered items immediately.',
+        ],
+        roles: ['Procurement', 'Inside PM', 'Solutions Project Manager'],
+      },
+      // Equipment Tracking — all project types
+      {
+        type: 'task',
+        id: 'task-equipment-tracking',
+        title: 'Equipment Tracking',
+        summary: 'Monitor procurement status and coordinate on delivery timelines.',
+        details: [
+          'Monitor equipment procurement status and delivery ETAs.',
+          'Coordinate with Procurement and Inside PM to surface any delays early.',
+          'Flag long-lead items that may impact the install schedule.',
+        ],
+        roles: ['Procurement', 'Inside PM', 'Solutions Project Manager'],
+      },
+      // Walkthrough — excluded for Box Sale
       {
         type: 'task',
         id: 'task-walkthrough',
         title: 'Walkthrough',
+        excludedFor: [...EXCL_BOX_SALE],
         summary: 'Confirm onsite needs: materials, tools, infrastructure, items beyond BOM.',
         details: [
           'Solutions Project Manager (or designated colleague) completes a walkthrough to confirm onsite needs: materials, tools, infrastructure readiness, items beyond BOM.',
@@ -476,10 +593,12 @@ export const WORKFLOW: MilestoneNode[] = [
         roles: ['Solutions Project Manager', 'Technician'],
         templates: ['Walkthrough Checklist'],
       },
+      // Schedule Resources — excluded for Box Sale
       {
         type: 'task',
         id: 'task-schedule-resources',
         title: 'Schedule Resources',
+        excludedFor: [...EXCL_BOX_SALE],
         summary: 'Arrange Programmer, rack fab, onsite labor, and Lead Tech assignment.',
         details: [
           'Programmer (internal).',
@@ -489,20 +608,24 @@ export const WORKFLOW: MilestoneNode[] = [
         ],
         roles: ['Solutions Project Manager', 'Programmer', 'Technician'],
       },
+      // Partial Purchasing Release Revisit — excluded for Box Sale (Box Sale gets its own task below)
       {
         type: 'task',
         id: 'task-partial-release-revisit',
         title: 'Partial Purchasing Release Revisit (if applicable)',
+        excludedFor: [...EXCL_BOX_SALE],
         summary: 'If previously flagged items have clear direction, release remaining procurement.',
         details: [
           'If previously flagged items now have clear direction → release remaining procurement.',
         ],
         roles: ['Solutions Project Manager', 'Procurement'],
       },
+      // Engineering Packet Review — excluded for Box Sale
       {
         type: 'stage',
         id: 'stage-ep-review',
         title: 'Engineering Packet Review',
+        excludedFor: [...EXCL_BOX_SALE],
         meta: 'Independent validation by Solutions Project Manager before execution begins.',
         children: [
           {
@@ -522,31 +645,18 @@ export const WORKFLOW: MilestoneNode[] = [
           },
         ],
       },
+      // PM Review to Inside PM — excluded for Box Sale
       {
-        type: 'stage',
-        id: 'stage-pre-install',
-        title: 'Pre-Install Preparation',
-        children: [
-          {
-            type: 'task',
-            id: 'task-finalize-dates',
-            title: 'Finalize Calendar Dates',
-            summary: 'Solutions Project Manager finalizes onsite installation dates with the client.',
-            details: ['Solutions Project Manager finalizes onsite installation dates with the client.'],
-            roles: ['Solutions Project Manager'],
-          },
-          {
-            type: 'task',
-            id: 'task-pm-review-procurement',
-            title: 'PM Review to Inside PM',
-            summary: 'Solutions Project Manager submits routing, SOW, and shipping needs for day-1 logistics setup.',
-            details: [
-              'Solutions Project Manager submits a review summarizing routing, SOW, and shipping needs (tools, materials, etc.) for day-1 setup.',
-              'Inside PM uses this to confirm logistics are in place before the install begins.',
-            ],
-            roles: ['Solutions Project Manager', 'Inside PM'],
-          },
+        type: 'task',
+        id: 'task-pm-review-procurement',
+        title: 'PM Review to Inside PM',
+        excludedFor: [...EXCL_BOX_SALE],
+        summary: 'Solutions Project Manager submits routing, SOW, and shipping needs for day-1 logistics setup.',
+        details: [
+          'Solutions Project Manager submits a review summarizing routing, SOW, and shipping needs (tools, materials, etc.) for day-1 setup.',
+          'Inside PM uses this to confirm logistics are in place before the install begins.',
         ],
+        roles: ['Solutions Project Manager', 'Inside PM'],
       },
     ],
   },
@@ -558,232 +668,301 @@ export const WORKFLOW: MilestoneNode[] = [
     number: 4,
     title: 'Implementation',
     children: [
-      // ── Daily Tasks ──
+      // Daily Tasks — excluded for Box Sale
       {
         type: 'task',
         id: 'task-daily-operations',
         title: 'Daily Tasks',
+        excludedFor: [...EXCL_BOX_SALE],
         summary: 'Ongoing field execution, documentation, and logistics throughout the install.',
         details: [],
         roles: ['Solutions Project Manager', 'Admin', 'Technician', 'Inside PM'],
         templates: ['Daily Report'],
         exclusiveGroup: 'onsite-ops',
-            children: [
-              {
-                type: 'task',
-                id: 'task-daily-field-pm',
-                title: 'Solutions PM',
-                summary: 'Field guidance, project notes, and day-over-day coordination.',
-                details: [
-                  'Provides daily field guidance to technicians, ensuring their needs are met and work progresses per plan.',
-                  'Maintains project notes in preferred tracking method (Excel, Gantt, notepad); templated trackers available upon request.',
-                  "If the day's required tasks differ from the original plan, an additional PM review is required before proceeding.",
-                ],
-                roles: ['Solutions Project Manager'],
-              },
-              {
-                type: 'task',
-                id: 'task-daily-admin',
-                title: 'Admin',
-                summary: 'Daily report intake, processing, and stakeholder distribution.',
-                details: [
-                  'Receives daily reports from the field team.',
-                  'Distributes to all relevant stakeholders.',
-                  'Flags issues raised in the report to the Solutions Project Manager for follow-up.',
-                ],
-                roles: ['Admin'],
-                templates: ['Daily Report'],
-              },
-              {
-                type: 'task',
-                id: 'task-daily-inside-pm',
-                title: 'Inside PM',
-                summary: 'Routing, shipping requests, and daily logistics confirmed for each day.',
-                details: [
-                  'Confirms that routing, shipping requests, and supply logistics are in place for each day of the install.',
-                  'Coordinates with Procurement and Solutions Project Manager to ensure materials and deliveries stay aligned with the daily schedule.',
-                  'Flags any logistical gaps that could delay field progress.',
-                ],
-                roles: ['Inside PM'],
-              },
-            ],
-          },
-
-          // ── Weekly Tasks ──
+        children: [
           {
             type: 'task',
-            id: 'task-weekly-tasks',
-            title: 'Weekly Tasks',
-            summary: 'Recurring weekly responsibilities across the project team.',
-            details: [],
-            roles: ['Admin', 'Solutions Project Manager', 'Procurement', 'Inside PM', 'Solutions Executive'],
-            templates: ['Weekly Customer Update'],
-            exclusiveGroup: 'onsite-ops',
-            children: [
-              {
-                type: 'task',
-                id: 'task-weekly-admin',
-                title: 'Admin',
-                summary: 'Routine weekly customer status update.',
-                details: [
-                  'Sends the routine weekly status update to the client using the Weekly Customer Update template.',
-                  'Solutions Project Manager supplies content; Admin handles formatting and distribution.',
-                ],
-                roles: ['Admin'],
-                templates: ['Weekly Customer Update'],
-              },
-              {
-                type: 'task',
-                id: 'task-weekly-field-pm',
-                title: 'Solutions PM',
-                summary: 'Escalations, non-routine communications, and milestone updates.',
-                details: [
-                  'Owns all non-routine customer communication, escalations, and technical conversations.',
-                  'Keeps the Solutions Executive updated as milestones are reached or significant issues arise.',
-                ],
-                roles: ['Solutions Project Manager'],
-              },
-              {
-                type: 'task',
-                id: 'task-weekly-procurement',
-                title: 'Procurement',
-                summary: 'RMAs, additional materials, and shipping updates.',
-                details: [
-                  'Processes RMAs and any return-to-stock items.',
-                  'Handles additional material procurement as field needs change.',
-                  'Updates shipping ETAs.',
-                ],
-                roles: ['Procurement'],
-              },
-              {
-                type: 'task',
-                id: 'task-weekly-inside-pm',
-                title: 'Inside PM',
-                summary: 'Financial tracking, logistics review, and variance escalation.',
-                details: [
-                  'Tracks labor hours, material costs, change order impacts, and margin status.',
-                  'Reviews routing, shipping requests, and logistics for the coming week — confirming supply is aligned with the install schedule.',
-                  'Flags cost variances and logistical gaps to the Solutions Project Manager early for corrective action.',
-                ],
-                roles: ['Inside PM'],
-              },
-            ],
-          },
-
-          // ── Issue Tracking ──
-          {
-            type: 'task',
-            id: 'task-issue-tracking',
-            title: 'Issue Tracking',
-            wideChildren: true,
-            summary: 'Issues logged in tracker; never deleted; project cannot close with open issues.',
+            id: 'task-daily-field-pm',
+            title: 'Solutions PM',
+            summary: 'Field guidance, project notes, and day-over-day coordination.',
             details: [
-              'Issues added to the Issue Tracker → progress updated as work continues.',
-              'Items are never deleted — they may be filtered out, but the record must remain for posterity.',
-              'The project is not closed with any open issues.',
-              'Solutions Project Manager follows up with the lead and updates the tracker.',
+              'Provides daily field guidance to technicians, ensuring their needs are met and work progresses per plan.',
+              'Maintains project notes in preferred tracking method (Excel, Gantt, notepad); templated trackers available upon request.',
+              "If the day's required tasks differ from the original plan, an additional PM review is required before proceeding.",
             ],
-            roles: ['Solutions Project Manager', 'Technician'],
-            templates: ['Issue Tracker'],
-            exclusiveGroup: 'onsite-ops',
-            children: [
-              {
-                type: 'decision',
-                id: 'decision-item-resolved',
-                title: 'Is Item Resolved?',
-                roles: ['Solutions Project Manager'],
-                optionA: {
-                  label: 'YES',
-                  description: 'Mark Complete (do not delete the record).',
-                },
-                optionB: {
-                  label: 'NO',
-                  description:
-                    'Solutions Project Manager determines the next step and assigns the appropriate resource.',
-                },
-              },
-              {
-                type: 'decision',
-                id: 'decision-change-order-needed',
-                title: 'Change Order Needed?',
-                roles: ['Solutions Project Manager', 'Solutions Engineer'],
-                showWhen: { decisionId: 'decision-item-resolved', option: 'B' },
-                optionA: {
-                  label: 'NO — Continue',
-                  description: 'No change order. Continue the workflow as planned.',
-                },
-                optionB: {
-                  label: 'YES — Raise CO',
-                  description: 'A change order is needed.',
-                  branch: [
-                    {
-                      type: 'task',
-                      id: 'task-generating-cos',
-                      title: 'Generating COs',
-                      summary:
-                        'Solutions Project Manager opens OPP in ConnectWise; SE prepares the CO (engineering always internal).',
-                      details: [
-                        'Solutions Project Manager or SE identifies the need (walkthrough findings, customer requests, field conditions, etc.).',
-                        'Solutions Project Manager opens an OPP in ConnectWise and submits the request with details.',
-                        'CO prepared by SE (engineering work is always internal).',
-                      ],
-                      roles: ['Solutions Project Manager', 'Solutions Engineer'],
-                    },
-                    {
-                      type: 'decision',
-                      id: 'decision-co-site-visit',
-                      title: 'Does CO Warrant a Site Visit?',
-                      roles: ['Solutions Project Manager'],
-                      optionA: {
-                        label: 'YES — Substantial',
-                        description:
-                          'Substantial scope change → schedule a Survey before submitting to customer. Template: Survey — owned by Solutions Project Manager.',
-                      },
-                      optionB: {
-                        label: 'NO',
-                        description: 'Walkthrough-level verification sufficient, or not needed.',
-                      },
-                    },
-                    {
-                      type: 'task',
-                      id: 'task-submit-co',
-                      title: 'Submit CO to Customer',
-                      summary: 'Solutions Project Manager reviews and submits the CO to the customer for approval.',
-                      details: ['Solutions Project Manager reviews and submits the CO to the customer for approval.'],
-                      roles: ['Solutions Project Manager'],
-                      showWhen: { decisionId: 'decision-co-site-visit', option: 'any' },
-                    },
-                    {
-                      type: 'task',
-                      id: 'task-process-executed-co',
-                      title: 'Process Executed CO',
-                      summary: 'After customer approval, SE updates affected Engineering Packet documents.',
-                      details: [
-                        'After customer approval, SE updates affected Engineering Packet documents (functional narrative, drawings, IP scope).',
-                        'Updated deliverables are included in the Closeout Packet — not separately submitted to the customer.',
-                      ],
-                      roles: ['Solutions Engineer'],
-                      showWhen: { decisionId: 'decision-co-site-visit', option: 'any' },
-                    },
-                  ],
-                },
-              },
-            ],
+            roles: ['Solutions Project Manager'],
           },
-    ],
-  },
+          {
+            type: 'task',
+            id: 'task-daily-admin',
+            title: 'Admin',
+            summary: 'Daily report intake, processing, and stakeholder distribution.',
+            details: [
+              'Receives daily reports from the field team.',
+              'Distributes to all relevant stakeholders.',
+              'Flags issues raised in the report to the Solutions Project Manager for follow-up.',
+            ],
+            roles: ['Admin'],
+            templates: ['Daily Report'],
+          },
+          {
+            type: 'task',
+            id: 'task-daily-inside-pm',
+            title: 'Inside PM',
+            summary: 'Routing, shipping requests, and daily logistics confirmed for each day.',
+            details: [
+              'Confirms that routing, shipping requests, and supply logistics are in place for each day of the install.',
+              'Coordinates with Procurement and Solutions Project Manager to ensure materials and deliveries stay aligned with the daily schedule.',
+              'Flags any logistical gaps that could delay field progress.',
+            ],
+            roles: ['Inside PM'],
+          },
+        ],
+      },
 
-  // ── Milestone 5: Commissioning & Handoff ────────────────────────────────────
-  {
-    type: 'milestone',
-    id: 'milestone-5',
-    number: 5,
-    title: 'Commissioning & Handoff',
-    children: [
+      // Weekly Tasks — excluded for Box Sale
+      {
+        type: 'task',
+        id: 'task-weekly-tasks',
+        title: 'Weekly Tasks',
+        excludedFor: [...EXCL_BOX_SALE],
+        summary: 'Recurring weekly responsibilities across the project team.',
+        details: [],
+        roles: ['Admin', 'Solutions Project Manager', 'Procurement', 'Inside PM', 'Solutions Executive'],
+        templates: ['Weekly Customer Update'],
+        exclusiveGroup: 'onsite-ops',
+        children: [
+          {
+            type: 'task',
+            id: 'task-weekly-admin',
+            title: 'Admin',
+            summary: 'Routine weekly customer status update.',
+            details: [
+              'Sends the routine weekly status update to the client using the Weekly Customer Update template.',
+              'Solutions Project Manager supplies content; Admin handles formatting and distribution.',
+            ],
+            roles: ['Admin'],
+            templates: ['Weekly Customer Update'],
+          },
+          {
+            type: 'task',
+            id: 'task-weekly-field-pm',
+            title: 'Solutions PM',
+            summary: 'Escalations, non-routine communications, and milestone updates.',
+            details: [
+              'Owns all non-routine customer communication, escalations, and technical conversations.',
+              'Keeps the Solutions Executive updated as milestones are reached or significant issues arise.',
+            ],
+            roles: ['Solutions Project Manager'],
+          },
+          {
+            type: 'task',
+            id: 'task-weekly-procurement',
+            title: 'Procurement',
+            summary: 'RMAs, additional materials, and shipping updates.',
+            details: [
+              'Processes RMAs and any return-to-stock items.',
+              'Handles additional material procurement as field needs change.',
+              'Updates shipping ETAs.',
+            ],
+            roles: ['Procurement'],
+          },
+          {
+            type: 'task',
+            id: 'task-weekly-inside-pm',
+            title: 'Inside PM',
+            summary: 'Financial tracking, logistics review, and variance escalation.',
+            details: [
+              'Tracks labor hours, material costs, change order impacts, and margin status.',
+              'Reviews routing, shipping requests, and logistics for the coming week — confirming supply is aligned with the install schedule.',
+              'Flags cost variances and logistical gaps to the Solutions Project Manager early for corrective action.',
+            ],
+            roles: ['Inside PM'],
+          },
+        ],
+      },
+
+      // Issue Tracking — excluded for Box Sale
+      {
+        type: 'task',
+        id: 'task-issue-tracking',
+        title: 'Issue Tracking',
+        excludedFor: [...EXCL_BOX_SALE],
+        wideChildren: true,
+        summary: 'Issues logged in tracker; never deleted; project cannot close with open issues.',
+        details: [
+          'Issues added to the Issue Tracker → progress updated as work continues.',
+          'Items are never deleted — they may be filtered out, but the record must remain for posterity.',
+          'The project is not closed with any open issues.',
+          'Solutions Project Manager follows up with the lead and updates the tracker.',
+        ],
+        roles: ['Solutions Project Manager', 'Technician'],
+        templates: ['Issue Tracker'],
+        exclusiveGroup: 'onsite-ops',
+        children: [
+          {
+            type: 'decision',
+            id: 'decision-item-resolved',
+            title: 'Is Item Resolved?',
+            roles: ['Solutions Project Manager'],
+            optionA: {
+              label: 'YES',
+              description: 'Mark Complete (do not delete the record).',
+            },
+            optionB: {
+              label: 'NO',
+              description:
+                'Solutions Project Manager determines the next step and assigns the appropriate resource.',
+            },
+          },
+          {
+            type: 'decision',
+            id: 'decision-change-order-needed',
+            title: 'Change Order Needed?',
+            roles: ['Solutions Project Manager', 'Solutions Engineer'],
+            showWhen: { decisionId: 'decision-item-resolved', option: 'B' },
+            optionA: {
+              label: 'NO — Continue',
+              description: 'No change order. Continue the workflow as planned.',
+            },
+            optionB: {
+              label: 'YES — Raise CO',
+              description: 'A change order is needed.',
+              branch: [
+                {
+                  type: 'task',
+                  id: 'task-generating-cos',
+                  title: 'Generating COs',
+                  summary:
+                    'Solutions Project Manager opens OPP in ConnectWise; SE prepares the CO (engineering always internal).',
+                  details: [
+                    'Solutions Project Manager or SE identifies the need (walkthrough findings, customer requests, field conditions, etc.).',
+                    'Solutions Project Manager opens an OPP in ConnectWise and submits the request with details.',
+                    'CO prepared by SE (engineering work is always internal).',
+                  ],
+                  roles: ['Solutions Project Manager', 'Solutions Engineer'],
+                },
+                {
+                  type: 'decision',
+                  id: 'decision-co-site-visit',
+                  title: 'Does CO Warrant a Site Visit?',
+                  roles: ['Solutions Project Manager'],
+                  optionA: {
+                    label: 'YES — Substantial',
+                    description:
+                      'Substantial scope change → schedule a Survey before submitting to customer. Template: Survey — owned by Solutions Project Manager.',
+                  },
+                  optionB: {
+                    label: 'NO',
+                    description: 'Walkthrough-level verification sufficient, or not needed.',
+                  },
+                },
+                {
+                  type: 'task',
+                  id: 'task-submit-co',
+                  title: 'Submit CO to Customer',
+                  summary: 'Solutions Project Manager reviews and submits the CO to the customer for approval.',
+                  details: ['Solutions Project Manager reviews and submits the CO to the customer for approval.'],
+                  roles: ['Solutions Project Manager'],
+                  showWhen: { decisionId: 'decision-co-site-visit', option: 'any' },
+                },
+                {
+                  type: 'task',
+                  id: 'task-process-executed-co',
+                  title: 'Process Executed CO',
+                  summary: 'After customer approval, SE updates affected Engineering Packet documents.',
+                  details: [
+                    'After customer approval, SE updates affected Engineering Packet documents (functional narrative, drawings, IP scope).',
+                    'Updated deliverables are included in the Closeout Packet — not separately submitted to the customer.',
+                  ],
+                  roles: ['Solutions Engineer'],
+                  showWhen: { decisionId: 'decision-co-site-visit', option: 'any' },
+                },
+              ],
+            },
+          },
+        ],
+      },
+
+      // ── Implementation steps ───────────────────────────────────────────────
+
+      // AV + Security: Installation
+      {
+        type: 'task',
+        id: 'task-installation',
+        title: 'Installation',
+        excludedFor: [...EXCL_SC_AND_BS],
+        summary: 'Onsite installation of all equipment and infrastructure.',
+        details: [
+          'Install all equipment per the approved drawings and rack elevations.',
+          'Follow pull schedule for all cable runs.',
+          'Solutions Project Manager provides daily field guidance throughout the install.',
+        ],
+        roles: ['Technician', 'Solutions Project Manager'],
+      },
+      // AV + Security: Programming
+      {
+        type: 'task',
+        id: 'task-programming-impl',
+        title: 'Programming',
+        excludedFor: [...EXCL_SC_AND_BS],
+        summary: 'Control system and AV programming based on the Functional Narrative.',
+        details: [
+          'Programmer executes control system and AV programming per the approved Functional Narrative.',
+          'GUI mockups and approved UX direction guide all user interface development.',
+          'Preliminary testing completed before commissioning begins.',
+        ],
+        roles: ['Programmer', 'Solutions Engineer'],
+      },
+      // SC only: Rough-In
+      {
+        type: 'task',
+        id: 'task-rough-in',
+        title: 'Rough-In',
+        excludedFor: [...EXCL_NON_SC],
+        summary: 'Conduit, cable pathways, and rough-in infrastructure installed.',
+        details: [
+          'Install conduit, cable trays, j-hooks, and other pathway infrastructure.',
+          'Pull cables per the approved pull schedule and drawings.',
+          'Label all cables at both ends per project standards.',
+        ],
+        roles: ['Technician', 'Solutions Project Manager'],
+      },
+      // SC only: Termination
+      {
+        type: 'task',
+        id: 'task-termination',
+        title: 'Termination',
+        excludedFor: [...EXCL_NON_SC],
+        summary: 'All cable terminations completed and verified.',
+        details: [
+          'Terminate all cables at patch panels, outlets, and equipment ports.',
+          'Verify termination quality and continuity.',
+          'Update as-built documentation with any field changes.',
+        ],
+        roles: ['Technician', 'Solutions Project Manager'],
+      },
+      // SC only: Certification
+      {
+        type: 'task',
+        id: 'task-sc-certification',
+        title: 'Certification',
+        excludedFor: [...EXCL_NON_SC],
+        summary: 'Structured cabling infrastructure tested and certified to specification.',
+        details: [
+          'Test all cable runs using certified testing equipment.',
+          'Document test results for every link.',
+          'Deliver certification report to customer as part of the closeout package.',
+        ],
+        roles: ['Technician', 'Solutions Project Manager'],
+      },
+
+      // AV + Security: Commissioning & Handoff (moved from former M5)
       {
         type: 'task',
         id: 'task-commissioning',
-        title: 'Commissioning',
+        title: 'Commissioning & Handoff',
+        excludedFor: [...EXCL_SC_AND_BS],
         summary:
           'Use Functional Narrative as checklist; Solutions Project Manager captures as-built info for SE.',
         details: [
@@ -796,14 +975,16 @@ export const WORKFLOW: MilestoneNode[] = [
         ],
         roles: ['Solutions Project Manager', 'Solutions Engineer'],
       },
+      // AV + Security: Functional Changes decision (moved from former M5)
       {
         type: 'decision',
         id: 'decision-functional-changes',
         title: 'Functional Changes Requested?',
+        excludedFor: [...EXCL_SC_AND_BS],
         roles: ['Solutions Project Manager'],
         optionA: {
           label: 'NO',
-          description: 'No functional changes — continue to training.',
+          description: 'No functional changes — continue to closeout.',
         },
         optionB: {
           label: 'YES',
@@ -845,10 +1026,37 @@ export const WORKFLOW: MilestoneNode[] = [
           ],
         },
       },
+
+      // Box Sale only: Confirm Receipt
+      {
+        type: 'task',
+        id: 'task-confirm-receipt',
+        title: 'Confirm Receipt',
+        excludedFor: [...EXCL_NON_BS],
+        summary: 'Confirm delivery and receipt of all items in the order.',
+        details: [
+          'Verify all items from the order have been received and are accounted for.',
+          'Document any discrepancies, missing items, or damage for follow-up.',
+          'Coordinate with Procurement and Inside PM on any returns or replacements needed.',
+        ],
+        roles: ['Procurement', 'Inside PM', 'Solutions Project Manager'],
+      },
+    ],
+  },
+
+  // ── Milestone 5: Closeout ────────────────────────────────────────────────────
+  {
+    type: 'milestone',
+    id: 'milestone-5',
+    number: 5,
+    title: 'Closeout',
+    children: [
+      // Training (moved from former M5 Commissioning & Handoff) — excluded for Box Sale
       {
         type: 'task',
         id: 'task-training',
         title: 'Training',
+        excludedFor: [...EXCL_BOX_SALE],
         summary: 'Solutions Project Manager ensures onsite staff training; Admin assists with large group scheduling.',
         details: [
           'Solutions Project Manager ensures onsite staff training is conducted if required.',
@@ -856,10 +1064,12 @@ export const WORKFLOW: MilestoneNode[] = [
         ],
         roles: ['Solutions Project Manager', 'Admin'],
       },
+      // Final Day Documentation (moved from former M5) — excluded for Box Sale
       {
         type: 'task',
         id: 'task-final-day-docs',
         title: 'Final Day Documentation',
+        excludedFor: [...EXCL_BOX_SALE],
         summary: 'Photos taken on final day; Lessons Learned reported to regional leadership.',
         details: [
           'Solutions Project Manager ensures photos are taken on the final day — a record of site conditions at handoff.',
@@ -868,16 +1078,6 @@ export const WORKFLOW: MilestoneNode[] = [
         ],
         roles: ['Solutions Project Manager'],
       },
-    ],
-  },
-
-  // ── Milestone 6: Closeout ────────────────────────────────────────────────────
-  {
-    type: 'milestone',
-    id: 'milestone-6',
-    number: 6,
-    title: 'Closeout',
-    children: [
       {
         type: 'task',
         id: 'task-field-pm-closeout',
@@ -918,11 +1118,11 @@ export const WORKFLOW: MilestoneNode[] = [
     ],
   },
 
-  // ── Milestone 7: Project Complete ────────────────────────────────────────────
+  // ── Milestone 6: Project Complete ────────────────────────────────────────────
   {
     type: 'milestone',
-    id: 'milestone-7',
-    number: 7,
+    id: 'milestone-6',
+    number: 6,
     title: 'Project Complete',
     children: [],
   },
