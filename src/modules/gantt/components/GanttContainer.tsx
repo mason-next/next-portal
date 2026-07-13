@@ -23,6 +23,9 @@ import {
   Redo2,
   GripVertical,
   Zap,
+  Plus,
+  X,
+  PanelRightClose,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -33,12 +36,17 @@ import {
   updateGanttEntryVisibility,
   removeGanttEntry,
   reorderGanttEntries,
+  importGanttItems,
+  getGanttEntries,
 } from "@/lib/data/gantt";
 import {
   addGanttDependency,
   removeGanttDependency,
   updateGanttScheduleMode,
 } from "@/lib/data/gantt-deps";
+import { addWorkflowStep, type AddWorkflowStepInput } from "@/lib/data/workflow";
+import { createTask } from "@/lib/data/implementation";
+import type { ProjectSectionKey } from "@/types/workflow";
 import { computeAutoSchedule } from "@/modules/gantt/lib/gantt-schedule";
 import { useGanttHistory } from "@/modules/gantt/hooks/useGanttHistory";
 import { GanttDependencyLayer } from "./GanttDependencyLayer";
@@ -538,6 +546,13 @@ export function GanttContainer({
   const [showImport, setShowImport] = useState(false);
   const [saving, setSaving] = useState<string | null>(null);
 
+  // ── Panel / modal state ────────────────────────────────────────────────────
+  const [wbsWidth, setWbsWidth] = useState(WBS_W);
+  const wbsWidthRef = useRef(WBS_W);
+  const [selectedRowId, setSelectedRowId] = useState<string | null>(null);
+  const [showAddModal, setShowAddModal] = useState(false);
+  const [addLoading, setAddLoading] = useState(false);
+
   // ── Undo/redo ──────────────────────────────────────────────────────────────
   const history = useGanttHistory();
 
@@ -878,6 +893,55 @@ export function GanttContainer({
     setShowImport(false);
   }
 
+  // ── Add step / task ────────────────────────────────────────────────────────
+  async function handleAddGanttItem(
+    type: "step" | "task",
+    name: string,
+    section?: ProjectSectionKey,
+    parentStepId?: string | null
+  ) {
+    setAddLoading(true);
+    try {
+      if (type === "step") {
+        const input: AddWorkflowStepInput = { section: section ?? "implementation", name };
+        const newStep = await addWorkflowStep(projectId, input);
+        await importGanttItems(projectId, [{ stepId: newStep.id }]);
+      } else {
+        const newTask = await createTask({ projectId, title: name, workflowStepId: parentStepId ?? null });
+        await importGanttItems(projectId, [{ taskId: newTask.id }]);
+      }
+      const refreshed = await getGanttEntries(projectId);
+      setEntries(refreshed);
+      setOrderedEntryIds(refreshed.sort((a, b) => a.sortOrder - b.sortOrder).map((e) => e.id));
+      setLocalScheduleModes((m) => {
+        const n = new Map(m);
+        refreshed.forEach((e) => { if (!n.has(e.id)) n.set(e.id, e.scheduleMode); });
+        return n;
+      });
+      setShowAddModal(false);
+    } finally {
+      setAddLoading(false);
+    }
+  }
+
+  // ── WBS panel resize ───────────────────────────────────────────────────────
+  function startWbsResize(e: React.PointerEvent) {
+    e.preventDefault();
+    const startX = e.clientX;
+    const startW = wbsWidthRef.current;
+    function onMove(ev: PointerEvent) {
+      const next = Math.max(220, Math.min(800, startW + (ev.clientX - startX)));
+      setWbsWidth(next);
+      wbsWidthRef.current = next;
+    }
+    function onUp() {
+      window.removeEventListener("pointermove", onMove);
+      window.removeEventListener("pointerup", onUp);
+    }
+    window.addEventListener("pointermove", onMove);
+    window.addEventListener("pointerup", onUp);
+  }
+
   // ── Bar geometry ───────────────────────────────────────────────────────────
   function barGeometry(row: GanttDisplayRow): { left: number; width: number; scheduled: boolean } {
     const drag = barDragState?.entryId === row.entryId ? barDragState : null;
@@ -956,6 +1020,12 @@ export function GanttContainer({
             </Button>
           )}
           {editable && (
+            <Button variant="outline" size="sm" onClick={() => setShowAddModal(true)}>
+              <Plus className="mr-1.5 size-3.5" />
+              Add
+            </Button>
+          )}
+          {editable && (
             <Button variant="outline" size="sm" onClick={() => setShowImport(true)}>
               <Upload className="mr-1.5 size-3.5" />
               Import
@@ -990,8 +1060,8 @@ export function GanttContainer({
         <div className="flex flex-1 overflow-hidden min-h-0">
           {/* ── WBS ───────────────────────────────────────────────────────── */}
           <div
-            className="flex flex-col border-r shrink-0 overflow-y-auto"
-            style={{ width: WBS_W }}
+            className="flex flex-col shrink-0 overflow-y-auto"
+            style={{ width: wbsWidth }}
             ref={wbsBodyRef}
             onScroll={handleWBSScroll}
           >
@@ -1020,6 +1090,7 @@ export function GanttContainer({
                 expandedStepIds={expandedStepIds}
                 hiddenEntryIds={hiddenEntryIds}
                 isDraggingRow={rowDragState?.sourceId === row.entryId}
+                isSelected={selectedRowId === row.id || selectedRowId === row.entryId}
                 onToggleExpand={(id) => setExpandedStepIds((p) => { const n = new Set(p); n.has(id) ? n.delete(id) : n.add(id); return n; })}
                 onToggleHide={toggleHidden}
                 onToggleCustomerVisible={toggleCustomerVisible}
@@ -1029,9 +1100,16 @@ export function GanttContainer({
                 onCommitDate={commitDateEdit}
                 onCommitProgress={commitProgressEdit}
                 onRowDragStart={startRowDrag}
+                onSelect={(id) => setSelectedRowId((prev) => prev === id ? null : id)}
               />
             ))}
           </div>
+
+          {/* ── Resize divider ────────────────────────────────────────────── */}
+          <div
+            className="w-1 bg-border/50 hover:bg-primary/50 cursor-ew-resize shrink-0 transition-colors select-none"
+            onPointerDown={startWbsResize}
+          />
 
           {/* ── Timeline ──────────────────────────────────────────────────── */}
           <div
@@ -1147,6 +1225,30 @@ export function GanttContainer({
               </div>
             </div>
           </div>
+
+          {/* ── Row detail panel ──────────────────────────────────────────── */}
+          {selectedRowId && (() => {
+            const selRow = allDisplayRows.find((r) => r.id === selectedRowId || r.entryId === selectedRowId);
+            if (!selRow || selRow.isVirtual) return null;
+            return (
+              <GanttRowDetailPanel
+                row={selRow}
+                deps={deps}
+                allDisplayRows={allDisplayRows}
+                editable={editable}
+                editingCell={editingCell}
+                onClose={() => setSelectedRowId(null)}
+                onRemoveDep={handleRemoveDep}
+                onStartLinkFrom={(entryId) => {
+                  setLinkMode({ sourceEntryId: entryId });
+                  setSelectedRowId(null);
+                }}
+                onStartEdit={(cell) => setEditingCell(cell)}
+                onCommitDate={commitDateEdit}
+                onCommitProgress={commitProgressEdit}
+              />
+            );
+          })()}
         </div>
       )}
 
@@ -1160,6 +1262,16 @@ export function GanttContainer({
           existingTaskIds={entryTaskIds}
           onDone={handleImportDone}
           onClose={() => setShowImport(false)}
+        />
+      )}
+
+      {/* Add modal */}
+      {showAddModal && (
+        <GanttAddModal
+          allSteps={allSteps}
+          loading={addLoading}
+          onAdd={handleAddGanttItem}
+          onClose={() => setShowAddModal(false)}
         />
       )}
     </div>
@@ -1176,6 +1288,7 @@ interface WBSRowProps {
   expandedStepIds: Set<string>;
   hiddenEntryIds: Set<string>;
   isDraggingRow: boolean;
+  isSelected: boolean;
   onToggleExpand: (id: string) => void;
   onToggleHide: (id: string) => void;
   onToggleCustomerVisible: (id: string, current: boolean) => void;
@@ -1185,6 +1298,7 @@ interface WBSRowProps {
   onCommitDate: (rowId: string, field: "startDate" | "endDate", value: string) => void;
   onCommitProgress: (rowId: string, value: string) => void;
   onRowDragStart: (e: React.PointerEvent, entryId: string) => void;
+  onSelect: (id: string) => void;
 }
 
 function WBSRow({
@@ -1195,6 +1309,7 @@ function WBSRow({
   expandedStepIds,
   hiddenEntryIds,
   isDraggingRow,
+  isSelected,
   onToggleExpand,
   onToggleHide,
   onToggleCustomerVisible,
@@ -1204,6 +1319,7 @@ function WBSRow({
   onCommitDate,
   onCommitProgress,
   onRowDragStart,
+  onSelect,
 }: WBSRowProps) {
   const indent = row.depth * 16;
   const isExpanded = row.entryId ? expandedStepIds.has(row.entryId) : false;
@@ -1225,6 +1341,7 @@ function WBSRow({
       className={cn(
         "group flex items-center border-b last:border-b-0 text-sm transition-colors",
         isPhase ? "bg-muted/10" : "hover:bg-muted/10",
+        isSelected && !isPhase && "bg-primary/8 border-l-2 border-l-primary",
         isHidden && "opacity-50",
         saving && "opacity-60",
         isDraggingRow && "opacity-30 bg-primary/5"
@@ -1250,7 +1367,16 @@ function WBSRow({
           </button>
         ) : <span className="size-3.5 shrink-0" />}
         <span className={cn("size-2 shrink-0 rounded-full flex-none", dotColor)} />
-        <span className={cn("truncate min-w-0 text-[13px]", isPhase && "font-semibold text-foreground", row.type === "step" && "font-medium")}>
+        <span
+          className={cn(
+            "truncate min-w-0 text-[13px]",
+            isPhase && "font-semibold text-foreground",
+            row.type === "step" && "font-medium",
+            !isPhase && "cursor-pointer hover:text-primary hover:underline",
+            isSelected && "text-primary"
+          )}
+          onClick={() => !isPhase && row.entryId && onSelect(row.entryId)}
+        >
           {row.title}
         </span>
       </div>
@@ -1384,5 +1510,340 @@ function TimelineGrid({ rangeStart, totalDays, pxPerDay, zoom, visibleRows }: {
         <div key={x} className={cn("absolute top-0 bottom-0 pointer-events-none", strong ? "border-l border-border/40" : "border-l border-border/15")} style={{ left: x }} />
       ))}
     </>
+  );
+}
+
+// ─── Row detail panel ─────────────────────────────────────────────────────────
+
+function GanttRowDetailPanel({
+  row,
+  deps,
+  allDisplayRows,
+  editable,
+  editingCell,
+  onClose,
+  onRemoveDep,
+  onStartLinkFrom,
+  onStartEdit,
+  onCommitDate,
+  onCommitProgress,
+}: {
+  row: GanttDisplayRow;
+  deps: GanttDependencyRecord[];
+  allDisplayRows: GanttDisplayRow[];
+  editable: boolean;
+  editingCell: EditingCell;
+  onClose: () => void;
+  onRemoveDep: (depId: string) => void;
+  onStartLinkFrom: (entryId: string) => void;
+  onStartEdit: (cell: NonNullable<EditingCell>) => void;
+  onCommitDate: (rowId: string, field: "startDate" | "endDate", value: string) => void;
+  onCommitProgress: (rowId: string, value: string) => void;
+}) {
+  const predecessors = deps.filter((d) => d.toEntryId === row.entryId);
+  const successors = deps.filter((d) => d.fromEntryId === row.entryId);
+  const getTitle = (entryId: string) => allDisplayRows.find((r) => r.entryId === entryId)?.title ?? "Unknown";
+
+  const isEditingStart = editingCell?.rowId === row.id && editingCell.field === "startDate";
+  const isEditingEnd = editingCell?.rowId === row.id && editingCell.field === "endDate";
+  const isEditingPct = editingCell?.rowId === row.id && editingCell.field === "percentComplete";
+  const dotColor = STATUS_COLORS[row.status] ?? "bg-slate-300";
+
+  return (
+    <div className="w-72 border-l flex flex-col shrink-0 overflow-y-auto bg-card">
+      {/* Header */}
+      <div className="flex items-center gap-2 px-3 py-2.5 border-b sticky top-0 bg-card z-10">
+        <span className={cn("size-2 rounded-full shrink-0", dotColor)} />
+        <span className="flex-1 text-sm font-semibold truncate">{row.title}</span>
+        <button onClick={onClose} className="p-0.5 text-muted-foreground hover:text-foreground rounded">
+          <PanelRightClose className="size-4" />
+        </button>
+      </div>
+
+      {/* Type + Status */}
+      <div className="px-3 py-2 border-b">
+        <div className="flex items-center gap-2 text-xs text-muted-foreground">
+          <span className="capitalize font-medium">{row.type}</span>
+          <span>·</span>
+          <span>{row.status}</span>
+          {row.assigneeNames.length > 0 && (
+            <>
+              <span>·</span>
+              <span className="truncate">{row.assigneeNames[0]}</span>
+            </>
+          )}
+        </div>
+      </div>
+
+      {/* Schedule */}
+      <div className="px-3 py-3 border-b space-y-2.5">
+        <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wide">Schedule</p>
+        <div className="grid grid-cols-2 gap-3">
+          <div>
+            <div className="text-[10px] text-muted-foreground mb-1">Start</div>
+            {isEditingStart ? (
+              <input
+                type="date"
+                autoFocus
+                defaultValue={row.startDate ? toDateStr(row.startDate) : ""}
+                className="w-full text-xs border rounded px-1.5 py-1 bg-background focus:outline-none focus:ring-1 focus:ring-primary/40"
+                onBlur={(e) => onCommitDate(row.id, "startDate", e.target.value)}
+                onKeyDown={(e) => { if (e.key === "Enter") (e.target as HTMLInputElement).blur(); }}
+              />
+            ) : (
+              <div
+                className={cn("text-xs py-1 rounded", editable && "cursor-pointer hover:text-primary hover:underline")}
+                onClick={() => editable && onStartEdit({ rowId: row.id, field: "startDate" })}
+              >
+                {row.startDate
+                  ? row.startDate.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "2-digit" })
+                  : <span className="text-muted-foreground">Not set</span>}
+              </div>
+            )}
+          </div>
+          <div>
+            <div className="text-[10px] text-muted-foreground mb-1">End</div>
+            {isEditingEnd ? (
+              <input
+                type="date"
+                autoFocus
+                defaultValue={row.endDate ? toDateStr(row.endDate) : ""}
+                className="w-full text-xs border rounded px-1.5 py-1 bg-background focus:outline-none focus:ring-1 focus:ring-primary/40"
+                onBlur={(e) => onCommitDate(row.id, "endDate", e.target.value)}
+                onKeyDown={(e) => { if (e.key === "Enter") (e.target as HTMLInputElement).blur(); }}
+              />
+            ) : (
+              <div
+                className={cn("text-xs py-1 rounded", editable && "cursor-pointer hover:text-primary hover:underline")}
+                onClick={() => editable && onStartEdit({ rowId: row.id, field: "endDate" })}
+              >
+                {row.endDate
+                  ? row.endDate.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "2-digit" })
+                  : <span className="text-muted-foreground">Not set</span>}
+              </div>
+            )}
+          </div>
+        </div>
+        {row.type === "task" && (
+          <div>
+            <div className="text-[10px] text-muted-foreground mb-1">Progress</div>
+            {isEditingPct ? (
+              <input
+                type="number"
+                min={0}
+                max={100}
+                autoFocus
+                defaultValue={row.percentComplete}
+                className="w-20 text-xs border rounded px-1.5 py-1 bg-background focus:outline-none focus:ring-1 focus:ring-primary/40"
+                onBlur={(e) => onCommitProgress(row.id, e.target.value)}
+                onKeyDown={(e) => { if (e.key === "Enter") (e.target as HTMLInputElement).blur(); }}
+              />
+            ) : (
+              <div
+                className={cn("text-xs py-1 rounded flex items-center gap-2", editable && "cursor-pointer hover:text-primary")}
+                onClick={() => editable && onStartEdit({ rowId: row.id, field: "percentComplete" })}
+              >
+                <div className="flex-1 h-1.5 bg-muted rounded-full overflow-hidden">
+                  <div className="h-full bg-primary rounded-full" style={{ width: `${row.percentComplete}%` }} />
+                </div>
+                <span>{row.percentComplete}%</span>
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+
+      {/* Dependencies */}
+      <div className="px-3 py-3 flex-1 space-y-3">
+        <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wide">Dependencies</p>
+
+        {predecessors.length > 0 && (
+          <div>
+            <p className="text-[10px] text-muted-foreground mb-1.5">Predecessors</p>
+            <div className="space-y-1">
+              {predecessors.map((dep) => (
+                <div key={dep.id} className="flex items-center gap-1.5 text-xs group/dep">
+                  <span className="flex-1 truncate">{getTitle(dep.fromEntryId)}</span>
+                  <span className="text-muted-foreground/60 text-[10px] shrink-0">
+                    {dep.type}{dep.lagDays ? `+${dep.lagDays}d` : ""}
+                  </span>
+                  {editable && (
+                    <button
+                      onClick={() => onRemoveDep(dep.id)}
+                      className="p-0.5 text-muted-foreground hover:text-destructive opacity-0 group-hover/dep:opacity-100 transition-opacity shrink-0"
+                    >
+                      <X className="size-3" />
+                    </button>
+                  )}
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {successors.length > 0 && (
+          <div>
+            <p className="text-[10px] text-muted-foreground mb-1.5">Successors</p>
+            <div className="space-y-1">
+              {successors.map((dep) => (
+                <div key={dep.id} className="flex items-center gap-1.5 text-xs group/dep">
+                  <span className="flex-1 truncate">{getTitle(dep.toEntryId)}</span>
+                  <span className="text-muted-foreground/60 text-[10px] shrink-0">
+                    {dep.type}{dep.lagDays ? `+${dep.lagDays}d` : ""}
+                  </span>
+                  {editable && (
+                    <button
+                      onClick={() => onRemoveDep(dep.id)}
+                      className="p-0.5 text-muted-foreground hover:text-destructive opacity-0 group-hover/dep:opacity-100 transition-opacity shrink-0"
+                    >
+                      <X className="size-3" />
+                    </button>
+                  )}
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {predecessors.length === 0 && successors.length === 0 && (
+          <p className="text-xs text-muted-foreground">No dependencies set.</p>
+        )}
+
+        {editable && row.entryId && (
+          <Button
+            variant="outline"
+            size="sm"
+            className="w-full text-xs mt-1"
+            onClick={() => onStartLinkFrom(row.entryId!)}
+          >
+            <Link2 className="mr-1.5 size-3" />
+            Add dependency
+          </Button>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ─── Add item modal ───────────────────────────────────────────────────────────
+
+function GanttAddModal({
+  allSteps,
+  loading,
+  onAdd,
+  onClose,
+}: {
+  allSteps: WorkflowStep[];
+  loading: boolean;
+  onAdd: (type: "step" | "task", name: string, section?: ProjectSectionKey, parentStepId?: string | null) => void;
+  onClose: () => void;
+}) {
+  const [type, setType] = useState<"step" | "task">("step");
+  const [name, setName] = useState("");
+  const [section, setSection] = useState<ProjectSectionKey>("implementation");
+  const [parentStepId, setParentStepId] = useState<string>("");
+
+  function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    if (!name.trim()) return;
+    onAdd(
+      type,
+      name.trim(),
+      type === "step" ? section : undefined,
+      type === "task" ? (parentStepId || null) : null
+    );
+  }
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+      <div className="bg-card rounded-xl shadow-xl border w-full max-w-sm mx-4">
+        <div className="flex items-center justify-between px-4 py-3 border-b">
+          <h3 className="text-sm font-semibold">Add to Schedule</h3>
+          <button onClick={onClose} className="p-1 text-muted-foreground hover:text-foreground rounded">
+            <X className="size-4" />
+          </button>
+        </div>
+
+        <form onSubmit={handleSubmit} className="p-4 space-y-4">
+          {/* Type toggle */}
+          <div>
+            <label className="text-xs text-muted-foreground mb-1.5 block">Type</label>
+            <div className="flex rounded-md border overflow-hidden divide-x">
+              {(["step", "task"] as const).map((t) => (
+                <button
+                  key={t}
+                  type="button"
+                  onClick={() => setType(t)}
+                  className={cn(
+                    "flex-1 py-1.5 text-xs font-medium capitalize transition-colors",
+                    type === t ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:bg-muted"
+                  )}
+                >
+                  {t === "step" ? "Phase Step" : "Task"}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Name */}
+          <div>
+            <label className="text-xs text-muted-foreground mb-1.5 block">
+              {type === "step" ? "Step Name" : "Task Title"}
+            </label>
+            <input
+              autoFocus
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              placeholder={type === "step" ? "e.g. Site Survey" : "e.g. Configure switches"}
+              className="w-full text-sm border rounded-md px-3 py-2 bg-background focus:outline-none focus:ring-2 focus:ring-primary/40"
+              required
+            />
+          </div>
+
+          {/* Section (steps only) */}
+          {type === "step" && (
+            <div>
+              <label className="text-xs text-muted-foreground mb-1.5 block">Phase</label>
+              <select
+                value={section}
+                onChange={(e) => setSection(e.target.value as ProjectSectionKey)}
+                className="w-full text-sm border rounded-md px-3 py-2 bg-background focus:outline-none focus:ring-2 focus:ring-primary/40"
+              >
+                {SECTION_ORDER.map((s) => (
+                  <option key={s} value={s}>{SECTION_LABELS[s] ?? s}</option>
+                ))}
+              </select>
+            </div>
+          )}
+
+          {/* Parent step (tasks only) */}
+          {type === "task" && (
+            <div>
+              <label className="text-xs text-muted-foreground mb-1.5 block">Parent Step (optional)</label>
+              <select
+                value={parentStepId}
+                onChange={(e) => setParentStepId(e.target.value)}
+                className="w-full text-sm border rounded-md px-3 py-2 bg-background focus:outline-none focus:ring-2 focus:ring-primary/40"
+              >
+                <option value="">— No parent step —</option>
+                {allSteps.map((s) => (
+                  <option key={s.id} value={s.id}>{s.name}</option>
+                ))}
+              </select>
+            </div>
+          )}
+
+          {/* Actions */}
+          <div className="flex items-center gap-2 pt-1">
+            <Button type="button" variant="outline" size="sm" onClick={onClose} className="flex-1">
+              Cancel
+            </Button>
+            <Button type="submit" size="sm" className="flex-1" disabled={loading || !name.trim()}>
+              {loading ? "Adding…" : "Add to Schedule"}
+            </Button>
+          </div>
+        </form>
+      </div>
+    </div>
   );
 }
