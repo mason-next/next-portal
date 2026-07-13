@@ -31,6 +31,14 @@ import {
 import "@xyflow/react/dist/style.css";
 import { graphlib, layout as dagreLayout } from "@dagrejs/dagre";
 import {
+  AlignCenterHorizontal,
+  AlignCenterVertical,
+  AlignEndHorizontal,
+  AlignEndVertical,
+  AlignHorizontalSpaceBetween,
+  AlignStartHorizontal,
+  AlignStartVertical,
+  AlignVerticalSpaceBetween,
   ChevronDown,
   ChevronUp,
   ChevronLeft,
@@ -83,6 +91,8 @@ type LayoutSnapshot = {
   positions: Map<string, PosXY>;
   depts:     Map<string, DeptLayoutState>;
 };
+
+type AlignOp = "top" | "bottom" | "left" | "right" | "centerH" | "centerV" | "distH" | "distV";
 
 // ─── Dept group nudge: push overlapping boxes apart (used after auto-align) ──
 
@@ -448,7 +458,6 @@ function PositionNode({ data, id }: NodeProps) {
         isAdmin ? "cursor-grab active:cursor-grabbing" : "cursor-default",
       )}
       style={{ width: NODE_W }}
-      onClick={() => onEdit?.(position)}
     >
       {/* Sibling reorder arrows — set canonical sortOrder used by Auto Align */}
       {showReorder && (
@@ -698,6 +707,9 @@ function OrgChartInner({
   // Undo stack for Auto Align (capped at UNDO_LIMIT)
   const [undoStack, setUndoStack] = useState<LayoutSnapshot[]>([]);
 
+  // IDs of currently selected position nodes (for multi-select alignment toolbar)
+  const [selectedPositionIds, setSelectedPositionIds] = useState<Set<string>>(new Set());
+
   const viewType = viewMode === "mindmap" ? "mind_map" : "org_chart";
 
   // Saved DB position layouts, keyed by positionId for current viewType
@@ -869,7 +881,10 @@ function OrgChartInner({
         if (n.id.startsWith("dg-")) {
           if (currDeptMap.has(n.id)) {
             const saved = currDeptMap.get(n.id)!;
-            return { ...n, position: saved.position, style: saved.style };
+            // Preserve RF position (stable during drags) but use allNodes.style
+            // (from combinedDeptLayouts) — RF stores resize dims in .width/.height,
+            // NOT in .style, so saving .style would overwrite the new resize dims
+            return { ...n, position: saved.position };
           }
           return n;
         }
@@ -896,8 +911,10 @@ function OrgChartInner({
   function collapseAll() { setCollapsed(new Set(parentIds)); }
 
   // Node click opens edit form (positions only, not dept boxes)
-  const onNodeClick: NodeMouseHandler = useCallback((_event, node) => {
+  // Modifier+click is multi-select — skip modal so RF can handle selection
+  const onNodeClick: NodeMouseHandler = useCallback((event, node) => {
     if (node.id.startsWith("dg-") || !onEdit || !isAdmin) return;
+    if (event.shiftKey || event.ctrlKey || event.metaKey) return;
     const pos = positionsById.get(node.id);
     if (pos) onEdit(pos);
   }, [onEdit, isAdmin, positionsById]);
@@ -1084,6 +1101,110 @@ function OrgChartInner({
     });
   }, []);
 
+  // ─── Selection change ──────────────────────────────────────────────────────────
+
+  const onSelectionChange = useCallback(({ nodes: sel }: { nodes: Node[] }) => {
+    const ids = new Set(sel.filter((n) => !n.id.startsWith("dg-")).map((n) => n.id));
+    setSelectedPositionIds(ids);
+  }, []);
+
+  // ─── Alignment operations for multi-selected position cards ───────────────────
+
+  const handleAlign = useCallback((op: AlignOp) => {
+    if (!versionId || selectedPositionIds.size < 2) return;
+
+    const selectedNodes = nodes.filter((n) => selectedPositionIds.has(n.id));
+    if (selectedNodes.length < 2) return;
+
+    // Snapshot for undo
+    const snapshot: LayoutSnapshot = { positions: new Map(), depts: new Map() };
+    for (const n of nodes) {
+      if (n.id.startsWith("dg-")) {
+        snapshot.depts.set(n.id.slice(3), {
+          x: n.position.x, y: n.position.y,
+          w: (n.style?.width  as number) ?? DEPT_MIN_W,
+          h: (n.style?.height as number) ?? DEPT_MIN_H,
+        });
+      } else {
+        snapshot.positions.set(n.id, { x: n.position.x, y: n.position.y });
+      }
+    }
+    setUndoStack((prev) => [...prev.slice(-(UNDO_LIMIT - 1)), snapshot]);
+
+    const xs   = selectedNodes.map((n) => n.position.x);
+    const ys   = selectedNodes.map((n) => n.position.y);
+    const minX = Math.min(...xs);
+    const maxX = Math.max(...xs);
+    const minY = Math.min(...ys);
+    const maxY = Math.max(...ys);
+
+    const newPositions = new Map<string, PosXY>();
+
+    switch (op) {
+      case "top":
+        for (const n of selectedNodes) newPositions.set(n.id, { x: n.position.x, y: minY });
+        break;
+      case "bottom":
+        for (const n of selectedNodes) newPositions.set(n.id, { x: n.position.x, y: maxY });
+        break;
+      case "left":
+        for (const n of selectedNodes) newPositions.set(n.id, { x: minX, y: n.position.y });
+        break;
+      case "right":
+        for (const n of selectedNodes) newPositions.set(n.id, { x: maxX, y: n.position.y });
+        break;
+      case "centerH": {
+        const cy = (minY + maxY + NODE_H) / 2 - NODE_H / 2;
+        for (const n of selectedNodes) newPositions.set(n.id, { x: n.position.x, y: cy });
+        break;
+      }
+      case "centerV": {
+        const cx = (minX + maxX + NODE_W) / 2 - NODE_W / 2;
+        for (const n of selectedNodes) newPositions.set(n.id, { x: cx, y: n.position.y });
+        break;
+      }
+      case "distH": {
+        const sorted = [...selectedNodes].sort((a, b) => a.position.x - b.position.x);
+        const count  = sorted.length;
+        for (let i = 0; i < count; i++) {
+          const x = count > 1 ? minX + (i * (maxX - minX)) / (count - 1) : minX;
+          newPositions.set(sorted[i].id, { x, y: sorted[i].position.y });
+        }
+        break;
+      }
+      case "distV": {
+        const sorted = [...selectedNodes].sort((a, b) => a.position.y - b.position.y);
+        const count  = sorted.length;
+        for (let i = 0; i < count; i++) {
+          const y = count > 1 ? minY + (i * (maxY - minY)) / (count - 1) : minY;
+          newPositions.set(sorted[i].id, { x: sorted[i].position.x, y });
+        }
+        break;
+      }
+    }
+
+    // Apply to RF immediately
+    setNodes((curr) => curr.map((n) => {
+      const pos = newPositions.get(n.id);
+      return pos ? { ...n, position: pos } : n;
+    }));
+
+    // Sync session
+    setSessionPositions((prev) => {
+      const next = new Map(prev);
+      for (const [id, pos] of newPositions) next.set(id, pos);
+      return next;
+    });
+
+    // Persist to DB
+    const entries = [...newPositions.entries()].map(([positionId, pos]) => ({
+      positionId, x: pos.x, y: pos.y,
+    }));
+    startTransition(async () => {
+      await batchSavePositionLayouts(entries, versionId, viewType);
+    });
+  }, [versionId, selectedPositionIds, nodes, viewType, setNodes, startTransition]);
+
   // ─── Toolbar button style helpers ─────────────────────────────────────────────
 
   const btnBase = "flex items-center gap-1.5 rounded-md border px-3 py-1.5 text-sm transition-colors";
@@ -1234,7 +1355,38 @@ function OrgChartInner({
           <p className="text-[11px] text-muted-foreground/60 px-0.5">
             Drag cards or dept boxes to reposition. Click a dept box to select it, then drag handles to resize.
             ← → sets canonical sibling order for Auto Align. Click any card to edit.
+            Shift+Click or Ctrl+Click to multi-select.
           </p>
+        )}
+
+        {/* Alignment toolbar — shown when 2+ position nodes are selected */}
+        {isAdmin && selectedPositionIds.size >= 2 && (
+          <div className="flex flex-wrap items-center gap-1 rounded-lg border border-primary/20 bg-primary/5 px-3 py-1.5">
+            <span className="mr-1 text-[11px] font-medium text-muted-foreground">
+              {selectedPositionIds.size} selected:
+            </span>
+            {([
+              { op: "top",     Icon: AlignStartHorizontal,      label: "Align Top" },
+              { op: "bottom",  Icon: AlignEndHorizontal,        label: "Align Bottom" },
+              { op: "left",    Icon: AlignStartVertical,        label: "Align Left" },
+              { op: "right",   Icon: AlignEndVertical,          label: "Align Right" },
+              { op: "centerH", Icon: AlignCenterHorizontal,     label: "Center H" },
+              { op: "centerV", Icon: AlignCenterVertical,       label: "Center V" },
+              { op: "distH",   Icon: AlignHorizontalSpaceBetween, label: "Distribute H" },
+              { op: "distV",   Icon: AlignVerticalSpaceBetween,   label: "Distribute V" },
+            ] as const).map(({ op, Icon, label }) => (
+              <button
+                key={op}
+                type="button"
+                onClick={() => handleAlign(op as AlignOp)}
+                title={label}
+                className="flex items-center gap-1 rounded border border-transparent px-2 py-1 text-[11px] text-slate-600 transition-colors hover:border-primary/20 hover:bg-primary/10 hover:text-primary"
+              >
+                <Icon className="size-3.5 flex-none" />
+                <span>{label}</span>
+              </button>
+            ))}
+          </div>
         )}
 
         {/* ── Canvas ── */}
@@ -1264,13 +1416,14 @@ function OrgChartInner({
               snapGrid={[SNAP_GRID, SNAP_GRID]}
               onNodeClick={onNodeClick}
               onNodeDragStop={onNodeDragStop}
+              onSelectionChange={onSelectionChange}
             >
               {showGrid && (
                 <Background
                   variant={BackgroundVariant.Dots}
-                  gap={22}
-                  size={1}
-                  color="#e2e8f0"
+                  gap={20}
+                  size={1.5}
+                  color="#94a3b8"
                   data-testid="canvas-background"
                 />
               )}
