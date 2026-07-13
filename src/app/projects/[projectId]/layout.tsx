@@ -3,7 +3,7 @@
 import { use, useState } from "react";
 import Link from "next/link";
 import { notFound, useRouter } from "next/navigation";
-import { ExternalLink } from "lucide-react";
+import { ExternalLink, FileText } from "lucide-react";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { ProjectHeaderCard } from "@/components/shared/AppShell/ProjectHeaderCard";
 import { ProjectTabNav } from "@/components/shared/AppShell/ProjectTabNav";
@@ -119,13 +119,14 @@ function ProjectLayoutBody({
                 href={project.connectwiseUrl}
                 target="_blank"
                 rel="noopener noreferrer"
-                className={buttonVariants({ variant: "outline" })}
+                title="Open in ConnectWise"
+                className={buttonVariants({ variant: "outline", size: "icon" })}
               >
-                <ExternalLink className="mr-1.5 size-4" />
-                ConnectWise
+                <ExternalLink className="size-4" />
               </a>
             ) : null}
             <Button variant="outline" onClick={() => setShowBrief(true)}>
+              <FileText className="mr-1.5 size-4" />
               Project Brief Report
             </Button>
             {canEdit ? (

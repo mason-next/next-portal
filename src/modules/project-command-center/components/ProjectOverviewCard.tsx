@@ -2,7 +2,7 @@
 
 import { useState, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
-import { Ban, Building2 } from "lucide-react";
+import { Ban, Building2, Layers } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { CollapsibleCard } from "@/components/shared/CollapsibleCard";
 import { EditProjectOverviewModal } from "@/components/shared/AppShell/EditProjectOverviewModal";
@@ -48,6 +48,7 @@ export function ProjectOverviewCard() {
         <div className="flex items-center gap-1.5">
           {canEdit && (
             <Button variant="outline" size="sm" onClick={() => setShowManagePhases(true)}>
+              <Layers className="mr-1.5 size-3.5" />
               Manage Phases
             </Button>
           )}
