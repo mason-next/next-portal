@@ -21,6 +21,7 @@ export function EditProjectModal({ project, onClose, onSaved }: EditProjectModal
   const [customerName, setCustomerName] = useState(project.customerName);
   const [siteAddress, setSiteAddress] = useState(project.siteAddress);
   const [coordinatorGroup, setCoordinatorGroup] = useState(project.coordinatorGroup);
+  const [connectwiseUrl, setConnectwiseUrl] = useState(project.connectwiseUrl ?? "");
   const [submitting, setSubmitting] = useState(false);
 
   async function handleSave() {
@@ -31,6 +32,7 @@ export function EditProjectModal({ project, onClose, onSaved }: EditProjectModal
       customerName,
       siteAddress,
       coordinatorGroup,
+      connectwiseUrl: connectwiseUrl.trim() || null,
     });
     onSaved(updated);
   }
@@ -75,6 +77,15 @@ export function EditProjectModal({ project, onClose, onSaved }: EditProjectModal
             <option>Procurement Team</option>
             <option>NEXT Operations</option>
           </select>
+        </Field>
+        <Field label="ConnectWise Project URL">
+          <input
+            type="url"
+            className={FIELD_INPUT_CLASS}
+            value={connectwiseUrl}
+            onChange={(e) => setConnectwiseUrl(e.target.value)}
+            placeholder="https://..."
+          />
         </Field>
       </div>
 
