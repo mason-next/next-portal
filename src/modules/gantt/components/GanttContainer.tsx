@@ -44,9 +44,13 @@ import {
   removeGanttDependency,
   updateGanttScheduleMode,
 } from "@/lib/data/gantt-deps";
-import { addWorkflowStep, type AddWorkflowStepInput } from "@/lib/data/workflow";
-import { createTask } from "@/lib/data/implementation";
+import { addWorkflowStep, updateWorkflowStep, type AddWorkflowStepInput } from "@/lib/data/workflow";
+import { createTask, updateTask, deleteTask } from "@/lib/data/implementation";
 import type { ProjectSectionKey } from "@/types/workflow";
+import type { UpdateTaskInput } from "@/types/implementation";
+import { readProjectScoped, writeProjectScoped } from "@/lib/storage/local-store";
+import { TaskDrawer } from "@/modules/implementation/components/TaskDrawer";
+import { StepDetailModal } from "@/modules/project-command-center/components/StepDetailModal";
 import { computeAutoSchedule } from "@/modules/gantt/lib/gantt-schedule";
 import { useGanttHistory } from "@/modules/gantt/hooks/useGanttHistory";
 import { GanttDependencyLayer } from "./GanttDependencyLayer";
@@ -526,6 +530,13 @@ export function GanttContainer({
   const [expandedStepIds, setExpandedStepIds] = useState<Set<string>>(new Set());
   const [hiddenEntryIds, setHiddenEntryIds] = useState<Set<string>>(new Set());
 
+  // Restore expanded state from localStorage after mount
+  useEffect(() => {
+    const saved = readProjectScoped<string[]>(projectId, "gantt-expanded");
+    if (saved?.length) setExpandedStepIds(new Set(saved));
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   // ── Local overrides (optimistic updates) ──────────────────────────────────
   const [localDates, setLocalDates] = useState<Map<string, { start: Date | null; end: Date | null }>>(new Map());
   const [localProgress, setLocalProgress] = useState<Map<string, number>>(new Map());
@@ -550,6 +561,7 @@ export function GanttContainer({
   const [wbsWidth, setWbsWidth] = useState(WBS_W);
   const wbsWidthRef = useRef(WBS_W);
   const [selectedRowId, setSelectedRowId] = useState<string | null>(null);
+  const [showFullEdit, setShowFullEdit] = useState(false);
   const [showAddModal, setShowAddModal] = useState(false);
   const [addLoading, setAddLoading] = useState(false);
 
@@ -924,6 +936,44 @@ export function GanttContainer({
     }
   }
 
+  // ── Persist expand/collapse ────────────────────────────────────────────────
+  function toggleExpand(id: string) {
+    setExpandedStepIds((prev) => {
+      const next = new Set(prev);
+      next.has(id) ? next.delete(id) : next.add(id);
+      writeProjectScoped(projectId, "gantt-expanded", [...next]);
+      return next;
+    });
+  }
+
+  // ── Full edit save/delete (TaskDrawer / StepDetailModal) ──────────────────
+  async function handleTaskSave(taskId: string, input: UpdateTaskInput) {
+    await updateTask(taskId, input);
+    const refreshed = await getGanttEntries(projectId);
+    setEntries(refreshed);
+    setOrderedEntryIds((prev) => {
+      const ids = new Set(refreshed.map((e) => e.id));
+      return [...prev.filter((id) => ids.has(id)), ...refreshed.map((e) => e.id).filter((id) => !prev.includes(id))];
+    });
+  }
+
+  async function handleTaskDelete(taskId: string) {
+    const entry = entries.find((e) => e.type === "task" && e.taskId === taskId);
+    await deleteTask(taskId);
+    if (entry) {
+      setEntries((es) => es.filter((e) => e.id !== entry.id));
+      setOrderedEntryIds((ids) => ids.filter((id) => id !== entry.id));
+    }
+    setShowFullEdit(false);
+    setSelectedRowId(null);
+  }
+
+  async function handleStepUpdate(key: string, patch: Partial<WorkflowStep>) {
+    await updateWorkflowStep(projectId, key, patch);
+    const refreshed = await getGanttEntries(projectId);
+    setEntries(refreshed);
+  }
+
   // ── WBS panel resize ───────────────────────────────────────────────────────
   function startWbsResize(e: React.PointerEvent) {
     e.preventDefault();
@@ -1091,7 +1141,7 @@ export function GanttContainer({
                 hiddenEntryIds={hiddenEntryIds}
                 isDraggingRow={rowDragState?.sourceId === row.entryId}
                 isSelected={selectedRowId === row.id || selectedRowId === row.entryId}
-                onToggleExpand={(id) => setExpandedStepIds((p) => { const n = new Set(p); n.has(id) ? n.delete(id) : n.add(id); return n; })}
+                onToggleExpand={toggleExpand}
                 onToggleHide={toggleHidden}
                 onToggleCustomerVisible={toggleCustomerVisible}
                 onRemove={handleRemoveEntry}
@@ -1100,7 +1150,7 @@ export function GanttContainer({
                 onCommitDate={commitDateEdit}
                 onCommitProgress={commitProgressEdit}
                 onRowDragStart={startRowDrag}
-                onSelect={(id) => setSelectedRowId((prev) => prev === id ? null : id)}
+                onSelect={(id) => { setSelectedRowId((prev) => prev === id ? null : id); setShowFullEdit(false); }}
               />
             ))}
           </div>
@@ -1237,7 +1287,7 @@ export function GanttContainer({
                 allDisplayRows={allDisplayRows}
                 editable={editable}
                 editingCell={editingCell}
-                onClose={() => setSelectedRowId(null)}
+                onClose={() => { setSelectedRowId(null); setShowFullEdit(false); }}
                 onRemoveDep={handleRemoveDep}
                 onStartLinkFrom={(entryId) => {
                   setLinkMode({ sourceEntryId: entryId });
@@ -1246,6 +1296,7 @@ export function GanttContainer({
                 onStartEdit={(cell) => setEditingCell(cell)}
                 onCommitDate={commitDateEdit}
                 onCommitProgress={commitProgressEdit}
+                onOpenFullEdit={() => setShowFullEdit(true)}
               />
             );
           })()}
@@ -1274,6 +1325,46 @@ export function GanttContainer({
           onClose={() => setShowAddModal(false)}
         />
       )}
+
+      {/* Full task / step editor */}
+      {showFullEdit && selectedRowId && (() => {
+        const selRow = allDisplayRows.find((r) => r.id === selectedRowId || r.entryId === selectedRowId);
+        if (!selRow || selRow.isVirtual) return null;
+
+        if (selRow.type === "task" && selRow.taskId) {
+          const task = allTasks.find((t) => t.id === selRow.taskId);
+          if (!task) return null;
+          return (
+            <TaskDrawer
+              key={task.id}
+              task={task}
+              users={users}
+              availableSteps={allSteps}
+              allTasks={allTasks}
+              onClose={() => setShowFullEdit(false)}
+              onSave={handleTaskSave}
+              onCreate={async () => {}}
+              onDelete={handleTaskDelete}
+            />
+          );
+        }
+
+        if (selRow.type === "step" && selRow.workflowStepId) {
+          const step = allSteps.find((s) => s.id === selRow.workflowStepId);
+          if (!step) return null;
+          return (
+            <StepDetailModal
+              key={step.id}
+              projectId={projectId}
+              step={step}
+              onClose={() => setShowFullEdit(false)}
+              onUpdateStep={handleStepUpdate}
+            />
+          );
+        }
+
+        return null;
+      })()}
     </div>
   );
 }
@@ -1527,6 +1618,7 @@ function GanttRowDetailPanel({
   onStartEdit,
   onCommitDate,
   onCommitProgress,
+  onOpenFullEdit,
 }: {
   row: GanttDisplayRow;
   deps: GanttDependencyRecord[];
@@ -1539,6 +1631,7 @@ function GanttRowDetailPanel({
   onStartEdit: (cell: NonNullable<EditingCell>) => void;
   onCommitDate: (rowId: string, field: "startDate" | "endDate", value: string) => void;
   onCommitProgress: (rowId: string, value: string) => void;
+  onOpenFullEdit: () => void;
 }) {
   const predecessors = deps.filter((d) => d.toEntryId === row.entryId);
   const successors = deps.filter((d) => d.fromEntryId === row.entryId);
@@ -1555,6 +1648,11 @@ function GanttRowDetailPanel({
       <div className="flex items-center gap-2 px-3 py-2.5 border-b sticky top-0 bg-card z-10">
         <span className={cn("size-2 rounded-full shrink-0", dotColor)} />
         <span className="flex-1 text-sm font-semibold truncate">{row.title}</span>
+        {editable && (
+          <Button size="sm" variant="outline" className="h-6 px-2 text-xs shrink-0" onClick={onOpenFullEdit}>
+            Edit
+          </Button>
+        )}
         <button onClick={onClose} className="p-0.5 text-muted-foreground hover:text-foreground rounded">
           <PanelRightClose className="size-4" />
         </button>
