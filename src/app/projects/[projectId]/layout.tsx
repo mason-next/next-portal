@@ -3,7 +3,8 @@
 import { use, useState } from "react";
 import Link from "next/link";
 import { notFound, useRouter } from "next/navigation";
-import { Button } from "@/components/ui/button";
+import { ExternalLink } from "lucide-react";
+import { Button, buttonVariants } from "@/components/ui/button";
 import { ProjectHeaderCard } from "@/components/shared/AppShell/ProjectHeaderCard";
 import { ProjectTabNav } from "@/components/shared/AppShell/ProjectTabNav";
 import { EditProjectModal } from "@/components/shared/AppShell/EditProjectModal";
@@ -16,7 +17,6 @@ import { HEALTH_TONE } from "@/modules/project-command-center/lib/project-health
 import { deriveProjectStatus, getProjectHealthSummary } from "@/modules/project-command-center/engine/workflow-engine";
 import { WorkflowStepsProvider, useWorkflowStepsContext } from "@/modules/project-command-center/hooks/WorkflowStepsContext";
 import { ProjectProvider, useProjectContext } from "@/modules/project-command-center/hooks/ProjectContext";
-import { ManagePhasesModal } from "@/modules/project-command-center/components/ManagePhasesModal";
 import { useSession } from "@/lib/auth/client";
 
 export default function ProjectLayout({
@@ -74,12 +74,11 @@ function ProjectLayoutBody({
   const router = useRouter();
   const session = useSession();
   const { project, setProject } = useProjectContext();
-  const { steps, isLoading: stepsLoading, addPhase, removePhase } = useWorkflowStepsContext();
+  const { steps, isLoading: stepsLoading } = useWorkflowStepsContext();
   const { users } = useUsersContext();
   const [showEdit, setShowEdit] = useState(false);
   const [showDelete, setShowDelete] = useState(false);
   const [showBrief, setShowBrief] = useState(false);
-  const [showManagePhases, setShowManagePhases] = useState(false);
 
   // Null during initial load so ProjectTabNav shows all tabs rather than none.
   const activeSections = stepsLoading ? null : new Set(steps.map((s) => s.section));
@@ -115,18 +114,24 @@ function ProjectLayoutBody({
         healthBadge={<StatusBadge label={health} tone={HEALTH_TONE[health]} />}
         actions={
           <>
+            {project.connectwiseUrl ? (
+              <a
+                href={project.connectwiseUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className={buttonVariants({ variant: "outline" })}
+              >
+                <ExternalLink className="mr-1.5 size-4" />
+                ConnectWise
+              </a>
+            ) : null}
             <Button variant="outline" onClick={() => setShowBrief(true)}>
               Project Brief Report
             </Button>
             {canEdit ? (
-              <>
-                <Button variant="outline" onClick={() => setShowManagePhases(true)}>
-                  Manage Phases
-                </Button>
-                <Button variant="outline" onClick={() => setShowEdit(true)}>
-                  Edit
-                </Button>
-              </>
+              <Button variant="outline" onClick={() => setShowEdit(true)}>
+                Edit
+              </Button>
             ) : null}
             {isAdmin ? (
               <Button variant="destructive" onClick={() => setShowDelete(true)}>
@@ -162,15 +167,6 @@ function ProjectLayoutBody({
 
       {showBrief ? (
         <ProjectBriefModal project={project} steps={steps} users={users} onClose={() => setShowBrief(false)} />
-      ) : null}
-
-      {showManagePhases ? (
-        <ManagePhasesModal
-          steps={steps}
-          onAddPhase={addPhase}
-          onRemovePhase={removePhase}
-          onClose={() => setShowManagePhases(false)}
-        />
       ) : null}
     </div>
   );
