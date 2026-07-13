@@ -10,7 +10,7 @@ export type Role =
   | 'Programmer'
   | 'UX Designer'
   | 'Solutions Executive'
-  | 'Pre-Sales Engineer'
+  | 'Solutions Architect'
   | 'CAD Engineer';
 
 export const ALL_ROLES: Role[] = [
@@ -23,7 +23,7 @@ export const ALL_ROLES: Role[] = [
   'Programmer',
   'UX Designer',
   'Solutions Executive',
-  'Pre-Sales Engineer',
+  'Solutions Architect',
   'CAD Engineer',
 ];
 
@@ -130,12 +130,12 @@ export function getNodeRoles(node: WorkflowNode): Role[] {
 // ─── Workflow Data ────────────────────────────────────────────────────────────
 
 export const WORKFLOW: MilestoneNode[] = [
-  // ── Milestone 1: Project Won ────────────────────────────────────────────────
+  // ── Milestone 1: Setup ─────────────────────────────────────────────────────
   {
     type: 'milestone',
     id: 'milestone-1',
     number: 1,
-    title: 'Project Won',
+    title: 'Setup',
     children: [
       {
         type: 'task',
@@ -162,7 +162,7 @@ export const WORKFLOW: MilestoneNode[] = [
                     summary: 'Review project scope at high level and prepare for internal kickoff.',
                     details: [
                       'Review the project scope at a high level.',
-                      'Prepare for the internal kickoff: identify questions and background to gather from the Pre-Sales Engineer.',
+                      'Prepare for the internal kickoff: identify questions and background to gather from the Solutions Architect.',
                     ],
                     roles: ['Solutions Engineer'],
                   },
@@ -222,7 +222,7 @@ export const WORKFLOW: MilestoneNode[] = [
         title: 'Prep Calls',
         summary: 'Internal and customer-facing kickoff calls.',
         details: [],
-        roles: ['Solutions Project Manager', 'Solutions Engineer', 'Inside PM', 'Procurement', 'Admin', 'Solutions Executive'],
+        roles: ['Solutions Project Manager', 'Solutions Engineer', 'Inside PM', 'Procurement', 'Admin', 'Solutions Executive', 'Solutions Architect'],
         children: [
           {
             type: 'task',
@@ -233,13 +233,13 @@ export const WORKFLOW: MilestoneNode[] = [
               'Within 48h of PO — Attendees: Solutions Project Manager, SE, Inside PM, Procurement, Solutions Executive, Admin (optional).',
             details: [
               'Review project scope and customer expectations.',
-              'Consult with Pre-Sales Engineer to understand design intentions and project background.',
+              'Consult with Solutions Architect to understand design intentions and project background.',
               'Identify additional specialists needed: Programmer, UX Designer, CAD, Rack Fab, Commissioning support, or subcontractors.',
               'Confirm auto-assigned resources; flag capacity concerns for escalation.',
               'Confirm timeline targets and major milestones.',
               'Procurement flags long-lead items immediately.',
             ],
-            roles: ['Solutions Project Manager', 'Solutions Engineer', 'Inside PM', 'Procurement', 'Solutions Executive', 'Admin'],
+            roles: ['Solutions Project Manager', 'Solutions Engineer', 'Inside PM', 'Procurement', 'Solutions Executive', 'Admin', 'Solutions Architect'],
             templates: ['Internal Kickoff Agenda'],
           },
           {
@@ -322,12 +322,12 @@ export const WORKFLOW: MilestoneNode[] = [
     ],
   },
 
-  // ── Milestone 2: BOM Review Complete ────────────────────────────────────────
+  // ── Milestone 2: Engineering ────────────────────────────────────────────────
   {
     type: 'milestone',
     id: 'milestone-2',
     number: 2,
-    title: 'BOM Review Complete',
+    title: 'Engineering',
     children: [
       {
         type: 'stage',
@@ -455,12 +455,12 @@ export const WORKFLOW: MilestoneNode[] = [
     ],
   },
 
-  // ── Milestone 3: Engineering Packet Submitted ────────────────────────────────
+  // ── Milestone 3: Procurement & Kickoff Prep ─────────────────────────────────
   {
     type: 'milestone',
     id: 'milestone-3',
     number: 3,
-    title: 'Engineering Packet Submitted',
+    title: 'Procurement & Kickoff Prep',
     children: [
       {
         type: 'task',
@@ -551,12 +551,12 @@ export const WORKFLOW: MilestoneNode[] = [
     ],
   },
 
-  // ── Milestone 4: Onsite Install Begins ──────────────────────────────────────
+  // ── Milestone 4: Implementation ─────────────────────────────────────────────
   {
     type: 'milestone',
     id: 'milestone-4',
     number: 4,
-    title: 'Onsite Install Begins',
+    title: 'Implementation',
     children: [
       // ── Daily Tasks ──
       {
@@ -773,12 +773,12 @@ export const WORKFLOW: MilestoneNode[] = [
     ],
   },
 
-  // ── Milestone 5: Commissioning and Handoff ───────────────────────────────────
+  // ── Milestone 5: Commissioning & Handoff ────────────────────────────────────
   {
     type: 'milestone',
     id: 'milestone-5',
     number: 5,
-    title: 'Commissioning and Handoff',
+    title: 'Commissioning & Handoff',
     children: [
       {
         type: 'task',

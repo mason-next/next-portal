@@ -166,7 +166,7 @@ const ROLES_INFO = [
       'The original relationship owner. While not involved in day-to-day project management, the Solutions Executive holds the customer\'s trust and should be kept current at key milestones and whenever issues arise. Their context on customer expectations and sensitivities is a valuable resource throughout the project lifecycle.',
   },
   {
-    role: 'Pre-Sales Engineer',
+    role: 'Solutions Architect',
     group: '—',
     description:
       'The architect of the original system design. Consulted early in the onboarding phase to transfer design intent to the project team — ensuring that the nuances of the proposed solution aren\'t lost between the sales process and execution. Their involvement reduces assumption-based scope errors.',
