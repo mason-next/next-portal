@@ -181,6 +181,7 @@ model User {
   emergencyContact String      @default("")
   adminNotes       String      @default("")
   bioDescription   String?     @map("bio_description")
+  lastActiveAt     DateTime?   @map("last_active_at")
   createdAt        DateTime    @default(now())
   updatedAt        DateTime    @updatedAt
 
@@ -257,6 +258,8 @@ model Project {
   implementationTasks  ImplementationTask[]
   technicians          ProjectTechnician[]
   meetingNotes         MeetingNote[]
+  ganttEntries         GanttEntry[]
+  ganttDependencies    GanttDependency[]
 
   @@map("projects")
 }
@@ -289,6 +292,7 @@ model WorkflowStep {
   weight           Float
   status           WorkflowStepStatus @default(NotStarted)
   ownerId          String?
+  startDate        DateTime?
   dueDate          DateTime?
   completedDate    DateTime?
   sortOrder        Int
@@ -304,6 +308,7 @@ model WorkflowStep {
   project             Project              @relation(fields: [projectId], references: [id], onDelete: Cascade)
   owner               User?                @relation("StepOwner", fields: [ownerId], references: [id], onDelete: SetNull)
   implementationTasks ImplementationTask[] @relation("TaskWorkflowStep")
+  ganttEntry          GanttEntry?
 
   @@unique([projectId, key])
   @@index([projectId, sortOrder])
@@ -616,6 +621,7 @@ model ImplementationTask {
   comments     ImplementationTaskComment[]
   assignees    ImplementationTaskAssignee[]
   workflowStep WorkflowStep? @relation("TaskWorkflowStep", fields: [workflowStepId], references: [id], onDelete: SetNull)
+  ganttEntry   GanttEntry?
 
   @@index([projectId, sortOrder])
   @@index([projectId, parentTaskId])
@@ -660,6 +666,53 @@ model ImplementationTaskAssignee {
 
   @@id([taskId, userId])
   @@map("implementation_task_assignees")
+}
+
+// ─── Gantt Schedule ───────────────────────────────────────────────────────────
+
+// Tracks which workflow items the user has added to the project Gantt schedule.
+// Exactly one of workflowStepId / taskId is set per entry.
+// Removing an entry only removes the scheduling representation; the underlying
+// workflow item (step or task) is not affected.
+model GanttEntry {
+  id              String   @id @default(cuid())
+  projectId       String
+  workflowStepId  String?  @unique
+  taskId          String?  @unique
+  customerVisible Boolean  @default(true)
+  sortOrder       Int      @default(0)
+  scheduleMode    String   @default("manual") // "manual" | "auto"
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  project          Project              @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  workflowStep     WorkflowStep?        @relation(fields: [workflowStepId], references: [id], onDelete: Cascade)
+  task             ImplementationTask?  @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  outgoingDeps     GanttDependency[]    @relation("DepFrom")
+  incomingDeps     GanttDependency[]    @relation("DepTo")
+
+  @@index([projectId])
+  @@map("gantt_entries")
+}
+
+// Directed dependency between two Gantt entries. type = "FS" | "SS" | "FF" | "SF".
+// lagDays > 0 = lag, < 0 = lead.
+model GanttDependency {
+  id          String   @id @default(cuid())
+  projectId   String
+  fromEntryId String
+  toEntryId   String
+  type        String   @default("FS")
+  lagDays     Int      @default(0)
+  createdAt   DateTime @default(now())
+
+  project   Project    @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  fromEntry GanttEntry @relation("DepFrom", fields: [fromEntryId], references: [id], onDelete: Cascade)
+  toEntry   GanttEntry @relation("DepTo",   fields: [toEntryId],   references: [id], onDelete: Cascade)
+
+  @@unique([fromEntryId, toEntryId])
+  @@index([projectId])
+  @@map("gantt_dependencies")
 }
 
 // ─── Task Templates ───────────────────────────────────────────────────────────

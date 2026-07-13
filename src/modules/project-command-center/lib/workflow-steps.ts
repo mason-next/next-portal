@@ -177,7 +177,7 @@ export function stepActionHref(projectId: string, step: WorkflowStep): string {
   return `/projects/${projectId}${suffix}`;
 }
 
-export const PROJECT_SECTIONS: { key: "dashboard" | "meetingNotes" | ProjectSectionKey; label: string; href: string }[] = [
+export const PROJECT_SECTIONS: { key: "dashboard" | "meetingNotes" | "gantt" | ProjectSectionKey; label: string; href: string }[] = [
   { key: "dashboard", label: "Dashboard", href: "" },
   { key: "setup", label: "Setup", href: "/setup" },
   { key: "engineering", label: "Engineering", href: "/engineering" },
@@ -186,6 +186,7 @@ export const PROJECT_SECTIONS: { key: "dashboard" | "meetingNotes" | ProjectSect
   { key: "closeout", label: "Closeout", href: "/closeout" },
   { key: "serviceWarranty", label: "Service & Warranty", href: "/service-warranty" },
   { key: "meetingNotes", label: "Meeting Notes", href: "/meeting-notes" },
+  { key: "gantt", label: "Gantt", href: "/gantt" },
 ];
 
 export const WORKFLOW_STATUS_TONE: Record<WorkflowStepStatus, StatusTone> = {

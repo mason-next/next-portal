@@ -27,7 +27,7 @@ export function ProjectTabNav({ projectId, projectTypes = [], activeSections }: 
   const base = `/projects/${projectId}`;
 
   const visibleSections = PROJECT_SECTIONS.filter(({ key }) => {
-    if (key === "dashboard" || key === "meetingNotes") return true;
+    if (key === "dashboard" || key === "meetingNotes" || key === "gantt") return true;
     if (!activeSections) return true; // loading — show all
     return activeSections.has(key);
   });

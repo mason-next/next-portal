@@ -49,6 +49,7 @@ import {
 import { cn } from "@/lib/utils";
 import { ROLE_TYPE_LABELS } from "@/types/user";
 import type { AppUser } from "@/types/user";
+import { PresenceDot } from "@/components/shared/PresenceDot";
 import type { Subcontractor } from "@/types/subcontractor";
 import type { Warehouse as WarehouseType } from "@/types/warehouse";
 import { useIsAdmin } from "@/lib/hooks/useCanEdit";
@@ -263,7 +264,16 @@ function UsersTab({ isAdmin }: { isAdmin: boolean }) {
           {displayUsers.map((user) => {
             const rowContent = (
               <>
-                <UserAvatarImage name={user.name} avatarUrl={user.avatarUrl} size={40} />
+                <div className="relative shrink-0">
+                  <UserAvatarImage name={user.name} avatarUrl={user.avatarUrl} size={40} />
+                  {user.isActive && (
+                    <PresenceDot
+                      lastActiveAt={user.lastActiveAt}
+                      size={10}
+                      className="absolute -bottom-0.5 -right-0.5 ring-2 ring-card"
+                    />
+                  )}
+                </div>
                 <div className="min-w-0 flex-1">
                   <div className="text-sm font-semibold">{user.name}</div>
                   <div className="text-xs text-muted-foreground">{user.title || "—"}</div>

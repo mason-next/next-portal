@@ -48,6 +48,7 @@ type PrismaUserWithCerts = PrismaUser & {
     expirationDate: Date | null;
     notes: string;
   }[];
+  lastActiveAt?: Date | null;
 };
 
 function toCert(c: { id: string; userId: string; name: string; issuingOrg: string; expirationDate: Date | null; notes: string }): UserCertification {
@@ -88,6 +89,7 @@ function toAppUser(p: PrismaUserWithCerts): AppUser {
     location: pAny.location ?? "",
     emergencyContact: pAny.emergencyContact ?? "",
     certifications: (p.certifications ?? []).map(toCert),
+    lastActiveAt: p.lastActiveAt?.toISOString() ?? null,
     createdAt: p.createdAt.toISOString(),
     updatedAt: p.updatedAt.toISOString(),
   };

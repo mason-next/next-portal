@@ -199,3 +199,20 @@
     pointer-events: none;
   }
 }
+
+@media print {
+  /* Hide navigation, header, and non-Gantt chrome when printing. */
+  header,
+  nav,
+  [data-print-hide],
+  .print\:hidden {
+    display: none !important;
+  }
+  body {
+    background: white;
+  }
+  /* Gantt bars use solid colours; no need for transparency that may not print. */
+  .print\:shadow-none {
+    box-shadow: none !important;
+  }
+}
