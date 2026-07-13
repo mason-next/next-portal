@@ -619,18 +619,52 @@ export function PositionForm({
             <div className="grid grid-cols-2 gap-3">
               <div>
                 <label className="block text-xs font-medium text-muted-foreground mb-1">Department</label>
-                <select
-                  value={form.departmentId}
-                  onChange={(e) => set("departmentId", e.target.value)}
-                  className="w-full rounded-md border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/40"
-                >
-                  <option value="">— None —</option>
-                  {departments
-                    .filter((d) => d.status === "active")
-                    .map((d) => (
-                      <option key={d.id} value={d.id}>{d.name}</option>
-                    ))}
-                </select>
+                {(() => {
+                  const activeDepts = departments.filter((d) => d.status === "active");
+                  // Build division → dept groups (null key = no division)
+                  const groups = new Map<string | null, { name: string | null; color: string | null; depts: typeof activeDepts }>();
+                  for (const dept of activeDepts) {
+                    const key = dept.divisionId ?? null;
+                    if (!groups.has(key)) groups.set(key, { name: dept.division?.name ?? null, color: dept.division?.color ?? null, depts: [] });
+                    groups.get(key)!.depts.push(dept);
+                  }
+                  const sorted = [...groups.entries()].sort(([a, ga], [b, gb]) => {
+                    if (a === null && b !== null) return 1;
+                    if (a !== null && b === null) return -1;
+                    return (ga.name ?? "").localeCompare(gb.name ?? "");
+                  });
+                  const hasGroups = sorted.some(([k]) => k !== null);
+                  const selectedDept = activeDepts.find((d) => d.id === form.departmentId);
+                  const selectedDivision = selectedDept?.division ?? null;
+                  return (
+                    <>
+                      <select
+                        value={form.departmentId}
+                        onChange={(e) => set("departmentId", e.target.value)}
+                        className="w-full rounded-md border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/40"
+                      >
+                        <option value="">— None —</option>
+                        {hasGroups
+                          ? sorted.map(([key, group]) => (
+                              <optgroup key={key ?? "__none__"} label={group.name ?? "No Division"}>
+                                {group.depts.map((d) => (
+                                  <option key={d.id} value={d.id}>{d.name}</option>
+                                ))}
+                              </optgroup>
+                            ))
+                          : activeDepts.map((d) => (
+                              <option key={d.id} value={d.id}>{d.name}</option>
+                            ))}
+                      </select>
+                      {selectedDivision && (
+                        <div className="mt-1 flex items-center gap-1">
+                          <span className="size-2 rounded-full flex-none" style={{ background: selectedDivision.color ?? "#6366f1" }} />
+                          <span className="text-[11px] text-muted-foreground">{selectedDivision.name}</span>
+                        </div>
+                      )}
+                    </>
+                  );
+                })()}
               </div>
               <div>
                 <label className="block text-xs font-medium text-muted-foreground mb-1">Location</label>
