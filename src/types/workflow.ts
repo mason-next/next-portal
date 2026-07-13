@@ -16,19 +16,42 @@ export const PROJECT_SECTION_KEYS: ProjectSectionKey[] = [
 ];
 
 export const WORKFLOW_STEP_KEYS = [
+  // Setup
   "opportunityWon",
   "projectCreated",
   "assignTeam",
   "sendWelcomeLetter",
+  "initiateProcurementTracking",
   "scheduleInternalKickoff",
   "scheduleTechnicalKickoff",
-  "cadReview",
   "bomReview",
+  // Engineering
+  "cadReview",
+  "pullSchedule",
+  "ipScopeSwitchports",
+  "functionalNarrative",
+  "programmingMockups",
+  "engineeringPacket",
+  // Procurement & Kickoff Prep
   "equipmentTracking",
+  "scheduleResources",
+  "onsiteWalkthrough",
+  "engineeringPacketReview",
+  "submitPmReview",
+  // Implementation
   "installation",
   "programming",
   "commissioning",
+  "roughIn",       // SC: replaces installation
+  "termination",   // SC: replaces programming
+  "certification", // SC: replaces commissioning
+  // Closeout
+  "customerTraining",
+  "finalDayDocumentation",
+  "closeoutPacket",
+  "processRmas",
   "closeout",
+  // Service & Warranty
   "serviceWarranty",
 ] as const;
 

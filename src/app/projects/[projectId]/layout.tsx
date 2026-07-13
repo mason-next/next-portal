@@ -136,7 +136,7 @@ function ProjectLayoutBody({
           </>
         }
       />
-      <ProjectTabNav projectId={projectId} activeSections={activeSections} />
+      <ProjectTabNav projectId={projectId} projectTypes={project.projectTypes} activeSections={activeSections} />
       <div className="space-y-6">{children}</div>
 
       <ProjectActivityDrawer projectId={projectId} />

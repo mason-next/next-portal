@@ -3,10 +3,16 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
-import { PROJECT_SECTIONS } from "@/modules/project-command-center/lib/workflow-steps";
+import {
+  PROJECT_SECTIONS,
+  DEFAULT_PROJECT_TYPE_CONFIG,
+  getSectionLabelForTypes,
+} from "@/modules/project-command-center/lib/workflow-steps";
+import type { ProjectSectionKey } from "@/types/workflow";
 
 interface ProjectTabNavProps {
   projectId: string;
+  projectTypes?: string[];
   /**
    * Set of section keys that have at least one active (non-excluded) step.
    * Null/undefined = still loading, show all tabs.
@@ -16,7 +22,7 @@ interface ProjectTabNavProps {
   activeSections?: Set<string> | null;
 }
 
-export function ProjectTabNav({ projectId, activeSections }: ProjectTabNavProps) {
+export function ProjectTabNav({ projectId, projectTypes = [], activeSections }: ProjectTabNavProps) {
   const pathname = usePathname();
   const base = `/projects/${projectId}`;
 
@@ -28,9 +34,12 @@ export function ProjectTabNav({ projectId, activeSections }: ProjectTabNavProps)
 
   return (
     <nav className="flex items-center gap-1 border-b overflow-x-auto scrollbar-none -mx-4 px-4 sm:mx-0 sm:px-0">
-      {visibleSections.map(({ key, label, href }) => {
+      {visibleSections.map(({ key, href }) => {
         const fullHref = `${base}${href}`;
         const active = href === "" ? pathname === base : pathname.startsWith(fullHref);
+        const label = (key === "dashboard" || key === "meetingNotes")
+          ? PROJECT_SECTIONS.find((s) => s.key === key)!.label
+          : getSectionLabelForTypes(key as ProjectSectionKey, projectTypes, DEFAULT_PROJECT_TYPE_CONFIG);
         return (
           <Link
             key={key}

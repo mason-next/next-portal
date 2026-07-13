@@ -1,7 +1,8 @@
 import { SAMPLE_PROJECT } from "@/lib/mock/projects.mock";
 import {
   redistributeWeights,
-  shouldIncludeStepForTypes,
+  shouldIncludeStepForTypesWithConfig,
+  DEFAULT_PROJECT_TYPE_CONFIG,
   WORKFLOW_STEP_TEMPLATE,
 } from "@/modules/project-command-center/lib/workflow-steps";
 import { PROJECT_SECTION_KEYS, type WorkflowStep, type WorkflowStepKey } from "@/types/workflow";
@@ -59,7 +60,7 @@ export function defaultWorkflowSteps(
   projectTypes: string[] = []
 ): WorkflowStep[] {
   const raw = WORKFLOW_STEP_TEMPLATE
-    .filter(({ key }) => shouldIncludeStepForTypes(key, projectTypes))
+    .filter(({ key }) => shouldIncludeStepForTypesWithConfig(key, projectTypes, DEFAULT_PROJECT_TYPE_CONFIG))
     .map(({ key }) => {
       if (key === "opportunityWon" || key === "projectCreated") {
         return step(projectId, key, "Complete", null, createdAt, createdAt, createdAt);

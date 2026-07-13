@@ -23,17 +23,29 @@ export interface WorkflowStepTemplateEntry {
   defaultOwnerRole?: StepOwnerRole;
 }
 
-// Steps that do NOT apply to Box Sale projects.
-// Any project with at least one full-service type (Structured Cabling, Security, Audio / Visual)
-// includes all steps. An all-Box Sale project skips these.
+// Steps that do NOT apply to Box Sale projects (used by the legacy shouldIncludeStepForTypes).
 export const BOX_SALE_EXCLUDED_STEPS = new Set<string>([
-  "sendWelcomeLetter",
   "scheduleInternalKickoff",
   "scheduleTechnicalKickoff",
   "cadReview",
+  "pullSchedule",
+  "ipScopeSwitchports",
+  "functionalNarrative",
+  "programmingMockups",
+  "engineeringPacket",
+  "scheduleResources",
+  "onsiteWalkthrough",
+  "engineeringPacketReview",
+  "submitPmReview",
   "installation",
   "programming",
   "commissioning",
+  "roughIn",
+  "termination",
+  "certification",
+  "customerTraining",
+  "finalDayDocumentation",
+  "processRmas",
 ]);
 
 // Returns true if this step should be included for the given project types.
@@ -52,20 +64,44 @@ export function shouldIncludeStepForTypes(stepKey: string, projectTypes: string[
 // computed at seed time (and on every add/remove/edit) by redistributeWeights below, split
 // evenly across each section's PHASE_WEIGHT budget unless a step's weight is overridden.
 export const WORKFLOW_STEP_TEMPLATE: WorkflowStepTemplateEntry[] = [
-  { key: "opportunityWon",           name: "Opportunity Won",            sortOrder: 1,  section: "setup" },
-  { key: "projectCreated",           name: "Project Created",            sortOrder: 2,  section: "setup" },
-  { key: "assignTeam",               name: "Assign Team",                sortOrder: 3,  section: "setup",           defaultOwnerRole: "seniorInsideId" },
-  { key: "sendWelcomeLetter",        name: "Send Welcome Letter",        sortOrder: 4,  section: "setup",           defaultOwnerRole: "seniorInsideId" },
-  { key: "scheduleInternalKickoff",  name: "Internal Kickoff",           sortOrder: 5,  section: "setup",           defaultOwnerRole: "insidePMId" },
-  { key: "scheduleTechnicalKickoff", name: "Technical Kickoff",          sortOrder: 6,  section: "setup",           defaultOwnerRole: "solutionsEngineerId" },
-  { key: "cadReview",                name: "CAD Review",                 sortOrder: 7,  section: "engineering",     defaultOwnerRole: "solutionsEngineerId" },
-  { key: "bomReview",                name: "BOM Review",                 sortOrder: 8,  section: "engineering",     defaultOwnerRole: "solutionsEngineerId" },
-  { key: "equipmentTracking",        name: "Equipment Tracking",         sortOrder: 9,  section: "procurement",     defaultOwnerRole: "insidePMId" },
-  { key: "installation",             name: "Installation",               sortOrder: 10, section: "implementation",  defaultOwnerRole: "fieldProjectManagerId" },
-  { key: "programming",              name: "Programming",                sortOrder: 11, section: "implementation",  defaultOwnerRole: "fieldProjectManagerId" },
-  { key: "commissioning",            name: "Commissioning",              sortOrder: 12, section: "implementation",  defaultOwnerRole: "fieldProjectManagerId" },
-  { key: "closeout",                 name: "Closeout",                   sortOrder: 13, section: "closeout",        defaultOwnerRole: "seniorInsideId" },
-  { key: "serviceWarranty",          name: "Service & Warranty",         sortOrder: 14, section: "serviceWarranty",  defaultOwnerRole: "fieldProjectManagerId" },
+  // ── Setup ──────────────────────────────────────────────────────────────────
+  { key: "opportunityWon",              name: "Opportunity Won",                        sortOrder: 1,  section: "setup" },
+  { key: "projectCreated",              name: "Project Created",                        sortOrder: 2,  section: "setup" },
+  { key: "assignTeam",                  name: "Assign Team",                            sortOrder: 3,  section: "setup",            defaultOwnerRole: "seniorInsideId" },
+  { key: "sendWelcomeLetter",           name: "Send Welcome Letter",                    sortOrder: 4,  section: "setup",            defaultOwnerRole: "seniorInsideId" },
+  { key: "initiateProcurementTracking", name: "Initiate Procurement Tracking",          sortOrder: 5,  section: "setup",            defaultOwnerRole: "insidePMId" },
+  { key: "scheduleInternalKickoff",     name: "Internal Kickoff",                       sortOrder: 6,  section: "setup",            defaultOwnerRole: "insidePMId" },
+  { key: "scheduleTechnicalKickoff",    name: "Customer Kickoff",                       sortOrder: 7,  section: "setup",            defaultOwnerRole: "solutionsEngineerId" },
+  { key: "bomReview",                   name: "BOM Review",                             sortOrder: 8,  section: "setup",            defaultOwnerRole: "solutionsEngineerId" },
+  // ── Engineering ────────────────────────────────────────────────────────────
+  { key: "cadReview",                   name: "CAD Review",                             sortOrder: 9,  section: "engineering",      defaultOwnerRole: "solutionsEngineerId" },
+  { key: "pullSchedule",                name: "Pull Schedule",                          sortOrder: 10, section: "engineering",      defaultOwnerRole: "solutionsEngineerId" },
+  { key: "ipScopeSwitchports",          name: "IP Scope & Switchport Assignments",      sortOrder: 11, section: "engineering",      defaultOwnerRole: "solutionsEngineerId" },
+  { key: "functionalNarrative",         name: "Draft Functional Narrative",             sortOrder: 12, section: "engineering",      defaultOwnerRole: "solutionsEngineerId" },
+  { key: "programmingMockups",          name: "Programming Mockups",                    sortOrder: 13, section: "engineering",      defaultOwnerRole: "solutionsEngineerId" },
+  { key: "engineeringPacket",           name: "Compile & Submit Engineering Packet",    sortOrder: 14, section: "engineering",      defaultOwnerRole: "solutionsEngineerId" },
+  // ── Procurement & Pre-Construction ─────────────────────────────────────────
+  { key: "equipmentTracking",           name: "Equipment Tracking",                     sortOrder: 15, section: "procurement",      defaultOwnerRole: "insidePMId" },
+  { key: "scheduleResources",           name: "Schedule Resources",                     sortOrder: 16, section: "procurement",      defaultOwnerRole: "insidePMId" },
+  { key: "onsiteWalkthrough",           name: "Onsite Walkthrough",                     sortOrder: 17, section: "procurement",      defaultOwnerRole: "fieldProjectManagerId" },
+  { key: "engineeringPacketReview",     name: "Engineering Packet Review",              sortOrder: 18, section: "procurement",      defaultOwnerRole: "solutionsEngineerId" },
+  { key: "submitPmReview",              name: "Submit PM Review",                       sortOrder: 19, section: "procurement",      defaultOwnerRole: "insidePMId" },
+  // ── Implementation ─────────────────────────────────────────────────────────
+  { key: "installation",                name: "Installation",                           sortOrder: 20, section: "implementation",   defaultOwnerRole: "fieldProjectManagerId" },
+  { key: "programming",                 name: "Programming",                            sortOrder: 21, section: "implementation",   defaultOwnerRole: "fieldProjectManagerId" },
+  { key: "commissioning",               name: "Commissioning",                          sortOrder: 22, section: "implementation",   defaultOwnerRole: "fieldProjectManagerId" },
+  // ── Implementation (SC variants) ──────────────────────────────────────────
+  { key: "roughIn",                     name: "Rough-In",                               sortOrder: 20, section: "implementation",   defaultOwnerRole: "fieldProjectManagerId" },
+  { key: "termination",                 name: "Termination",                            sortOrder: 21, section: "implementation",   defaultOwnerRole: "fieldProjectManagerId" },
+  { key: "certification",               name: "Certification",                          sortOrder: 22, section: "implementation",   defaultOwnerRole: "fieldProjectManagerId" },
+  // ── Closeout ───────────────────────────────────────────────────────────────
+  { key: "customerTraining",            name: "Customer Training",                      sortOrder: 23, section: "closeout",         defaultOwnerRole: "fieldProjectManagerId" },
+  { key: "finalDayDocumentation",       name: "Final Day Documentation",                sortOrder: 24, section: "closeout",         defaultOwnerRole: "fieldProjectManagerId" },
+  { key: "closeoutPacket",              name: "Compile Closeout Packet & Submit",       sortOrder: 25, section: "closeout",         defaultOwnerRole: "seniorInsideId" },
+  { key: "processRmas",                 name: "Process RMAs & Return to Stock",         sortOrder: 26, section: "closeout",         defaultOwnerRole: "insidePMId" },
+  { key: "closeout",                    name: "Closeout",                               sortOrder: 27, section: "closeout",         defaultOwnerRole: "seniorInsideId" },
+  // ── Service & Warranty ─────────────────────────────────────────────────────
+  { key: "serviceWarranty",             name: "Service & Warranty",                     sortOrder: 28, section: "serviceWarranty",  defaultOwnerRole: "fieldProjectManagerId" },
 ];
 
 // Each phase's fixed weight budget — independent of how many steps currently exist in it.
@@ -112,7 +148,7 @@ export function stepHasAction(key: string): boolean {
 export const SECTION_LABEL: Record<ProjectSectionKey, string> = {
   setup: "Setup",
   engineering: "Engineering",
-  procurement: "Procurement",
+  procurement: "Procurement & Kickoff Prep",
   implementation: "Implementation",
   closeout: "Closeout",
   serviceWarranty: "Service & Warranty",
@@ -126,7 +162,7 @@ export function stepPhaseLabel(section: ProjectSectionKey): string {
 // page" destination. Add an entry here as future modules (Welcome Letter, Kickoff
 // automation, etc.) get their own pages.
 const STEP_ACTION_OVERRIDES: Partial<Record<string, string>> = {
-  bomReview: "/engineering/bom-review",
+  bomReview: "/engineering/bom-review", // page lives at engineering route until routing is updated
   assignTeam: "", // Project Overview (where the team is assigned) lives on the Dashboard itself
   sendWelcomeLetter: "/setup/welcome-letter",
   scheduleInternalKickoff: "/setup/internal-kickoff",
@@ -143,7 +179,7 @@ export const PROJECT_SECTIONS: { key: "dashboard" | "meetingNotes" | ProjectSect
   { key: "dashboard", label: "Dashboard", href: "" },
   { key: "setup", label: "Setup", href: "/setup" },
   { key: "engineering", label: "Engineering", href: "/engineering" },
-  { key: "procurement", label: "Procurement", href: "/procurement" },
+  { key: "procurement", label: "Procurement & Kickoff Prep", href: "/procurement" },
   { key: "implementation", label: "Implementation", href: "/implementation" },
   { key: "closeout", label: "Closeout", href: "/closeout" },
   { key: "serviceWarranty", label: "Service & Warranty", href: "/service-warranty" },
@@ -181,20 +217,68 @@ export function isModuleManagedStep(key: string): boolean {
 // A step is excluded from a project if ALL of the project's types are in exclusions[stepKey].
 export interface ProjectTypeWorkflowConfig {
   exclusions: Record<string, string[]>;
+  sectionLabelOverrides?: Record<string, Record<string, string>>;
 }
 
-// Default mirrors the current hardcoded BOX_SALE_EXCLUDED_STEPS behavior.
+// AV-only steps: excluded from all non-AV types.
+const NON_AV = ["Box Sale", "Structured Cabling", "Security"] as const;
+// AV + Security steps: excluded from Box Sale and Structured Cabling.
+const BOX_SALE_AND_SC = ["Box Sale", "Structured Cabling"] as const;
+// SC-only steps: excluded from all non-SC types.
+const NON_SC = ["Box Sale", "Audio / Visual", "Security"] as const;
+
 export const DEFAULT_PROJECT_TYPE_CONFIG: ProjectTypeWorkflowConfig = {
   exclusions: {
-    sendWelcomeLetter:        ["Box Sale"],
-    scheduleInternalKickoff:  ["Box Sale"],
-    scheduleTechnicalKickoff: ["Box Sale"],
-    cadReview:                ["Box Sale"],
-    installation:             ["Box Sale"],
-    programming:              ["Box Sale"],
-    commissioning:            ["Box Sale"],
+    // ── Box Sale excluded only (all three full-service types get these) ────────
+    scheduleInternalKickoff:      ["Box Sale"],
+    scheduleTechnicalKickoff:     ["Box Sale"],
+    cadReview:                    ["Box Sale"],
+    pullSchedule:                 ["Box Sale"],
+    engineeringPacket:            ["Box Sale"],
+    scheduleResources:            ["Box Sale"],
+    onsiteWalkthrough:            ["Box Sale"],
+    engineeringPacketReview:      ["Box Sale"],
+    submitPmReview:               ["Box Sale"],
+    finalDayDocumentation:        ["Box Sale"],
+    processRmas:                  ["Box Sale"],
+
+    // ── AV + Security only (SC uses roughIn / termination / certification) ─────
+    installation:                 [...BOX_SALE_AND_SC],
+    programming:                  [...BOX_SALE_AND_SC],
+    commissioning:                [...BOX_SALE_AND_SC],
+    ipScopeSwitchports:           [...BOX_SALE_AND_SC],
+    customerTraining:             [...BOX_SALE_AND_SC],
+
+    // ── AV only ───────────────────────────────────────────────────────────────
+    functionalNarrative:          [...NON_AV],
+    programmingMockups:           [...NON_AV],
+
+    // ── SC only ───────────────────────────────────────────────────────────────
+    roughIn:                      [...NON_SC],
+    termination:                  [...NON_SC],
+    certification:                [...NON_SC],
+  },
+  sectionLabelOverrides: {
+    // Box Sale doesn't involve kickoff prep steps, so the shorter label fits better.
+    procurement: {
+      "Box Sale": "Procurement",
+    },
   },
 };
+
+// Returns the display label for a section, applying per-type overrides when all
+// of a project's types agree on the same override (mixed-type projects use the default).
+export function getSectionLabelForTypes(
+  section: ProjectSectionKey,
+  projectTypes: string[],
+  config?: ProjectTypeWorkflowConfig
+): string {
+  const overrides = config?.sectionLabelOverrides?.[section];
+  if (!overrides || projectTypes.length === 0) return SECTION_LABEL[section];
+  const labels = projectTypes.map((t) => overrides[t] ?? SECTION_LABEL[section]);
+  const unique = new Set(labels);
+  return unique.size === 1 ? [...unique][0] : SECTION_LABEL[section];
+}
 
 // Config-aware version of shouldIncludeStepForTypes.
 // config is optional for backward compat; falls back to the legacy BOX_SALE_EXCLUDED_STEPS check.
