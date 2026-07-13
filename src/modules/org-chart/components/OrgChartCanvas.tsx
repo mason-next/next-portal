@@ -56,7 +56,6 @@ import {
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import {
-  swapOrgPositionOrder,
   swapOrgDepartmentOrder,
   savePositionLayout,
   batchSavePositionLayouts,
@@ -379,7 +378,6 @@ const OrgCtx = createContext<{
   onEdit?:         (p: OrgPosition) => void;
   onAdd?:          (reportsToId: string) => void;
   onToggle:        (id: string) => void;
-  onReorder?:      (id: string, dir: "left" | "right") => void;
   onDeptReorder?:  (deptId: string, dir: "left" | "right") => void;
   onDeptResize?:   (deptId: string, x: number, y: number, w: number, h: number) => void;
   positionsById:   Map<string, OrgPosition>;
@@ -412,8 +410,8 @@ type PositionNodeData = {
   mindmap?:    boolean;
 };
 
-function PositionNode({ data, id }: NodeProps) {
-  const { onEdit, onAdd, onToggle, onReorder, positionsById, departmentsById, isAdmin, viewMode } =
+function PositionNode({ data, id, selected }: NodeProps) {
+  const { onEdit, onAdd, onToggle, positionsById, departmentsById, isAdmin, viewMode } =
     useContext(OrgCtx);
   const d = data as unknown as PositionNodeData;
   const { positionId, childCount, isCollapsed } = d;
@@ -433,24 +431,6 @@ function PositionNode({ data, id }: NodeProps) {
   const displayName = primary?.user?.name ?? (isPlanned ? "— Planned —" : "— Vacant —");
   const isMindmap   = viewMode === "mindmap";
 
-  const siblings = useMemo(() => {
-    if (!isAdmin || !onReorder) return [];
-    const parentKey = position.reportsToPositionId ?? "__root__";
-    return [...positionsById.values()]
-      .filter((p) => (p.reportsToPositionId ?? "__root__") === parentKey)
-      .sort((a, b) => {
-        if (a.sortOrder == null && b.sortOrder == null) return a.createdAt < b.createdAt ? -1 : 1;
-        if (a.sortOrder == null) return 1;
-        if (b.sortOrder == null) return -1;
-        return a.sortOrder - b.sortOrder;
-      });
-  }, [isAdmin, onReorder, position, positionsById]);
-
-  const siblingIdx   = siblings.findIndex((p) => p.id === position.id);
-  const canMoveLeft  = isAdmin && siblingIdx > 0;
-  const canMoveRight = isAdmin && siblingIdx >= 0 && siblingIdx < siblings.length - 1;
-  const showReorder  = isAdmin && (canMoveLeft || canMoveRight);
-
   return (
     <div
       className={cn(
@@ -459,41 +439,14 @@ function PositionNode({ data, id }: NodeProps) {
       )}
       style={{ width: NODE_W }}
     >
-      {/* Sibling reorder arrows — set canonical sortOrder used by Auto Align */}
-      {showReorder && (
-        <div className={cn(
-          "absolute z-30 flex gap-1",
-          isMindmap
-            ? "-left-7 top-1/2 -translate-y-1/2 flex-col"
-            : "-top-7 left-0 right-0 justify-center",
-        )}>
-          <button
-            type="button"
-            disabled={!canMoveLeft}
-            onClick={(e) => { e.stopPropagation(); onReorder?.(position.id, "left"); }}
-            className="flex h-5 w-5 items-center justify-center rounded border border-slate-200 bg-white shadow-sm text-slate-400 hover:text-slate-700 hover:border-slate-300 disabled:opacity-20 disabled:cursor-not-allowed transition-colors"
-            title={isMindmap ? "Move up (sets sort order for Auto Align)" : "Move left (sets sort order for Auto Align)"}
-          >
-            {isMindmap ? <ChevronUp className="size-3" /> : <ChevronLeft className="size-3" />}
-          </button>
-          <button
-            type="button"
-            disabled={!canMoveRight}
-            onClick={(e) => { e.stopPropagation(); onReorder?.(position.id, "right"); }}
-            className="flex h-5 w-5 items-center justify-center rounded border border-slate-200 bg-white shadow-sm text-slate-400 hover:text-slate-700 hover:border-slate-300 disabled:opacity-20 disabled:cursor-not-allowed transition-colors"
-            title={isMindmap ? "Move down (sets sort order for Auto Align)" : "Move right (sets sort order for Auto Align)"}
-          >
-            {isMindmap ? <ChevronDown className="size-3" /> : <ChevronRight className="size-3" />}
-          </button>
-        </div>
-      )}
-
       {/* Card */}
       <div className={cn(
         "rounded-xl border shadow-sm transition-all hover:shadow-md",
         isVacant || isPlanned ? "bg-slate-50/90" : "bg-white",
-        "border-slate-200",
-        isAdmin && "hover:border-slate-300 hover:ring-1 hover:ring-primary/20",
+        selected
+          ? "border-primary ring-2 ring-primary/40"
+          : "border-slate-200",
+        isAdmin && !selected && "hover:border-slate-300 hover:ring-1 hover:ring-primary/20",
       )}>
         <div className="h-1.5 w-full rounded-t-xl" style={{ backgroundColor: deptColor }} />
 
@@ -743,31 +696,6 @@ function OrgChartInner({
     });
   }, []);
 
-  // Swap position sibling order (affects Auto Align canonical ordering only)
-  const onReorder = useCallback((id: string, dir: "left" | "right") => {
-    const pos = positionsById.get(id);
-    if (!pos) return;
-    const parentKey = pos.reportsToPositionId ?? "__root__";
-    const sorted = [...positionsById.values()]
-      .filter((p) => (p.reportsToPositionId ?? "__root__") === parentKey)
-      .sort((a, b) => {
-        if (a.sortOrder == null && b.sortOrder == null) return a.createdAt < b.createdAt ? -1 : 1;
-        if (a.sortOrder == null) return 1;
-        if (b.sortOrder == null) return -1;
-        return a.sortOrder - b.sortOrder;
-      });
-    const idx       = sorted.findIndex((p) => p.id === id);
-    const targetIdx = dir === "left" ? idx - 1 : idx + 1;
-    if (targetIdx < 0 || targetIdx >= sorted.length) return;
-    const other = sorted[targetIdx];
-    const myOrder    = pos.sortOrder   ?? idx       * 10;
-    const otherOrder = other.sortOrder ?? targetIdx * 10;
-    startTransition(async () => {
-      await swapOrgPositionOrder(id, myOrder, other.id, otherOrder);
-      router.refresh();
-    });
-  }, [positionsById, router, startTransition]);
-
   // Swap department order (affects Auto Align canonical ordering only)
   const onDeptReorder = useCallback((deptId: string, dir: "left" | "right") => {
     const sorted = [...departments].sort((a, b) => {
@@ -827,14 +755,13 @@ function OrgChartInner({
     onEdit,
     onAdd,
     onToggle,
-    onReorder:     isAdmin ? onReorder     : undefined,
     onDeptReorder: isAdmin ? onDeptReorder : undefined,
     onDeptResize:  isAdmin ? onDeptResize  : undefined,
     positionsById,
     departmentsById,
     isAdmin,
     viewMode,
-  }), [onEdit, onAdd, onToggle, onReorder, onDeptReorder, onDeptResize, positionsById, departmentsById, isAdmin, viewMode]);
+  }), [onEdit, onAdd, onToggle, onDeptReorder, onDeptResize, positionsById, departmentsById, isAdmin, viewMode]);
 
   // Dimming for search/filter
   const dimmedIds = useMemo<Set<string>>(() => {
