@@ -170,10 +170,12 @@ function buildDeptGroups(
       position:   { x, y },
       style:      { width: w, height: h },
       data:       {
-        label:      dept.name,
-        color:      dept.color ?? "#6366f1",
-        deptId:     dept.id,
-        deptIndex:  groupIdx,
+        label:        dept.name,
+        color:        dept.color ?? "#6366f1",
+        deptId:       dept.id,
+        deptIndex:    groupIdx,
+        divisionName: dept.division?.name ?? null,
+        divisionColor: dept.division?.color ?? null,
       },
       zIndex:     -1,
       draggable:  isAdmin,
@@ -536,8 +538,9 @@ function PositionNode({ data, id, selected }: NodeProps) {
 // ─── Department group node ─────────────────────────────────────────────────────
 
 function DeptGroupNode({ data, selected }: NodeProps) {
-  const { label, color, deptId, deptIndex, deptTotal } = data as {
+  const { label, color, deptId, deptIndex, deptTotal, divisionName, divisionColor } = data as {
     label: string; color: string; deptId: string; deptIndex: number; deptTotal: number;
+    divisionName: string | null; divisionColor: string | null;
   };
   const { onDeptReorder, onDeptResize, isAdmin } = useContext(OrgCtx);
   const c = color ?? "#6366f1";
@@ -571,15 +574,30 @@ function DeptGroupNode({ data, selected }: NodeProps) {
         className="h-full w-full rounded-2xl pointer-events-none"
         style={{ border: `1.5px solid ${c}35`, background: `${c}08` }}
       >
-        <div
-          className="m-3 inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[11px] font-semibold"
-          style={{ background: `${c}18`, color: c, border: `1px solid ${c}30` }}
-        >
-          <span className="size-2 flex-none rounded-full" style={{ background: c }} />
-          {label}
-          {isAdmin && (
-            <span className="ml-1 text-[9px] opacity-40">drag · click to resize</span>
+        <div className="m-3 flex flex-wrap items-center gap-1">
+          {divisionName && (
+            <span
+              className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-medium"
+              style={{
+                background: `${divisionColor ?? c}15`,
+                color: divisionColor ?? c,
+                border: `1px solid ${divisionColor ?? c}25`,
+              }}
+            >
+              <span className="size-1.5 flex-none rounded-full" style={{ background: divisionColor ?? c }} />
+              {divisionName}
+            </span>
           )}
+          <span
+            className="inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[11px] font-semibold"
+            style={{ background: `${c}18`, color: c, border: `1px solid ${c}30` }}
+          >
+            <span className="size-2 flex-none rounded-full" style={{ background: c }} />
+            {label}
+            {isAdmin && (
+              <span className="ml-1 text-[9px] opacity-40">drag · click to resize</span>
+            )}
+          </span>
         </div>
       </div>
 

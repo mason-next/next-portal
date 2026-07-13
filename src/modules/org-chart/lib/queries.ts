@@ -1,5 +1,6 @@
 import { db } from "@/lib/db";
 import type {
+  OrgDivision,
   OrgDepartment,
   OrgLocation,
   OrgChartVersion,
@@ -59,10 +60,10 @@ export async function getOrCreateDefaultVersion(): Promise<OrgChartVersion> {
   };
 }
 
-// ─── Departments ──────────────────────────────────────────────────────────────
+// ─── Divisions ────────────────────────────────────────────────────────────────
 
-export async function getOrgDepartments(): Promise<OrgDepartment[]> {
-  const rows = await db.orgDepartment.findMany({
+export async function getOrgDivisions(): Promise<OrgDivision[]> {
+  const rows = await db.orgDivision.findMany({
     orderBy: [
       { sortOrder: { sort: "asc", nulls: "last" } },
       { name: "asc" },
@@ -70,6 +71,31 @@ export async function getOrgDepartments(): Promise<OrgDepartment[]> {
   });
   return rows.map((r) => ({
     ...r,
+    createdAt: r.createdAt.toISOString(),
+    updatedAt: r.updatedAt.toISOString(),
+  }));
+}
+
+// ─── Departments ──────────────────────────────────────────────────────────────
+
+export async function getOrgDepartments(): Promise<OrgDepartment[]> {
+  const rows = await db.orgDepartment.findMany({
+    include: { division: true },
+    orderBy: [
+      { sortOrder: { sort: "asc", nulls: "last" } },
+      { name: "asc" },
+    ],
+  });
+  return rows.map((r) => ({
+    ...r,
+    divisionId: r.divisionId ?? null,
+    division: r.division
+      ? {
+          ...r.division,
+          createdAt: r.division.createdAt.toISOString(),
+          updatedAt: r.division.updatedAt.toISOString(),
+        }
+      : null,
     createdAt: r.createdAt.toISOString(),
     updatedAt: r.updatedAt.toISOString(),
   }));
@@ -164,6 +190,8 @@ export async function getOrgPositions(versionId?: string, isAdmin = false): Prom
     department: r.department
       ? {
           ...r.department,
+          divisionId: r.department.divisionId ?? null,
+          division: null,
           createdAt: r.department.createdAt.toISOString(),
           updatedAt: r.department.updatedAt.toISOString(),
         }

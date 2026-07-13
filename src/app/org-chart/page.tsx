@@ -8,6 +8,7 @@ import {
   getOrgChartVersions,
   getOrgPositions,
   getOrgDepartments,
+  getOrgDivisions,
   getOrgLocations,
   getOrgChartStats,
   getOrgCertifications,
@@ -41,10 +42,11 @@ export default async function OrgChartPage({ searchParams }: PageProps) {
   const selectedVersion =
     requestedId ? (versions.find((v) => v.id === requestedId) ?? defaultVersion) : defaultVersion;
 
-  const [positions, departments, locations, stats, certifications, userCertifications, formSections, layouts, deptLayouts] =
+  const [positions, departments, divisions, locations, stats, certifications, userCertifications, formSections, layouts, deptLayouts] =
     await Promise.all([
       getOrgPositions(selectedVersion.id, isAdmin),
       getOrgDepartments(),
+      getOrgDivisions(),
       getOrgLocations(),
       getOrgChartStats(selectedVersion.id),
       isAdmin ? getOrgCertifications() : Promise.resolve([]),
@@ -60,6 +62,7 @@ export default async function OrgChartPage({ searchParams }: PageProps) {
       versions={versions}
       positions={positions}
       departments={departments}
+      divisions={divisions}
       locations={locations}
       stats={stats}
       certifications={certifications}
