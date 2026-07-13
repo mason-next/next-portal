@@ -101,6 +101,20 @@ type LayoutSnapshot = {
 type AlignOp    = "top" | "bottom" | "left" | "right" | "centerH" | "centerV" | "distH" | "distV";
 type CanvasMode = "pan" | "select";
 
+// ─── Export column definitions (used by the PDF table export) ────────────────
+
+const EXPORT_COL_DEFS = [
+  { key: "title",      label: "Position Title", defaultOn: true  },
+  { key: "division",   label: "Division",       defaultOn: true  },
+  { key: "department", label: "Department",     defaultOn: true  },
+  { key: "status",     label: "Status",         defaultOn: true  },
+  { key: "assignee",   label: "Assigned To",    defaultOn: true  },
+  { key: "reports_to", label: "Reports To",     defaultOn: true  },
+  { key: "location",   label: "Location",       defaultOn: false },
+  { key: "notes",      label: "Notes",          defaultOn: false },
+] as const;
+type ExportColKey = (typeof EXPORT_COL_DEFS)[number]["key"];
+
 // Quote-aware CSV line splitter
 function parseCsvLine(line: string): string[] {
   const out: string[] = [];
@@ -708,6 +722,12 @@ function OrgChartInner({
   const [importPending, setImportPending] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  // Export panel
+  const [exportOpen, setExportOpen] = useState(false);
+  const [exportCols, setExportCols] = useState<Set<ExportColKey>>(
+    new Set(EXPORT_COL_DEFS.filter((c) => c.defaultOn).map((c) => c.key)),
+  );
+
   const viewType = viewMode === "mindmap" ? "mind_map" : "org_chart";
 
   // Saved DB position layouts, keyed by positionId for current viewType
@@ -1242,51 +1262,192 @@ function OrgChartInner({
     }
   }, [departments, versionId, router]);
 
-  // ─── PDF Export ───────────────────────────────────────────────────────────────
+  // ─── PDF Export — Table ──────────────────────────────────────────────────────
 
-  const handleExportPdf = useCallback(async () => {
+  const handleExportTable = useCallback(async () => {
     const [{ default: jsPDF }, { default: autoTable }] = await Promise.all([
       import("jspdf"),
       import("jspdf-autotable"),
     ]);
 
     const doc = new jsPDF({ orientation: "landscape", unit: "mm", format: "a4" });
-    doc.setFontSize(18);
+    doc.setFontSize(15);
+    doc.setFont("helvetica", "bold");
     doc.text("Org Chart", 14, 14);
-    doc.setFontSize(10);
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(9);
     doc.setTextColor(120);
     doc.text(new Date().toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" }), 14, 21);
     doc.setTextColor(0);
 
+    const activeCols = EXPORT_COL_DEFS.filter((c) => exportCols.has(c.key));
+    const posMap = new Map(positions.map((p) => [p.id, p]));
+
     const body = [...positions]
       .sort((a, b) => {
-        const da = a.department?.name ?? "";
-        const db = b.department?.name ?? "";
+        const da = departmentsById.get(a.departmentId ?? "")?.name ?? "";
+        const db = departmentsById.get(b.departmentId ?? "")?.name ?? "";
         return da.localeCompare(db) || a.title.localeCompare(b.title);
       })
       .map((p) => {
-        const dept      = p.departmentId ? departmentsById.get(p.departmentId) : null;
-        const division  = dept?.division?.name ?? "—";
-        const deptName  = dept?.name ?? "—";
-        const assignee  = p.assignments.find((a) => a.isActive && a.assignmentType === "primary");
-        const user      = assignee?.user?.name ?? "Vacant";
-        const statusLbl = p.status.charAt(0).toUpperCase() + p.status.slice(1);
-        const reportsTo = p.reportsToPositionId ? (positions.find((x) => x.id === p.reportsToPositionId)?.title ?? "—") : "—";
-        return [p.title, division, deptName, statusLbl, user, reportsTo];
+        const dept     = p.departmentId ? departmentsById.get(p.departmentId) : null;
+        const assignee = p.assignments.find((a) => a.isActive && a.assignmentType === "primary");
+        return activeCols.map((col) => {
+          switch (col.key) {
+            case "title":      return p.title;
+            case "division":   return dept?.division?.name ?? "—";
+            case "department": return dept?.name ?? "—";
+            case "status":     return p.status.charAt(0).toUpperCase() + p.status.slice(1);
+            case "assignee":   return assignee?.user?.name ?? "Vacant";
+            case "reports_to": return p.reportsToPositionId ? (posMap.get(p.reportsToPositionId)?.title ?? "—") : "—";
+            case "location":   return p.location?.name ?? "—";
+            case "notes":      return p.notes ?? "—";
+            default:           return "—";
+          }
+        });
       });
 
     autoTable(doc, {
       startY: 26,
-      head: [["Position Title", "Division", "Department", "Status", "Assigned To", "Reports To"]],
+      head: [activeCols.map((c) => c.label)],
       body,
-      styles:          { fontSize: 8.5, cellPadding: 3 },
-      headStyles:      { fillColor: [99, 102, 241], textColor: 255, fontStyle: "bold" },
+      styles:             { fontSize: 8.5, cellPadding: 3 },
+      headStyles:         { fillColor: [99, 102, 241], textColor: 255, fontStyle: "bold" },
       alternateRowStyles: { fillColor: [248, 249, 255] },
-      columnStyles:    { 0: { cellWidth: 65 }, 1: { cellWidth: 38 }, 2: { cellWidth: 38 }, 3: { cellWidth: 22 }, 4: { cellWidth: 50 }, 5: { cellWidth: 50 } },
     });
 
-    doc.save("org-chart.pdf");
-  }, [positions, departmentsById]);
+    doc.save("org-chart-list.pdf");
+    setExportOpen(false);
+  }, [positions, departmentsById, exportCols]);
+
+  // ─── PDF Export — Visual ─────────────────────────────────────────────────────
+
+  const handleExportVisual = useCallback(async () => {
+    const { default: jsPDF } = await import("jspdf");
+
+    const posNodes = nodes.filter((n) => !n.id.startsWith("dg-"));
+    if (posNodes.length === 0) return;
+
+    const xs = posNodes.map((n) => n.position.x);
+    const ys = posNodes.map((n) => n.position.y);
+    const minX = Math.min(...xs);
+    const minY = Math.min(...ys);
+    const contentW = Math.max(...xs) + NODE_W - minX;
+    const contentH = Math.max(...ys) + NODE_H - minY;
+
+    const pageW = 297; // A4 landscape mm
+    const pageH = 210;
+    const margin = 12;
+    const titleH = 18;
+    const availW = pageW - margin * 2;
+    const availH = pageH - margin - titleH;
+    const scale  = Math.min(availW / contentW, availH / contentH, 1);
+
+    const doc = new jsPDF({ orientation: "landscape", unit: "mm", format: "a4" });
+
+    // Title block
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(13);
+    doc.text("Org Chart", margin, margin + 6);
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(8);
+    doc.setTextColor(130);
+    doc.text(
+      new Date().toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" }),
+      margin, margin + 12,
+    );
+    doc.setTextColor(0);
+
+    const originX = margin + (availW - contentW * scale) / 2;
+    const originY = margin + titleH;
+    const nW = NODE_W * scale;
+    const nH = NODE_H * scale;
+    const toX = (x: number) => originX + (x - minX) * scale;
+    const toY = (y: number) => originY + (y - minY) * scale;
+
+    // Draw edges first (behind nodes)
+    doc.setDrawColor(200, 210, 225);
+    doc.setLineWidth(0.25);
+    for (const edge of rfEdges) {
+      const src = posNodes.find((n) => n.id === edge.source);
+      const tgt = posNodes.find((n) => n.id === edge.target);
+      if (!src || !tgt) continue;
+      const sx = toX(src.position.x) + nW / 2;
+      const sy = toY(src.position.y) + nH;
+      const tx = toX(tgt.position.x) + nW / 2;
+      const ty = toY(tgt.position.y);
+      const midY = (sy + ty) / 2;
+      doc.line(sx, sy, sx, midY);
+      doc.line(sx, midY, tx, midY);
+      doc.line(tx, midY, tx, ty);
+    }
+
+    // Draw position cards
+    const barH     = Math.max(1.5, nH * 0.055);
+    const fontSize  = Math.max(3.5, Math.min(6.5, nH * 0.095));
+    const STATUS_C: Record<string, [number, number, number]> = {
+      filled:   [16,  185, 129],
+      open:     [251, 191, 36],
+      planned:  [96,  165, 250],
+      inactive: [148, 163, 184],
+    };
+
+    for (const node of posNodes) {
+      const pos = positionsById.get(node.id);
+      if (!pos) continue;
+      const nx = toX(node.position.x);
+      const ny = toY(node.position.y);
+
+      const dept  = pos.departmentId ? departmentsById.get(pos.departmentId) : null;
+      const color = dept?.color ?? "#e2e8f0";
+      const cr = parseInt(color.slice(1, 3), 16);
+      const cg = parseInt(color.slice(3, 5), 16);
+      const cb = parseInt(color.slice(5, 7), 16);
+
+      // Card body
+      doc.setFillColor(255, 255, 255);
+      doc.setDrawColor(215, 220, 230);
+      doc.setLineWidth(0.2);
+      doc.rect(nx, ny, nW, nH, "FD");
+
+      // Colored top bar
+      doc.setFillColor(cr, cg, cb);
+      doc.setDrawColor(cr, cg, cb);
+      doc.rect(nx, ny, nW, barH, "F");
+
+      // Person name
+      const primary    = pos.assignments.find((a) => a.isActive && a.assignmentType === "primary");
+      const personName = primary?.user?.name ?? (pos.status === "planned" ? "Planned" : "Vacant");
+      const clamp      = (s: string, n: number) => s.length > n ? s.slice(0, n - 1) + "…" : s;
+
+      doc.setFont("helvetica", "normal");
+      doc.setFontSize(fontSize * 0.82);
+      doc.setTextColor(110);
+      doc.text(clamp(personName, 24), nx + nW / 2, ny + barH + nH * 0.30, { align: "center" });
+
+      // Position title (bold)
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(fontSize);
+      doc.setTextColor(30);
+      doc.text(clamp(pos.title, 24), nx + nW / 2, ny + barH + nH * 0.52, { align: "center" });
+      doc.setFont("helvetica", "normal");
+
+      // Department name (colored)
+      if (dept) {
+        doc.setFontSize(fontSize * 0.72);
+        doc.setTextColor(cr, cg, cb);
+        doc.text(clamp(dept.name, 22), nx + nW / 2, ny + barH + nH * 0.70, { align: "center" });
+      }
+
+      // Status dot
+      const dot = STATUS_C[pos.status] ?? STATUS_C.inactive;
+      doc.setFillColor(dot[0], dot[1], dot[2]);
+      doc.circle(nx + nW / 2, ny + nH - 2.2, 0.9, "F");
+    }
+
+    doc.save("org-chart-visual.pdf");
+    setExportOpen(false);
+  }, [nodes, rfEdges, positionsById, departmentsById]);
 
   // ─── Toolbar button style helpers ─────────────────────────────────────────────
 
@@ -1467,14 +1628,75 @@ function OrgChartInner({
           )}
 
           {/* Export PDF — visible to all users */}
-          <button
-            type="button"
-            onClick={handleExportPdf}
-            className={btnNormal}
-            title="Export org chart to PDF"
-          >
-            <Download className="size-3.5" /> Export
-          </button>
+          <div className="relative">
+            <button
+              type="button"
+              onClick={() => setExportOpen((v) => !v)}
+              className={btnNormal}
+              title="Export org chart"
+            >
+              <Download className="size-3.5" /> Export ▾
+            </button>
+
+            {exportOpen && (
+              <>
+                {/* Backdrop */}
+                <div
+                  className="fixed inset-0 z-30"
+                  onClick={() => setExportOpen(false)}
+                />
+                {/* Panel */}
+                <div className="absolute right-0 top-full z-40 mt-1.5 w-64 rounded-xl border bg-popover shadow-lg ring-1 ring-black/5 overflow-hidden">
+                  {/* List export */}
+                  <div className="p-3 border-b">
+                    <p className="text-xs font-semibold text-foreground mb-2">List (Table)</p>
+                    <div className="grid grid-cols-2 gap-x-3 gap-y-1 mb-2.5">
+                      {EXPORT_COL_DEFS.map((col) => (
+                        <label key={col.key} className="flex items-center gap-1.5 text-xs text-muted-foreground cursor-pointer">
+                          <input
+                            type="checkbox"
+                            checked={exportCols.has(col.key)}
+                            onChange={() =>
+                              setExportCols((prev) => {
+                                const next = new Set(prev);
+                                next.has(col.key) ? next.delete(col.key) : next.add(col.key);
+                                return next;
+                              })
+                            }
+                            className="size-3 rounded"
+                          />
+                          {col.label}
+                        </label>
+                      ))}
+                    </div>
+                    <button
+                      type="button"
+                      onClick={handleExportTable}
+                      disabled={exportCols.size === 0}
+                      className="w-full rounded-md bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-40"
+                    >
+                      Export as Table
+                    </button>
+                  </div>
+
+                  {/* Visual export */}
+                  <div className="p-3">
+                    <p className="text-xs font-semibold text-foreground mb-1">Org Chart (Visual)</p>
+                    <p className="text-[11px] text-muted-foreground mb-2.5">
+                      Renders position cards and reporting lines as seen on the canvas.
+                    </p>
+                    <button
+                      type="button"
+                      onClick={handleExportVisual}
+                      className="w-full rounded-md border px-3 py-1.5 text-xs font-medium hover:bg-muted/50"
+                    >
+                      Export as Chart
+                    </button>
+                  </div>
+                </div>
+              </>
+            )}
+          </div>
         </div>
 
         {/* Admin hint */}
