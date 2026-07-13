@@ -516,6 +516,7 @@ export function GanttContainer({
   initialDeps,
   allSteps,
   allTasks,
+  users,
   canEdit,
   isViewAs,
 }: GanttContainerProps) {
