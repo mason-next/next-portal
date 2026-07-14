@@ -898,17 +898,22 @@ function AddedNodeCard({ def }: { def: AddedNodeDef }) {
     <div
       onClick={handleCardClick}
       className={cn(
-        'w-full bg-card border border-dashed border-amber-300 rounded-xl p-3 transition-all select-none',
-        hasDetails && !editOpen && 'cursor-pointer hover:border-amber-400 hover:shadow-sm',
+        'w-full bg-card border rounded-xl p-3 transition-all select-none',
+        editMode && 'border-dashed border-amber-300',
+        editMode && hasDetails && !editOpen && 'cursor-pointer hover:border-amber-400 hover:shadow-sm',
+        !editMode && hasDetails && !editOpen && 'cursor-pointer hover:border-muted-foreground/30 hover:shadow-sm',
         editOpen && 'border-amber-400 shadow-sm',
-        detailsOpen && 'border-primary/40 shadow-sm',
+        detailsOpen && !editMode && 'border-primary/40 shadow-sm',
+        detailsOpen && editMode && 'border-amber-400 shadow-sm',
       )}
     >
       <div className="flex items-start justify-between gap-2">
         <div className="min-w-0 flex-1">
-          <div className="flex items-center gap-1.5 mb-0.5">
-            <span className="text-[9px] font-semibold uppercase tracking-widest text-amber-500 bg-amber-50 rounded px-1.5 py-0.5">Added</span>
-          </div>
+          {editMode && (
+            <div className="flex items-center gap-1.5 mb-0.5">
+              <span className="text-[9px] font-semibold uppercase tracking-widest text-amber-500 bg-amber-50 rounded px-1.5 py-0.5">Added</span>
+            </div>
+          )}
           <div className="text-sm font-medium leading-snug">{def.title}</div>
           {!detailsOpen && !editOpen && def.summary && (
             <div className="text-xs text-muted-foreground mt-0.5 line-clamp-1">{def.summary}</div>
@@ -1148,7 +1153,10 @@ function NodeList({ nodes, depth = 0, noPad = false }: { nodes: WorkflowNode[]; 
 // ─── Milestone block ─────────────────────────────────────────────────────────
 
 function MilestoneBlock({ milestone, colW }: { milestone: MilestoneNode; colW: number }) {
-  const { expandedParents, onCollapseParent, registerNode, onNodeClick, currentNodeId } = useProcess();
+  const {
+    expandedParents, onCollapseParent, registerNode, onNodeClick, currentNodeId,
+    editMode, overrides, editingNodeId, onSetEditingNode, onOverrideSave, onOverrideClear,
+  } = useProcess();
   const children = milestone.children ?? [];
   const isExpanded = expandedParents.has(milestone.id);
   const isCurrent = currentNodeId === milestone.id;
@@ -1156,12 +1164,44 @@ function MilestoneBlock({ milestone, colW }: { milestone: MilestoneNode; colW: n
   const bg = isComplete ? C_GREEN : C_BLUE;
   const hasChildren = children.length > 0;
 
+  const ov = overrides[milestone.id] ?? {};
+  const effTitle = ov.title ?? milestone.title;
+  const editOpen = editingNodeId === milestone.id;
+  const [editTitle, setEditTitle] = useState('');
+
+  useEffect(() => {
+    if (!editMode && editOpen) onSetEditingNode(null);
+  }, [editMode]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  function openEdit(e: React.MouseEvent) {
+    e.stopPropagation();
+    setEditTitle(effTitle);
+    onSetEditingNode(milestone.id);
+  }
+
+  function saveEdit(e?: React.MouseEvent) {
+    e?.stopPropagation();
+    onOverrideSave(milestone.id, { title: editTitle.trim() || undefined });
+    onSetEditingNode(null);
+  }
+
+  function cancelEdit(e?: React.MouseEvent) {
+    e?.stopPropagation();
+    onSetEditingNode(null);
+  }
+
+  function resetTitle(e: React.MouseEvent) {
+    e.stopPropagation();
+    onOverrideClear(milestone.id);
+    onSetEditingNode(null);
+  }
+
   return (
     <div style={{ width: colW }} className="flex flex-col items-center">
       <div className="relative w-full px-10">
         <div
           ref={(el) => registerNode(milestone.id, el)}
-          onClick={() => onNodeClick(milestone.id)}
+          onClick={() => { if (!editOpen) onNodeClick(milestone.id); }}
           className="w-full cursor-pointer rounded-xl border-2 px-6 py-4 flex items-center gap-4 transition-all hover:opacity-90 hover:shadow-lg select-none"
           style={{
             background: bg, borderColor: bg,
@@ -1176,9 +1216,40 @@ function MilestoneBlock({ milestone, colW }: { milestone: MilestoneNode; colW: n
             <div className="text-[10px] font-semibold uppercase tracking-widest" style={{ color: 'rgba(255,255,255,0.65)' }}>
               Phase {milestone.number}
             </div>
-            <div className="text-sm font-semibold text-white leading-tight">{milestone.title}</div>
+            {editOpen ? (
+              <div className="flex items-center gap-1.5 mt-0.5" onClick={(e) => e.stopPropagation()}>
+                <input
+                  autoFocus
+                  value={editTitle}
+                  onChange={(e) => setEditTitle(e.target.value)}
+                  onKeyDown={(e) => { if (e.key === 'Enter') saveEdit(); if (e.key === 'Escape') cancelEdit(); }}
+                  className="flex-1 min-w-0 text-sm font-semibold rounded px-2 py-0.5 focus:outline-none"
+                  style={{ background: 'rgba(255,255,255,0.22)', color: 'white', caretColor: 'white' }}
+                />
+                <button onClick={saveEdit} title="Save" className="flex size-6 items-center justify-center rounded transition-colors shrink-0" style={{ background: 'rgba(255,255,255,0.22)', color: 'white' }}>
+                  <Save className="size-3" />
+                </button>
+                {ov.title && (
+                  <button onClick={resetTitle} title="Reset to default" className="flex size-6 items-center justify-center rounded transition-colors shrink-0 text-[9px] font-semibold" style={{ background: 'rgba(255,255,255,0.12)', color: 'rgba(255,255,255,0.7)' }}>
+                    ↺
+                  </button>
+                )}
+                <button onClick={cancelEdit} title="Cancel" className="flex size-6 items-center justify-center rounded transition-colors shrink-0" style={{ background: 'rgba(255,255,255,0.12)', color: 'rgba(255,255,255,0.7)' }}>
+                  <X className="size-3" />
+                </button>
+              </div>
+            ) : (
+              <div className="text-sm font-semibold text-white leading-tight">{effTitle}</div>
+            )}
           </div>
-          {hasChildren && !isExpanded && (
+          {editMode && !editOpen && (
+            <button onClick={openEdit} title="Edit phase name"
+              className="flex size-6 shrink-0 items-center justify-center rounded transition-colors"
+              style={{ background: 'rgba(255,255,255,0.18)', color: 'white' }}>
+              <Pencil className="size-3" />
+            </button>
+          )}
+          {!editMode && hasChildren && !isExpanded && (
             <div className="flex size-6 shrink-0 items-center justify-center rounded-full" style={{ background: 'rgba(255,255,255,0.18)' }}>
               <Plus className="size-3 text-white" />
             </div>
@@ -1224,7 +1295,7 @@ function Sidebar({ onClose, onSelect, currentNodeId }: {
   onSelect: (id: string) => void;
   currentNodeId: string | null;
 }) {
-  const { activeRoles } = useProcess();
+  const { activeRoles, overrides } = useProcess();
 
   function nodeMatchesRoles(node: WorkflowNode): boolean {
     if (activeRoles.size === 0) return true;
@@ -1250,6 +1321,7 @@ function Sidebar({ onClose, onSelect, currentNodeId }: {
             const visibleChildren = (milestone.children ?? []).filter(nodeMatchesRoles);
             const milestoneVisible = activeRoles.size === 0 || visibleChildren.length > 0;
             if (!milestoneVisible) return null;
+            const sidebarTitle = overrides[milestone.id]?.title ?? milestone.title;
             return (
               <div key={milestone.id}>
                 <button onClick={() => onSelect(milestone.id)}
@@ -1257,7 +1329,7 @@ function Sidebar({ onClose, onSelect, currentNodeId }: {
                   <span className="flex size-5 shrink-0 items-center justify-center rounded-full text-[10px] font-bold text-white" style={{ background: bg }}>
                     {milestone.number}
                   </span>
-                  <span className="text-sm font-semibold leading-tight text-foreground">{milestone.title}</span>
+                  <span className="text-sm font-semibold leading-tight text-foreground">{sidebarTitle}</span>
                 </button>
                 <div className="ml-2 mt-0.5 space-y-0.5">
                   {visibleChildren.map((node) => (
