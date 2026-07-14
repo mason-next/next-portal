@@ -218,7 +218,7 @@ model Customer {
 model Project {
   id                   String    @id
   name                 String
-  projectNumber        String    @unique
+  projectNumber        String
   // Denormalized for fast display — customerId is the normalized FK when set.
   customerName         String
   customerId           String?

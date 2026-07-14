@@ -39,6 +39,7 @@ export function NewProjectModal({ onClose, onCreated }: NewProjectModalProps) {
   const [projectTypes, setProjectTypes] = useState<string[]>([]);
   const [excludedKeys, setExcludedKeys] = useState<Set<string>>(new Set());
   const [submitting, setSubmitting] = useState(false);
+  const [createError, setCreateError] = useState<string | null>(null);
 
   function toggleType(type: string) {
     setProjectTypes((prev) =>
@@ -100,6 +101,7 @@ export function NewProjectModal({ onClose, onCreated }: NewProjectModalProps) {
   async function handleCreate() {
     if (!canProceedToPreview) return;
     setSubmitting(true);
+    setCreateError(null);
     try {
       const project = await createProject({
         name: name.trim(),
@@ -113,6 +115,7 @@ export function NewProjectModal({ onClose, onCreated }: NewProjectModalProps) {
       onCreated(project);
     } catch (err) {
       console.error("[NewProjectModal] createProject failed:", err);
+      setCreateError(err instanceof Error ? err.message : "Failed to create project. Please try again.");
     } finally {
       setSubmitting(false);
     }
@@ -299,20 +302,25 @@ export function NewProjectModal({ onClose, onCreated }: NewProjectModalProps) {
       </div>
 
       {/* Fixed footer */}
-      <div className="mt-4 shrink-0 flex items-center justify-between border-t pt-4">
-        <span className="text-sm text-muted-foreground">
-          {selectedCount} step{selectedCount !== 1 ? "s" : ""} selected
-        </span>
-        <div className="flex gap-2">
-          <Button variant="outline" onClick={() => setModalStep("form")} disabled={submitting}>
-            ← Back
-          </Button>
-          <Button
-            onClick={handleCreate}
-            disabled={submitting || selectedCount === 0}
-          >
-            {submitting ? "Creating…" : "Create Project"}
-          </Button>
+      <div className="mt-4 shrink-0 border-t pt-4 space-y-3">
+        {createError && (
+          <p className="text-sm text-destructive">{createError}</p>
+        )}
+        <div className="flex items-center justify-between">
+          <span className="text-sm text-muted-foreground">
+            {selectedCount} step{selectedCount !== 1 ? "s" : ""} selected
+          </span>
+          <div className="flex gap-2">
+            <Button variant="outline" onClick={() => setModalStep("form")} disabled={submitting}>
+              ← Back
+            </Button>
+            <Button
+              onClick={handleCreate}
+              disabled={submitting || selectedCount === 0}
+            >
+              {submitting ? "Creating…" : "Create Project"}
+            </Button>
+          </div>
         </div>
       </div>
     </Modal>
