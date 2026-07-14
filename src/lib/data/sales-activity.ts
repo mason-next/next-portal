@@ -3,11 +3,16 @@
 import { db } from "@/lib/db";
 import type {
   SalesCompany, SalesOpportunity, SalesActivity,
-  ActivityType, OppStage, SalesContact,
+  ActivityType, OppStage, ProposalRating, SalesContact,
 } from "@/types/sales";
-import { ACTIVITY_TYPES } from "@/types/sales";
+import { ACTIVITY_TYPES, PROPOSAL_RATINGS } from "@/types/sales";
 
 const VALID_ACTIVITY_TYPES = new Set<string>(ACTIVITY_TYPES);
+const VALID_RATINGS = new Set<string>(PROPOSAL_RATINGS);
+function sanitizeRating(r: string | undefined | null): ProposalRating | null {
+  if (r && VALID_RATINGS.has(r)) return r as ProposalRating;
+  return null;
+}
 function sanitizeType(t: string | undefined | null): ActivityType {
   if (t && VALID_ACTIVITY_TYPES.has(t)) return t as ActivityType;
   return "Other";
@@ -49,6 +54,7 @@ function toOpp(r: {
   id: string; companyId: string; name: string; stage: string;
   ownerId: string | null; ownerName: string; value: number;
   notes: string; closeDate: Date | null; cwNumber: string | null;
+  proposalCreatedAt: Date | null; rating: string | null;
   createdAt: Date; updatedAt: Date;
   company?: { id: string; name: string; domain: string };
 }): SalesOpportunity {
@@ -63,6 +69,8 @@ function toOpp(r: {
     notes: r.notes,
     closeDate: r.closeDate?.toISOString() ?? null,
     cwNumber: r.cwNumber,
+    proposalCreatedAt: r.proposalCreatedAt?.toISOString() ?? null,
+    rating: sanitizeRating(r.rating),
     createdAt: r.createdAt.toISOString(),
     updatedAt: r.updatedAt.toISOString(),
     company: r.company,
@@ -184,6 +192,8 @@ export async function upsertSalesOpportunity(
     notes: data.notes,
     closeDate: data.closeDate ? new Date(data.closeDate) : null,
     cwNumber: data.cwNumber ?? null,
+    proposalCreatedAt: data.proposalCreatedAt ? new Date(data.proposalCreatedAt) : null,
+    rating: data.rating ?? null,
   };
 
   // CW-imported opps: upsert by cwNumber to avoid duplicates on reimport
@@ -195,7 +205,13 @@ export async function upsertSalesOpportunity(
       const row = await db.salesOpportunity.update({
         where: { id: existing.id },
         // On reimport: refresh CW-owned fields only; preserve user-managed fields
-        data: { name: payload.name, value: payload.value, closeDate: payload.closeDate },
+        data: {
+          name: payload.name,
+          value: payload.value,
+          closeDate: payload.closeDate,
+          proposalCreatedAt: payload.proposalCreatedAt,
+          rating: payload.rating,
+        },
       });
       return toOpp(row);
     }

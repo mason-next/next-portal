@@ -160,6 +160,8 @@ export default function SalesActivityPage() {
         notes: "",
         closeDate: o.closeDate ?? null,
         cwNumber: o.cwNumber || null,
+        proposalCreatedAt: o.proposalCreatedAt ?? null,
+        rating: o.rating ?? null,
       });
       done++;
       onProgress(done, total, `${o.existingId ? "Updated" : "Saved"}: ${o.name}`);
@@ -477,7 +479,7 @@ export default function SalesActivityPage() {
             return company as SalesCompany;
           }}
           onCreateOpportunity={async (companyId, name, stage) => {
-            const opp = await saveOpportunity({ companyId, name, stage: stage ?? "Prospecting", ownerId: null, ownerName: "", value: 0, notes: "", closeDate: null, cwNumber: null });
+            const opp = await saveOpportunity({ companyId, name, stage: stage ?? "Prospecting", ownerId: null, ownerName: "", value: 0, notes: "", closeDate: null, cwNumber: null, proposalCreatedAt: null, rating: null });
             return opp as { id: string; name: string };
           }}
           onClose={() => setModal(null)}
