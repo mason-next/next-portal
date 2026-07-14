@@ -38,8 +38,10 @@ import {
 import { useSession } from '@/lib/auth/client';
 import { cn } from '@/lib/utils';
 import {
-  WORKFLOW,
   ALL_ROLES,
+  PROJECT_TYPE_FILTERS,
+  PROJECT_TYPE_SHORT,
+  getWorkflowForType,
   flattenWorkflow,
   getNodeRoles,
   nodeChildren,
@@ -47,6 +49,7 @@ import {
   type DecisionNode,
   type MilestoneNode,
   type ParallelNode,
+  type ProjectTypeFilter,
   type Role,
   type StageNode,
   type TaskNode,
@@ -153,6 +156,7 @@ function groupNodes(nodes: WorkflowNode[]): GroupedItem[] {
 // ─── Context ──────────────────────────────────────────────────────────────────
 
 interface ProcessCtxValue {
+  workflow: MilestoneNode[];
   expandedTaskId: string | null;
   expandedParents: Set<string>;
   highlightedDecisions: Map<string, 'A' | 'B'>;
@@ -857,7 +861,7 @@ function NodeRenderer({ node, context = 'main' }: { node: WorkflowNode; context?
 // ─── Added-node inline card ───────────────────────────────────────────────────
 
 function AddedNodeCard({ def }: { def: AddedNodeDef }) {
-  const { editMode, editingNodeId, addingAfterNodeId, onSetEditingNode, onSetAddingAfter, onRemoveAddedNode, onUpdateAddedNode, onAddNode } = useProcess();
+  const { editMode, editingNodeId, addingAfterNodeId, onSetEditingNode, onSetAddingAfter, onRemoveAddedNode, onUpdateAddedNode } = useProcess();
   const editOpen = editingNodeId === def.id;
 
   const [detailsOpen, setDetailsOpen] = useState(false);
@@ -1160,7 +1164,7 @@ function MilestoneBlock({ milestone, colW }: { milestone: MilestoneNode; colW: n
   const children = milestone.children ?? [];
   const isExpanded = expandedParents.has(milestone.id);
   const isCurrent = currentNodeId === milestone.id;
-  const isComplete = milestone.id === 'milestone-7';
+  const isComplete = milestone.id === 'milestone-6';
   const bg = isComplete ? C_GREEN : C_BLUE;
   const hasChildren = children.length > 0;
 
@@ -1295,7 +1299,7 @@ function Sidebar({ onClose, onSelect, currentNodeId }: {
   onSelect: (id: string) => void;
   currentNodeId: string | null;
 }) {
-  const { activeRoles, overrides } = useProcess();
+  const { workflow, activeRoles, overrides } = useProcess();
 
   function nodeMatchesRoles(node: WorkflowNode): boolean {
     if (activeRoles.size === 0) return true;
@@ -1316,8 +1320,8 @@ function Sidebar({ onClose, onSelect, currentNodeId }: {
           </button>
         </div>
         <div className="p-3 space-y-1 flex-1 overflow-y-auto">
-          {WORKFLOW.map((milestone) => {
-            const bg = milestone.id === 'milestone-7' ? C_GREEN : C_BLUE;
+          {workflow.map((milestone) => {
+            const bg = milestone.id === 'milestone-6' ? C_GREEN : C_BLUE;
             const visibleChildren = (milestone.children ?? []).filter(nodeMatchesRoles);
             const milestoneVisible = activeRoles.size === 0 || visibleChildren.length > 0;
             if (!milestoneVisible) return null;
@@ -1362,6 +1366,7 @@ export function ProcessMap() {
   const session = useSession();
   const isAdmin = session.roleTypes.includes('Administrator');
 
+  const [selectedType, setSelectedType] = useState<ProjectTypeFilter>('Audio / Visual');
   const [transform, setTransform] = useState({ x: 60, y: 40, scale: 0.85 });
   const [isPanning, setIsPanning] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -1384,8 +1389,11 @@ export function ProcessMap() {
     return v === null ? true : v === 'true';
   });
 
+  const activeWorkflow = useMemo(() => getWorkflowForType(selectedType), [selectedType]);
+
   const containerRef = useRef<HTMLDivElement>(null);
   const nodeRefs = useRef(new Map<string, HTMLElement>());
+  const workflowRef = useRef<MilestoneNode[]>(activeWorkflow);
   const transformRef = useRef(transform);
   const expandedParentsRef = useRef<Set<string>>(new Set());
   const panStartRef = useRef({ mx: 0, my: 0, tx: 0, ty: 0 });
@@ -1398,16 +1406,44 @@ export function ProcessMap() {
 
   useEffect(() => { transformRef.current = transform; }, [transform]);
   useEffect(() => { expandedParentsRef.current = expandedParents; }, [expandedParents]);
+  const isFirstTypeEffect = useRef(true);
+  useEffect(() => {
+    workflowRef.current = activeWorkflow;
+    if (isFirstTypeEffect.current) {
+      // Skip collapse/recenter on initial mount — session-restore effect handles it
+      isFirstTypeEffect.current = false;
+      return;
+    }
+    setExpandedParents(new Set());
+    setExpandedTaskId(null);
+    setCurrentNodeId(null);
+    setHighlightedDecisions(new Map());
+    setActiveRoles(new Set());
+    setOverrides(getOverrides(selectedType));
+    setAddedNodes(getAddedNodes(selectedType));
+    const container = containerRef.current;
+    if (container) {
+      const { width } = container.getBoundingClientRect();
+      const initScale = 0.85;
+      const initX = Math.max(40, width / 2 - (colWRef.current * initScale) / 2);
+      setIsAnimating(true);
+      setTransform({ x: initX, y: 40, scale: initScale });
+      setTimeout(() => setIsAnimating(false), 400);
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeWorkflow]);
 
   const colW = useMemo(() =>
-    Math.max(COL_BASE_W, ...WORKFLOW.map((m) => scanBucketWidth(m.children ?? [], 0))),
-    [],
+    Math.max(COL_BASE_W, ...activeWorkflow.map((m) => scanBucketWidth(m.children ?? [], 0))),
+    [activeWorkflow],
   );
+  const colWRef = useRef(colW);
+  useEffect(() => { colWRef.current = colW; }, [colW]);
 
   useEffect(() => {
-    // Load overrides and added nodes from localStorage
-    setOverrides(getOverrides());
-    setAddedNodes(getAddedNodes());
+    // Load overrides and added nodes from localStorage for the initial type
+    setOverrides(getOverrides(selectedType)); // eslint-disable-line react-hooks/set-state-in-effect
+    setAddedNodes(getAddedNodes(selectedType));
 
     // Restore sessionStorage state if available
     const saved = sessionStorage.getItem('process_view_state');
@@ -1522,7 +1558,6 @@ export function ProcessMap() {
 
     // Threshold check: only recenter if forced or if node is mostly off-screen
     if (!force) {
-      const vw = containerRect.width;
       const vh = containerRect.height;
       const nr = nodeRect;
       const visibleW = Math.max(0, Math.min(nr.right, containerRect.right) - Math.max(nr.left, containerRect.left));
@@ -1583,7 +1618,7 @@ export function ProcessMap() {
   }, []);
 
   function expandAncestors(nodeId: string) {
-    const ancestors = findAncestors(WORKFLOW as WorkflowNode[], nodeId) ?? [];
+    const ancestors = findAncestors(workflowRef.current as WorkflowNode[], nodeId) ?? [];
     if (ancestors.length > 0) {
       setExpandedParents((prev) => {
         const next = new Set(prev);
@@ -1594,12 +1629,12 @@ export function ProcessMap() {
   }
 
   function expandForRole(role: string) {
-    const allNodes = flattenWorkflow(WORKFLOW as WorkflowNode[]);
+    const allNodes = flattenWorkflow(workflowRef.current as WorkflowNode[]);
     const toExpand = new Set<string>();
     for (const node of allNodes) {
       const roles = getNodeRoles(node);
       if (roles.includes(role as Role)) {
-        const ancestors = findAncestors(WORKFLOW as WorkflowNode[], node.id) ?? [];
+        const ancestors = findAncestors(workflowRef.current as WorkflowNode[], node.id) ?? [];
         ancestors.forEach((a) => toExpand.add(a));
       }
     }
@@ -1630,13 +1665,13 @@ export function ProcessMap() {
   const onNodeClick = useCallback((id: string) => {
     if (clickAfterDragRef.current) return;
 
-    if (id === 'milestone-7') {
+    if (id === 'milestone-6') {
       fireConfettiAt(id);
       setCurrentNodeId(id);
       return;
     }
 
-    const allNodes = flattenWorkflow(WORKFLOW as WorkflowNode[]);
+    const allNodes = flattenWorkflow(workflowRef.current as WorkflowNode[]);
     const node = allNodes.find((n) => n.id === id);
     if (!node) return;
 
@@ -1706,7 +1741,7 @@ export function ProcessMap() {
     });
   }, []);
 
-  const flatNodes = useMemo(() => flattenWorkflow(WORKFLOW as WorkflowNode[]), []);
+  const flatNodes = useMemo(() => flattenWorkflow(activeWorkflow as WorkflowNode[]), [activeWorkflow]);
   const currentIndex = flatNodes.findIndex((n) => n.id === currentNodeId);
   const interactive = transform.scale >= ZOOM_THRESHOLD;
 
@@ -1738,9 +1773,9 @@ export function ProcessMap() {
     pendingFocusRef.current = node.id;
     pendingFocusForceRef.current = true;
 
-    if (node.id === 'milestone-7') {
-      setTimeout(() => focusNode('milestone-7', true), 100);
-      fireConfettiAt('milestone-7', 480);
+    if (node.id === 'milestone-6') {
+      setTimeout(() => focusNode('milestone-6', true), 100);
+      fireConfettiAt('milestone-6', 480);
     }
   }
 
@@ -1767,29 +1802,29 @@ export function ProcessMap() {
   }
 
   const onOverrideSave = useCallback((nodeId: string, override: NodeOverride) => {
-    saveOverride(nodeId, override);
-    setOverrides(getOverrides());
-  }, []);
+    saveOverride(nodeId, override, selectedType);
+    setOverrides(getOverrides(selectedType));
+  }, [selectedType]);
 
   const onOverrideClear = useCallback((nodeId: string) => {
-    clearOverride(nodeId);
-    setOverrides(getOverrides());
-  }, []);
+    clearOverride(nodeId, selectedType);
+    setOverrides(getOverrides(selectedType));
+  }, [selectedType]);
 
   const onAddNode = useCallback((afterNodeId: string, data: Omit<AddedNodeDef, 'id' | 'afterNodeId'>) => {
-    addNode({ afterNodeId, ...data });
-    setAddedNodes(getAddedNodes());
-  }, []);
+    addNode({ afterNodeId, ...data }, selectedType);
+    setAddedNodes(getAddedNodes(selectedType));
+  }, [selectedType]);
 
   const onRemoveAddedNode = useCallback((id: string) => {
-    removeAddedNode(id);
-    setAddedNodes(getAddedNodes());
-  }, []);
+    removeAddedNode(id, selectedType);
+    setAddedNodes(getAddedNodes(selectedType));
+  }, [selectedType]);
 
   const onUpdateAddedNode = useCallback((id: string, data: Partial<Omit<AddedNodeDef, 'id' | 'afterNodeId'>>) => {
-    updateAddedNode(id, data);
-    setAddedNodes(getAddedNodes());
-  }, []);
+    updateAddedNode(id, data, selectedType);
+    setAddedNodes(getAddedNodes(selectedType));
+  }, [selectedType]);
 
   const onSetEditingNode = useCallback((id: string | null) => setEditingNodeId(id), []);
   const onSetAddingAfter = useCallback((id: string | null) => setAddingAfterNodeId(id), []);
@@ -1809,13 +1844,14 @@ export function ProcessMap() {
 
   const ctxValue = useMemo<ProcessCtxValue>(
     () => ({
+      workflow: activeWorkflow,
       expandedTaskId, expandedParents, highlightedDecisions, activeRoles,
       currentNodeId, interactive, editMode, overrides, addedNodes,
       editingNodeId, addingAfterNodeId, onSetEditingNode, onSetAddingAfter,
       onOverrideSave, onOverrideClear, onAddNode, onRemoveAddedNode, onUpdateAddedNode,
       registerNode, onNodeClick, onCollapseParent, onDecisionOption,
     }),
-    [expandedTaskId, expandedParents, highlightedDecisions, activeRoles, currentNodeId, interactive,
+    [activeWorkflow, expandedTaskId, expandedParents, highlightedDecisions, activeRoles, currentNodeId, interactive,
      editMode, overrides, addedNodes, editingNodeId, addingAfterNodeId,
      onSetEditingNode, onSetAddingAfter, onOverrideSave, onOverrideClear,
      onAddNode, onRemoveAddedNode, onUpdateAddedNode,
@@ -1855,7 +1891,7 @@ export function ProcessMap() {
           } as React.CSSProperties}
         >
           <div className="flex flex-col items-center" style={{ padding: '40px 0 80px' }}>
-            {WORKFLOW.map((milestone, i) => (
+            {activeWorkflow.map((milestone, i) => (
               <React.Fragment key={milestone.id}>
                 {i > 0 && <FluidConnector height={FLUID_H} />}
                 <MilestoneBlock milestone={milestone} colW={colW} />
@@ -1864,12 +1900,34 @@ export function ProcessMap() {
           </div>
         </div>
 
-        {/* Sidebar toggle — clicking again closes it */}
-        <div className="absolute top-4 left-4 z-10">
+        {/* Top-left: sidebar toggle + project type selector */}
+        <div className="absolute top-4 left-4 z-10 flex flex-col gap-2">
           <button onClick={() => setSidebarOpen((prev) => !prev)}
             className={cn('flex size-9 items-center justify-center rounded-lg border bg-background/90 backdrop-blur-sm shadow-sm hover:bg-background transition-colors', sidebarOpen && 'bg-background border-primary/40')}>
             <Menu className="size-4" />
           </button>
+          <div className="bg-background/90 backdrop-blur-sm border rounded-xl shadow-sm overflow-hidden">
+            <div className="px-2.5 pt-2 pb-1 text-[9px] font-semibold uppercase tracking-widest text-muted-foreground">
+              Project Type
+            </div>
+            <div className="px-1.5 pb-1.5 flex flex-col gap-0.5">
+              {PROJECT_TYPE_FILTERS.map((type) => (
+                <button
+                  key={type}
+                  onClick={() => setSelectedType(type)}
+                  className={cn(
+                    'w-full text-left rounded-lg px-2.5 py-1.5 text-[11px] font-medium transition-colors whitespace-nowrap',
+                    selectedType === type
+                      ? 'text-white'
+                      : 'text-muted-foreground hover:bg-muted hover:text-foreground',
+                  )}
+                  style={selectedType === type ? { background: C_BLUE } : undefined}
+                >
+                  {PROJECT_TYPE_SHORT[type]}
+                </button>
+              ))}
+            </div>
+          </div>
         </div>
 
         {/* Right-side controls: zoom/info, role filter, admin edit */}
