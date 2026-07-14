@@ -6,7 +6,7 @@ import { useSession } from "@/lib/auth/client";
 import { useViewAs } from "@/lib/view-as/ViewAsContext";
 import { usePermissions } from "@/lib/PermissionsContext";
 import { useSalesActivity } from "@/modules/sales-activity/hooks/useSalesActivity";
-import { CompanyCard } from "@/modules/sales-activity/components/CompanyCard";
+import { OpportunityTable } from "@/modules/sales-activity/components/OpportunityTable";
 import { CompanyDetailModal } from "@/modules/sales-activity/components/CompanyDetailModal";
 import { CompanyForm } from "@/modules/sales-activity/components/CompanyForm";
 import { OpportunityForm } from "@/modules/sales-activity/components/OpportunityForm";
@@ -49,10 +49,8 @@ export default function SalesActivityPage() {
   } = useSalesActivity({ scopeToUser });
 
   const [modal, setModal] = useState<Modal>(null);
-  const [stageFilter, setStageFilter] = useState("All");
   const [repFilter, setRepFilter] = useState("");
-  const [sortBy, setSortBy] = useState<"name" | "pipeline" | "active" | "winrate">("name");
-  const [tab, setTab] = useState<"board" | "activity" | "pulse">("board");
+  const [tab, setTab] = useState<"pipeline" | "activity" | "pulse">("pipeline");
   const [detailCompany, setDetailCompany] = useState<SalesCompany | null>(null);
   const [importOpen, setImportOpen] = useState(false);
   const [logoFetch, setLogoFetch] = useState<{ done: number; total: number } | null>(null);
@@ -69,55 +67,8 @@ export default function SalesActivityPage() {
     setWeekStart(d.toISOString().slice(0, 10));
   }
 
-  const stages = ["All", "Prospecting", "Qualifying", "Proposal", "Negotiation", "Closed Won", "Closed Lost"];
-  const ACTIVE_STAGES = new Set(["Prospecting", "Qualifying", "Proposal", "Negotiation"]);
-
   // Admins (not in view-as mode) can filter by rep; everyone else is locked to their own data.
   const canFilterByRep = isAdmin && !isViewAsMode;
-  const effectiveRepFilter = canFilterByRep ? repFilter : (effectiveName ?? "");
-
-  // Unique rep names that own at least one opp, sorted alphabetically (admin only)
-  const boardReps = Array.from(
-    new Set(
-      companies.flatMap((c) => (c.opportunities ?? []).map((o) => o.ownerName).filter(Boolean))
-    )
-  ).sort() as string[];
-
-  // Always exclude companies with no opportunities. Apply stage + rep filters, then sort.
-  const filteredCompanies = (() => {
-    const withOpps = companies.filter((c) => (c.opportunities ?? []).length > 0);
-    const staged = stageFilter === "All"
-      ? withOpps
-      : withOpps.filter((c) => (c.opportunities ?? []).some((o) => o.stage === stageFilter));
-    const repped = effectiveRepFilter
-      ? staged.filter((c) => (c.opportunities ?? []).some((o) => o.ownerName === effectiveRepFilter))
-      : staged;
-    return repped.slice().sort((a, b) => {
-      switch (sortBy) {
-        case "pipeline": {
-          const aVal = (a.opportunities ?? []).filter((o) => ACTIVE_STAGES.has(o.stage)).reduce((s, o) => s + (o.value ?? 0), 0);
-          const bVal = (b.opportunities ?? []).filter((o) => ACTIVE_STAGES.has(o.stage)).reduce((s, o) => s + (o.value ?? 0), 0);
-          return bVal - aVal || a.name.localeCompare(b.name);
-        }
-        case "active": {
-          const aC = (a.opportunities ?? []).filter((o) => ACTIVE_STAGES.has(o.stage)).length;
-          const bC = (b.opportunities ?? []).filter((o) => ACTIVE_STAGES.has(o.stage)).length;
-          return bC - aC || a.name.localeCompare(b.name);
-        }
-        case "winrate": {
-          const aW = (a.opportunities ?? []).filter((o) => o.stage === "Closed Won").length;
-          const aL = (a.opportunities ?? []).filter((o) => o.stage === "Closed Lost").length;
-          const bW = (b.opportunities ?? []).filter((o) => o.stage === "Closed Won").length;
-          const bL = (b.opportunities ?? []).filter((o) => o.stage === "Closed Lost").length;
-          const aRate = (aW + aL) > 0 ? aW / (aW + aL) : -1;
-          const bRate = (bW + bL) > 0 ? bW / (bW + bL) : -1;
-          return bRate - aRate || a.name.localeCompare(b.name);
-        }
-        default: // "name"
-          return a.name.localeCompare(b.name);
-      }
-    });
-  })();
 
   async function fetchMissingLogos() {
     const missing = companies.filter((c) => !c.domain?.trim());
@@ -174,6 +125,8 @@ export default function SalesActivityPage() {
         notes: "",
         closeDate: o.closeDate ?? null,
         cwNumber: o.cwNumber || null,
+        proposalCreatedAt: o.proposalCreatedAt ?? null,
+        rating: o.rating ?? null,
       });
       done++;
       onProgress(done, total, `${o.existingId ? "Updated" : "Saved"}: ${o.name}`);
@@ -284,15 +237,15 @@ export default function SalesActivityPage() {
 
       {/* Tabs */}
       <div className="flex gap-1 rounded-lg border bg-muted/30 p-1 w-fit">
-        {(["board", "activity", "pulse"] as const).map((t) => (
+        {(["pipeline", "activity", "pulse"] as const).map((t) => (
           <button
             key={t}
             onClick={() => setTab(t)}
             className={`inline-flex items-center gap-1.5 rounded-md px-4 py-1.5 text-sm font-medium transition-colors ${tab === t ? "bg-card shadow-sm text-foreground" : "text-muted-foreground hover:text-foreground"}`}
           >
-            {t === "board" && (
+            {t === "pipeline" && (
               <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <rect x="3" y="3" width="7" height="9" rx="1"/><rect x="14" y="3" width="7" height="5" rx="1"/><rect x="14" y="12" width="7" height="9" rx="1"/><rect x="3" y="16" width="7" height="5" rx="1"/>
+                <polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/>
               </svg>
             )}
             {t === "activity" && (
@@ -305,7 +258,7 @@ export default function SalesActivityPage() {
                 <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/>
               </svg>
             )}
-            {t === "board" ? "Opportunity Board" : t === "activity" ? "Activity Log" : "Sales Pulse"}
+            {t === "pipeline" ? "Pipeline" : t === "activity" ? "Activity Log" : "Sales Pulse"}
           </button>
         ))}
       </div>
@@ -314,78 +267,14 @@ export default function SalesActivityPage() {
         <div className="py-16 text-center text-sm text-muted-foreground">Loading…</div>
       ) : (
         <>
-          {tab === "board" && (
-            <div className="space-y-4">
-              <div className="flex items-center justify-between gap-3 flex-wrap">
-                {/* Filters — stage pills + rep */}
-                <div className="flex items-center gap-3 flex-wrap">
-                  <div className="flex gap-1 flex-wrap">
-                    {stages.map((s) => {
-                      const count = s === "All"
-                        ? companies.reduce((n, c) => n + (c.opportunities ?? []).filter((o) => !effectiveRepFilter || o.ownerName === effectiveRepFilter).length, 0)
-                        : companies.reduce((n, c) => n + (c.opportunities ?? []).filter((o) => o.stage === s && (!effectiveRepFilter || o.ownerName === effectiveRepFilter)).length, 0);
-                      return (
-                        <button
-                          key={s}
-                          onClick={() => setStageFilter(s)}
-                          className={`rounded-full px-3 py-1 text-xs font-medium transition-colors ${stageFilter === s ? "bg-primary text-primary-foreground" : "border hover:bg-muted"}`}
-                        >
-                          {s} {count > 0 && `(${count})`}
-                        </button>
-                      );
-                    })}
-                  </div>
-
-                  {/* Rep filter — admins only when not in View As mode */}
-                  {canFilterByRep && boardReps.length > 0 && (
-                    <select
-                      value={repFilter}
-                      onChange={(e) => setRepFilter(e.target.value)}
-                      className="rounded-lg border bg-background px-3 py-1 text-xs font-medium focus:outline-none focus:ring-2 focus:ring-ring h-[30px]"
-                    >
-                      <option value="">All reps</option>
-                      {boardReps.map((r) => <option key={r} value={r}>{r}</option>)}
-                    </select>
-                  )}
-                </div>
-
-                {/* Sort — visually separated */}
-                <div className="flex items-center gap-1.5 text-xs text-muted-foreground shrink-0">
-                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                    <line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="14" y2="12"/><line x1="3" y1="18" x2="8" y2="18"/>
-                  </svg>
-                  <select
-                    value={sortBy}
-                    onChange={(e) => setSortBy(e.target.value as typeof sortBy)}
-                    className="rounded-lg border bg-background px-2 py-1 text-xs font-medium focus:outline-none focus:ring-2 focus:ring-ring h-[30px] cursor-pointer"
-                  >
-                    <option value="name">Name</option>
-                    <option value="pipeline">Pipeline value</option>
-                    <option value="active">Active opps</option>
-                    <option value="winrate">Win rate</option>
-                  </select>
-                </div>
-              </div>
-
-              {filteredCompanies.length === 0 ? (
-                <div className="rounded-xl border bg-card p-12 text-center">
-                  <p className="text-sm text-muted-foreground">No companies yet. Click &quot;+ Add Company&quot; to get started.</p>
-                </div>
-              ) : (
-                <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
-                  {filteredCompanies.map((company) => (
-                    <CompanyCard
-                      key={company.id}
-                      company={company}
-                      stageFilter={stageFilter}
-                      repFilter={effectiveRepFilter}
-                      onClick={() => setDetailCompany(company)}
-                      onEditCompany={(c) => { if (canEdit) setModal({ type: "company", data: c }); }}
-                    />
-                  ))}
-                </div>
-              )}
-            </div>
+          {tab === "pipeline" && (
+            <OpportunityTable
+              companies={companies}
+              activities={allActivities}
+              isManagement={isAdmin && !isViewAsMode}
+              repFilter={isAdmin && !isViewAsMode ? repFilter : (effectiveName ?? "")}
+              onRepFilterChange={setRepFilter}
+            />
           )}
 
           {tab === "activity" && (
@@ -423,8 +312,8 @@ export default function SalesActivityPage() {
         return (
           <CompanyDetailModal
             company={live}
-            stageFilter={stageFilter}
-            repFilter={effectiveRepFilter}
+            stageFilter="All"
+            repFilter={canFilterByRep ? repFilter : (effectiveName ?? "")}
             onClose={() => setDetailCompany(null)}
             onEditCompany={(c) => { if (canEdit) setModal({ type: "company", data: c }); }}
             onDeleteCompany={async (id) => { if (!canEdit) return; await removeCompany(id); setDetailCompany(null); }}
@@ -497,7 +386,7 @@ export default function SalesActivityPage() {
             return company as SalesCompany;
           }}
           onCreateOpportunity={async (companyId, name, stage) => {
-            const opp = await saveOpportunity({ companyId, name, stage: stage ?? "Prospecting", ownerId: null, ownerName: "", value: 0, notes: "", closeDate: null, cwNumber: null });
+            const opp = await saveOpportunity({ companyId, name, stage: stage ?? "Prospecting", ownerId: null, ownerName: "", value: 0, notes: "", closeDate: null, cwNumber: null, proposalCreatedAt: null, rating: null });
             return opp as { id: string; name: string };
           }}
           onClose={() => setModal(null)}

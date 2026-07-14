@@ -40,6 +40,8 @@ export function OpportunityForm({ companyId, companies, initial, onSave, onDelet
       notes,
       closeDate: closeDate || null,
       cwNumber: initial?.cwNumber ?? null,
+      proposalCreatedAt: initial?.proposalCreatedAt ?? null,
+      rating: initial?.rating ?? null,
     });
   }
 

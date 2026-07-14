@@ -1,7 +1,8 @@
 "use client";
 
 import { useEffect, useRef, useState, useMemo } from "react";
-import type { SalesCompany, OppStage } from "@/types/sales";
+import type { SalesCompany, OppStage, ProposalRating } from "@/types/sales";
+import { PROPOSAL_RATINGS } from "@/types/sales";
 import type { AppUser } from "@/types/user";
 import { UserPicker } from "@/components/shared/UserPicker";
 
@@ -27,6 +28,8 @@ const STAGE_COLORS: Record<string, string> = {
   "Closed Lost":  "bg-red-100 text-red-700",
 };
 
+const VALID_RATINGS = new Set<string>(PROPOSAL_RATINGS);
+
 interface ParsedOpp {
   cwNumber: string;
   name: string;
@@ -37,6 +40,8 @@ interface ParsedOpp {
   value: number; // dollars
   cwStatus: string; // Open | Quote Expired | Won
   closeDate: string | null; // ISO date string
+  proposalCreatedAt: string | null; // derived from Age column
+  rating: ProposalRating | null;
 }
 
 interface MatchedCompany {
@@ -133,6 +138,8 @@ function parseCWCSV(text: string, existingCompanies: SalesCompany[]): MatchedCom
   const iRevenue   = col("revenue");
   const iWon       = col("won");
   const iCloseDate = col("quote expiration date") !== -1 ? col("quote expiration date") : col("close date");
+  const iAge       = col("age");
+  const iRating    = col("rating");
 
   const parsed: ParsedOpp[] = [];
 
@@ -163,6 +170,21 @@ function parseCWCSV(text: string, existingCompanies: SalesCompany[]): MatchedCom
       if (!isNaN(d.getTime())) closeDate = d.toISOString().slice(0, 10);
     }
 
+    // Derive proposal creation date from Age (days since created)
+    let proposalCreatedAt: string | null = null;
+    if (iAge !== -1) {
+      const ageDays = parseInt(r[iAge]?.trim() ?? "", 10);
+      if (!isNaN(ageDays) && ageDays >= 0) {
+        const d = new Date();
+        d.setDate(d.getDate() - ageDays);
+        proposalCreatedAt = d.toISOString().slice(0, 10);
+      }
+    }
+
+    // Parse CW proposal rating
+    const rawRating = r[iRating]?.trim() ?? "";
+    const rating: ProposalRating | null = VALID_RATINGS.has(rawRating) ? rawRating as ProposalRating : null;
+
     parsed.push({
       cwNumber:    r[iOppNum]?.trim() ?? "",
       name,
@@ -173,6 +195,8 @@ function parseCWCSV(text: string, existingCompanies: SalesCompany[]): MatchedCom
       value:       Math.round(value),
       cwStatus:    status,
       closeDate,
+      proposalCreatedAt,
+      rating,
     });
   }
 

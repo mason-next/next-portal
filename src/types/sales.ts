@@ -1,3 +1,11 @@
+export const PROPOSAL_RATINGS = [
+  "Highly Likely",
+  "Likely",
+  "Possible",
+  "Unlikely",
+] as const;
+export type ProposalRating = (typeof PROPOSAL_RATINGS)[number];
+
 export const OPP_STAGES = [
   "Prospecting",
   "Qualifying",
@@ -46,6 +54,8 @@ export interface SalesOpportunity {
   notes: string;
   closeDate: string | null;
   cwNumber: string | null;
+  proposalCreatedAt: string | null;
+  rating: ProposalRating | null;
   createdAt: string;
   updatedAt: string;
   company?: Pick<SalesCompany, "id" | "name" | "domain">;

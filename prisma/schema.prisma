@@ -840,10 +840,12 @@ model SalesOpportunity {
   ownerName String   @default("")
   value     Int      @default(0)
   notes     String   @default("")
-  closeDate DateTime?
-  cwNumber  String?
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  closeDate          DateTime?
+  cwNumber           String?
+  proposalCreatedAt  DateTime?  @map("proposal_created_at")
+  rating             String?
+  createdAt          DateTime   @default(now())
+  updatedAt          DateTime   @updatedAt
 
   company    SalesCompany  @relation(fields: [companyId], references: [id], onDelete: Cascade)
   activities SalesActivity[]

@@ -3,11 +3,16 @@
 import { db } from "@/lib/db";
 import type {
   SalesCompany, SalesOpportunity, SalesActivity,
-  ActivityType, OppStage, SalesContact,
+  ActivityType, OppStage, ProposalRating, SalesContact,
 } from "@/types/sales";
-import { ACTIVITY_TYPES } from "@/types/sales";
+import { ACTIVITY_TYPES, PROPOSAL_RATINGS } from "@/types/sales";
 
 const VALID_ACTIVITY_TYPES = new Set<string>(ACTIVITY_TYPES);
+const VALID_RATINGS = new Set<string>(PROPOSAL_RATINGS);
+function sanitizeRating(r: string | undefined | null): ProposalRating | null {
+  if (r && VALID_RATINGS.has(r)) return r as ProposalRating;
+  return null;
+}
 function sanitizeType(t: string | undefined | null): ActivityType {
   if (t && VALID_ACTIVITY_TYPES.has(t)) return t as ActivityType;
   return "Other";
@@ -49,6 +54,7 @@ function toOpp(r: {
   id: string; companyId: string; name: string; stage: string;
   ownerId: string | null; ownerName: string; value: number;
   notes: string; closeDate: Date | null; cwNumber: string | null;
+  proposalCreatedAt: Date | null; rating: string | null;
   createdAt: Date; updatedAt: Date;
   company?: { id: string; name: string; domain: string };
 }): SalesOpportunity {
@@ -63,6 +69,8 @@ function toOpp(r: {
     notes: r.notes,
     closeDate: r.closeDate?.toISOString() ?? null,
     cwNumber: r.cwNumber,
+    proposalCreatedAt: r.proposalCreatedAt?.toISOString() ?? null,
+    rating: sanitizeRating(r.rating),
     createdAt: r.createdAt.toISOString(),
     updatedAt: r.updatedAt.toISOString(),
     company: r.company,
@@ -110,9 +118,11 @@ export async function getSalesCompanies(ownerName?: string): Promise<SalesCompan
       },
     },
   });
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   return rows.map((r) => toCompany({
     ...r,
-    opportunities: r.opportunities.map(toOpp),
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    opportunities: r.opportunities.map((o) => toOpp(o as any)),
   }));
 }
 
@@ -184,6 +194,8 @@ export async function upsertSalesOpportunity(
     notes: data.notes,
     closeDate: data.closeDate ? new Date(data.closeDate) : null,
     cwNumber: data.cwNumber ?? null,
+    proposalCreatedAt: data.proposalCreatedAt ? new Date(data.proposalCreatedAt) : null,
+    rating: data.rating ?? null,
   };
 
   // CW-imported opps: upsert by cwNumber to avoid duplicates on reimport
@@ -195,16 +207,28 @@ export async function upsertSalesOpportunity(
       const row = await db.salesOpportunity.update({
         where: { id: existing.id },
         // On reimport: refresh CW-owned fields only; preserve user-managed fields
-        data: { name: payload.name, value: payload.value, closeDate: payload.closeDate },
+        data: {
+          name: payload.name,
+          value: payload.value,
+          closeDate: payload.closeDate,
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          ...(payload.proposalCreatedAt !== undefined ? { proposalCreatedAt: payload.proposalCreatedAt } as any : {}),
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          ...(payload.rating !== undefined ? { rating: payload.rating } as any : {}),
+        },
       });
-      return toOpp(row);
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      return toOpp(row as any);
     }
   }
 
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const payloadAny = payload as any;
   const row = data.id
-    ? await db.salesOpportunity.update({ where: { id: data.id }, data: payload })
-    : await db.salesOpportunity.create({ data: payload });
-  return toOpp(row);
+    ? await db.salesOpportunity.update({ where: { id: data.id }, data: payloadAny })
+    : await db.salesOpportunity.create({ data: payloadAny });
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  return toOpp(row as any);
 }
 
 export async function deleteSalesOpportunity(id: string): Promise<void> {
