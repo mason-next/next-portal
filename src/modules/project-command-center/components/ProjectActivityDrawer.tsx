@@ -19,7 +19,6 @@ import {
   updateProjectComment,
 } from "@/lib/data/activity";
 import { addTaskComment, getProjectTaskComments, getProjectTasks } from "@/lib/data/implementation";
-import { SLASH_COMMANDS } from "@/components/shared/SlashCommandList";
 import { getActivityLastViewed, markActivityViewed } from "@/lib/data/activity-client";
 import { useSession } from "@/lib/auth/client";
 import { useCurrentUserAvatar } from "@/lib/hooks/useCurrentUserAvatar";
@@ -645,6 +644,11 @@ function ActivityRow({
   const [saving, setSaving] = useState(false);
   const [editEmpty, setEditEmpty] = useState(false);
   const [editIsStatus, setEditIsStatus] = useState(false);
+  const [editAttachedTask, setEditAttachedTask] = useState<{ id: string; title: string } | null>(null);
+  const [editShowTaskPicker, setEditShowTaskPicker] = useState(false);
+  const [editTaskPickerQuery, setEditTaskPickerQuery] = useState("");
+  const [editProjectTasks, setEditProjectTasks] = useState<ImplementationTask[] | null>(null);
+  const [editCreatingTask, setEditCreatingTask] = useState(false);
   const editRef = useRef<RichCommentEditorHandle>(null);
 
   const time = new Date(item.createdAt).toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" });
@@ -695,32 +699,80 @@ function ActivityRow({
 
   function handleStartEdit() {
     setEditIsStatus(projItem.tag === "Status");
+    setEditAttachedTask(null);
+    setEditShowTaskPicker(false);
+    setEditTaskPickerQuery("");
     setEditing(true);
   }
 
-  function handleEditSlashCommand(cmd: "status" | "task") {
-    if (cmd === "status") setEditIsStatus(true);
-    // "task" is not applicable when editing an existing project comment — swallow it.
+  function clearEditTask() {
+    setEditAttachedTask(null);
+    setEditShowTaskPicker(false);
+    setEditTaskPickerQuery("");
   }
 
-  // Only expose the /status command in edit mode; task-linking requires a new comment.
-  const editSlashCommands = SLASH_COMMANDS.filter((c) => c.id === "status");
+  function handleEditSlashCommand(cmd: "status" | "task") {
+    if (cmd === "status") {
+      setEditIsStatus(true);
+    } else if (cmd === "task") {
+      setEditShowTaskPicker(true);
+      if (!editProjectTasks) {
+        getProjectTasks(projectId).then(setEditProjectTasks).catch(() => setEditProjectTasks([]));
+      }
+    }
+  }
+
+  async function handleEditQuickCreateTask(title: string) {
+    if (!title.trim()) return;
+    setEditCreatingTask(true);
+    try {
+      const res = await fetch("/api/tasks/create", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ title: title.trim(), projectId }),
+      });
+      if (!res.ok) return;
+      const newTask: ImplementationTask = await res.json();
+      setEditProjectTasks((prev) => (prev ? [newTask, ...prev] : [newTask]));
+      setEditAttachedTask({ id: newTask.id, title: newTask.title });
+      setEditShowTaskPicker(false);
+      setEditTaskPickerQuery("");
+      editRef.current?.focus();
+    } catch {
+      // silently ignore — picker stays open so user can retry
+    } finally {
+      setEditCreatingTask(false);
+    }
+  }
+
+  const editFilteredTasks = (editProjectTasks ?? []).filter(
+    (t) => !editTaskPickerQuery || t.title.toLowerCase().includes(editTaskPickerQuery.toLowerCase())
+  );
 
   async function handleSaveEdit() {
     const editor = editRef.current;
     if (!editor || editor.isEmpty()) return;
+    if (editAttachedTask === null && editShowTaskPicker) return; // picker open, no task selected yet
     setSaving(true);
     try {
       const { richContent, text } = editor.getPayload();
-      await updateProjectComment(
-        projectId,
-        projItem.id,
-        currentUserName,
-        { text, richContentJson: JSON.stringify(richContent), tag: editIsStatus ? "Status" : "General" },
-        currentUserId
-      );
-      setEditing(false);
-      onEdited();
+      if (editAttachedTask) {
+        // Move the comment into the task's thread: create a new task comment, then delete the
+        // original project activity so it doesn't appear twice in the feed.
+        await addTaskComment(editAttachedTask.id, JSON.stringify(richContent), text, []);
+        await deleteProjectActivity(projectId, projItem.id);
+        onEdited();
+      } else {
+        await updateProjectComment(
+          projectId,
+          projItem.id,
+          currentUserName,
+          { text, richContentJson: JSON.stringify(richContent), tag: editIsStatus ? "Status" : "General" },
+          currentUserId
+        );
+        setEditing(false);
+        onEdited();
+      }
     } finally {
       setSaving(false);
     }
@@ -763,24 +815,133 @@ function ActivityRow({
                 onEmptyChange={setEditEmpty}
                 placeholder="Edit your comment…"
                 onSlashCommand={handleEditSlashCommand}
-                slashCommands={editSlashCommands}
               />
+
+              {/* Task picker — shown when /task is selected */}
+              {editShowTaskPicker && (
+                <div className="mt-1.5 rounded-md border bg-card shadow-md">
+                  <div className="flex items-center gap-2 border-b px-2.5 py-1.5">
+                    <Search className="size-3.5 shrink-0 text-muted-foreground" />
+                    <input
+                      autoFocus
+                      type="text"
+                      placeholder="Search tasks…"
+                      value={editTaskPickerQuery}
+                      onChange={(e) => setEditTaskPickerQuery(e.target.value)}
+                      className="flex-1 bg-transparent text-sm outline-none placeholder:text-muted-foreground"
+                      onKeyDown={(e) => {
+                        if (e.key === "Escape") {
+                          clearEditTask();
+                          editRef.current?.focus();
+                        }
+                      }}
+                      onBlur={() => {
+                        setTimeout(() => {
+                          setEditShowTaskPicker(false);
+                          setEditTaskPickerQuery("");
+                        }, 150);
+                      }}
+                    />
+                  </div>
+                  <div className="max-h-44 overflow-y-auto py-1">
+                    {!editProjectTasks ? (
+                      <p className="px-3 py-2 text-xs text-muted-foreground">Loading tasks…</p>
+                    ) : (
+                      <>
+                        {editFilteredTasks.length === 0 && !editTaskPickerQuery.trim() && (
+                          <p className="px-3 py-2 text-xs text-muted-foreground">No tasks found.</p>
+                        )}
+                        {editFilteredTasks.map((task) => (
+                          <button
+                            key={task.id}
+                            type="button"
+                            onMouseDown={(e) => {
+                              e.preventDefault();
+                              setEditAttachedTask({ id: task.id, title: task.title });
+                              setEditShowTaskPicker(false);
+                              setEditTaskPickerQuery("");
+                              editRef.current?.focus();
+                            }}
+                            className="flex w-full flex-col gap-0.5 px-3 py-2 text-left text-sm hover:bg-accent"
+                          >
+                            <span className="truncate font-medium">{task.title}</span>
+                            {task.workflowStepName && (
+                              <span className="text-xs text-muted-foreground">{task.workflowStepName}</span>
+                            )}
+                          </button>
+                        ))}
+                        {editTaskPickerQuery.trim() && (
+                          <button
+                            type="button"
+                            disabled={editCreatingTask}
+                            onMouseDown={(e) => {
+                              e.preventDefault();
+                              handleEditQuickCreateTask(editTaskPickerQuery);
+                            }}
+                            className="flex w-full items-center gap-1.5 border-t px-3 py-2 text-left text-sm text-primary hover:bg-accent disabled:pointer-events-none disabled:opacity-50"
+                          >
+                            {editCreatingTask ? (
+                              <Loader2 className="size-3.5 shrink-0 animate-spin" />
+                            ) : (
+                              <Plus className="size-3.5 shrink-0" />
+                            )}
+                            <span className="truncate">
+                              {editCreatingTask
+                                ? "Creating…"
+                                : <>Create task <span className="font-medium">"{editTaskPickerQuery.trim()}"</span></>}
+                            </span>
+                          </button>
+                        )}
+                      </>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {/* Active-tag chips */}
+              {editAttachedTask && (
+                <div className="mt-1.5 flex flex-wrap gap-1.5">
+                  <span className="inline-flex max-w-full items-center gap-1 rounded-full bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-700 dark:bg-amber-900/40 dark:text-amber-300">
+                    <CheckSquare className="size-3 shrink-0" />
+                    <span className="truncate">Task: {editAttachedTask.title}</span>
+                    <button
+                      type="button"
+                      onClick={clearEditTask}
+                      className="ml-0.5 shrink-0 rounded-full p-0.5 hover:bg-amber-200 dark:hover:bg-amber-800/60"
+                      title="Remove"
+                    >
+                      <X className="size-2.5" />
+                    </button>
+                  </span>
+                </div>
+              )}
+
               <div className="mt-1.5 flex flex-wrap items-center gap-3">
-                <label className="flex cursor-pointer items-center gap-1.5 text-xs text-muted-foreground select-none">
-                  <input
-                    type="checkbox"
-                    checked={editIsStatus}
-                    onChange={(e) => setEditIsStatus(e.target.checked)}
-                    className="h-3.5 w-3.5 rounded border-muted-foreground accent-violet-600"
-                  />
-                  Status update
-                </label>
-                <Button size="xs" onClick={handleSaveEdit} disabled={saving || editEmpty}>
-                  {saving ? "Saving…" : "Save"}
+                {!editAttachedTask && (
+                  <label className="flex cursor-pointer items-center gap-1.5 text-xs text-muted-foreground select-none">
+                    <input
+                      type="checkbox"
+                      checked={editIsStatus}
+                      onChange={(e) => setEditIsStatus(e.target.checked)}
+                      className="h-3.5 w-3.5 rounded border-muted-foreground accent-violet-600"
+                    />
+                    Status update
+                  </label>
+                )}
+                <Button
+                  size="xs"
+                  onClick={handleSaveEdit}
+                  disabled={saving || editEmpty || editShowTaskPicker}
+                >
+                  {saving
+                    ? "Saving…"
+                    : editAttachedTask
+                      ? "Move to task"
+                      : "Save"}
                 </Button>
                 <button
                   type="button"
-                  onClick={() => setEditing(false)}
+                  onClick={() => { setEditing(false); clearEditTask(); }}
                   className="text-xs text-muted-foreground hover:text-foreground hover:underline"
                 >
                   Cancel
