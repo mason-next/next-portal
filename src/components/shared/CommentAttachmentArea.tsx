@@ -65,26 +65,48 @@ export function CommentAttachmentArea({
 
       {attachments.length > 0 && (
         <div className="mt-1.5 flex flex-wrap gap-1.5">
-          {attachments.map((a, i) => (
-            <div
-              key={i}
-              className="flex items-center gap-1.5 rounded-md border border-border bg-muted/40 px-2 py-1 text-xs"
-            >
-              <FileText className="size-3 shrink-0 text-muted-foreground" />
-              <span className="max-w-[160px] truncate font-medium">{a.fileName}</span>
-              <span className="text-muted-foreground/60">{formatBytes(a.fileSize)}</span>
-              {!disabled && (
-                <button
-                  type="button"
-                  onClick={() => onRemove(i)}
-                  className="ml-0.5 text-muted-foreground hover:text-foreground"
-                  title="Remove attachment"
-                >
-                  <X className="size-3" />
-                </button>
-              )}
-            </div>
-          ))}
+          {attachments.map((a, i) => {
+            const isImage = a.mimeType.startsWith("image/");
+            const serveUrl = `/api/comments/serve/${encodeURIComponent(a.storagePath)}`;
+            return isImage ? (
+              <div key={i} className="relative rounded-md border border-border overflow-hidden">
+                <img
+                  src={serveUrl}
+                  alt={a.fileName}
+                  className="h-16 w-16 object-cover"
+                />
+                {!disabled && (
+                  <button
+                    type="button"
+                    onClick={() => onRemove(i)}
+                    className="absolute top-0.5 right-0.5 flex items-center justify-center rounded-full bg-black/60 p-0.5 text-white hover:bg-black/80"
+                    title="Remove attachment"
+                  >
+                    <X className="size-3" />
+                  </button>
+                )}
+              </div>
+            ) : (
+              <div
+                key={i}
+                className="flex items-center gap-1.5 rounded-md border border-border bg-muted/40 px-2 py-1 text-xs"
+              >
+                <FileText className="size-3 shrink-0 text-muted-foreground" />
+                <span className="max-w-[160px] truncate font-medium">{a.fileName}</span>
+                <span className="text-muted-foreground/60">{formatBytes(a.fileSize)}</span>
+                {!disabled && (
+                  <button
+                    type="button"
+                    onClick={() => onRemove(i)}
+                    className="ml-0.5 text-muted-foreground hover:text-foreground"
+                    title="Remove attachment"
+                  >
+                    <X className="size-3" />
+                  </button>
+                )}
+              </div>
+            );
+          })}
         </div>
       )}
 

@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { Activity, BarChart2, CheckCircle2, CheckSquare, MessageSquare, Pin, PinOff, RefreshCw, Search, Settings2, X } from "lucide-react";
+import { Activity, BarChart2, CheckCircle2, CheckSquare, Loader2, MessageSquare, Pin, PinOff, Plus, RefreshCw, Search, Settings2, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { UserAvatarImage } from "@/components/shared/AppShell/UserAvatarImage";
 import { useUsersContext } from "@/components/shared/AppShell/UsersProvider";
@@ -111,6 +111,7 @@ export function ProjectActivityDrawer({ projectId }: { projectId: string }) {
   const [showTaskPicker, setShowTaskPicker] = useState(false);
   const [taskPickerQuery, setTaskPickerQuery] = useState("");
   const [projectTasks, setProjectTasks] = useState<ImplementationTask[] | null>(null);
+  const [creatingTask, setCreatingTask] = useState(false);
   const editorRef = useRef<RichCommentEditorHandle>(null);
 
   useEffect(() => {
@@ -215,6 +216,26 @@ export function ProjectActivityDrawer({ projectId }: { projectId: string }) {
     setShowTaskPicker(false);
     setTaskPickerQuery("");
     editorRef.current?.focus();
+  }
+
+  async function handleQuickCreateTask(title: string) {
+    if (!title.trim()) return;
+    setCreatingTask(true);
+    try {
+      const res = await fetch("/api/tasks/create", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ title: title.trim(), projectId }),
+      });
+      if (!res.ok) return;
+      const newTask: ImplementationTask = await res.json();
+      setProjectTasks((prev) => (prev ? [newTask, ...prev] : [newTask]));
+      handleTaskSelect(newTask);
+    } catch {
+      // silently ignore — the picker stays open so the user can retry
+    } finally {
+      setCreatingTask(false);
+    }
   }
 
   async function handlePost() {
@@ -416,25 +437,48 @@ export function ProjectActivityDrawer({ projectId }: { projectId: string }) {
                       <div className="max-h-44 overflow-y-auto py-1">
                         {!projectTasks ? (
                           <p className="px-3 py-2 text-xs text-muted-foreground">Loading tasks…</p>
-                        ) : filteredTasks.length === 0 ? (
-                          <p className="px-3 py-2 text-xs text-muted-foreground">No tasks found.</p>
                         ) : (
-                          filteredTasks.map((task) => (
-                            <button
-                              key={task.id}
-                              type="button"
-                              onMouseDown={(e) => {
-                                e.preventDefault();
-                                handleTaskSelect(task);
-                              }}
-                              className="flex w-full flex-col gap-0.5 px-3 py-2 text-left text-sm hover:bg-accent"
-                            >
-                              <span className="truncate font-medium">{task.title}</span>
-                              {task.workflowStepName && (
-                                <span className="text-xs text-muted-foreground">{task.workflowStepName}</span>
-                              )}
-                            </button>
-                          ))
+                          <>
+                            {filteredTasks.length === 0 && !taskPickerQuery.trim() && (
+                              <p className="px-3 py-2 text-xs text-muted-foreground">No tasks found.</p>
+                            )}
+                            {filteredTasks.map((task) => (
+                              <button
+                                key={task.id}
+                                type="button"
+                                onMouseDown={(e) => {
+                                  e.preventDefault();
+                                  handleTaskSelect(task);
+                                }}
+                                className="flex w-full flex-col gap-0.5 px-3 py-2 text-left text-sm hover:bg-accent"
+                              >
+                                <span className="truncate font-medium">{task.title}</span>
+                                {task.workflowStepName && (
+                                  <span className="text-xs text-muted-foreground">{task.workflowStepName}</span>
+                                )}
+                              </button>
+                            ))}
+                            {taskPickerQuery.trim() && (
+                              <button
+                                type="button"
+                                disabled={creatingTask}
+                                onMouseDown={(e) => {
+                                  e.preventDefault();
+                                  handleQuickCreateTask(taskPickerQuery);
+                                }}
+                                className="flex w-full items-center gap-1.5 border-t px-3 py-2 text-left text-sm text-primary hover:bg-accent disabled:pointer-events-none disabled:opacity-50"
+                              >
+                                {creatingTask ? (
+                                  <Loader2 className="size-3.5 shrink-0 animate-spin" />
+                                ) : (
+                                  <Plus className="size-3.5 shrink-0" />
+                                )}
+                                <span className="truncate">
+                                  {creatingTask ? "Creating…" : <>Create task <span className="font-medium">"{taskPickerQuery.trim()}"</span></>}
+                                </span>
+                              </button>
+                            )}
+                          </>
                         )}
                       </div>
                     </div>
