@@ -37,7 +37,7 @@ export function ProjectTabNav({ projectId, projectTypes = [], activeSections }: 
       {visibleSections.map(({ key, href }) => {
         const fullHref = `${base}${href}`;
         const active = href === "" ? pathname === base : pathname.startsWith(fullHref);
-        const label = (key === "dashboard" || key === "meetingNotes")
+        const label = (key === "dashboard" || key === "meetingNotes" || key === "gantt")
           ? PROJECT_SECTIONS.find((s) => s.key === key)!.label
           : getSectionLabelForTypes(key as ProjectSectionKey, projectTypes, DEFAULT_PROJECT_TYPE_CONFIG);
         return (
