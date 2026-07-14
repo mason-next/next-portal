@@ -18,6 +18,7 @@ import {
   SlashCommandExtension,
   type SlashCommandId,
 } from "@/components/shared/SlashCommandExtension";
+import type { SlashCommandItem } from "@/components/shared/SlashCommandList";
 import { cn } from "@/lib/utils";
 import type { AppUser } from "@/types/user";
 
@@ -44,6 +45,8 @@ interface RichCommentEditorProps {
   // When provided, installs the "/" slash-command extension and fires this callback when
   // the user picks a command. The "/" + query text is deleted from the editor before firing.
   onSlashCommand?: (cmd: SlashCommandId) => void;
+  /** Restrict which slash commands appear in the menu. Defaults to all commands. */
+  slashCommands?: SlashCommandItem[];
 }
 
 // Replaces the old MentionTextarea: a real WYSIWYG composer (Tiptap/ProseMirror) so pasted rich
@@ -53,7 +56,7 @@ interface RichCommentEditorProps {
 // Tiptap's Mention extension — mentions are now structured nodes in the document, not a string
 // token, see lib/mentions/tiptap-mentions.ts.
 export const RichCommentEditor = forwardRef<RichCommentEditorHandle, RichCommentEditorProps>(
-  function RichCommentEditor({ users, projectTeamIds, placeholder, className, initialContent, onSubmitShortcut, onEmptyChange, onSlashCommand }, ref) {
+  function RichCommentEditor({ users, projectTeamIds, placeholder, className, initialContent, onSubmitShortcut, onEmptyChange, onSlashCommand, slashCommands }, ref) {
     // Keep refs so extension closures (created once at mount) always read the live values.
     const usersRef = useRef<AppUser[]>(users);
     useEffect(() => { usersRef.current = users; }, [users]);
@@ -119,7 +122,10 @@ export const RichCommentEditor = forwardRef<RichCommentEditorHandle, RichComment
         // Only install the slash-command extension when the parent opts in.
         // eslint-disable-next-line react-hooks/refs -- onCommandSelect reads the ref at call-time
         ...(onSlashCommand !== undefined
-          ? [SlashCommandExtension.configure({ onCommandSelect: (cmd) => onSlashCommandRef.current?.(cmd) })]
+          ? [SlashCommandExtension.configure({
+              onCommandSelect: (cmd) => onSlashCommandRef.current?.(cmd),
+              ...(slashCommands !== undefined ? { commands: slashCommands } : {}),
+            })]
           : []),
       ],
       editorProps: {

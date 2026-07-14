@@ -19,6 +19,7 @@ import {
   updateProjectComment,
 } from "@/lib/data/activity";
 import { addTaskComment, getProjectTaskComments, getProjectTasks } from "@/lib/data/implementation";
+import { SLASH_COMMANDS } from "@/components/shared/SlashCommandList";
 import { getActivityLastViewed, markActivityViewed } from "@/lib/data/activity-client";
 import { useSession } from "@/lib/auth/client";
 import { useCurrentUserAvatar } from "@/lib/hooks/useCurrentUserAvatar";
@@ -697,6 +698,14 @@ function ActivityRow({
     setEditing(true);
   }
 
+  function handleEditSlashCommand(cmd: "status" | "task") {
+    if (cmd === "status") setEditIsStatus(true);
+    // "task" is not applicable when editing an existing project comment — swallow it.
+  }
+
+  // Only expose the /status command in edit mode; task-linking requires a new comment.
+  const editSlashCommands = SLASH_COMMANDS.filter((c) => c.id === "status");
+
   async function handleSaveEdit() {
     const editor = editRef.current;
     if (!editor || editor.isEmpty()) return;
@@ -753,6 +762,8 @@ function ActivityRow({
                 onSubmitShortcut={handleSaveEdit}
                 onEmptyChange={setEditEmpty}
                 placeholder="Edit your comment…"
+                onSlashCommand={handleEditSlashCommand}
+                slashCommands={editSlashCommands}
               />
               <div className="mt-1.5 flex flex-wrap items-center gap-3">
                 <label className="flex cursor-pointer items-center gap-1.5 text-xs text-muted-foreground select-none">
