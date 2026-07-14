@@ -347,10 +347,47 @@ export function TranscriptModal({
                       {item.opportunityName && item.isNewOpportunity && item.resolvedOppId && (
                         <p className="text-xs text-emerald-600 font-medium">✓ Opportunity created</p>
                       )}
+
+                      {/* AI Summary */}
+                      {item.summary && (
+                        <div>
+                          <p className="text-xs font-semibold text-violet-700 dark:text-violet-400 mb-1">Summary</p>
+                          <p className="text-xs text-muted-foreground leading-relaxed">{item.summary}</p>
+                        </div>
+                      )}
+
+                      {/* Action Items */}
+                      {item.actionItems.length > 0 && (
+                        <div>
+                          <p className="text-xs font-semibold text-violet-700 dark:text-violet-400 mb-1">Follow-ups & Action Items</p>
+                          <ul className="space-y-1">
+                            {item.actionItems.map((ai, i) => (
+                              <li key={i} className="flex items-start gap-1.5 text-xs">
+                                <span className="mt-0.5 w-3.5 h-3.5 rounded border border-muted-foreground/30 flex-shrink-0 flex items-center justify-center text-[9px] text-muted-foreground">○</span>
+                                <span className="text-foreground">{ai}</span>
+                              </li>
+                            ))}
+                          </ul>
+                        </div>
+                      )}
+
+                      {/* Contacts */}
+                      {item.contacts.length > 0 && (
+                        <div>
+                          <p className="text-xs font-semibold text-violet-700 dark:text-violet-400 mb-1">Contacts Mentioned</p>
+                          <div className="flex flex-wrap gap-1.5">
+                            {item.contacts.map((c, i) => (
+                              <span key={i} className="inline-flex items-center gap-1 rounded-full bg-violet-100 dark:bg-violet-900/20 px-2 py-0.5 text-xs font-medium text-violet-700 dark:text-violet-300">
+                                {c.name}{c.title ? ` · ${c.title}` : ""}
+                              </span>
+                            ))}
+                          </div>
+                        </div>
+                      )}
                     </div>
 
                     {/* Review form */}
-                    <p className="text-xs text-muted-foreground">Review and adjust before saving:</p>
+                    <p className="text-xs font-medium text-foreground">Review and save the activity log entry:</p>
                     <ActivityLogForm
                       companies={companies}
                       currentUser={currentUser}
