@@ -54,11 +54,23 @@ export interface SalesOpportunity {
   notes: string;
   closeDate: string | null;
   cwNumber: string | null;
+  cwLink: string | null;
   proposalCreatedAt: string | null;
   rating: ProposalRating | null;
   createdAt: string;
   updatedAt: string;
   company?: Pick<SalesCompany, "id" | "name" | "domain">;
+}
+
+export interface SalesOppComment {
+  id: string;
+  opportunityId: string;
+  userId: string | null;
+  userName: string;
+  message: string;
+  richContent: unknown | null;
+  createdAt: string;
+  updatedAt: string;
 }
 
 export interface SalesActivity {

@@ -25,6 +25,7 @@ export function OpportunityForm({ companyId, companies, initial, onSave, onDelet
   const [closeDate, setCloseDate] = useState(
     initial?.closeDate ? initial.closeDate.slice(0, 10) : ""
   );
+  const [cwLink, setCwLink] = useState(initial?.cwLink ?? "");
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -40,6 +41,9 @@ export function OpportunityForm({ companyId, companies, initial, onSave, onDelet
       notes,
       closeDate: closeDate || null,
       cwNumber: initial?.cwNumber ?? null,
+      cwLink: cwLink.trim() || null,
+      proposalCreatedAt: initial?.proposalCreatedAt ?? null,
+      rating: initial?.rating ?? null,
     });
   }
 
@@ -103,6 +107,16 @@ export function OpportunityForm({ companyId, companies, initial, onSave, onDelet
             value={closeDate}
             onChange={(e) => setCloseDate(e.target.value)}
             className="w-full rounded-md border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+          />
+        </label>
+        <label className="block space-y-1">
+          <span className="text-xs font-medium text-muted-foreground">ConnectWise Link</span>
+          <input
+            type="url"
+            value={cwLink}
+            onChange={(e) => setCwLink(e.target.value)}
+            className="w-full rounded-md border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+            placeholder="Paste the ConnectWise opportunity URL…"
           />
         </label>
         <label className="block space-y-1">

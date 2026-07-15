@@ -13,6 +13,7 @@ import { TranscriptModal } from "@/modules/sales-activity/components/TranscriptM
 import { CWImportModal } from "@/modules/sales-activity/components/CWImportModal";
 import { ActivityFeed, ActivitySummaryCards } from "@/modules/sales-activity/components/ActivityFeed";
 import { SalesPulseReport } from "@/modules/sales-activity/components/SalesPulseReport";
+import { OppConversationDrawer } from "@/modules/sales-activity/components/OppConversationDrawer";
 import { formatWeekLabel } from "@/types/sales";
 import type { SalesCompany, SalesOpportunity, SalesActivity } from "@/types/sales";
 import type { CWImportPayload, ImportProgressCallback } from "@/modules/sales-activity/components/CWImportModal";
@@ -41,6 +42,7 @@ export default function SalesActivityPage() {
   const [detailCompany, setDetailCompany] = useState<SalesCompany | null>(null);
   const [importOpen, setImportOpen] = useState(false);
   const [logoFetch, setLogoFetch] = useState<{ done: number; total: number } | null>(null);
+  const [convOpp, setConvOpp] = useState<SalesOpportunity | null>(null);
   const importRef = useRef<HTMLDivElement>(null);
 
   function prevWeek() {
@@ -112,6 +114,7 @@ export default function SalesActivityPage() {
         notes: "",
         closeDate: o.closeDate ?? null,
         cwNumber: o.cwNumber || null,
+        cwLink: null,
         proposalCreatedAt: o.proposalCreatedAt ?? null,
         rating: o.rating ?? null,
       });
@@ -178,6 +181,19 @@ export default function SalesActivityPage() {
               <>
                 <div className="fixed inset-0 z-40" onClick={() => setImportOpen(false)} />
                 <div className="absolute right-0 top-full mt-1 z-50 w-52 rounded-lg border bg-card shadow-lg py-1">
+                  <button
+                    type="button"
+                    onClick={() => { setImportOpen(false); setModal({ type: "transcript" }); }}
+                    className="w-full flex items-center gap-2.5 px-3 py-2 text-sm hover:bg-muted text-left"
+                  >
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/>
+                    </svg>
+                    <div>
+                      <div className="font-medium">Customer Meeting</div>
+                      <div className="text-xs text-muted-foreground">Import meeting notes with AI</div>
+                    </div>
+                  </button>
                   <button
                     type="button"
                     onClick={() => { setImportOpen(false); setModal({ type: "transcript" }); }}
@@ -257,6 +273,7 @@ export default function SalesActivityPage() {
               isManagement={isManagement}
               repFilter={repFilter}
               onRepFilterChange={setRepFilter}
+              onOpenConversation={setConvOpp}
             />
           )}
 
@@ -368,7 +385,7 @@ export default function SalesActivityPage() {
             return company as SalesCompany;
           }}
           onCreateOpportunity={async (companyId, name, stage) => {
-            const opp = await saveOpportunity({ companyId, name, stage: stage ?? "Prospecting", ownerId: null, ownerName: "", value: 0, notes: "", closeDate: null, cwNumber: null, proposalCreatedAt: null, rating: null });
+            const opp = await saveOpportunity({ companyId, name, stage: stage ?? "Prospecting", ownerId: null, ownerName: "", value: 0, notes: "", closeDate: null, cwNumber: null, cwLink: null, proposalCreatedAt: null, rating: null });
             return opp as { id: string; name: string };
           }}
           onClose={() => setModal(null)}
@@ -382,6 +399,12 @@ export default function SalesActivityPage() {
           onClose={() => setModal(null)}
         />
       )}
+
+      <OppConversationDrawer
+        opportunityId={convOpp?.id ?? null}
+        opportunityName={convOpp?.name ?? ""}
+        onClose={() => setConvOpp(null)}
+      />
     </div>
   );
 }

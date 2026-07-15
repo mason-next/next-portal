@@ -2,7 +2,7 @@
 
 import { db } from "@/lib/db";
 import type {
-  SalesCompany, SalesOpportunity, SalesActivity,
+  SalesCompany, SalesOpportunity, SalesActivity, SalesOppComment,
   ActivityType, OppStage, ProposalRating, SalesContact,
 } from "@/types/sales";
 import { ACTIVITY_TYPES, PROPOSAL_RATINGS } from "@/types/sales";
@@ -53,7 +53,7 @@ function toCompany(r: {
 function toOpp(r: {
   id: string; companyId: string; name: string; stage: string;
   ownerId: string | null; ownerName: string; value: number;
-  notes: string; closeDate: Date | null; cwNumber: string | null;
+  notes: string; closeDate: Date | null; cwNumber: string | null; cwLink: string | null;
   proposalCreatedAt: Date | null; rating: string | null;
   createdAt: Date; updatedAt: Date;
   company?: { id: string; name: string; domain: string };
@@ -69,6 +69,7 @@ function toOpp(r: {
     notes: r.notes,
     closeDate: r.closeDate?.toISOString() ?? null,
     cwNumber: r.cwNumber,
+    cwLink: r.cwLink,
     proposalCreatedAt: r.proposalCreatedAt?.toISOString() ?? null,
     rating: sanitizeRating(r.rating),
     createdAt: r.createdAt.toISOString(),
@@ -192,6 +193,7 @@ export async function upsertSalesOpportunity(
     notes: data.notes,
     closeDate: data.closeDate ? new Date(data.closeDate) : null,
     cwNumber: data.cwNumber ?? null,
+    cwLink: data.cwLink ?? null,
     proposalCreatedAt: data.proposalCreatedAt ? new Date(data.proposalCreatedAt) : null,
     rating: data.rating ?? null,
   };
@@ -328,4 +330,67 @@ interface ActivitySummary {
   totalActivities: number;
   byType: Record<string, number>;
   byPerson: Record<string, number>;
+}
+
+// ─── Opportunity Comments ─────────────────────────────────────────────────────
+
+function toOppComment(r: {
+  id: string; opportunityId: string; userId: string | null; userName: string;
+  message: string; richContent: unknown; createdAt: Date; updatedAt: Date;
+}): SalesOppComment {
+  return {
+    id: r.id,
+    opportunityId: r.opportunityId,
+    userId: r.userId,
+    userName: r.userName,
+    message: r.message,
+    richContent: r.richContent ?? null,
+    createdAt: r.createdAt.toISOString(),
+    updatedAt: r.updatedAt.toISOString(),
+  };
+}
+
+export async function getOppComments(opportunityId: string): Promise<SalesOppComment[]> {
+  const rows = await db.salesOppComment.findMany({
+    where: { opportunityId },
+    orderBy: { createdAt: "desc" },
+  });
+  return rows.map(toOppComment);
+}
+
+export async function addOppComment(
+  opportunityId: string,
+  userId: string | null,
+  userName: string,
+  message: string,
+  richContentJson?: string,
+): Promise<SalesOppComment> {
+  const row = await db.salesOppComment.create({
+    data: {
+      opportunityId,
+      userId,
+      userName,
+      message,
+      richContent: richContentJson ? JSON.parse(richContentJson) : undefined,
+    },
+  });
+  return toOppComment(row);
+}
+
+export async function updateOppComment(
+  id: string,
+  message: string,
+  richContentJson?: string,
+): Promise<void> {
+  await db.salesOppComment.update({
+    where: { id },
+    data: {
+      message,
+      richContent: richContentJson ? JSON.parse(richContentJson) : undefined,
+    },
+  });
+}
+
+export async function deleteOppComment(id: string): Promise<void> {
+  await db.salesOppComment.delete({ where: { id } });
 }

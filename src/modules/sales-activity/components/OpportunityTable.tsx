@@ -111,10 +111,11 @@ export interface OpportunityTableProps {
   isManagement: boolean;
   repFilter: string;
   onRepFilterChange: (r: string) => void;
+  onOpenConversation: (opp: SalesOpportunity) => void;
 }
 
 export function OpportunityTable({
-  companies, activities, isManagement, repFilter, onRepFilterChange,
+  companies, activities, isManagement, repFilter, onRepFilterChange, onOpenConversation,
 }: OpportunityTableProps) {
   const [sortKey, setSortKey] = useState<SortKey>("stage");
   const [sortDir, setSortDir] = useState<SortDir>("asc");
@@ -378,6 +379,7 @@ export function OpportunityTable({
                 <Th label="Close Date" col="closeDate" />
                 <Th label="Value" col="value" />
                 <Th label="Stage" col="stage" />
+                <th scope="col" className="px-3 py-2 w-16" />
               </tr>
             </thead>
             <tbody className="divide-y">
@@ -439,6 +441,34 @@ export function OpportunityTable({
                       <span className={`inline-block rounded-full px-2.5 py-0.5 text-[11px] font-semibold ${STAGE_COLORS[opp.stage] ?? "bg-muted text-muted-foreground"}`}>
                         {opp.stage}
                       </span>
+                    </td>
+                    <td className="px-3 py-2.5">
+                      <div className="flex items-center gap-1">
+                        {opp.cwLink && (
+                          <a
+                            href={opp.cwLink}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            title="Open in ConnectWise"
+                            className="flex h-7 w-7 items-center justify-center rounded-md text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
+                            onClick={(e) => e.stopPropagation()}
+                          >
+                            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                              <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/>
+                            </svg>
+                          </a>
+                        )}
+                        <button
+                          type="button"
+                          title="Open conversation"
+                          onClick={() => onOpenConversation(opp)}
+                          className="flex h-7 w-7 items-center justify-center rounded-md text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
+                        >
+                          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                            <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
+                          </svg>
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 );

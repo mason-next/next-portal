@@ -788,16 +788,34 @@ model SalesOpportunity {
   notes     String   @default("")
   closeDate         DateTime?
   cwNumber          String?
+  cwLink            String?
   proposalCreatedAt DateTime?
   rating            String?
   createdAt         DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  company    SalesCompany  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  company    SalesCompany     @relation(fields: [companyId], references: [id], onDelete: Cascade)
   activities SalesActivity[]
+  comments   SalesOppComment[]
 
   @@index([companyId])
   @@map("sales_opportunities")
+}
+
+model SalesOppComment {
+  id            String   @id @default(cuid())
+  opportunityId String
+  userId        String?
+  userName      String
+  message       String   @default("")
+  richContent   Json?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  opportunity SalesOpportunity @relation(fields: [opportunityId], references: [id], onDelete: Cascade)
+
+  @@index([opportunityId])
+  @@map("sales_opp_comments")
 }
 
 model SalesActivity {
