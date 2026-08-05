@@ -14,6 +14,7 @@ import { CWImportModal } from "@/modules/sales-activity/components/CWImportModal
 import { ActivityFeed, ActivitySummaryCards } from "@/modules/sales-activity/components/ActivityFeed";
 import { SalesPulseReport } from "@/modules/sales-activity/components/SalesPulseReport";
 import { OppConversationDrawer } from "@/modules/sales-activity/components/OppConversationDrawer";
+import { OppCommissionDrawer } from "@/modules/sales-activity/components/OppCommissionDrawer";
 import { formatWeekLabel } from "@/types/sales";
 import type { SalesCompany, SalesOpportunity, SalesActivity } from "@/types/sales";
 import type { CWImportPayload, ImportProgressCallback } from "@/modules/sales-activity/components/CWImportModal";
@@ -43,6 +44,7 @@ export default function SalesActivityPage() {
   const [importOpen, setImportOpen] = useState(false);
   const [logoFetch, setLogoFetch] = useState<{ done: number; total: number } | null>(null);
   const [convOpp, setConvOpp] = useState<SalesOpportunity | null>(null);
+  const [commOpp, setCommOpp] = useState<SalesOpportunity | null>(null);
   const importRef = useRef<HTMLDivElement>(null);
 
   function prevWeek() {
@@ -274,6 +276,7 @@ export default function SalesActivityPage() {
               repFilter={repFilter}
               onRepFilterChange={setRepFilter}
               onOpenConversation={setConvOpp}
+              onOpenCommission={setCommOpp}
             />
           )}
 
@@ -404,6 +407,11 @@ export default function SalesActivityPage() {
         opportunityId={convOpp?.id ?? null}
         opportunityName={convOpp?.name ?? ""}
         onClose={() => setConvOpp(null)}
+      />
+
+      <OppCommissionDrawer
+        opp={commOpp}
+        onClose={() => setCommOpp(null)}
       />
     </div>
   );

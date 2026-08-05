@@ -22,10 +22,11 @@ const OPERATIONS_ITEMS: { href: string; label: string; feature: PermissionFeatur
 ];
 
 const SALES_ITEMS = [
-  { href: "/sales",           label: "Overview" },
-  { href: "/sales/activity",  label: "Activity Log" },
-  { href: "/sales/deal-desk", label: "Deal Desk" },
-  { href: "/sales/quotes",    label: "Quote Portal" },
+  { href: "/sales",                                  label: "Overview" },
+  { href: "/sales/activity",                         label: "Activity Log" },
+  { href: "/sales/deal-desk",                        label: "Deal Desk" },
+  { href: "/sales/deal-desk/commission-statement",   label: "Commission Statement" },
+  { href: "/sales/quotes",                           label: "Quote Portal" },
 ];
 
 const TOOLS_ITEMS = [

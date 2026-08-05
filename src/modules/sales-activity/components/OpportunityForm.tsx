@@ -44,6 +44,8 @@ export function OpportunityForm({ companyId, companies, initial, onSave, onDelet
       cwLink: cwLink.trim() || null,
       proposalCreatedAt: initial?.proposalCreatedAt ?? null,
       rating: initial?.rating ?? null,
+      commissionTeam: initial?.commissionTeam ?? null,
+      parentOppId: initial?.parentOppId ?? null,
     });
   }
 

@@ -791,15 +791,41 @@ model SalesOpportunity {
   cwLink            String?
   proposalCreatedAt DateTime?
   rating            String?
+  commissionTeam    Json?
+  parentOppId       String?
   createdAt         DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  company    SalesCompany     @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  company    SalesCompany      @relation(fields: [companyId], references: [id], onDelete: Cascade)
   activities SalesActivity[]
   comments   SalesOppComment[]
+  invoices   SalesOppInvoice[]
+  parent     SalesOpportunity?  @relation("OppParent", fields: [parentOppId], references: [id], onDelete: SetNull)
+  children   SalesOpportunity[] @relation("OppParent")
 
   @@index([companyId])
   @@map("sales_opportunities")
+}
+
+model SalesOppInvoice {
+  id              String    @id @default(cuid())
+  opportunityId   String
+  invoiceNumber   String    @default("")
+  invoiceDate     DateTime
+  subtotalCents   Int       @default(0)
+  salesTaxCents   Int       @default(0)
+  openBalanceCents Int      @default(0)
+  paymentStatus   String    @default("Outstanding")
+  paymentDate     DateTime?
+  appliesToOppId  String?
+  notes           String    @default("")
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  opportunity SalesOpportunity @relation(fields: [opportunityId], references: [id], onDelete: Cascade)
+
+  @@index([opportunityId])
+  @@map("sales_opp_invoices")
 }
 
 model SalesOppComment {

@@ -2,7 +2,8 @@
 
 import { db } from "@/lib/db";
 import type {
-  SalesCompany, SalesOpportunity, SalesActivity, SalesOppComment,
+  SalesCompany, SalesOpportunity, SalesActivity, SalesOppComment, SalesOppInvoice,
+  CommissionTeamMember, OppInvoiceStatus,
   ActivityType, OppStage, ProposalRating, SalesContact,
 } from "@/types/sales";
 import { ACTIVITY_TYPES, PROPOSAL_RATINGS } from "@/types/sales";
@@ -55,8 +56,11 @@ function toOpp(r: {
   ownerId: string | null; ownerName: string; value: number;
   notes: string; closeDate: Date | null; cwNumber: string | null; cwLink: string | null;
   proposalCreatedAt: Date | null; rating: string | null;
+  commissionTeam?: unknown; parentOppId?: string | null;
   createdAt: Date; updatedAt: Date;
   company?: { id: string; name: string; domain: string };
+  invoices?: ReturnType<typeof toInvoice>[];
+  children?: SalesOpportunity[];
 }): SalesOpportunity {
   return {
     id: r.id,
@@ -72,9 +76,36 @@ function toOpp(r: {
     cwLink: r.cwLink,
     proposalCreatedAt: r.proposalCreatedAt?.toISOString() ?? null,
     rating: sanitizeRating(r.rating),
+    commissionTeam: Array.isArray(r.commissionTeam) ? (r.commissionTeam as CommissionTeamMember[]) : null,
+    parentOppId: r.parentOppId ?? null,
     createdAt: r.createdAt.toISOString(),
     updatedAt: r.updatedAt.toISOString(),
     company: r.company,
+    invoices: r.invoices,
+    children: r.children,
+  };
+}
+
+function toInvoice(r: {
+  id: string; opportunityId: string; invoiceNumber: string;
+  invoiceDate: Date; subtotalCents: number; salesTaxCents: number;
+  openBalanceCents: number; paymentStatus: string; paymentDate: Date | null;
+  appliesToOppId: string | null; notes: string; createdAt: Date; updatedAt: Date;
+}): SalesOppInvoice {
+  return {
+    id: r.id,
+    opportunityId: r.opportunityId,
+    invoiceNumber: r.invoiceNumber,
+    invoiceDate: r.invoiceDate.toISOString(),
+    subtotalCents: r.subtotalCents,
+    salesTaxCents: r.salesTaxCents,
+    openBalanceCents: r.openBalanceCents,
+    paymentStatus: r.paymentStatus as OppInvoiceStatus,
+    paymentDate: r.paymentDate?.toISOString() ?? null,
+    appliesToOppId: r.appliesToOppId,
+    notes: r.notes,
+    createdAt: r.createdAt.toISOString(),
+    updatedAt: r.updatedAt.toISOString(),
   };
 }
 
@@ -393,4 +424,95 @@ export async function updateOppComment(
 
 export async function deleteOppComment(id: string): Promise<void> {
   await db.salesOppComment.delete({ where: { id } });
+}
+
+// ─── Opp Invoices ─────────────────────────────────────────────────────────────
+
+export async function getOppInvoices(opportunityId: string): Promise<SalesOppInvoice[]> {
+  const rows = await db.salesOppInvoice.findMany({
+    where: { opportunityId },
+    orderBy: { invoiceDate: "asc" },
+  });
+  return rows.map(toInvoice);
+}
+
+export async function upsertOppInvoice(data: {
+  id?: string;
+  opportunityId: string;
+  invoiceNumber: string;
+  invoiceDate: string;
+  subtotalCents: number;
+  salesTaxCents: number;
+  openBalanceCents: number;
+  paymentStatus: OppInvoiceStatus;
+  paymentDate: string | null;
+  appliesToOppId: string | null;
+  notes: string;
+}): Promise<SalesOppInvoice> {
+  const payload = {
+    opportunityId: data.opportunityId,
+    invoiceNumber: data.invoiceNumber,
+    invoiceDate: new Date(data.invoiceDate),
+    subtotalCents: data.subtotalCents,
+    salesTaxCents: data.salesTaxCents,
+    openBalanceCents: data.openBalanceCents,
+    paymentStatus: data.paymentStatus,
+    paymentDate: data.paymentDate ? new Date(data.paymentDate) : null,
+    appliesToOppId: data.appliesToOppId,
+    notes: data.notes,
+  };
+  const row = data.id
+    ? await db.salesOppInvoice.update({ where: { id: data.id }, data: payload })
+    : await db.salesOppInvoice.create({ data: payload });
+  return toInvoice(row);
+}
+
+export async function deleteOppInvoice(id: string): Promise<void> {
+  await db.salesOppInvoice.delete({ where: { id } });
+}
+
+// ─── Commission Team ──────────────────────────────────────────────────────────
+
+export async function updateOppCommissionTeam(
+  opportunityId: string,
+  team: CommissionTeamMember[],
+): Promise<void> {
+  await db.salesOpportunity.update({
+    where: { id: opportunityId },
+    data: { commissionTeam: team as object[] },
+  });
+}
+
+// ─── Commission Statement Data ────────────────────────────────────────────────
+
+export async function getWonOppsWithInvoices(): Promise<
+  (SalesOpportunity & { invoices: SalesOppInvoice[]; children: SalesOpportunity[] })[]
+> {
+  const rows = await db.salesOpportunity.findMany({
+    where: { stage: "ClosedWon", parentOppId: null },
+    orderBy: { updatedAt: "desc" },
+    include: {
+      invoices: { orderBy: { invoiceDate: "asc" } },
+      children: {
+        include: { invoices: { orderBy: { invoiceDate: "asc" } } },
+      },
+      company: { select: { id: true, name: true, domain: true } },
+    },
+  });
+
+  return rows.map((r) => ({
+    ...toOpp({
+      ...r,
+      invoices: r.invoices.map(toInvoice),
+      children: r.children.map((c) => toOpp({
+        ...c,
+        invoices: c.invoices.map(toInvoice),
+      })),
+    }),
+    invoices: r.invoices.map(toInvoice),
+    children: r.children.map((c) => toOpp({
+      ...c,
+      invoices: c.invoices.map(toInvoice),
+    })) as SalesOpportunity[],
+  })) as (SalesOpportunity & { invoices: SalesOppInvoice[]; children: SalesOpportunity[] })[];
 }

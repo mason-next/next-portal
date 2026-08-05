@@ -112,10 +112,11 @@ export interface OpportunityTableProps {
   repFilter: string;
   onRepFilterChange: (r: string) => void;
   onOpenConversation: (opp: SalesOpportunity) => void;
+  onOpenCommission?: (opp: SalesOpportunity) => void;
 }
 
 export function OpportunityTable({
-  companies, activities, isManagement, repFilter, onRepFilterChange, onOpenConversation,
+  companies, activities, isManagement, repFilter, onRepFilterChange, onOpenConversation, onOpenCommission,
 }: OpportunityTableProps) {
   const [sortKey, setSortKey] = useState<SortKey>("stage");
   const [sortDir, setSortDir] = useState<SortDir>("asc");
@@ -468,6 +469,18 @@ export function OpportunityTable({
                             <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
                           </svg>
                         </button>
+                        {onOpenCommission && (
+                          <button
+                            type="button"
+                            title="Commission & Invoices"
+                            onClick={() => onOpenCommission(opp)}
+                            className="flex h-7 w-7 items-center justify-center rounded-md text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
+                          >
+                            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                              <line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/>
+                            </svg>
+                          </button>
+                        )}
                       </div>
                     </td>
                   </tr>
