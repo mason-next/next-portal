@@ -103,6 +103,23 @@ function SortIcon({ active, dir }: { active: boolean; dir: SortDir }) {
   );
 }
 
+function Th({ label, col, sortKey, sortDir, onSort }: {
+  label: string; col: SortKey; sortKey: SortKey; sortDir: SortDir; onSort: (key: SortKey) => void;
+}) {
+  return (
+    <th
+      scope="col"
+      onClick={() => onSort(col)}
+      className="px-3 py-2 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wide cursor-pointer select-none hover:text-foreground whitespace-nowrap"
+    >
+      <span className="inline-flex items-center gap-1">
+        {label}
+        <SortIcon active={sortKey === col} dir={sortDir} />
+      </span>
+    </th>
+  );
+}
+
 // ── main component ────────────────────────────────────────────────────────────
 
 export interface OpportunityTableProps {
@@ -111,10 +128,12 @@ export interface OpportunityTableProps {
   isManagement: boolean;
   repFilter: string;
   onRepFilterChange: (r: string) => void;
+  onOpenConversation: (opp: SalesOpportunity) => void;
+  onOpenCommission?: (opp: SalesOpportunity) => void;
 }
 
 export function OpportunityTable({
-  companies, activities, isManagement, repFilter, onRepFilterChange,
+  companies, activities, isManagement, repFilter, onRepFilterChange, onOpenConversation, onOpenCommission,
 }: OpportunityTableProps) {
   const [sortKey, setSortKey] = useState<SortKey>("stage");
   const [sortDir, setSortDir] = useState<SortDir>("asc");
@@ -246,7 +265,7 @@ export function OpportunityTable({
   function toggleQuickFilter(qf: QuickFilter) {
     setQuickFilters((prev) => {
       const next = new Set(prev);
-      next.has(qf) ? next.delete(qf) : next.add(qf);
+      if (next.has(qf)) next.delete(qf); else next.add(qf);
       return next;
     });
   }
@@ -255,17 +274,8 @@ export function OpportunityTable({
 
   const totalPipeline = sorted.filter((r) => ACTIVE_STAGES.has(r.opp.stage)).reduce((s, r) => s + (r.opp.value ?? 0), 0);
 
-  const Th = ({ label, col }: { label: string; col: SortKey }) => (
-    <th
-      scope="col"
-      onClick={() => handleSort(col)}
-      className="px-3 py-2 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wide cursor-pointer select-none hover:text-foreground whitespace-nowrap"
-    >
-      <span className="inline-flex items-center gap-1">
-        {label}
-        <SortIcon active={sortKey === col} dir={sortDir} />
-      </span>
-    </th>
+  const th = (label: string, col: SortKey) => (
+    <Th label={label} col={col} sortKey={sortKey} sortDir={sortDir} onSort={handleSort} />
   );
 
   return (
@@ -369,15 +379,16 @@ export function OpportunityTable({
           <table className="w-full text-sm">
             <thead className="border-b bg-muted/30">
               <tr>
-                <Th label="Opportunity" col="name" />
-                <Th label="Company" col="company" />
-                {isManagement && <Th label="Rep" col="rep" />}
-                <Th label="Rating" col="rating" />
-                <Th label="Age" col="age" />
-                <Th label="Created" col="createdAt" />
-                <Th label="Close Date" col="closeDate" />
-                <Th label="Value" col="value" />
-                <Th label="Stage" col="stage" />
+                {th("Opportunity", "name")}
+                {th("Company", "company")}
+                {isManagement && th("Rep", "rep")}
+                {th("Rating", "rating")}
+                {th("Age", "age")}
+                {th("Created", "createdAt")}
+                {th("Close Date", "closeDate")}
+                {th("Value", "value")}
+                {th("Stage", "stage")}
+                <th scope="col" className="px-3 py-2 w-16" />
               </tr>
             </thead>
             <tbody className="divide-y">
@@ -439,6 +450,46 @@ export function OpportunityTable({
                       <span className={`inline-block rounded-full px-2.5 py-0.5 text-[11px] font-semibold ${STAGE_COLORS[opp.stage] ?? "bg-muted text-muted-foreground"}`}>
                         {opp.stage}
                       </span>
+                    </td>
+                    <td className="px-3 py-2.5">
+                      <div className="flex items-center gap-1">
+                        {opp.cwLink && (
+                          <a
+                            href={opp.cwLink}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            title="Open in ConnectWise"
+                            className="flex h-7 w-7 items-center justify-center rounded-md text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
+                            onClick={(e) => e.stopPropagation()}
+                          >
+                            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                              <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/>
+                            </svg>
+                          </a>
+                        )}
+                        <button
+                          type="button"
+                          title="Open conversation"
+                          onClick={() => onOpenConversation(opp)}
+                          className="flex h-7 w-7 items-center justify-center rounded-md text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
+                        >
+                          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                            <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
+                          </svg>
+                        </button>
+                        {onOpenCommission && (
+                          <button
+                            type="button"
+                            title="Commission & Invoices"
+                            onClick={() => onOpenCommission(opp)}
+                            className="flex h-7 w-7 items-center justify-center rounded-md text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
+                          >
+                            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                              <line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/>
+                            </svg>
+                          </button>
+                        )}
+                      </div>
                     </td>
                   </tr>
                 );

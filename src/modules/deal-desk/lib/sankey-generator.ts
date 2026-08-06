@@ -1,4 +1,4 @@
-import type { DealDeskQuote } from "@/types/deal-desk";
+import type { DealDeskQuote, ProjectType } from "@/types/deal-desk";
 import { calcFinancials, fmtPct } from "./financial-calc";
 import { memberPayoutCents, memberRateBps } from "./commission-engine";
 import { DEFAULT_COMMISSION_MATRIX } from "./commission-engine";
@@ -17,7 +17,7 @@ function revPct(cents: number, revenueCents: number): string {
 }
 
 export function generateSankeyText(quote: DealDeskQuote): string {
-  const f = calcFinancials(quote.categories);
+  const f = calcFinancials(quote.categories, quote.projectType as ProjectType);
   const rev = f.revenueCents;
   const gmPct = fmtPct(f.grossMarginPct, 0).replace("%", "");
   const cogsPct = fmtPct(100 - f.grossMarginPct, 0).replace("%", "");

@@ -50,6 +50,7 @@ export default function DealDeskPage() {
               <Button variant="outline">Commission Report</Button>
             </Link>
           )}
+          {/* Import is management only */}
           {isManagement && (
             <Button onClick={() => setShowImport(true)}>
               <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="mr-1.5">

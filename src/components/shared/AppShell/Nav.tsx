@@ -23,10 +23,11 @@ const OPERATIONS_ITEMS: { href: string; label: string; feature: PermissionFeatur
 ];
 
 const SALES_ITEMS: { href: string; label: string; module: ModuleKey }[] = [
-  { href: "/sales",           label: "Overview",     module: "sales" },
-  { href: "/sales/activity",  label: "Activity Log", module: "salesActivity" },
-  { href: "/sales/deal-desk", label: "Deal Desk",    module: "salesDealDesk" },
-  { href: "/sales/quotes",    label: "Quote Portal", module: "salesQuotes" },
+  { href: "/sales",                                label: "Overview",             module: "sales" },
+  { href: "/sales/activity",                       label: "Activity Log",         module: "salesActivity" },
+  { href: "/sales/deal-desk",                      label: "Deal Desk",            module: "salesDealDesk" },
+  { href: "/sales/deal-desk/commission-statement", label: "Commission Statement", module: "salesDealDesk" },
+  { href: "/sales/quotes",                         label: "Quote Portal",         module: "salesQuotes" },
 ];
 
 const TOOLS_ITEMS = [

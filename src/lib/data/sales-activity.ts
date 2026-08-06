@@ -2,7 +2,8 @@
 
 import { db } from "@/lib/db";
 import type {
-  SalesCompany, SalesOpportunity, SalesActivity,
+  SalesCompany, SalesOpportunity, SalesActivity, SalesOppComment, SalesOppInvoice,
+  CommissionTeamMember, OppInvoiceStatus,
   ActivityType, OppStage, ProposalRating, SalesContact,
 } from "@/types/sales";
 import { ACTIVITY_TYPES, PROPOSAL_RATINGS } from "@/types/sales";
@@ -53,10 +54,13 @@ function toCompany(r: {
 function toOpp(r: {
   id: string; companyId: string; name: string; stage: string;
   ownerId: string | null; ownerName: string; value: number;
-  notes: string; closeDate: Date | null; cwNumber: string | null;
+  notes: string; closeDate: Date | null; cwNumber: string | null; cwLink: string | null;
   proposalCreatedAt: Date | null; rating: string | null;
+  commissionTeam?: unknown; parentOppId?: string | null;
   createdAt: Date; updatedAt: Date;
   company?: { id: string; name: string; domain: string };
+  invoices?: ReturnType<typeof toInvoice>[];
+  children?: SalesOpportunity[];
 }): SalesOpportunity {
   return {
     id: r.id,
@@ -69,11 +73,39 @@ function toOpp(r: {
     notes: r.notes,
     closeDate: r.closeDate?.toISOString() ?? null,
     cwNumber: r.cwNumber,
+    cwLink: r.cwLink,
     proposalCreatedAt: r.proposalCreatedAt?.toISOString() ?? null,
     rating: sanitizeRating(r.rating),
+    commissionTeam: Array.isArray(r.commissionTeam) ? (r.commissionTeam as CommissionTeamMember[]) : null,
+    parentOppId: r.parentOppId ?? null,
     createdAt: r.createdAt.toISOString(),
     updatedAt: r.updatedAt.toISOString(),
     company: r.company,
+    invoices: r.invoices,
+    children: r.children,
+  };
+}
+
+function toInvoice(r: {
+  id: string; opportunityId: string; invoiceNumber: string;
+  invoiceDate: Date; subtotalCents: number; salesTaxCents: number;
+  openBalanceCents: number; paymentStatus: string; paymentDate: Date | null;
+  appliesToOppId: string | null; notes: string; createdAt: Date; updatedAt: Date;
+}): SalesOppInvoice {
+  return {
+    id: r.id,
+    opportunityId: r.opportunityId,
+    invoiceNumber: r.invoiceNumber,
+    invoiceDate: r.invoiceDate.toISOString(),
+    subtotalCents: r.subtotalCents,
+    salesTaxCents: r.salesTaxCents,
+    openBalanceCents: r.openBalanceCents,
+    paymentStatus: r.paymentStatus as OppInvoiceStatus,
+    paymentDate: r.paymentDate?.toISOString() ?? null,
+    appliesToOppId: r.appliesToOppId,
+    notes: r.notes,
+    createdAt: r.createdAt.toISOString(),
+    updatedAt: r.updatedAt.toISOString(),
   };
 }
 
@@ -194,6 +226,7 @@ export async function upsertSalesOpportunity(
     notes: data.notes,
     closeDate: data.closeDate ? new Date(data.closeDate) : null,
     cwNumber: data.cwNumber ?? null,
+    cwLink: data.cwLink ?? null,
     proposalCreatedAt: data.proposalCreatedAt ? new Date(data.proposalCreatedAt) : null,
     rating: data.rating ?? null,
   };
@@ -211,10 +244,8 @@ export async function upsertSalesOpportunity(
           name: payload.name,
           value: payload.value,
           closeDate: payload.closeDate,
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          ...(payload.proposalCreatedAt !== undefined ? { proposalCreatedAt: payload.proposalCreatedAt } as any : {}),
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          ...(payload.rating !== undefined ? { rating: payload.rating } as any : {}),
+          proposalCreatedAt: payload.proposalCreatedAt,
+          rating: payload.rating,
         },
       });
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -336,4 +367,158 @@ interface ActivitySummary {
   totalActivities: number;
   byType: Record<string, number>;
   byPerson: Record<string, number>;
+}
+
+// ─── Opportunity Comments ─────────────────────────────────────────────────────
+
+function toOppComment(r: {
+  id: string; opportunityId: string; userId: string | null; userName: string;
+  message: string; richContent: unknown; createdAt: Date; updatedAt: Date;
+}): SalesOppComment {
+  return {
+    id: r.id,
+    opportunityId: r.opportunityId,
+    userId: r.userId,
+    userName: r.userName,
+    message: r.message,
+    richContent: r.richContent ?? null,
+    createdAt: r.createdAt.toISOString(),
+    updatedAt: r.updatedAt.toISOString(),
+  };
+}
+
+export async function getOppComments(opportunityId: string): Promise<SalesOppComment[]> {
+  const rows = await db.salesOppComment.findMany({
+    where: { opportunityId },
+    orderBy: { createdAt: "desc" },
+  });
+  return rows.map(toOppComment);
+}
+
+export async function addOppComment(
+  opportunityId: string,
+  userId: string | null,
+  userName: string,
+  message: string,
+  richContentJson?: string,
+): Promise<SalesOppComment> {
+  const row = await db.salesOppComment.create({
+    data: {
+      opportunityId,
+      userId,
+      userName,
+      message,
+      richContent: richContentJson ? JSON.parse(richContentJson) : undefined,
+    },
+  });
+  return toOppComment(row);
+}
+
+export async function updateOppComment(
+  id: string,
+  message: string,
+  richContentJson?: string,
+): Promise<void> {
+  await db.salesOppComment.update({
+    where: { id },
+    data: {
+      message,
+      richContent: richContentJson ? JSON.parse(richContentJson) : undefined,
+    },
+  });
+}
+
+export async function deleteOppComment(id: string): Promise<void> {
+  await db.salesOppComment.delete({ where: { id } });
+}
+
+// ─── Opp Invoices ─────────────────────────────────────────────────────────────
+
+export async function getOppInvoices(opportunityId: string): Promise<SalesOppInvoice[]> {
+  const rows = await db.salesOppInvoice.findMany({
+    where: { opportunityId },
+    orderBy: { invoiceDate: "asc" },
+  });
+  return rows.map(toInvoice);
+}
+
+export async function upsertOppInvoice(data: {
+  id?: string;
+  opportunityId: string;
+  invoiceNumber: string;
+  invoiceDate: string;
+  subtotalCents: number;
+  salesTaxCents: number;
+  openBalanceCents: number;
+  paymentStatus: OppInvoiceStatus;
+  paymentDate: string | null;
+  appliesToOppId: string | null;
+  notes: string;
+}): Promise<SalesOppInvoice> {
+  const payload = {
+    opportunityId: data.opportunityId,
+    invoiceNumber: data.invoiceNumber,
+    invoiceDate: new Date(data.invoiceDate),
+    subtotalCents: data.subtotalCents,
+    salesTaxCents: data.salesTaxCents,
+    openBalanceCents: data.openBalanceCents,
+    paymentStatus: data.paymentStatus,
+    paymentDate: data.paymentDate ? new Date(data.paymentDate) : null,
+    appliesToOppId: data.appliesToOppId,
+    notes: data.notes,
+  };
+  const row = data.id
+    ? await db.salesOppInvoice.update({ where: { id: data.id }, data: payload })
+    : await db.salesOppInvoice.create({ data: payload });
+  return toInvoice(row);
+}
+
+export async function deleteOppInvoice(id: string): Promise<void> {
+  await db.salesOppInvoice.delete({ where: { id } });
+}
+
+// ─── Commission Team ──────────────────────────────────────────────────────────
+
+export async function updateOppCommissionTeam(
+  opportunityId: string,
+  team: CommissionTeamMember[],
+): Promise<void> {
+  await db.salesOpportunity.update({
+    where: { id: opportunityId },
+    data: { commissionTeam: team as object[] },
+  });
+}
+
+// ─── Commission Statement Data ────────────────────────────────────────────────
+
+export async function getWonOppsWithInvoices(): Promise<
+  (SalesOpportunity & { invoices: SalesOppInvoice[]; children: SalesOpportunity[] })[]
+> {
+  const rows = await db.salesOpportunity.findMany({
+    where: { stage: "ClosedWon", parentOppId: null },
+    orderBy: { updatedAt: "desc" },
+    include: {
+      invoices: { orderBy: { invoiceDate: "asc" } },
+      children: {
+        include: { invoices: { orderBy: { invoiceDate: "asc" } } },
+      },
+      company: { select: { id: true, name: true, domain: true } },
+    },
+  });
+
+  return rows.map((r) => ({
+    ...toOpp({
+      ...r,
+      invoices: r.invoices.map(toInvoice),
+      children: r.children.map((c) => toOpp({
+        ...c,
+        invoices: c.invoices.map(toInvoice),
+      })),
+    }),
+    invoices: r.invoices.map(toInvoice),
+    children: r.children.map((c) => toOpp({
+      ...c,
+      invoices: c.invoices.map(toInvoice),
+    })) as SalesOpportunity[],
+  })) as (SalesOpportunity & { invoices: SalesOppInvoice[]; children: SalesOpportunity[] })[];
 }

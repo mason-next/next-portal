@@ -1,5 +1,5 @@
 import { calcFinancials, fmtUSD, fmtPct } from "@/modules/deal-desk/lib/financial-calc";
-import type { DealDeskQuote } from "@/types/deal-desk";
+import type { DealDeskQuote, ProjectType } from "@/types/deal-desk";
 
 interface KpiCardsProps {
   quotes: DealDeskQuote[];
@@ -12,7 +12,7 @@ export function KpiCards({ quotes }: KpiCardsProps) {
   let totalCommCents = 0;
 
   for (const q of quotes) {
-    const f = calcFinancials(q.categories);
+    const f = calcFinancials(q.categories, q.projectType as ProjectType);
     totalRevCents += f.revenueCents;
     totalCostCents += f.costCents;
     totalGPCents += f.grossProfitCents;

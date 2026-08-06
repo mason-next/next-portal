@@ -43,6 +43,31 @@ export interface SalesCompany {
   opportunities?: SalesOpportunity[];
 }
 
+export interface CommissionTeamMember {
+  userId: string | null;
+  name: string;
+  role: "director" | "bd" | "de" | "custom";
+  rateBps: number;
+}
+
+export type OppInvoiceStatus = "Outstanding" | "Paid";
+
+export interface SalesOppInvoice {
+  id: string;
+  opportunityId: string;
+  invoiceNumber: string;
+  invoiceDate: string;
+  subtotalCents: number;
+  salesTaxCents: number;
+  openBalanceCents: number;
+  paymentStatus: OppInvoiceStatus;
+  paymentDate: string | null;
+  appliesToOppId: string | null;
+  notes: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
 export interface SalesOpportunity {
   id: string;
   companyId: string;
@@ -54,11 +79,27 @@ export interface SalesOpportunity {
   notes: string;
   closeDate: string | null;
   cwNumber: string | null;
+  cwLink: string | null;
   proposalCreatedAt: string | null;
   rating: ProposalRating | null;
+  commissionTeam?: CommissionTeamMember[] | null;
+  parentOppId?: string | null;
+  invoices?: SalesOppInvoice[];
+  children?: SalesOpportunity[];
   createdAt: string;
   updatedAt: string;
   company?: Pick<SalesCompany, "id" | "name" | "domain">;
+}
+
+export interface SalesOppComment {
+  id: string;
+  opportunityId: string;
+  userId: string | null;
+  userName: string;
+  message: string;
+  richContent: unknown | null;
+  createdAt: string;
+  updatedAt: string;
 }
 
 export interface SalesActivity {
