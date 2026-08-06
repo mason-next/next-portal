@@ -103,6 +103,23 @@ function SortIcon({ active, dir }: { active: boolean; dir: SortDir }) {
   );
 }
 
+function Th({ label, col, sortKey, sortDir, onSort }: {
+  label: string; col: SortKey; sortKey: SortKey; sortDir: SortDir; onSort: (key: SortKey) => void;
+}) {
+  return (
+    <th
+      scope="col"
+      onClick={() => onSort(col)}
+      className="px-3 py-2 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wide cursor-pointer select-none hover:text-foreground whitespace-nowrap"
+    >
+      <span className="inline-flex items-center gap-1">
+        {label}
+        <SortIcon active={sortKey === col} dir={sortDir} />
+      </span>
+    </th>
+  );
+}
+
 // ── main component ────────────────────────────────────────────────────────────
 
 export interface OpportunityTableProps {
@@ -248,7 +265,7 @@ export function OpportunityTable({
   function toggleQuickFilter(qf: QuickFilter) {
     setQuickFilters((prev) => {
       const next = new Set(prev);
-      next.has(qf) ? next.delete(qf) : next.add(qf);
+      if (next.has(qf)) next.delete(qf); else next.add(qf);
       return next;
     });
   }
@@ -257,17 +274,8 @@ export function OpportunityTable({
 
   const totalPipeline = sorted.filter((r) => ACTIVE_STAGES.has(r.opp.stage)).reduce((s, r) => s + (r.opp.value ?? 0), 0);
 
-  const Th = ({ label, col }: { label: string; col: SortKey }) => (
-    <th
-      scope="col"
-      onClick={() => handleSort(col)}
-      className="px-3 py-2 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wide cursor-pointer select-none hover:text-foreground whitespace-nowrap"
-    >
-      <span className="inline-flex items-center gap-1">
-        {label}
-        <SortIcon active={sortKey === col} dir={sortDir} />
-      </span>
-    </th>
+  const th = (label: string, col: SortKey) => (
+    <Th label={label} col={col} sortKey={sortKey} sortDir={sortDir} onSort={handleSort} />
   );
 
   return (
@@ -371,15 +379,15 @@ export function OpportunityTable({
           <table className="w-full text-sm">
             <thead className="border-b bg-muted/30">
               <tr>
-                <Th label="Opportunity" col="name" />
-                <Th label="Company" col="company" />
-                {isManagement && <Th label="Rep" col="rep" />}
-                <Th label="Rating" col="rating" />
-                <Th label="Age" col="age" />
-                <Th label="Created" col="createdAt" />
-                <Th label="Close Date" col="closeDate" />
-                <Th label="Value" col="value" />
-                <Th label="Stage" col="stage" />
+                {th("Opportunity", "name")}
+                {th("Company", "company")}
+                {isManagement && th("Rep", "rep")}
+                {th("Rating", "rating")}
+                {th("Age", "age")}
+                {th("Created", "createdAt")}
+                {th("Close Date", "closeDate")}
+                {th("Value", "value")}
+                {th("Stage", "stage")}
                 <th scope="col" className="px-3 py-2 w-16" />
               </tr>
             </thead>
