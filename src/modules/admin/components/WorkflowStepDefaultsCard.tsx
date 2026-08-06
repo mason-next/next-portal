@@ -6,18 +6,11 @@ import {
   getWorkflowStepDefaults,
   setWorkflowStepDefaults,
 } from "@/lib/data/system-defaults";
-import { WORKFLOW_STEP_TEMPLATE } from "@/modules/project-command-center/lib/workflow-steps";
+import { WORKFLOW_STEP_TEMPLATE, SECTION_LABEL } from "@/modules/project-command-center/lib/workflow-steps";
 import { AssigneeTargetSelector } from "@/modules/admin/components/AssigneeTargetSelector";
 import type { AssigneeTarget, WorkflowStepDefaults } from "@/lib/data/system-defaults";
 
-const SECTION_LABELS: Record<string, string> = {
-  setup: "Setup",
-  engineering: "Engineering",
-  procurement: "Procurement",
-  implementation: "Implementation",
-  closeout: "Closeout",
-  serviceWarranty: "Service & Warranty",
-};
+const SECTION_LABELS: Record<string, string> = SECTION_LABEL;
 
 const PROJECT_ROLE_LABELS: Record<string, string> = {
   seniorInsideId: "Senior Inside",

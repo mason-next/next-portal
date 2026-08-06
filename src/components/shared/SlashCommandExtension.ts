@@ -13,6 +13,8 @@ export type SlashCommandId = "status" | "task";
 
 export interface SlashCommandOptions {
   onCommandSelect: (cmd: SlashCommandId) => void;
+  /** Subset of commands to show. Defaults to all SLASH_COMMANDS when omitted. */
+  commands?: SlashCommandItem[];
 }
 
 // Mirrors the buildSuggestionRender pattern in RichCommentEditor, typed for SlashCommandList.
@@ -72,9 +74,10 @@ export const SlashCommandExtension = Extension.create<SlashCommandOptions>({
   },
 
   addProseMirrorPlugins() {
-    // Capture into a local variable so the Suggestion closure always reads the latest
-    // callback without needing to re-create the ProseMirror plugin on each render.
+    // Capture into local variables so the Suggestion closure always reads the latest
+    // values without needing to re-create the ProseMirror plugin on each render.
     const onCommandSelect = this.options.onCommandSelect;
+    const commands = this.options.commands ?? SLASH_COMMANDS;
 
     return [
       Suggestion<SlashCommandItem>({
@@ -86,9 +89,9 @@ export const SlashCommandExtension = Extension.create<SlashCommandOptions>({
           onCommandSelect(props.id as SlashCommandId);
         },
         items({ query }) {
-          if (!query) return SLASH_COMMANDS;
+          if (!query) return commands;
           const term = query.toLowerCase();
-          return SLASH_COMMANDS.filter((cmd) => cmd.label.toLowerCase().includes(term));
+          return commands.filter((cmd) => cmd.label.toLowerCase().includes(term));
         },
         render: buildSlashSuggestionRender,
       }),

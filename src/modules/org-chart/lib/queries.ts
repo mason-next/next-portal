@@ -1,5 +1,6 @@
 import { db } from "@/lib/db";
 import type {
+  OrgDivision,
   OrgDepartment,
   OrgLocation,
   OrgChartVersion,
@@ -9,6 +10,8 @@ import type {
   OrgUserCertification,
   OrgSuccessor,
   OrgPositionRelationship,
+  OrgPositionLayout,
+  OrgDeptLayout,
 } from "./types";
 
 // ─── Serialization helpers ────────────────────────────────────────────────────
@@ -57,10 +60,10 @@ export async function getOrCreateDefaultVersion(): Promise<OrgChartVersion> {
   };
 }
 
-// ─── Departments ──────────────────────────────────────────────────────────────
+// ─── Divisions ────────────────────────────────────────────────────────────────
 
-export async function getOrgDepartments(): Promise<OrgDepartment[]> {
-  const rows = await db.orgDepartment.findMany({
+export async function getOrgDivisions(): Promise<OrgDivision[]> {
+  const rows = await db.orgDivision.findMany({
     orderBy: [
       { sortOrder: { sort: "asc", nulls: "last" } },
       { name: "asc" },
@@ -68,6 +71,31 @@ export async function getOrgDepartments(): Promise<OrgDepartment[]> {
   });
   return rows.map((r) => ({
     ...r,
+    createdAt: r.createdAt.toISOString(),
+    updatedAt: r.updatedAt.toISOString(),
+  }));
+}
+
+// ─── Departments ──────────────────────────────────────────────────────────────
+
+export async function getOrgDepartments(): Promise<OrgDepartment[]> {
+  const rows = await db.orgDepartment.findMany({
+    include: { division: true },
+    orderBy: [
+      { sortOrder: { sort: "asc", nulls: "last" } },
+      { name: "asc" },
+    ],
+  });
+  return rows.map((r) => ({
+    ...r,
+    divisionId: r.divisionId ?? null,
+    division: r.division
+      ? {
+          ...r.division,
+          createdAt: r.division.createdAt.toISOString(),
+          updatedAt: r.division.updatedAt.toISOString(),
+        }
+      : null,
     createdAt: r.createdAt.toISOString(),
     updatedAt: r.updatedAt.toISOString(),
   }));
@@ -162,6 +190,8 @@ export async function getOrgPositions(versionId?: string, isAdmin = false): Prom
     department: r.department
       ? {
           ...r.department,
+          divisionId: r.department.divisionId ?? null,
+          division: null,
           createdAt: r.department.createdAt.toISOString(),
           updatedAt: r.department.updatedAt.toISOString(),
         }
@@ -286,6 +316,44 @@ export async function getOrgUserCertifications(): Promise<OrgUserCertification[]
       updatedAt: r.certification.updatedAt.toISOString(),
     },
     user: userMap.get(r.userId) ?? null,
+  }));
+}
+
+// ─── Position layouts ─────────────────────────────────────────────────────────
+
+export async function getOrgPositionLayouts(versionId: string): Promise<OrgPositionLayout[]> {
+  const rows = await db.orgPositionLayout.findMany({
+    where: { versionId },
+  });
+  return rows.map((r) => ({
+    id: r.id,
+    positionId: r.positionId,
+    versionId: r.versionId,
+    viewType: r.viewType,
+    layoutX: r.layoutX,
+    layoutY: r.layoutY,
+    createdAt: r.createdAt.toISOString(),
+    updatedAt: r.updatedAt.toISOString(),
+  }));
+}
+
+// ─── Dept group layouts ───────────────────────────────────────────────────────
+
+export async function getOrgDeptLayouts(versionId: string): Promise<OrgDeptLayout[]> {
+  const rows = await db.orgDeptLayout.findMany({
+    where: { versionId },
+  });
+  return rows.map((r) => ({
+    id: r.id,
+    deptId: r.deptId,
+    versionId: r.versionId,
+    viewType: r.viewType,
+    layoutX: r.layoutX,
+    layoutY: r.layoutY,
+    layoutW: r.layoutW,
+    layoutH: r.layoutH,
+    createdAt: r.createdAt.toISOString(),
+    updatedAt: r.updatedAt.toISOString(),
   }));
 }
 

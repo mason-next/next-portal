@@ -29,23 +29,47 @@ export function RichCommentView({
   return (
     <>
       {(doc.content ?? []).map((node, i) => renderBlock(node, users, `b${i}`))}
-      {attachments && attachments.length > 0 && (
-        <div className="mt-2 flex flex-wrap gap-1.5">
-          {attachments.map((a, i) => (
-            <a
-              key={i}
-              href={`/api/comments/serve/${encodeURIComponent(a.storagePath)}`}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="flex items-center gap-1.5 rounded-md border border-border bg-muted/40 px-2 py-1 text-xs text-foreground hover:bg-muted transition-colors"
-              title={`Download ${a.fileName}`}
-            >
-              <FileText className="size-3 shrink-0 text-muted-foreground" />
-              <span className="max-w-[180px] truncate font-medium">{a.fileName}</span>
-            </a>
-          ))}
-        </div>
-      )}
+      {attachments && attachments.length > 0 && (() => {
+        const images = attachments.filter((a) => a.mimeType.startsWith("image/"));
+        const files  = attachments.filter((a) => !a.mimeType.startsWith("image/"));
+        return (
+          <>
+            {images.length > 0 && (
+              <div className="mt-2 flex flex-wrap gap-1.5">
+                {images.map((a, i) => {
+                  const url = `/api/comments/serve/${encodeURIComponent(a.storagePath)}`;
+                  return (
+                    <a key={i} href={url} target="_blank" rel="noopener noreferrer" title={a.fileName}>
+                      <img
+                        src={url}
+                        alt={a.fileName}
+                        className="h-24 max-w-[200px] rounded-md border border-border object-cover hover:opacity-90 transition-opacity"
+                      />
+                    </a>
+                  );
+                })}
+              </div>
+            )}
+            {files.length > 0 && (
+              <div className="mt-2 flex flex-wrap gap-1.5">
+                {files.map((a, i) => (
+                  <a
+                    key={i}
+                    href={`/api/comments/serve/${encodeURIComponent(a.storagePath)}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex items-center gap-1.5 rounded-md border border-border bg-muted/40 px-2 py-1 text-xs text-foreground hover:bg-muted transition-colors"
+                    title={`Download ${a.fileName}`}
+                  >
+                    <FileText className="size-3 shrink-0 text-muted-foreground" />
+                    <span className="max-w-[180px] truncate font-medium">{a.fileName}</span>
+                  </a>
+                ))}
+              </div>
+            )}
+          </>
+        );
+      })()}
     </>
   );
 }

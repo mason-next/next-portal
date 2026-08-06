@@ -2,41 +2,34 @@
 
 import { useSession } from "@/lib/auth/client";
 import { useViewAs } from "@/lib/view-as/ViewAsContext";
-import type { AccountType } from "@/types/user";
+import { usePermissions } from "@/lib/PermissionsContext";
 
-export interface PreviewUser {
-  name: string;
-  accountType: AccountType;
-}
-
+/**
+ * Provides the effective Deal Desk user context.
+ *
+ * isManagement reflects the user's salesDealDesk module permission level
+ * (administrator = can see all records). In View As mode, both the identity
+ * and permission level reflect the viewed user.
+ *
+ * The old localStorage-based Management View preview has been removed.
+ * Use the platform-wide View As selector to see the Deal Desk as another user.
+ */
 export function useDealDeskUser() {
   const session = useSession();
   const { viewAsUser, isViewAsMode } = useViewAs();
+  const { getLevel } = usePermissions();
 
-  const actuallyManagement =
-    session.roleTypes.includes("Administrator") ||
-    session.roleTypes.includes("Management") ||
-    session.roleTypes.includes("Sales");
-
-  // When global ViewAs is active, scope data to the viewed user
-  const isManagement = actuallyManagement && !isViewAsMode;
+  const isManagement = getLevel("salesDealDesk") === "administrator";
   const userName = isViewAsMode ? (viewAsUser?.name ?? session.name) : session.name;
 
   return {
     userName,
     isManagement,
-    actuallyManagement,
-    previewAsSalesperson: isViewAsMode,
-    previewUser: viewAsUser
-      ? {
-          name: viewAsUser.name,
-          accountType: (viewAsUser.roleTypes.includes("Administrator")
-            ? "Administrator"
-            : "Member") as AccountType,
-        }
-      : null,
-    // no-ops — ViewAs is now handled globally via the header
-    setPreviewAs: (_user: PreviewUser | null) => {},
+    // Legacy aliases kept for backward compatibility — the preview concept is gone.
+    actuallyManagement: isManagement,
+    previewAsSalesperson: false as const,
+    previewUser: null as null,
+    setPreviewAs: () => {},
     togglePreview: () => {},
   };
 }

@@ -1,7 +1,7 @@
 "use client";
 
-import { useState } from "react";
-import { Plus, Search, Building2, MapPin, Pencil } from "lucide-react";
+import { useMemo, useState } from "react";
+import { Plus, Search, Building2, MapPin, Pencil, Users } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { StatusBadge } from "@/components/shared/StatusBadge";
 import { UserAvatarImage } from "@/components/shared/AppShell/UserAvatarImage";
@@ -26,21 +26,58 @@ interface PositionListProps {
 }
 
 export function PositionList({ positions, onAdd, onEdit, isAdmin = false }: PositionListProps) {
-  const [search, setSearch] = useState("");
+  const [search,       setSearch]       = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
+  const [deptFilter,   setDeptFilter]   = useState("all");
+  const [locFilter,    setLocFilter]    = useState("all");
+  const [vacantOnly,   setVacantOnly]   = useState(false);
+
+  // Derive unique departments and locations from position data (only those that appear)
+  const departments = useMemo(() => {
+    const seen = new Map<string, string>();
+    for (const p of positions) {
+      if (p.department) seen.set(p.department.id, p.department.name);
+    }
+    return [...seen.entries()].sort((a, b) => a[1].localeCompare(b[1]));
+  }, [positions]);
+
+  const locations = useMemo(() => {
+    const seen = new Map<string, string>();
+    for (const p of positions) {
+      if (p.location) seen.set(p.location.id, p.location.name);
+    }
+    return [...seen.entries()].sort((a, b) => a[1].localeCompare(b[1]));
+  }, [positions]);
 
   const filtered = positions.filter((p) => {
+    const q = search.toLowerCase();
+    const primary = p.assignments.find((a) => a.isActive && a.assignmentType === "primary");
+
     const matchSearch =
       !search ||
-      p.title.toLowerCase().includes(search.toLowerCase()) ||
-      p.department?.name.toLowerCase().includes(search.toLowerCase()) ||
-      p.location?.name.toLowerCase().includes(search.toLowerCase()) ||
-      p.assignments.some((a) =>
-        a.user?.name.toLowerCase().includes(search.toLowerCase())
-      );
+      p.title.toLowerCase().includes(q) ||
+      p.department?.name.toLowerCase().includes(q) ||
+      p.location?.name.toLowerCase().includes(q) ||
+      primary?.user?.name.toLowerCase().includes(q);
+
     const matchStatus = statusFilter === "all" || p.status === statusFilter;
-    return matchSearch && matchStatus;
+    const matchDept   = deptFilter   === "all" || p.department?.id === deptFilter;
+    const matchLoc    = locFilter    === "all" || p.location?.id   === locFilter;
+    const matchVacant = !vacantOnly  || !primary?.user;
+
+    return matchSearch && matchStatus && matchDept && matchLoc && matchVacant;
   });
+
+  const hasActiveFilters =
+    search || statusFilter !== "all" || deptFilter !== "all" || locFilter !== "all" || vacantOnly;
+
+  function clearFilters() {
+    setSearch("");
+    setStatusFilter("all");
+    setDeptFilter("all");
+    setLocFilter("all");
+    setVacantOnly(false);
+  }
 
   return (
     <div className="space-y-4">
@@ -56,6 +93,7 @@ export function PositionList({ positions, onAdd, onEdit, isAdmin = false }: Posi
             className="w-full rounded-md border bg-background pl-8 pr-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/40"
           />
         </div>
+
         <select
           value={statusFilter}
           onChange={(e) => setStatusFilter(e.target.value)}
@@ -67,6 +105,54 @@ export function PositionList({ positions, onAdd, onEdit, isAdmin = false }: Posi
           <option value="planned">Planned</option>
           <option value="inactive">Inactive</option>
         </select>
+
+        {departments.length > 0 && (
+          <select
+            value={deptFilter}
+            onChange={(e) => setDeptFilter(e.target.value)}
+            className="rounded-md border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/40"
+          >
+            <option value="all">All Departments</option>
+            {departments.map(([id, name]) => (
+              <option key={id} value={id}>{name}</option>
+            ))}
+          </select>
+        )}
+
+        {locations.length > 0 && (
+          <select
+            value={locFilter}
+            onChange={(e) => setLocFilter(e.target.value)}
+            className="rounded-md border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/40"
+          >
+            <option value="all">All Locations</option>
+            {locations.map(([id, name]) => (
+              <option key={id} value={id}>{name}</option>
+            ))}
+          </select>
+        )}
+
+        <label className="flex items-center gap-2 cursor-pointer select-none text-sm text-muted-foreground">
+          <input
+            type="checkbox"
+            checked={vacantOnly}
+            onChange={(e) => setVacantOnly(e.target.checked)}
+            className="rounded"
+          />
+          <Users className="size-3.5" />
+          Vacant only
+        </label>
+
+        {hasActiveFilters && (
+          <button
+            type="button"
+            onClick={clearFilters}
+            className="text-xs text-muted-foreground hover:text-foreground transition-colors underline underline-offset-2"
+          >
+            Clear filters
+          </button>
+        )}
+
         {isAdmin && onAdd && (
           <Button size="sm" onClick={onAdd}>
             <Plus className="mr-1.5 size-3.5" />
@@ -152,7 +238,7 @@ export function PositionList({ positions, onAdd, onEdit, isAdmin = false }: Posi
           </table>
           <div className="border-t bg-muted/20 px-4 py-2 text-xs text-muted-foreground">
             {filtered.length} position{filtered.length !== 1 ? "s" : ""}
-            {filtered.length !== positions.length && ` (${positions.length} total)`}
+            {filtered.length !== positions.length && ` of ${positions.length} total`}
           </div>
         </div>
       )}

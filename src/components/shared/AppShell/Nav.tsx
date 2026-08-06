@@ -14,6 +14,7 @@ import {
 import { cn } from "@/lib/utils";
 import { usePermissions } from "@/lib/PermissionsContext";
 import type { PermissionFeature } from "@/lib/permissions";
+import type { ModuleKey } from "@/lib/module-permissions";
 
 const OPERATIONS_ITEMS: { href: string; label: string; feature: PermissionFeature }[] = [
   { href: "/operations", label: "Overview",  feature: "projects" },
@@ -21,12 +22,12 @@ const OPERATIONS_ITEMS: { href: string; label: string; feature: PermissionFeatur
   { href: "/tasks",      label: "Tasks",     feature: "tasks" },
 ];
 
-const SALES_ITEMS = [
-  { href: "/sales",                                  label: "Overview" },
-  { href: "/sales/activity",                         label: "Activity Log" },
-  { href: "/sales/deal-desk",                        label: "Deal Desk" },
-  { href: "/sales/deal-desk/commission-statement",   label: "Commission Statement" },
-  { href: "/sales/quotes",                           label: "Quote Portal" },
+const SALES_ITEMS: { href: string; label: string; module: ModuleKey }[] = [
+  { href: "/sales",                                label: "Overview",             module: "sales" },
+  { href: "/sales/activity",                       label: "Activity Log",         module: "salesActivity" },
+  { href: "/sales/deal-desk",                      label: "Deal Desk",            module: "salesDealDesk" },
+  { href: "/sales/deal-desk/commission-statement", label: "Commission Statement", module: "salesDealDesk" },
+  { href: "/sales/quotes",                         label: "Quote Portal",         module: "salesQuotes" },
 ];
 
 const TOOLS_ITEMS = [
@@ -40,7 +41,7 @@ export function Nav() {
   const pathname = usePathname();
   const [open, setOpen] = useState<MenuKey | null>(null);
   const navRef = useRef<HTMLDivElement>(null);
-  const { hasAccess } = usePermissions();
+  const { hasAccess, getLevel } = usePermissions();
 
   const opsActive   = pathname.startsWith("/projects") || pathname.startsWith("/tasks") || pathname.startsWith("/operations");
   const salesActive = pathname.startsWith("/sales") || pathname.startsWith("/deal-desk");
@@ -61,6 +62,7 @@ export function Nav() {
   }
 
   const visibleOpsItems = OPERATIONS_ITEMS.filter(({ feature }) => hasAccess(feature));
+  const visibleSalesItems = SALES_ITEMS.filter(({ module }) => getLevel(module) !== "none");
 
   return (
     <nav ref={navRef} className="flex items-center gap-1">
@@ -99,8 +101,8 @@ export function Nav() {
         </Dropdown>
       )}
 
-      {/* Sales dropdown */}
-      {hasAccess("sales") && (
+      {/* Sales dropdown — shown if at least one sub-item is accessible */}
+      {visibleSalesItems.length > 0 && (
         <Dropdown
           label="Sales"
           icon={<TrendingUp className="size-4" />}
@@ -108,7 +110,7 @@ export function Nav() {
           isOpen={open === "sales"}
           onToggle={() => toggle("sales")}
         >
-          {SALES_ITEMS.map(({ href, label }) => (
+          {visibleSalesItems.map(({ href, label }) => (
             <DropdownLink
               key={href}
               href={href}

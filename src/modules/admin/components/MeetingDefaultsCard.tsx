@@ -11,12 +11,12 @@ import type { AssigneeTarget, MeetingDefaults, MeetingType } from "@/lib/data/sy
 
 const MEETING_LABELS: Record<MeetingType, string> = {
   "internal-kickoff": "Internal Kickoff",
-  "technical-kickoff": "Technical Kickoff",
+  "technical-kickoff": "Customer Kickoff",
 };
 
 const MEETING_DESCRIPTIONS: Record<MeetingType, string> = {
   "internal-kickoff": "Added to every Internal Kickoff invite alongside the project team.",
-  "technical-kickoff": "Added to every Technical Kickoff invite alongside the project team.",
+  "technical-kickoff": "Added to every Customer Kickoff invite alongside the project team.",
 };
 
 const MEETING_TYPES: MeetingType[] = ["internal-kickoff", "technical-kickoff"];

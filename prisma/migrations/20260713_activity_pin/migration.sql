@@ -1,0 +1,1 @@
+ALTER TABLE "project_activities" ADD COLUMN IF NOT EXISTS "pinned" BOOLEAN NOT NULL DEFAULT false;

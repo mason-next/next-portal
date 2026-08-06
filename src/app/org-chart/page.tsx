@@ -8,10 +8,13 @@ import {
   getOrgChartVersions,
   getOrgPositions,
   getOrgDepartments,
+  getOrgDivisions,
   getOrgLocations,
   getOrgChartStats,
   getOrgCertifications,
   getOrgUserCertifications,
+  getOrgPositionLayouts,
+  getOrgDeptLayouts,
 } from "@/modules/org-chart/lib/queries";
 import { getOrgChartFormSections } from "@/modules/org-chart/lib/form-settings";
 import { OrgChartDashboard } from "@/modules/org-chart/components/OrgChartDashboard";
@@ -39,15 +42,18 @@ export default async function OrgChartPage({ searchParams }: PageProps) {
   const selectedVersion =
     requestedId ? (versions.find((v) => v.id === requestedId) ?? defaultVersion) : defaultVersion;
 
-  const [positions, departments, locations, stats, certifications, userCertifications, formSections] =
+  const [positions, departments, divisions, locations, stats, certifications, userCertifications, formSections, layouts, deptLayouts] =
     await Promise.all([
       getOrgPositions(selectedVersion.id, isAdmin),
       getOrgDepartments(),
+      getOrgDivisions(),
       getOrgLocations(),
       getOrgChartStats(selectedVersion.id),
       isAdmin ? getOrgCertifications() : Promise.resolve([]),
       isAdmin ? getOrgUserCertifications() : Promise.resolve([]),
       getOrgChartFormSections(),
+      isAdmin ? getOrgPositionLayouts(selectedVersion.id) : Promise.resolve([]),
+      isAdmin ? getOrgDeptLayouts(selectedVersion.id) : Promise.resolve([]),
     ]);
 
   return (
@@ -56,12 +62,15 @@ export default async function OrgChartPage({ searchParams }: PageProps) {
       versions={versions}
       positions={positions}
       departments={departments}
+      divisions={divisions}
       locations={locations}
       stats={stats}
       certifications={certifications}
       userCertifications={userCertifications}
       isAdmin={isAdmin}
       formSections={formSections}
+      layouts={layouts}
+      deptLayouts={deptLayouts}
     />
   );
 }

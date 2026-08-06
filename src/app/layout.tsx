@@ -7,6 +7,7 @@ import { NotificationsProvider } from "@/modules/notifications/hooks/Notificatio
 import { PermissionsProvider } from "@/lib/PermissionsContext";
 import { SessionProvider } from "@/lib/auth/client";
 import { ViewAsProvider } from "@/lib/view-as/ViewAsContext";
+import { PresenceHeartbeat } from "@/lib/presence/PresenceHeartbeat";
 import { getServerSession } from "@/lib/auth/server";
 import "./globals.css";
 
@@ -60,6 +61,7 @@ export default async function RootLayout({
             <PermissionsProvider>
               <UsersProvider>
                 <NotificationsProvider>
+                  <PresenceHeartbeat />
                   <Header />
                   <ViewAsBanner />
                   <main className="flex-1 bg-muted/30">{children}</main>

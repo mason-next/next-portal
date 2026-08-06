@@ -150,9 +150,11 @@ export async function getSalesCompanies(ownerName?: string): Promise<SalesCompan
       },
     },
   });
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   return rows.map((r) => toCompany({
     ...r,
-    opportunities: r.opportunities.map(toOpp),
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    opportunities: r.opportunities.map((o) => toOpp(o as any)),
   }));
 }
 
@@ -246,14 +248,18 @@ export async function upsertSalesOpportunity(
           rating: payload.rating,
         },
       });
-      return toOpp(row);
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      return toOpp(row as any);
     }
   }
 
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const payloadAny = payload as any;
   const row = data.id
-    ? await db.salesOpportunity.update({ where: { id: data.id }, data: payload })
-    : await db.salesOpportunity.create({ data: payload });
-  return toOpp(row);
+    ? await db.salesOpportunity.update({ where: { id: data.id }, data: payloadAny })
+    : await db.salesOpportunity.create({ data: payloadAny });
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  return toOpp(row as any);
 }
 
 export async function deleteSalesOpportunity(id: string): Promise<void> {

@@ -13,6 +13,8 @@ import { TaskDrawer } from "./TaskDrawer";
 import { SeedTemplatesModal } from "./SeedTemplatesModal";
 import { useImplementationTasks } from "@/modules/implementation/hooks/useImplementationTasks";
 import { STEP_TASK_TEMPLATES } from "@/lib/data/task-template-config";
+import { useProjectContext } from "@/modules/project-command-center/hooks/ProjectContext";
+import { ROLE_NOT_NEEDED } from "@/lib/role-assignment";
 
 interface TaskListProps {
   projectId: string;
@@ -23,6 +25,22 @@ interface TaskListProps {
 export function TaskList({ projectId, users, availableSteps = [] }: TaskListProps) {
   const { tasks, isLoading, addTask, editTask, removeTask, refetch } =
     useImplementationTasks(projectId);
+
+  // Build project team IDs for @mention prioritization.
+  const { project } = useProjectContext();
+  const projectTeamIds = project
+    ? new Set(
+        [
+          project.solutionsExecutiveId,
+          project.solutionsEngineerId,
+          project.fieldProjectManagerId,
+          project.seniorInsideId,
+          project.insidePMId,
+          ...project.technicians.map((t) => t.userId),
+        ]
+          .filter((id): id is string => Boolean(id) && id !== ROLE_NOT_NEEDED)
+      )
+    : undefined;
   const [drawerTarget, setDrawerTarget] = useState<ImplementationTask | "new" | null>(null);
   const [drawerDefaultStepId, setDrawerDefaultStepId] = useState<string | null>(null);
   const [seedModalStep, setSeedModalStep] = useState<WorkflowStep | null>(null);
@@ -142,6 +160,7 @@ export function TaskList({ projectId, users, availableSteps = [] }: TaskListProp
           key={openTask_?.id ?? "new"}
           task={openTask_}
           users={users}
+          projectTeamIds={projectTeamIds}
           availableSteps={availableSteps}
           defaultWorkflowStepId={drawerDefaultStepId}
           allTasks={tasks ?? []}

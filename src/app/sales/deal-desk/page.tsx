@@ -12,7 +12,7 @@ import type { DealDeskQuote } from "@/types/deal-desk";
 
 export default function DealDeskPage() {
   const { quotes, isLoading, upsert, remove } = useDealDeskStore();
-  const { userName, isManagement, actuallyManagement } = useDealDeskUser();
+  const { userName, isManagement } = useDealDeskUser();
   const [showImport, setShowImport] = useState(false);
 
   // Salesperson view: only show quotes where the user is on the team
@@ -42,8 +42,16 @@ export default function DealDeskPage() {
           <p className="text-sm text-muted-foreground mt-0.5">Profitability, commissions & executive reporting</p>
         </div>
         <div className="flex items-center gap-3 flex-wrap">
+          <Link href="/sales/deal-desk/my-commissions">
+            <Button variant="outline">My Commissions</Button>
+          </Link>
+          {isManagement && (
+            <Link href="/sales/deal-desk/commission-report">
+              <Button variant="outline">Commission Report</Button>
+            </Link>
+          )}
           {/* Import is management only */}
-          {actuallyManagement && (
+          {isManagement && (
             <Button onClick={() => setShowImport(true)}>
               <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="mr-1.5">
                 <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>

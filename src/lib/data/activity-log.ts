@@ -23,6 +23,7 @@ export function toActivity(p: PrismaActivity): ProjectActivity {
     richContent: p.richContent != null ? (p.richContent as RichContent) : undefined,
     metadata: p.metadata != null ? (p.metadata as Record<string, unknown>) : undefined,
     tag: ((p.tag ?? "General") as ActivityTag),
+    pinned: (p as unknown as { pinned?: boolean }).pinned ?? false,
     createdAt: p.createdAt.toISOString(),
   };
 }

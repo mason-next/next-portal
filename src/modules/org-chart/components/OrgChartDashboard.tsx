@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useState } from "react";
-import { Plus, Network, List, Building2, MapPin, BarChart3, Award } from "lucide-react";
+import { Plus, Network, List, Building2, Layers, MapPin, BarChart3, Award } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -10,6 +10,7 @@ import { OrgChartCanvas } from "./OrgChartCanvas";
 import { PositionList } from "./PositionList";
 import { PositionForm } from "./PositionForm";
 import { DepartmentManager } from "./DepartmentManager";
+import { DivisionManager } from "./DivisionManager";
 import { LocationManager } from "./LocationManager";
 import { VersionSelector } from "./VersionSelector";
 import { ReportsPanel } from "./ReportsPanel";
@@ -18,18 +19,22 @@ import type {
   OrgChartVersion,
   OrgPosition,
   OrgDepartment,
+  OrgDivision,
   OrgLocation,
   OrgChartStats,
   OrgCertification,
   OrgUserCertification,
   OrgChartFormSections,
+  OrgPositionLayout,
+  OrgDeptLayout,
 } from "../lib/types";
 import { DEFAULT_FORM_SECTIONS } from "../lib/form-settings-constants";
 
-type Tab = "chart" | "positions" | "departments" | "locations" | "reports" | "certifications";
+type Tab = "chart" | "positions" | "divisions" | "departments" | "locations" | "reports" | "certifications";
 
 // Admin-only tabs are fully hidden from Members/Viewers — not just disabled.
 const ADMIN_TABS: { key: Tab; label: string; icon: React.ReactNode }[] = [
+  { key: "divisions",      label: "Divisions",      icon: <Layers    className="size-4" /> },
   { key: "departments",    label: "Departments",    icon: <Building2 className="size-4" /> },
   { key: "locations",      label: "Locations",      icon: <MapPin    className="size-4" /> },
   { key: "certifications", label: "Certifications", icon: <Award     className="size-4" /> },
@@ -47,12 +52,15 @@ interface OrgChartDashboardProps {
   versions: OrgChartVersion[];
   positions: OrgPosition[];
   departments: OrgDepartment[];
+  divisions: OrgDivision[];
   locations: OrgLocation[];
   stats: OrgChartStats;
   certifications: OrgCertification[];
   userCertifications: OrgUserCertification[];
   isAdmin: boolean;
   formSections?: OrgChartFormSections;
+  layouts?: OrgPositionLayout[];
+  deptLayouts?: OrgDeptLayout[];
 }
 
 export function OrgChartDashboard({
@@ -60,12 +68,15 @@ export function OrgChartDashboard({
   versions,
   positions,
   departments,
+  divisions,
   locations,
   stats,
   certifications,
   userCertifications,
   isAdmin,
   formSections = DEFAULT_FORM_SECTIONS,
+  layouts = [],
+  deptLayouts = [],
 }: OrgChartDashboardProps) {
   const router = useRouter();
   const [activeTab, setActiveTab] = useState<Tab>("chart");
@@ -156,6 +167,9 @@ export function OrgChartDashboard({
             <OrgChartCanvas
               positions={positions}
               departments={departments}
+              layouts={layouts}
+              deptLayouts={deptLayouts}
+              versionId={currentVersion.id}
               onEdit={isAdmin ? openEditPosition : undefined}
               onAdd={isAdmin ? openAddPosition : undefined}
               isAdmin={isAdmin}
@@ -172,8 +186,12 @@ export function OrgChartDashboard({
           />
         )}
 
+        {isAdmin && safeTab === "divisions" && (
+          <DivisionManager divisions={divisions} />
+        )}
+
         {isAdmin && safeTab === "departments" && (
-          <DepartmentManager departments={departments} />
+          <DepartmentManager departments={departments} divisions={divisions} />
         )}
 
         {isAdmin && safeTab === "locations" && (

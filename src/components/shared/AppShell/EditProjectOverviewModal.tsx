@@ -34,7 +34,6 @@ export function EditProjectOverviewModal({ project, onClose, onSaved }: EditProj
   const [targetCompletionDate, setTargetCompletionDate] = useState(
     project.targetCompletionDate ? project.targetCompletionDate.slice(0, 10) : ""
   );
-  const [connectwiseUrl, setConnectwiseUrl] = useState(project.connectwiseUrl ?? "");
   const [submitting, setSubmitting] = useState(false);
 
   async function handleSave() {
@@ -50,7 +49,6 @@ export function EditProjectOverviewModal({ project, onClose, onSaved }: EditProj
         solutionsExecutiveId,
         technicianNotNeeded,
         targetCompletionDate: targetCompletionDate || null,
-        connectwiseUrl: connectwiseUrl.trim() || null,
       }),
       setProjectTechnicians(
         project.id,
@@ -117,15 +115,6 @@ export function EditProjectOverviewModal({ project, onClose, onSaved }: EditProj
             className={FIELD_INPUT_CLASS}
             value={targetCompletionDate}
             onChange={(e) => setTargetCompletionDate(e.target.value)}
-          />
-        </Field>
-        <Field label="ConnectWise Project URL" fullWidth>
-          <input
-            type="url"
-            className={FIELD_INPUT_CLASS}
-            value={connectwiseUrl}
-            onChange={(e) => setConnectwiseUrl(e.target.value)}
-            placeholder="https://..."
           />
         </Field>
       </div>

@@ -41,6 +41,7 @@ function toActivity(p: PrismaActivity): ProjectActivity {
     metadata: p.metadata != null ? (p.metadata as Record<string, unknown>) : undefined,
     attachments: attachments.length > 0 ? attachments : undefined,
     tag: ((p.tag ?? "General") as ActivityTag),
+    pinned: (p as unknown as { pinned?: boolean }).pinned ?? false,
     createdAt: p.createdAt.toISOString(),
   };
 }
@@ -232,4 +233,11 @@ export async function updateProjectComment(
 export async function deleteProjectActivity(projectId: string, activityId: string): Promise<void> {
   // Cascade deletes in Postgres handle related Notification and CommentMention rows.
   await db.projectActivity.delete({ where: { id: activityId } });
+}
+
+export async function pinProjectActivity(activityId: string, pinned: boolean): Promise<void> {
+  await db.projectActivity.update({
+    where: { id: activityId },
+    data: { pinned } as Parameters<typeof db.projectActivity.update>[0]["data"],
+  });
 }

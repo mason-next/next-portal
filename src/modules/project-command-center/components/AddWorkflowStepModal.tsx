@@ -6,15 +6,9 @@ import { Modal } from "@/components/shared/Modal";
 import type { AddWorkflowStepInput } from "@/lib/data/workflow";
 import type { ProjectSectionKey, WorkflowStep } from "@/types/workflow";
 import { PROJECT_SECTION_KEYS } from "@/types/workflow";
+import { SECTION_LABEL } from "@/modules/project-command-center/lib/workflow-steps";
 
-const SECTION_LABELS: Record<ProjectSectionKey, string> = {
-  setup: "Setup",
-  engineering: "Engineering",
-  procurement: "Procurement",
-  implementation: "Implementation",
-  closeout: "Closeout",
-  serviceWarranty: "Service & Warranty",
-};
+const SECTION_LABELS: Record<ProjectSectionKey, string> = SECTION_LABEL;
 
 interface AddWorkflowStepModalProps {
   defaultSection?: ProjectSectionKey;

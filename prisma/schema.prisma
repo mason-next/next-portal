@@ -181,6 +181,7 @@ model User {
   emergencyContact String      @default("")
   adminNotes       String      @default("")
   bioDescription   String?     @map("bio_description")
+  lastActiveAt     DateTime?   @map("last_active_at")
   createdAt        DateTime    @default(now())
   updatedAt        DateTime    @updatedAt
 
@@ -217,7 +218,7 @@ model Customer {
 model Project {
   id                   String    @id
   name                 String
-  projectNumber        String    @unique
+  projectNumber        String
   // Denormalized for fast display — customerId is the normalized FK when set.
   customerName         String
   customerId           String?
@@ -257,6 +258,8 @@ model Project {
   implementationTasks  ImplementationTask[]
   technicians          ProjectTechnician[]
   meetingNotes         MeetingNote[]
+  ganttEntries         GanttEntry[]
+  ganttDependencies    GanttDependency[]
 
   @@map("projects")
 }
@@ -289,6 +292,7 @@ model WorkflowStep {
   weight           Float
   status           WorkflowStepStatus @default(NotStarted)
   ownerId          String?
+  startDate        DateTime?
   dueDate          DateTime?
   completedDate    DateTime?
   sortOrder        Int
@@ -304,6 +308,7 @@ model WorkflowStep {
   project             Project              @relation(fields: [projectId], references: [id], onDelete: Cascade)
   owner               User?                @relation("StepOwner", fields: [ownerId], references: [id], onDelete: SetNull)
   implementationTasks ImplementationTask[] @relation("TaskWorkflowStep")
+  ganttEntry          GanttEntry?
 
   @@unique([projectId, key])
   @@index([projectId, sortOrder])
@@ -326,6 +331,7 @@ model ProjectActivity {
   attachments  Json             @default("[]")
   // User-visible tag: "General" (default project comment) | "Status" (customer-facing status update)
   tag          String           @default("General")
+  pinned       Boolean          @default(false)
   createdAt    DateTime         @default(now())
 
   project         Project          @relation(fields: [projectId], references: [id], onDelete: Cascade)
@@ -616,6 +622,7 @@ model ImplementationTask {
   comments     ImplementationTaskComment[]
   assignees    ImplementationTaskAssignee[]
   workflowStep WorkflowStep? @relation("TaskWorkflowStep", fields: [workflowStepId], references: [id], onDelete: SetNull)
+  ganttEntry   GanttEntry?
 
   @@index([projectId, sortOrder])
   @@index([projectId, parentTaskId])
@@ -660,6 +667,53 @@ model ImplementationTaskAssignee {
 
   @@id([taskId, userId])
   @@map("implementation_task_assignees")
+}
+
+// ─── Gantt Schedule ───────────────────────────────────────────────────────────
+
+// Tracks which workflow items the user has added to the project Gantt schedule.
+// Exactly one of workflowStepId / taskId is set per entry.
+// Removing an entry only removes the scheduling representation; the underlying
+// workflow item (step or task) is not affected.
+model GanttEntry {
+  id              String   @id @default(cuid())
+  projectId       String
+  workflowStepId  String?  @unique
+  taskId          String?  @unique
+  customerVisible Boolean  @default(true)
+  sortOrder       Int      @default(0)
+  scheduleMode    String   @default("manual") // "manual" | "auto"
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  project          Project              @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  workflowStep     WorkflowStep?        @relation(fields: [workflowStepId], references: [id], onDelete: Cascade)
+  task             ImplementationTask?  @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  outgoingDeps     GanttDependency[]    @relation("DepFrom")
+  incomingDeps     GanttDependency[]    @relation("DepTo")
+
+  @@index([projectId])
+  @@map("gantt_entries")
+}
+
+// Directed dependency between two Gantt entries. type = "FS" | "SS" | "FF" | "SF".
+// lagDays > 0 = lag, < 0 = lead.
+model GanttDependency {
+  id          String   @id @default(cuid())
+  projectId   String
+  fromEntryId String
+  toEntryId   String
+  type        String   @default("FS")
+  lagDays     Int      @default(0)
+  createdAt   DateTime @default(now())
+
+  project   Project    @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  fromEntry GanttEntry @relation("DepFrom", fields: [fromEntryId], references: [id], onDelete: Cascade)
+  toEntry   GanttEntry @relation("DepTo",   fields: [toEntryId],   references: [id], onDelete: Cascade)
+
+  @@unique([fromEntryId, toEntryId])
+  @@index([projectId])
+  @@map("gantt_dependencies")
 }
 
 // ─── Task Templates ───────────────────────────────────────────────────────────
@@ -786,15 +840,15 @@ model SalesOpportunity {
   ownerName String   @default("")
   value     Int      @default(0)
   notes     String   @default("")
-  closeDate         DateTime?
-  cwNumber          String?
-  cwLink            String?
-  proposalCreatedAt DateTime?
-  rating            String?
-  commissionTeam    Json?
-  parentOppId       String?
-  createdAt         DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  closeDate          DateTime?
+  cwNumber           String?
+  cwLink             String?
+  proposalCreatedAt  DateTime?  @map("proposal_created_at")
+  rating             String?
+  commissionTeam     Json?
+  parentOppId        String?
+  createdAt          DateTime   @default(now())
+  updatedAt          DateTime   @updatedAt
 
   company    SalesCompany      @relation(fields: [companyId], references: [id], onDelete: Cascade)
   activities SalesActivity[]
@@ -932,7 +986,7 @@ model UserCertification {
 // All tables use the org_ prefix and are fully isolated.
 // Removal: drop all org_ tables and remove these models + the User backrelation.
 
-model OrgDepartment {
+model OrgDivision {
   id          String   @id @default(cuid())
   name        String
   description String?
@@ -942,7 +996,25 @@ model OrgDepartment {
   createdAt   DateTime @default(now()) @map("created_at")
   updatedAt   DateTime @updatedAt @map("updated_at")
 
-  positions OrgPosition[]
+  departments OrgDepartment[]
+
+  @@map("org_divisions")
+}
+
+model OrgDepartment {
+  id          String   @id @default(cuid())
+  name        String
+  description String?
+  color       String   @default("#6366f1")
+  status      String   @default("active")
+  sortOrder   Int?     @map("sort_order")
+  divisionId  String?  @map("division_id")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  division    OrgDivision?    @relation(fields: [divisionId], references: [id], onDelete: SetNull)
+  positions   OrgPosition[]
+  deptLayouts OrgDeptLayout[]
 
   @@map("org_departments")
 }
@@ -972,7 +1044,9 @@ model OrgChartVersion {
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
 
-  positions OrgPosition[]
+  positions       OrgPosition[]
+  positionLayouts OrgPositionLayout[]
+  deptLayouts     OrgDeptLayout[]
 
   @@map("org_chart_versions")
 }
@@ -1008,6 +1082,7 @@ model OrgPosition {
   successors        OrgSuccessor[]
   relationshipsFrom OrgPositionRelationship[]    @relation("RelationshipFrom")
   relationshipsTo   OrgPositionRelationship[]    @relation("RelationshipTo")
+  layouts           OrgPositionLayout[]
 
   @@map("org_positions")
 }
@@ -1188,3 +1263,39 @@ model License {
   @@map("licenses")
 }
 
+
+model OrgPositionLayout {
+  id         String   @id @default(cuid())
+  positionId String   @map("position_id")
+  versionId  String   @map("version_id")
+  viewType   String   @default("org_chart") @map("view_type")
+  layoutX    Float    @map("layout_x")
+  layoutY    Float    @map("layout_y")
+  createdAt  DateTime @default(now()) @map("created_at")
+  updatedAt  DateTime @updatedAt @map("updated_at")
+
+  position OrgPosition    @relation(fields: [positionId], references: [id], onDelete: Cascade)
+  version  OrgChartVersion @relation(fields: [versionId], references: [id], onDelete: Cascade)
+
+  @@unique([positionId, versionId, viewType])
+  @@map("org_position_layouts")
+}
+
+model OrgDeptLayout {
+  id        String   @id @default(cuid())
+  deptId    String   @map("dept_id")
+  versionId String   @map("version_id")
+  viewType  String   @default("org_chart") @map("view_type")
+  layoutX   Float    @map("layout_x")
+  layoutY   Float    @map("layout_y")
+  layoutW   Float    @map("layout_w")
+  layoutH   Float    @map("layout_h")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  dept    OrgDepartment   @relation(fields: [deptId],    references: [id], onDelete: Cascade)
+  version OrgChartVersion @relation(fields: [versionId], references: [id], onDelete: Cascade)
+
+  @@unique([deptId, versionId, viewType])
+  @@map("org_dept_layouts")
+}

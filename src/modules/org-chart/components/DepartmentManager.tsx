@@ -4,7 +4,7 @@ import { useState, useTransition } from "react";
 import { Plus, Pencil, Trash2, Check } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
-import type { OrgDepartment, CreateDepartmentInput } from "../lib/types";
+import type { OrgDepartment, OrgDivision, CreateDepartmentInput } from "../lib/types";
 import {
   createOrgDepartment,
   updateOrgDepartment,
@@ -45,26 +45,30 @@ function ColorPicker({
 
 interface DepartmentManagerProps {
   departments: OrgDepartment[];
+  divisions?: OrgDivision[];
 }
 
-export function DepartmentManager({ departments }: DepartmentManagerProps) {
+export function DepartmentManager({ departments, divisions = [] }: DepartmentManagerProps) {
   const [isPending, startTransition] = useTransition();
   const [editingId, setEditingId] = useState<string | null>(null);
   const [addingNew, setAddingNew] = useState(false);
 
-  const [newName,  setNewName]  = useState("");
-  const [newDesc,  setNewDesc]  = useState("");
-  const [newColor, setNewColor] = useState(PALETTE[0]);
+  const [newName,       setNewName]       = useState("");
+  const [newDesc,       setNewDesc]       = useState("");
+  const [newColor,      setNewColor]      = useState(PALETTE[0]);
+  const [newDivisionId, setNewDivisionId] = useState<string>("");
 
-  const [editName,  setEditName]  = useState("");
-  const [editDesc,  setEditDesc]  = useState("");
-  const [editColor, setEditColor] = useState(PALETTE[0]);
+  const [editName,       setEditName]       = useState("");
+  const [editDesc,       setEditDesc]       = useState("");
+  const [editColor,      setEditColor]      = useState(PALETTE[0]);
+  const [editDivisionId, setEditDivisionId] = useState<string>("");
 
   function startEdit(dept: OrgDepartment) {
     setEditingId(dept.id);
     setEditName(dept.name);
     setEditDesc(dept.description ?? "");
     setEditColor(dept.color ?? PALETTE[0]);
+    setEditDivisionId(dept.divisionId ?? "");
   }
 
   function cancelEdit() {
@@ -78,11 +82,13 @@ export function DepartmentManager({ departments }: DepartmentManagerProps) {
         name:        newName.trim(),
         description: newDesc.trim() || null,
         color:       newColor,
+        divisionId:  newDivisionId || null,
       };
       await createOrgDepartment(input);
       setNewName("");
       setNewDesc("");
       setNewColor(PALETTE[0]);
+      setNewDivisionId("");
       setAddingNew(false);
     });
   }
@@ -94,6 +100,7 @@ export function DepartmentManager({ departments }: DepartmentManagerProps) {
         name:        editName.trim(),
         description: editDesc.trim() || null,
         color:       editColor,
+        divisionId:  editDivisionId || null,
       });
       setEditingId(null);
     });
@@ -109,7 +116,12 @@ export function DepartmentManager({ departments }: DepartmentManagerProps) {
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
-        <h3 className="text-sm font-semibold">Departments</h3>
+        <div>
+          <h3 className="text-sm font-semibold">Departments</h3>
+          {divisions.length > 0 && (
+            <p className="text-xs text-muted-foreground mt-0.5">Assign each department to a division.</p>
+          )}
+        </div>
         {!addingNew && (
           <Button size="sm" variant="ghost" onClick={() => setAddingNew(true)}>
             <Plus className="mr-1 size-3.5" />
@@ -135,6 +147,18 @@ export function DepartmentManager({ departments }: DepartmentManagerProps) {
             placeholder="Description (optional)"
             className="w-full rounded-md border bg-background px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary/40"
           />
+          {divisions.length > 0 && (
+            <select
+              value={newDivisionId}
+              onChange={(e) => setNewDivisionId(e.target.value)}
+              className="w-full rounded-md border bg-background px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary/40"
+            >
+              <option value="">No division</option>
+              {divisions.map((d) => (
+                <option key={d.id} value={d.id}>{d.name}</option>
+              ))}
+            </select>
+          )}
           <div>
             <p className="mb-1.5 text-xs text-muted-foreground">Color</p>
             <ColorPicker value={newColor} onChange={setNewColor} />
@@ -144,7 +168,7 @@ export function DepartmentManager({ departments }: DepartmentManagerProps) {
               <Check className="mr-1 size-3.5" />
               Create
             </Button>
-            <Button size="sm" variant="ghost" onClick={() => { setAddingNew(false); setNewName(""); setNewDesc(""); setNewColor(PALETTE[0]); }}>
+            <Button size="sm" variant="ghost" onClick={() => { setAddingNew(false); setNewName(""); setNewDesc(""); setNewColor(PALETTE[0]); setNewDivisionId(""); }}>
               Cancel
             </Button>
           </div>
@@ -175,6 +199,18 @@ export function DepartmentManager({ departments }: DepartmentManagerProps) {
                     placeholder="Description (optional)"
                     className="w-full rounded-md border bg-background px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary/40"
                   />
+                  {divisions.length > 0 && (
+                    <select
+                      value={editDivisionId}
+                      onChange={(e) => setEditDivisionId(e.target.value)}
+                      className="w-full rounded-md border bg-background px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary/40"
+                    >
+                      <option value="">No division</option>
+                      {divisions.map((d) => (
+                        <option key={d.id} value={d.id}>{d.name}</option>
+                      ))}
+                    </select>
+                  )}
                   <div>
                     <p className="mb-1.5 text-xs text-muted-foreground">Color</p>
                     <ColorPicker value={editColor} onChange={setEditColor} />
@@ -197,6 +233,18 @@ export function DepartmentManager({ departments }: DepartmentManagerProps) {
                     />
                     <div className="min-w-0">
                       <span className="text-sm font-medium">{dept.name}</span>
+                      {dept.division && (
+                        <span
+                          className="ml-2 inline-flex items-center gap-1 rounded-full px-1.5 py-0.5 text-[10px] font-medium"
+                          style={{
+                            background: `${dept.division.color ?? "#6366f1"}18`,
+                            color: dept.division.color ?? "#6366f1",
+                          }}
+                        >
+                          <span className="size-1.5 rounded-full flex-none" style={{ background: dept.division.color ?? "#6366f1" }} />
+                          {dept.division.name}
+                        </span>
+                      )}
                       {dept.description && (
                         <p className="text-xs text-muted-foreground mt-0.5">{dept.description}</p>
                       )}

@@ -9,7 +9,7 @@ import {
   PROJECT_TYPES,
   WORKFLOW_STEP_TEMPLATE,
   DEFAULT_PROJECT_TYPE_CONFIG,
-  SECTION_LABEL,
+  getSectionLabelForTypes,
   shouldIncludeStepForTypesWithConfig,
 } from "@/modules/project-command-center/lib/workflow-steps";
 import { PROJECT_SECTION_KEYS } from "@/types/workflow";
@@ -39,6 +39,7 @@ export function NewProjectModal({ onClose, onCreated }: NewProjectModalProps) {
   const [projectTypes, setProjectTypes] = useState<string[]>([]);
   const [excludedKeys, setExcludedKeys] = useState<Set<string>>(new Set());
   const [submitting, setSubmitting] = useState(false);
+  const [createError, setCreateError] = useState<string | null>(null);
 
   function toggleType(type: string) {
     setProjectTypes((prev) =>
@@ -62,10 +63,10 @@ export function NewProjectModal({ onClose, onCreated }: NewProjectModalProps) {
     () =>
       PROJECT_SECTION_KEYS.map((section) => ({
         section,
-        label: SECTION_LABEL[section],
+        label: getSectionLabelForTypes(section, projectTypes, DEFAULT_PROJECT_TYPE_CONFIG),
         steps: previewSteps.filter((e) => e.section === section),
       })).filter((g) => g.steps.length > 0),
-    [previewSteps]
+    [previewSteps, projectTypes]
   );
 
   function toggleStep(key: string) {
@@ -100,6 +101,7 @@ export function NewProjectModal({ onClose, onCreated }: NewProjectModalProps) {
   async function handleCreate() {
     if (!canProceedToPreview) return;
     setSubmitting(true);
+    setCreateError(null);
     try {
       const project = await createProject({
         name: name.trim(),
@@ -113,6 +115,7 @@ export function NewProjectModal({ onClose, onCreated }: NewProjectModalProps) {
       onCreated(project);
     } catch (err) {
       console.error("[NewProjectModal] createProject failed:", err);
+      setCreateError(err instanceof Error ? err.message : "Failed to create project. Please try again.");
     } finally {
       setSubmitting(false);
     }
@@ -216,14 +219,18 @@ export function NewProjectModal({ onClose, onCreated }: NewProjectModalProps) {
 
   // ── Workflow preview ──────────────────────────────────────────────────────────
   return (
-    <Modal open onClose={onClose}>
-      <h2 className="mb-1 text-lg font-semibold">Review Workflow</h2>
-      <p className="mb-4 text-sm text-muted-foreground">
-        These workflow steps will be added to <strong>{name}</strong>. Deselect any steps you
-        don&apos;t need before creating the project.
-      </p>
+    <Modal open onClose={onClose} className="flex flex-col max-h-[90vh]">
+      {/* Fixed header */}
+      <div className="shrink-0">
+        <h2 className="mb-1 text-lg font-semibold">Review Workflow</h2>
+        <p className="mb-3 text-sm text-muted-foreground">
+          These workflow steps will be added to <strong>{name}</strong>. Deselect any steps you
+          don&apos;t need before creating the project.
+        </p>
+      </div>
 
-      <div className="max-h-[52vh] space-y-3 overflow-y-auto pr-0.5">
+      {/* Scrollable steps list — fills all remaining vertical space */}
+      <div className="flex-1 min-h-0 overflow-y-auto space-y-3 pr-1 -mr-1">
         {previewBySectionEntry.map(({ section, label, steps }) => {
           const selectableSteps = steps.filter((e) => !NON_DESELECTABLE.has(e.key));
           const allSelected = selectableSteps.every((e) => !excludedKeys.has(e.key));
@@ -294,20 +301,26 @@ export function NewProjectModal({ onClose, onCreated }: NewProjectModalProps) {
         })}
       </div>
 
-      <div className="mt-4 flex items-center justify-between border-t pt-4">
-        <span className="text-sm text-muted-foreground">
-          {selectedCount} step{selectedCount !== 1 ? "s" : ""} selected
-        </span>
-        <div className="flex gap-2">
-          <Button variant="outline" onClick={() => setModalStep("form")} disabled={submitting}>
-            ← Back
-          </Button>
-          <Button
-            onClick={handleCreate}
-            disabled={submitting || selectedCount === 0}
-          >
-            {submitting ? "Creating…" : "Create Project"}
-          </Button>
+      {/* Fixed footer */}
+      <div className="mt-4 shrink-0 border-t pt-4 space-y-3">
+        {createError && (
+          <p className="text-sm text-destructive">{createError}</p>
+        )}
+        <div className="flex items-center justify-between">
+          <span className="text-sm text-muted-foreground">
+            {selectedCount} step{selectedCount !== 1 ? "s" : ""} selected
+          </span>
+          <div className="flex gap-2">
+            <Button variant="outline" onClick={() => setModalStep("form")} disabled={submitting}>
+              ← Back
+            </Button>
+            <Button
+              onClick={handleCreate}
+              disabled={submitting || selectedCount === 0}
+            >
+              {submitting ? "Creating…" : "Create Project"}
+            </Button>
+          </div>
         </div>
       </div>
     </Modal>

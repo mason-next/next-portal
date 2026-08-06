@@ -237,6 +237,23 @@ export default function ProjectsPage() {
     [enriched, pmFilter, statusFilter, healthFilter, dateFilter]
   );
 
+  const stats = useMemo(() => {
+    const today = startOfDay(new Date());
+    const mStart = new Date(today.getFullYear(), today.getMonth(), 1);
+    const mEnd   = new Date(today.getFullYear(), today.getMonth() + 1, 0);
+    const inThisMonth = (d: string | null) => {
+      if (!d) return false;
+      const t = startOfDay(new Date(d));
+      return t >= mStart && t <= mEnd;
+    };
+    return {
+      active:          filtered.filter(e => !e.status.isComplete).length,
+      overdue:         filtered.filter(e => !e.status.isComplete && !!e.project.targetCompletionDate && startOfDay(new Date(e.project.targetCompletionDate)) < today).length,
+      dueThisMonth:    filtered.filter(e => !e.status.isComplete && inThisMonth(e.project.targetCompletionDate)).length,
+      closedThisMonth: filtered.filter(e => e.status.isComplete && inThisMonth(e.project.targetCompletionDate)).length,
+    };
+  }, [filtered]);
+
   const filtersActive =
     pmFilter.length > 0 || statusFilter.length > 0 || healthFilter.length > 0 || dateFilter !== "all" || adminFilterUserId !== null;
 
@@ -320,6 +337,29 @@ export default function ProjectsPage() {
           <Button onClick={() => setShowNewProject(true)} size="sm">New Project</Button>
         </div>
       </div>
+
+      {projects !== null && projects.length > 0 && (
+        <div className="mb-5 grid grid-cols-2 gap-3 sm:grid-cols-4">
+          {([
+            { label: "Active",           value: stats.active },
+            { label: "Overdue",          value: stats.overdue,         warn: stats.overdue > 0 },
+            { label: "Due This Month",   value: stats.dueThisMonth },
+            { label: "Closed This Month",value: stats.closedThisMonth, positive: true },
+          ] as { label: string; value: number; warn?: boolean; positive?: boolean }[]).map(({ label, value, warn, positive }) => (
+            <div key={label} className="rounded-lg border bg-card px-4 py-3">
+              <div className={cn(
+                "text-2xl font-bold tabular-nums leading-none",
+                warn     ? "text-destructive" :
+                positive ? "text-emerald-600 dark:text-emerald-400" :
+                           "text-foreground"
+              )}>
+                {value}
+              </div>
+              <div className="mt-1 text-xs text-muted-foreground">{label}</div>
+            </div>
+          ))}
+        </div>
+      )}
 
       {projects !== null && projects.length > 0 ? (
         <div className="mb-4 flex flex-wrap items-center gap-2">

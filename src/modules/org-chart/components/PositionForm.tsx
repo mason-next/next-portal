@@ -1,9 +1,8 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useEffect, useState, useTransition } from "react";
 import { X, Plus, ArrowUp, ArrowDown } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Modal } from "@/components/shared/Modal";
 import { cn } from "@/lib/utils";
 import { UserAvatarImage } from "@/components/shared/AppShell/UserAvatarImage";
 import { useUsersContext } from "@/components/shared/AppShell/UsersProvider";
@@ -526,45 +525,64 @@ export function PositionForm({
     });
   }
 
+  // Close on Escape
+  useEffect(() => {
+    if (!open) return;
+    const handler = (e: KeyboardEvent) => { if (e.key === "Escape") onClose(); };
+    window.addEventListener("keydown", handler);
+    return () => window.removeEventListener("keydown", handler);
+  }, [open, onClose]);
+
+  if (!open) return null;
+
   return (
-    <Modal open={open} onClose={onClose} className="max-w-xl">
-      {/* Header */}
-      <div className="flex items-center justify-between mb-2">
-        <h2 className="text-base font-semibold">
-          {editing ? "Edit Position" : "New Position"}
-        </h2>
-        <button
-          type="button"
-          onClick={onClose}
-          className="text-muted-foreground hover:text-foreground transition-colors"
-        >
-          <X className="size-4" />
-        </button>
-      </div>
+    <>
+      {/* Backdrop */}
+      <div
+        className="fixed inset-0 z-40 bg-black/20"
+        aria-hidden
+        onClick={onClose}
+      />
 
-      {/* Tab bar */}
-      {visibleTabs.length > 1 && (
-        <div className="-mx-6 border-b flex gap-0 px-2 mb-4 overflow-x-auto">
-          {visibleTabs.map((tab) => (
-            <button
-              key={tab.key}
-              type="button"
-              onClick={() => setActiveTab(tab.key)}
-              className={cn(
-                "flex items-center px-3 py-2 text-xs font-medium border-b-2 -mb-px transition-colors whitespace-nowrap",
-                safeTab === tab.key
-                  ? "border-primary text-foreground"
-                  : "border-transparent text-muted-foreground hover:text-foreground",
-              )}
-            >
-              {tab.label}
-            </button>
-          ))}
+      {/* Drawer */}
+      <div className="fixed inset-y-0 right-0 z-50 flex flex-col w-[580px] max-w-full bg-background border-l shadow-2xl">
+        {/* Header */}
+        <div className="flex items-center justify-between px-5 py-4 border-b shrink-0">
+          <h2 className="text-base font-semibold">
+            {editing ? "Edit Position" : "New Position"}
+          </h2>
+          <button
+            type="button"
+            onClick={onClose}
+            className="text-muted-foreground hover:text-foreground transition-colors"
+          >
+            <X className="size-4" />
+          </button>
         </div>
-      )}
 
-      {/* Tab content — scrollable */}
-      <div className="space-y-4 max-h-[58vh] overflow-y-auto pb-1 pr-0.5">
+        {/* Tab bar */}
+        {visibleTabs.length > 1 && (
+          <div className="border-b flex gap-0 px-2 shrink-0">
+            {visibleTabs.map((tab) => (
+              <button
+                key={tab.key}
+                type="button"
+                onClick={() => setActiveTab(tab.key)}
+                className={cn(
+                  "flex items-center px-3 py-2.5 text-xs font-medium border-b-2 -mb-px transition-colors whitespace-nowrap",
+                  safeTab === tab.key
+                    ? "border-primary text-foreground"
+                    : "border-transparent text-muted-foreground hover:text-foreground",
+                )}
+              >
+                {tab.label}
+              </button>
+            ))}
+          </div>
+        )}
+
+        {/* Tab content — scrollable */}
+        <div className="flex-1 overflow-y-auto px-5 py-4 space-y-4">
 
         {/* ── Overview tab ── */}
         {safeTab === "overview" && (
@@ -601,18 +619,52 @@ export function PositionForm({
             <div className="grid grid-cols-2 gap-3">
               <div>
                 <label className="block text-xs font-medium text-muted-foreground mb-1">Department</label>
-                <select
-                  value={form.departmentId}
-                  onChange={(e) => set("departmentId", e.target.value)}
-                  className="w-full rounded-md border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/40"
-                >
-                  <option value="">— None —</option>
-                  {departments
-                    .filter((d) => d.status === "active")
-                    .map((d) => (
-                      <option key={d.id} value={d.id}>{d.name}</option>
-                    ))}
-                </select>
+                {(() => {
+                  const activeDepts = departments.filter((d) => d.status === "active");
+                  // Build division → dept groups (null key = no division)
+                  const groups = new Map<string | null, { name: string | null; color: string | null; depts: typeof activeDepts }>();
+                  for (const dept of activeDepts) {
+                    const key = dept.divisionId ?? null;
+                    if (!groups.has(key)) groups.set(key, { name: dept.division?.name ?? null, color: dept.division?.color ?? null, depts: [] });
+                    groups.get(key)!.depts.push(dept);
+                  }
+                  const sorted = [...groups.entries()].sort(([a, ga], [b, gb]) => {
+                    if (a === null && b !== null) return 1;
+                    if (a !== null && b === null) return -1;
+                    return (ga.name ?? "").localeCompare(gb.name ?? "");
+                  });
+                  const hasGroups = sorted.some(([k]) => k !== null);
+                  const selectedDept = activeDepts.find((d) => d.id === form.departmentId);
+                  const selectedDivision = selectedDept?.division ?? null;
+                  return (
+                    <>
+                      <select
+                        value={form.departmentId}
+                        onChange={(e) => set("departmentId", e.target.value)}
+                        className="w-full rounded-md border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/40"
+                      >
+                        <option value="">— None —</option>
+                        {hasGroups
+                          ? sorted.map(([key, group]) => (
+                              <optgroup key={key ?? "__none__"} label={group.name ?? "No Division"}>
+                                {group.depts.map((d) => (
+                                  <option key={d.id} value={d.id}>{d.name}</option>
+                                ))}
+                              </optgroup>
+                            ))
+                          : activeDepts.map((d) => (
+                              <option key={d.id} value={d.id}>{d.name}</option>
+                            ))}
+                      </select>
+                      {selectedDivision && (
+                        <div className="mt-1 flex items-center gap-1">
+                          <span className="size-2 rounded-full flex-none" style={{ background: selectedDivision.color ?? "#6366f1" }} />
+                          <span className="text-[11px] text-muted-foreground">{selectedDivision.name}</span>
+                        </div>
+                      )}
+                    </>
+                  );
+                })()}
               </div>
               <div>
                 <label className="block text-xs font-medium text-muted-foreground mb-1">Location</label>
@@ -901,36 +953,37 @@ export function PositionForm({
             currentPositionId={editing?.id}
           />
         )}
-      </div>
+        </div>
 
-      {/* Error */}
-      {error && (
-        <p className="mt-2 text-xs text-destructive">{error}</p>
-      )}
-
-      {/* Footer */}
-      <div className="mt-4 flex items-center justify-between border-t pt-4">
-        {editing ? (
-          <button
-            type="button"
-            onClick={handleDelete}
-            disabled={isPending}
-            className="text-xs text-destructive hover:underline disabled:opacity-50"
-          >
-            Delete position
-          </button>
-        ) : (
-          <div />
+        {/* Error */}
+        {error && (
+          <p className="px-5 pb-2 text-xs text-destructive shrink-0">{error}</p>
         )}
-        <div className="flex gap-2">
-          <Button variant="ghost" size="sm" onClick={onClose} disabled={isPending}>
-            Cancel
-          </Button>
-          <Button size="sm" onClick={handleSubmit} disabled={isPending}>
-            {isPending ? "Saving…" : editing ? "Save Changes" : "Create Position"}
-          </Button>
+
+        {/* Footer */}
+        <div className="px-5 py-4 flex items-center justify-between border-t shrink-0">
+          {editing ? (
+            <button
+              type="button"
+              onClick={handleDelete}
+              disabled={isPending}
+              className="text-xs text-destructive hover:underline disabled:opacity-50"
+            >
+              Delete position
+            </button>
+          ) : (
+            <div />
+          )}
+          <div className="flex gap-2">
+            <Button variant="ghost" size="sm" onClick={onClose} disabled={isPending}>
+              Cancel
+            </Button>
+            <Button size="sm" onClick={handleSubmit} disabled={isPending}>
+              {isPending ? "Saving…" : editing ? "Save Changes" : "Create Position"}
+            </Button>
+          </div>
         </div>
       </div>
-    </Modal>
+    </>
   );
 }

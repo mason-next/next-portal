@@ -2,6 +2,7 @@ import { notFound } from "next/navigation";
 import { Mail, Phone, Shield, User } from "lucide-react";
 import { getUser } from "@/lib/data/users";
 import { UserAvatarImage } from "@/components/shared/AppShell/UserAvatarImage";
+import { PresenceStatusBadge } from "@/components/shared/PresenceDot";
 import { ROLE_TYPE_LABELS, type RoleType } from "@/types/user";
 
 export default async function UserProfilePage({
@@ -37,7 +38,16 @@ export default async function UserProfilePage({
         <div className="mt-6 space-y-3 border-t pt-6">
           <ContactRow icon={Mail} label="Email" value={user.email} href={`mailto:${user.email}`} />
           {user.phone && <ContactRow icon={Phone} label="Phone" value={user.phone} href={`tel:${user.phone}`} />}
-          <ContactRow icon={User} label="Status" value={user.isActive ? "Active" : "Inactive"} />
+          <ContactRow icon={User} label="Account" value={user.isActive ? "Active" : "Inactive"} />
+          <div className="flex items-center gap-3">
+            <div className="flex h-8 w-8 items-center justify-center rounded-md bg-muted">
+              <User className="size-4 text-muted-foreground" />
+            </div>
+            <div>
+              <div className="text-xs text-muted-foreground">Presence</div>
+              <PresenceStatusBadge lastActiveAt={user.lastActiveAt} />
+            </div>
+          </div>
         </div>
 
         <p className="mt-6 rounded-md bg-muted/50 px-3 py-2 text-xs text-muted-foreground">
