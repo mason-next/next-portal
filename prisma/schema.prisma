@@ -827,6 +827,7 @@ model SalesCompany {
 
   opportunities SalesOpportunity[]
   activities    SalesActivity[]
+  contacts      SalesContact[]
 
   @@map("sales_companies")
 }
@@ -896,6 +897,23 @@ model SalesOppComment {
 
   @@index([opportunityId])
   @@map("sales_opp_comments")
+}
+
+model SalesContact {
+  id        String   @id @default(cuid())
+  companyId String
+  name      String
+  title     String   @default("")
+  email     String   @default("")
+  phone     String   @default("")
+  notes     String   @default("")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  company SalesCompany @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  @@index([companyId])
+  @@map("sales_contacts")
 }
 
 model SalesActivity {

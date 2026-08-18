@@ -130,10 +130,11 @@ export interface OpportunityTableProps {
   onRepFilterChange: (r: string) => void;
   onOpenConversation: (opp: SalesOpportunity) => void;
   onOpenCommission?: (opp: SalesOpportunity) => void;
+  onOpenContacts?: (company: SalesCompany) => void;
 }
 
 export function OpportunityTable({
-  companies, activities, isManagement, repFilter, onRepFilterChange, onOpenConversation, onOpenCommission,
+  companies, activities, isManagement, repFilter, onRepFilterChange, onOpenConversation, onOpenCommission, onOpenContacts,
 }: OpportunityTableProps) {
   const [sortKey, setSortKey] = useState<SortKey>("stage");
   const [sortDir, setSortDir] = useState<SortDir>("asc");
@@ -393,6 +394,7 @@ export function OpportunityTable({
             </thead>
             <tbody className="divide-y">
               {sorted.map(({ opp, companyName, age }) => {
+                const company = companies.find((c) => c.id === opp.companyId);
                 const ageClass =
                   age === null ? "" :
                   age > 60 ? "text-red-600 font-semibold" :
@@ -486,6 +488,19 @@ export function OpportunityTable({
                           >
                             <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                               <line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/>
+                            </svg>
+                          </button>
+                        )}
+                        {onOpenContacts && company && (
+                          <button
+                            type="button"
+                            title="Company Contacts"
+                            onClick={() => onOpenContacts(company)}
+                            className="flex h-7 w-7 items-center justify-center rounded-md text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
+                          >
+                            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                              <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/>
+                              <path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/>
                             </svg>
                           </button>
                         )}

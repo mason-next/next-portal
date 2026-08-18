@@ -17,6 +17,9 @@ import { ActivityFeed, ActivitySummaryCards } from "@/modules/sales-activity/com
 import { SalesPulseReport } from "@/modules/sales-activity/components/SalesPulseReport";
 import { OppConversationDrawer } from "@/modules/sales-activity/components/OppConversationDrawer";
 import { OppCommissionDrawer } from "@/modules/sales-activity/components/OppCommissionDrawer";
+import { OpportunityKanban } from "@/modules/sales-activity/components/OpportunityKanban";
+import { ActivityCalendar } from "@/modules/sales-activity/components/ActivityCalendar";
+import { CompanyContactsDrawer } from "@/modules/sales-activity/components/CompanyContactsDrawer";
 import { formatWeekLabel } from "@/types/sales";
 import type { SalesCompany, SalesOpportunity, SalesActivity } from "@/types/sales";
 import type { CWImportPayload, ImportProgressCallback } from "@/modules/sales-activity/components/CWImportModal";
@@ -58,6 +61,8 @@ export default function SalesActivityPage() {
   const [logoFetch, setLogoFetch] = useState<{ done: number; total: number } | null>(null);
   const [convOpp, setConvOpp] = useState<SalesOpportunity | null>(null);
   const [commOpp, setCommOpp] = useState<SalesOpportunity | null>(null);
+  const [contactsCompany, setContactsCompany] = useState<SalesCompany | null>(null);
+  const [pipelineView, setPipelineView] = useState<"table" | "board">("table");
   const importRef = useRef<HTMLDivElement>(null);
 
   function prevWeek() {
@@ -286,15 +291,54 @@ export default function SalesActivityPage() {
       ) : (
         <>
           {tab === "pipeline" && (
-            <OpportunityTable
-              companies={companies}
-              activities={allActivities}
-              isManagement={isAdmin && !isViewAsMode}
-              repFilter={isAdmin && !isViewAsMode ? repFilter : (effectiveName ?? "")}
-              onRepFilterChange={setRepFilter}
-              onOpenConversation={setConvOpp}
-              onOpenCommission={setCommOpp}
-            />
+            <>
+              {/* Table / Board toggle */}
+              <div className="flex items-center gap-1 rounded-lg border bg-muted/30 p-0.5 w-fit">
+                <button
+                  onClick={() => setPipelineView("table")}
+                  className={`inline-flex items-center gap-1.5 rounded-md px-3 py-1 text-xs font-medium transition-colors ${pipelineView === "table" ? "bg-card shadow-sm text-foreground" : "text-muted-foreground hover:text-foreground"}`}
+                >
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M3 15h18M9 3v18"/>
+                  </svg>
+                  Table
+                </button>
+                <button
+                  onClick={() => setPipelineView("board")}
+                  className={`inline-flex items-center gap-1.5 rounded-md px-3 py-1 text-xs font-medium transition-colors ${pipelineView === "board" ? "bg-card shadow-sm text-foreground" : "text-muted-foreground hover:text-foreground"}`}
+                >
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <rect x="3" y="3" width="4" height="18" rx="1"/><rect x="10" y="3" width="4" height="18" rx="1"/><rect x="17" y="3" width="4" height="18" rx="1"/>
+                  </svg>
+                  Board
+                </button>
+              </div>
+
+              {pipelineView === "table" ? (
+                <OpportunityTable
+                  companies={companies}
+                  activities={allActivities}
+                  isManagement={isAdmin && !isViewAsMode}
+                  repFilter={isAdmin && !isViewAsMode ? repFilter : (effectiveName ?? "")}
+                  onRepFilterChange={setRepFilter}
+                  onOpenConversation={setConvOpp}
+                  onOpenCommission={setCommOpp}
+                  onOpenContacts={setContactsCompany}
+                />
+              ) : (
+                <OpportunityKanban
+                  companies={companies}
+                  activities={allActivities}
+                  isManagement={isAdmin && !isViewAsMode}
+                  repFilter={isAdmin && !isViewAsMode ? repFilter : (effectiveName ?? "")}
+                  onRepFilterChange={setRepFilter}
+                  onOpenConversation={setConvOpp}
+                  onOpenCommission={setCommOpp}
+                  onStageChange={changeOppStage}
+                  onEditOpportunity={(o) => setModal({ type: "opportunity", companyId: o.companyId, data: o })}
+                />
+              )}
+            </>
           )}
 
           {tab === "activity" && (
@@ -431,6 +475,11 @@ export default function SalesActivityPage() {
         opp={commOpp}
         onClose={() => setCommOpp(null)}
       />
+
+      <CompanyContactsDrawer
+        company={contactsCompany}
+        onClose={() => setContactsCompany(null)}
+      />
     </div>
   );
 }
@@ -470,6 +519,7 @@ function ActivityTab({
   const [formOpen, setFormOpen] = useState(false);
   const [viewMode, setViewMode] = useState<ActivityViewMode>("week");
   const [repFilter, setRepFilter] = useState("");
+  const [activityView, setActivityView] = useState<"list" | "calendar">("list");
 
   const baseActivities = viewMode === "week"
     ? activities
@@ -503,7 +553,31 @@ function ActivityTab({
       {/* Controls row */}
       <div className="flex items-center justify-between gap-4 flex-wrap">
         <div className="flex items-center gap-2">
-          {/* View mode toggle */}
+          {/* List / Calendar toggle */}
+          <div className="flex rounded-lg border bg-muted/30 p-0.5 gap-0.5">
+            <button
+              onClick={() => setActivityView("list")}
+              className={`inline-flex items-center gap-1 rounded-md px-2.5 py-1 text-xs font-medium transition-colors ${activityView === "list" ? "bg-background text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"}`}
+            >
+              <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/>
+                <line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/>
+              </svg>
+              List
+            </button>
+            <button
+              onClick={() => setActivityView("calendar")}
+              className={`inline-flex items-center gap-1 rounded-md px-2.5 py-1 text-xs font-medium transition-colors ${activityView === "calendar" ? "bg-background text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"}`}
+            >
+              <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/>
+              </svg>
+              Calendar
+            </button>
+          </div>
+
+          {/* View mode toggle — only in list mode */}
+          {activityView === "list" && (
           <div className="flex rounded-lg border bg-muted/30 p-0.5 gap-0.5">
             {(["week", "month", "quarter", "all"] as ActivityViewMode[]).map((m) => (
               <button
@@ -517,16 +591,18 @@ function ActivityTab({
               </button>
             ))}
           </div>
+          )}
+
           {/* Week nav — only in week mode */}
-          {viewMode === "week" && (
+          {activityView === "list" && viewMode === "week" && (
             <>
               <button onClick={onPrev} className="rounded-md border px-2.5 py-1 text-sm hover:bg-muted">←</button>
               <span className="text-sm font-medium">{formatWeekLabel(weekStart)}</span>
               <button onClick={onNext} className="rounded-md border px-2.5 py-1 text-sm hover:bg-muted">→</button>
             </>
           )}
-          {/* Rep filter — admins only when data is unscoped */}
-          {canFilterByRep && repNames.length > 0 && (
+          {/* Rep filter — admins only, list view only */}
+          {activityView === "list" && canFilterByRep && repNames.length > 0 && (
             <select
               value={repFilter}
               onChange={(e) => setRepFilter(e.target.value)}
@@ -552,7 +628,7 @@ function ActivityTab({
         )}
       </div>
 
-      <ActivitySummaryCards summary={displayedSummary} isManagement={isAdmin} />
+      {activityView === "list" && <ActivitySummaryCards summary={displayedSummary} isManagement={isAdmin} />}
 
       {canEdit && formOpen && (
         <div className="rounded-xl border bg-card p-5">
@@ -567,12 +643,22 @@ function ActivityTab({
         </div>
       )}
 
-      <ActivityFeed
-        activities={displayedActivities}
-        isManagement={isAdmin}
-        onEdit={canEdit ? onEditActivity : undefined}
-        onDelete={removeActivity}
-      />
+      {activityView === "list" ? (
+        <ActivityFeed
+          activities={displayedActivities}
+          isManagement={isAdmin}
+          onEdit={canEdit ? onEditActivity : undefined}
+          onDelete={removeActivity}
+        />
+      ) : (
+        <ActivityCalendar
+          activities={allActivities}
+          isManagement={isAdmin}
+          onEdit={canEdit ? onEditActivity : undefined}
+          onDelete={removeActivity}
+          onDayClick={() => setFormOpen(true)}
+        />
+      )}
     </div>
   );
 }
