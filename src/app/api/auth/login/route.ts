@@ -3,6 +3,7 @@ import { db } from "@/lib/db";
 import { verifyPassword } from "@/lib/auth/password";
 import { signSession, SESSION_COOKIE } from "@/lib/auth/jwt";
 import { toSessionRoleTypes } from "@/lib/auth/role-mapper";
+import { isMaintenanceMode, isMasterEmail, getMasterPassword } from "@/lib/auth/maintenance";
 import type { SessionUser } from "@/lib/auth/types";
 
 const COOKIE_MAX_AGE = 60 * 60 * 24 * 30; // 30 days
@@ -15,15 +16,31 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Email and password are required." }, { status: 400 });
     }
 
+    // Maintenance lockout: only the master account (via the special MASTER_PASSWORD)
+    // may authenticate. Everyone else is refused before the normal credential check.
+    const masterOverride = isMaintenanceMode() && isMasterEmail(email);
+    if (isMaintenanceMode()) {
+      const masterPassword = getMasterPassword();
+      if (!masterOverride || !masterPassword || password !== masterPassword) {
+        return NextResponse.json(
+          { error: "The portal is in maintenance mode. Access is temporarily restricted." },
+          { status: 403 },
+        );
+      }
+    }
+
     const user = await db.user.findUnique({ where: { email: email.toLowerCase().trim() } });
 
-    if (!user || !user.isActive) {
+    // The master override bypasses the isActive gate so the master can never lock themselves out.
+    if (!user || (!user.isActive && !masterOverride)) {
       return NextResponse.json({ error: "Invalid email or password." }, { status: 401 });
     }
 
-    const isValid = user.passwordHash
-      ? await verifyPassword(password, user.passwordHash)
-      : password === "password";
+    const isValid = masterOverride
+      ? true
+      : user.passwordHash
+        ? await verifyPassword(password, user.passwordHash)
+        : password === "password";
 
     if (!isValid) {
       return NextResponse.json({ error: "Invalid email or password." }, { status: 401 });

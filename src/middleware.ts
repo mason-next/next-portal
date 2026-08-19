@@ -1,5 +1,6 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { jwtVerify } from "jose";
+import { isMaintenanceMode, isMasterEmail } from "@/lib/auth/maintenance";
 
 const SESSION_COOKIE = "next-portal-session";
 const PUBLIC_PATHS = ["/login", "/api/auth", "/api/health"];
@@ -16,6 +17,7 @@ function getSecret(): Uint8Array {
 }
 
 interface SessionSnapshot {
+  email: string;
   mustChangePassword?: boolean;
 }
 
@@ -24,7 +26,10 @@ async function getSession(request: NextRequest): Promise<SessionSnapshot | null>
   if (!token) return null;
   try {
     const { payload } = await jwtVerify(token, getSecret());
-    return { mustChangePassword: payload.mustChangePassword === true };
+    return {
+      email: typeof payload.email === "string" ? payload.email : "",
+      mustChangePassword: payload.mustChangePassword === true,
+    };
   } catch {
     return null;
   }
@@ -32,14 +37,20 @@ async function getSession(request: NextRequest): Promise<SessionSnapshot | null>
 
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
+  const maintenance = isMaintenanceMode();
 
   const isPublic = PUBLIC_PATHS.some((p) => pathname.startsWith(p));
 
   if (isPublic) {
     // Redirect authenticated users away from /login (unless they need to change password).
+    // During maintenance, only the master account is auto-forwarded into the app.
     if (pathname === "/login") {
       const session = await getSession(request);
-      if (session && !session.mustChangePassword) {
+      if (
+        session &&
+        !session.mustChangePassword &&
+        (!maintenance || isMasterEmail(session.email))
+      ) {
         return NextResponse.redirect(new URL("/projects", request.url));
       }
     }
@@ -52,6 +63,16 @@ export async function middleware(request: NextRequest) {
     const loginUrl = new URL("/login", request.url);
     loginUrl.searchParams.set("next", pathname);
     return NextResponse.redirect(loginUrl);
+  }
+
+  // Maintenance lockout: reject any session that isn't the master account and clear
+  // its cookie, so existing 30-day sessions stop working immediately.
+  if (maintenance && !isMasterEmail(session.email)) {
+    const loginUrl = new URL("/login", request.url);
+    loginUrl.searchParams.set("locked", "1");
+    const res = NextResponse.redirect(loginUrl);
+    res.cookies.delete(SESSION_COOKIE);
+    return res;
   }
 
   // If the user must change their password, gate them to /change-password only.
