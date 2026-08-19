@@ -23,6 +23,16 @@ function isMultiTenantValue(v: string | null): boolean {
   return v === "common" || v === "organizations" || v === "consumers" || v === null;
 }
 
+// Single-tenant enforcement, reusable at the session-mint boundary (the bridge route).
+// Returns true only when the tenant claim is acceptable: if a single tenant is
+// configured, the token's tid must match it. A missing tid is left to the issuer
+// validation (a single-tenant issuer already rejects other tenants at the OIDC layer).
+export function isTenantAllowed(tid: string | null | undefined): boolean {
+  if (isMultiTenantValue(EXPECTED_TENANT)) return true;
+  if (!tid) return true;
+  return tid === EXPECTED_TENANT;
+}
+
 export const { handlers, auth, signIn, signOut } = NextAuth({
   providers: [
     MicrosoftEntraID({

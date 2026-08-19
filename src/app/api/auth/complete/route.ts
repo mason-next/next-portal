@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { auth } from "@/lib/auth/authjs";
+import { auth, isTenantAllowed } from "@/lib/auth/authjs";
 import {
   findUserByEntraObjectId,
   findUserByEmail,
@@ -32,6 +32,13 @@ export async function GET(request: Request): Promise<NextResponse> {
     const oid = session.user.oid ?? null;
     const tid = session.user.tid ?? null;
 
+    // Defense-in-depth tenant enforcement at the session-mint boundary. The Auth.js
+    // signIn callback + single-tenant issuer already reject other tenants; re-check here
+    // so a Portal session can never be minted for an out-of-tenant identity.
+    if (!isTenantAllowed(tid)) {
+      return NextResponse.redirect(new URL("/access-denied", origin));
+    }
+
     // Resolve the Portal user: prefer the immutable Object ID, fall back to email.
     let user = oid ? await findUserByEntraObjectId(oid) : null;
     const matchedByOid = Boolean(user);
@@ -49,12 +56,22 @@ export async function GET(request: Request): Promise<NextResponse> {
           accountType?: string;
           roleType?: string;
           mustChangePassword?: boolean;
+          entraObjectId?: string | null;
         }
       | null;
 
     // Authenticated with Microsoft but no active Portal account → access denied.
-    // Do NOT auto-provision. Enrollment stays on the Users admin page.
-    if (!u || u.isActive === false) {
+    // Do NOT auto-provision. Enrollment stays on the Users admin page. `!u.isActive`
+    // fails closed (denies) for inactive, null, or missing status.
+    if (!u || !u.isActive) {
+      return NextResponse.redirect(new URL("/access-denied", origin));
+    }
+
+    // Identity-takeover guard: if we fell back to email matching but this Portal user is
+    // already bound to a DIFFERENT Microsoft Object ID, refuse. Email matching must never
+    // silently rebind an account to a new Microsoft identity (e.g. a reassigned mailbox).
+    // An admin must "Reset Microsoft Login" first to allow a deliberate re-bind.
+    if (!matchedByOid && u.entraObjectId && u.entraObjectId !== oid) {
       return NextResponse.redirect(new URL("/access-denied", origin));
     }
 
@@ -63,7 +80,8 @@ export async function GET(request: Request): Promise<NextResponse> {
       return NextResponse.redirect(new URL("/login?locked=1", origin));
     }
 
-    // First login → permanently bind the Entra identity. Returning login → refresh stamp.
+    // First login (email match, no OID yet) → permanently bind the Entra identity.
+    // Returning login (OID match) → just refresh the timestamp; never rebind.
     if (oid && !matchedByOid) {
       await bindEntraIdentity(u.id, oid, tid);
     } else {
