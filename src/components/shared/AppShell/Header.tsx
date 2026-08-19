@@ -17,6 +17,7 @@ import {
   Wrench,
   X,
 } from "lucide-react";
+import { signOut as authSignOut } from "next-auth/react";
 import { useSession } from "@/lib/auth/client";
 import { usePermissions } from "@/lib/PermissionsContext";
 import { useViewAs } from "@/lib/view-as/ViewAsContext";
@@ -105,7 +106,13 @@ export function Header() {
   }, [menuOpen]);
 
   async function handleLogout() {
+    // Clear the Portal session cookie, then the Microsoft (Auth.js) identity session.
     await fetch("/api/auth/logout", { method: "POST" });
+    try {
+      await authSignOut({ redirect: false });
+    } catch {
+      // Non-fatal: password-only sessions have no Auth.js cookie to clear.
+    }
     router.push("/login");
     router.refresh();
   }

@@ -11,6 +11,7 @@ import {
   updateUserPassword,
   addCertification,
   removeCertification,
+  resetEntraIdentity,
 } from "@/lib/data/users";
 import {
   ROLE_TYPES,
@@ -250,6 +251,10 @@ export function UserFormModal({ user, onClose, onSaved, onDeleted }: UserFormMod
   const [passwordError, setPasswordError] = useState("");
   const [passwordSaving, setPasswordSaving] = useState(false);
 
+  const [entraObjectId, setEntraObjectId] = useState<string | null>(user?.entraObjectId ?? null);
+  const [lastLoginAt, setLastLoginAt] = useState<string | null>(user?.lastLoginAt ?? null);
+  const [entraResetting, setEntraResetting] = useState(false);
+
   const [certs, setCerts] = useState<UserCertification[]>(user?.certifications ?? []);
   const [showAddCert, setShowAddCert] = useState(false);
   const [certName, setCertName] = useState("");
@@ -359,6 +364,18 @@ export function UserFormModal({ user, onClose, onSaved, onDeleted }: UserFormMod
   async function handleRemoveCert(certId: string) {
     await removeCertification(certId);
     setCerts((prev) => prev.filter((c) => c.id !== certId));
+  }
+
+  async function handleResetEntra() {
+    if (!user) return;
+    setEntraResetting(true);
+    try {
+      await resetEntraIdentity(user.id);
+      setEntraObjectId(null);
+      setLastLoginAt(null);
+    } finally {
+      setEntraResetting(false);
+    }
   }
 
   const canChangePassword = isSelf || isAdmin;
@@ -508,6 +525,39 @@ export function UserFormModal({ user, onClose, onSaved, onDeleted }: UserFormMod
                 {passwordSaving ? "Saving…" : "Update Password"}
               </Button>
             </div>
+          )}
+        </div>
+      )}
+
+      {/* Microsoft Login status (authentication only — does not affect permissions) */}
+      {user && (
+        <div className="mt-6 rounded-lg border p-4">
+          <div className="flex items-center justify-between">
+            <span className="text-sm font-semibold">Microsoft Login</span>
+            <span
+              className={cn(
+                "text-xs font-medium",
+                entraObjectId ? "text-green-600" : "text-muted-foreground"
+              )}
+            >
+              {entraObjectId ? "Connected" : "Not connected"}
+            </span>
+          </div>
+          {lastLoginAt && (
+            <p className="mt-1 text-xs text-muted-foreground">
+              Last sign-in: {new Date(lastLoginAt).toLocaleString()}
+            </p>
+          )}
+          {isAdmin && entraObjectId && (
+            <Button
+              variant="outline"
+              size="sm"
+              className="mt-3"
+              onClick={handleResetEntra}
+              disabled={entraResetting}
+            >
+              {entraResetting ? "Resetting…" : "Reset Microsoft Login"}
+            </Button>
           )}
         </div>
       )}
