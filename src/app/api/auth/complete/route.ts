@@ -18,7 +18,11 @@ const COOKIE_MAX_AGE = 60 * 60 * 24 * 30; // 30 days — mirrors /api/auth/login
 // then mint the existing `next-portal-session` cookie so the rest of the app is
 // unchanged. NEVER creates a Portal user (no auto-provisioning).
 export async function GET(request: Request): Promise<NextResponse> {
-  const { origin } = new URL(request.url);
+  // Behind Railway's proxy, `request.url` reflects the internal server bind
+  // (0.0.0.0:$PORT), not the public origin. Trust the configured base URL (the same
+  // one Auth.js uses) so post-auth redirects land on the public host; fall back to
+  // `request.url` for local dev where AUTH_URL is unset.
+  const origin = process.env.AUTH_URL ?? new URL(request.url).origin;
 
   try {
     const session = await auth();
