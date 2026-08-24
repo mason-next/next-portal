@@ -50,6 +50,10 @@ export interface AppUser {
   emergencyContact: string;
   certifications: UserCertification[];
   lastActiveAt: string | null;
+  /** Microsoft Entra ID Object ID once the account has been linked, else null. */
+  entraObjectId: string | null;
+  /** Timestamp of the user's most recent successful Microsoft login, else null. */
+  lastLoginAt: string | null;
   createdAt: string;
   updatedAt: string;
 }

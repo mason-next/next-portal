@@ -3,7 +3,7 @@ import { jwtVerify } from "jose";
 import { isMaintenanceMode, isMasterEmail } from "@/lib/auth/maintenance";
 
 const SESSION_COOKIE = "next-portal-session";
-const PUBLIC_PATHS = ["/login", "/api/auth", "/api/health"];
+const PUBLIC_PATHS = ["/login", "/access-denied", "/api/auth", "/api/health"];
 
 function getSecret(): Uint8Array {
   const secret = process.env.AUTH_SECRET;

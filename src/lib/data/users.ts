@@ -68,6 +68,8 @@ function toAppUser(p: PrismaUserWithCerts): AppUser {
     location?: string;
     emergencyContact?: string;
     mustChangePassword?: boolean;
+    entraObjectId?: string | null;
+    lastLoginAt?: Date | null;
   };
 
   // Prefer the new roleTypes column; fall back to deriving from accountType + roleType.
@@ -90,6 +92,8 @@ function toAppUser(p: PrismaUserWithCerts): AppUser {
     emergencyContact: pAny.emergencyContact ?? "",
     certifications: (p.certifications ?? []).map(toCert),
     lastActiveAt: p.lastActiveAt?.toISOString() ?? null,
+    entraObjectId: pAny.entraObjectId ?? null,
+    lastLoginAt: pAny.lastLoginAt?.toISOString() ?? null,
     createdAt: p.createdAt.toISOString(),
     updatedAt: p.updatedAt.toISOString(),
   };
@@ -174,6 +178,60 @@ export async function updateUser(id: string, patch: Partial<AppUser>): Promise<A
 
 export async function deleteUser(id: string): Promise<void> {
   await db.user.delete({ where: { id } });
+}
+
+// ─── Microsoft Entra identity ──────────────────────────────────────────────────
+// These bind a Microsoft identity to an existing Portal user. They never CREATE a
+// user — enrollment stays entirely on the Users admin page. Authorization is
+// unaffected; only identity/login-timestamp columns are touched.
+
+type RawUser = PrismaUser & { entraObjectId?: string | null };
+
+export async function findUserByEntraObjectId(oid: string): Promise<RawUser | null> {
+  return (db.user.findUnique as (args: unknown) => Promise<RawUser | null>)({
+    where: { entraObjectId: oid },
+  });
+}
+
+export async function findUserByEmail(email: string): Promise<RawUser | null> {
+  return (db.user.findUnique as (args: unknown) => Promise<RawUser | null>)({
+    where: { email: email.toLowerCase().trim() },
+  });
+}
+
+/** First-login bind: store the immutable Entra Object ID + tenant and stamp lastLoginAt. */
+export async function bindEntraIdentity(
+  id: string,
+  entraObjectId: string,
+  entraTenantId: string | null
+): Promise<void> {
+  await (db.user.update as (args: unknown) => Promise<unknown>)({
+    where: { id },
+    data: { entraObjectId, entraTenantId, lastLoginAt: new Date() },
+  });
+}
+
+/** Returning-user login: just refresh the lastLoginAt timestamp. */
+export async function touchLastLogin(id: string): Promise<void> {
+  await (db.user.update as (args: unknown) => Promise<unknown>)({
+    where: { id },
+    data: { lastLoginAt: new Date() },
+  });
+}
+
+/**
+ * Admin action — unlink a user's Microsoft identity so the account can re-bind on the
+ * next successful Microsoft login with the matching authorized email. Does NOT delete
+ * the user. Administrator-only.
+ */
+export async function resetEntraIdentity(id: string): Promise<AppUser> {
+  await requireAdmin();
+  const row = await (db.user.update as (args: unknown) => Promise<PrismaUserWithCerts>)({
+    where: { id },
+    data: { entraObjectId: null, entraTenantId: null, lastLoginAt: null },
+    include: { certifications: true },
+  });
+  return toAppUser(row);
 }
 
 // ─── Password ────────────────────────────────────────────────────────────────

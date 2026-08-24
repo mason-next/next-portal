@@ -8,12 +8,16 @@ const DEFAULTS: {
   mustChangePassword: boolean;
   certifications: UserCertification[];
   lastActiveAt: null;
+  entraObjectId: null;
+  lastLoginAt: null;
 } = {
   location: "",
   emergencyContact: "",
   mustChangePassword: false,
   certifications: [],
   lastActiveAt: null,
+  entraObjectId: null,
+  lastLoginAt: null,
 };
 
 export const SAMPLE_USERS: AppUser[] = [
