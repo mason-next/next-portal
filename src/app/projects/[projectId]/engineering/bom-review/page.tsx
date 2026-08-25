@@ -29,6 +29,7 @@ import { BomImportDropzone } from "@/modules/bom-release/components/BomImportDro
 import { ProjectImportModal } from "@/modules/bom-release/components/ProjectImportModal";
 import { ReleaseModal, type ReleaseDetails } from "@/modules/bom-release/components/ReleaseModal";
 import { EmailPreviewModal } from "@/modules/bom-release/components/EmailPreviewModal";
+import { ReleaseHistory } from "@/modules/bom-release/components/ReleaseHistory";
 import { ViewOptionsModal } from "@/modules/bom-release/components/ViewOptionsModal";
 import { buildEmailHtml, buildEmailPlainText, buildEmailSubject } from "@/modules/bom-release/lib/email-builder";
 import { buildReleasePdf, releasePdfFilename } from "@/modules/bom-release/lib/release-pdf";
@@ -88,6 +89,7 @@ export default function BomReviewPage({
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const draftReleases = useMemo(() => releases.filter(isDraftRelease), [releases]);
+  const finalizedReleases = useMemo(() => releases.filter((r) => !isDraftRelease(r)), [releases]);
   const releasableDraftReleases = useMemo(() => {
     const approvedReleaseIds = new Set(
       (rows ?? []).filter((row) => row.status === "Approved" && row.releaseId).map((row) => row.releaseId)
@@ -327,6 +329,10 @@ export default function BomReviewPage({
       ) : (
         <BomImportDropzone onFileSelected={importFile} onUseSample={importSample} isParsing={isParsing} />
       )}
+
+      {project && finalizedReleases.length > 0 ? (
+        <ReleaseHistory releases={finalizedReleases} project={project} />
+      ) : null}
 
       {pendingRows && project ? (
         <ProjectImportModal
