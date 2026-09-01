@@ -113,10 +113,11 @@ function CompanyLogo({ domain, name }: { domain: string; name: string }) {
 }
 
 function KanbanCard({
-  card, isDragging, onDragStart, onDragEnd, onOpenConversation, onOpenCommission, onEditOpp,
+  card, isDragging, draggable, onDragStart, onDragEnd, onOpenConversation, onOpenCommission, onEditOpp,
 }: {
   card: OppCard;
   isDragging: boolean;
+  draggable: boolean;
   onDragStart: () => void;
   onDragEnd: () => void;
   onOpenConversation: (opp: SalesOpportunity) => void;
@@ -131,13 +132,13 @@ function KanbanCard({
 
   return (
     <div
-      draggable
-      onDragStart={(e) => { e.dataTransfer.effectAllowed = "move"; onDragStart(); }}
-      onDragEnd={onDragEnd}
+      draggable={draggable}
+      onDragStart={draggable ? (e) => { e.dataTransfer.effectAllowed = "move"; onDragStart(); } : undefined}
+      onDragEnd={draggable ? onDragEnd : undefined}
       onClick={onEditOpp ? () => onEditOpp(card.opp) : undefined}
       className={`group rounded-lg border bg-card p-3 shadow-sm transition-all select-none
         ${isDragging ? "opacity-40 scale-95" : "hover:shadow-md"}
-        ${onEditOpp ? "cursor-pointer" : "cursor-grab active:cursor-grabbing"}`}
+        ${onEditOpp ? "cursor-pointer" : draggable ? "cursor-grab active:cursor-grabbing" : ""}`}
     >
       {/* Company */}
       <div className="flex items-center gap-1.5 mb-2">
@@ -230,7 +231,8 @@ export interface OpportunityKanbanProps {
   onRepFilterChange: (r: string) => void;
   onOpenConversation: (opp: SalesOpportunity) => void;
   onOpenCommission?: (opp: SalesOpportunity) => void;
-  onStageChange: (id: string, stage: OppStage) => Promise<void>;
+  /** Omit to render the board read-only (no drag, no stage changes) — e.g. for viewer-level access. */
+  onStageChange?: (id: string, stage: OppStage) => Promise<void>;
   onEditOpportunity?: (opp: SalesOpportunity) => void;
 }
 
@@ -300,7 +302,7 @@ export function OpportunityKanban({
   }, [filtered]);
 
   async function handleDrop(stage: OppStage) {
-    if (!draggingId) return;
+    if (!draggingId || !onStageChange) return;
     const card = allCards.find((c) => c.opp.id === draggingId);
     if (!card || card.opp.stage === stage) {
       setDraggingId(null);
@@ -373,11 +375,11 @@ export function OpportunityKanban({
           return (
             <div
               key={stage}
-              onDragOver={(e) => { e.preventDefault(); e.dataTransfer.dropEffect = "move"; setOverStage(stage); }}
-              onDragLeave={(e) => {
+              onDragOver={onStageChange ? (e) => { e.preventDefault(); e.dataTransfer.dropEffect = "move"; setOverStage(stage); } : undefined}
+              onDragLeave={onStageChange ? (e) => {
                 if (!e.currentTarget.contains(e.relatedTarget as Node)) setOverStage(null);
-              }}
-              onDrop={(e) => { e.preventDefault(); handleDrop(stage); }}
+              } : undefined}
+              onDrop={onStageChange ? (e) => { e.preventDefault(); handleDrop(stage); } : undefined}
               className={`flex flex-col min-w-[215px] w-[215px] rounded-xl border transition-all duration-150
                 ${isOver
                   ? "border-primary/60 bg-primary/5 shadow-lg shadow-primary/10"
@@ -406,6 +408,7 @@ export function OpportunityKanban({
                     key={card.opp.id}
                     card={card}
                     isDragging={draggingId === card.opp.id}
+                    draggable={!!onStageChange}
                     onDragStart={() => setDraggingId(card.opp.id)}
                     onDragEnd={() => { setDraggingId(null); setOverStage(null); }}
                     onOpenConversation={onOpenConversation}

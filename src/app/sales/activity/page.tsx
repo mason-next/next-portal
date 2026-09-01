@@ -334,8 +334,8 @@ export default function SalesActivityPage() {
                   onRepFilterChange={setRepFilter}
                   onOpenConversation={setConvOpp}
                   onOpenCommission={setCommOpp}
-                  onStageChange={changeOppStage}
-                  onEditOpportunity={(o) => setModal({ type: "opportunity", companyId: o.companyId, data: o })}
+                  onStageChange={canEdit ? changeOppStage : undefined}
+                  onEditOpportunity={canEdit ? (o) => setModal({ type: "opportunity", companyId: o.companyId, data: o }) : undefined}
                 />
               )}
             </>
@@ -479,6 +479,7 @@ export default function SalesActivityPage() {
       <CompanyContactsDrawer
         company={contactsCompany}
         onClose={() => setContactsCompany(null)}
+        canEdit={canEdit}
       />
     </div>
   );

@@ -89,8 +89,8 @@ function ContactCard({
   contact, onEdit, onDelete,
 }: {
   contact: CompanyContact;
-  onEdit: () => void;
-  onDelete: () => void;
+  onEdit?: () => void;
+  onDelete?: () => void;
 }) {
   return (
     <div className="group rounded-lg border bg-card p-3 hover:shadow-sm transition-shadow">
@@ -141,23 +141,29 @@ function ContactCard({
         </div>
 
         {/* Actions */}
-        <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity shrink-0">
-          <button type="button" onClick={onEdit}
-            className="rounded p-1 text-muted-foreground hover:bg-muted hover:text-foreground transition-colors" title="Edit">
-            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
-              <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
-            </svg>
-          </button>
-          <button type="button"
-            onClick={() => confirm(`Delete ${contact.name}?`) && onDelete()}
-            className="rounded p-1 text-muted-foreground hover:bg-destructive/10 hover:text-destructive transition-colors" title="Delete">
-            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/>
-              <path d="M10 11v6"/><path d="M14 11v6"/>
-            </svg>
-          </button>
-        </div>
+        {(onEdit || onDelete) && (
+          <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity shrink-0">
+            {onEdit && (
+              <button type="button" onClick={onEdit}
+                className="rounded p-1 text-muted-foreground hover:bg-muted hover:text-foreground transition-colors" title="Edit">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
+                  <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
+                </svg>
+              </button>
+            )}
+            {onDelete && (
+              <button type="button"
+                onClick={() => confirm(`Delete ${contact.name}?`) && onDelete()}
+                className="rounded p-1 text-muted-foreground hover:bg-destructive/10 hover:text-destructive transition-colors" title="Delete">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/>
+                  <path d="M10 11v6"/><path d="M14 11v6"/>
+                </svg>
+              </button>
+            )}
+          </div>
+        )}
       </div>
     </div>
   );
@@ -168,9 +174,11 @@ function ContactCard({
 export interface CompanyContactsDrawerProps {
   company: SalesCompany | null;
   onClose: () => void;
+  /** Member level or higher — viewers get read-only access to contacts. */
+  canEdit: boolean;
 }
 
-export function CompanyContactsDrawer({ company, onClose }: CompanyContactsDrawerProps) {
+export function CompanyContactsDrawer({ company, onClose, canEdit }: CompanyContactsDrawerProps) {
   const [contacts, setContacts] = useState<CompanyContact[]>([]);
   const [loading, setLoading] = useState(false);
   const [adding, setAdding] = useState(false);
@@ -237,7 +245,7 @@ export function CompanyContactsDrawer({ company, onClose }: CompanyContactsDrawe
           ) : (
             <>
               {contacts.map((c) =>
-                editing?.id === c.id ? (
+                canEdit && editing?.id === c.id ? (
                   <div key={c.id} className="rounded-lg border bg-muted/20 p-3">
                     <p className="text-xs font-semibold mb-3 text-foreground">Edit Contact</p>
                     <ContactForm
@@ -251,8 +259,8 @@ export function CompanyContactsDrawer({ company, onClose }: CompanyContactsDrawe
                   <ContactCard
                     key={c.id}
                     contact={c}
-                    onEdit={() => { setAdding(false); setEditing(c); }}
-                    onDelete={() => handleDelete(c.id)}
+                    onEdit={canEdit ? () => { setAdding(false); setEditing(c); } : undefined}
+                    onDelete={canEdit ? () => handleDelete(c.id) : undefined}
                   />
                 )
               )}
@@ -264,12 +272,14 @@ export function CompanyContactsDrawer({ company, onClose }: CompanyContactsDrawe
                     <path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/>
                   </svg>
                   <p className="text-sm text-muted-foreground">No contacts yet.</p>
-                  <p className="text-xs text-muted-foreground/60 mt-1">Add people from this company you work with.</p>
+                  {canEdit && (
+                    <p className="text-xs text-muted-foreground/60 mt-1">Add people from this company you work with.</p>
+                  )}
                 </div>
               )}
 
               {/* Add form */}
-              {adding && (
+              {canEdit && adding && (
                 <div className="rounded-lg border bg-muted/20 p-3">
                   <p className="text-xs font-semibold mb-3 text-foreground">New Contact</p>
                   <ContactForm
@@ -284,7 +294,7 @@ export function CompanyContactsDrawer({ company, onClose }: CompanyContactsDrawe
         </div>
 
         {/* Footer */}
-        {!adding && !editing && (
+        {canEdit && !adding && !editing && (
           <div className="border-t p-4">
             <button
               type="button"
