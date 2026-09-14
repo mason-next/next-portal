@@ -477,6 +477,7 @@ export default function SalesActivityPage() {
       />
 
       <CompanyContactsDrawer
+        key={contactsCompany?.id}
         company={contactsCompany}
         onClose={() => setContactsCompany(null)}
         canEdit={canEdit}

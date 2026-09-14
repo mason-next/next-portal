@@ -6,6 +6,24 @@ import { getCompanyContacts, upsertCompanyContact, deleteCompanyContact } from "
 
 // ── Contact form ──────────────────────────────────────────────────────────────
 
+function Field({ label, value, onChange, type = "text", placeholder = "" }: {
+  label: string; value: string; onChange: (v: string) => void;
+  type?: string; placeholder?: string;
+}) {
+  return (
+    <div>
+      <label className="block text-xs font-medium text-muted-foreground mb-1">{label}</label>
+      <input
+        type={type}
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        placeholder={placeholder}
+        className="w-full rounded-lg border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+      />
+    </div>
+  );
+}
+
 function ContactForm({
   companyId, initial, onSave, onCancel,
 }: {
@@ -36,22 +54,6 @@ function ContactForm({
       setSaving(false);
     }
   }
-
-  const Field = ({ label, value, onChange, type = "text", placeholder = "" }: {
-    label: string; value: string; onChange: (v: string) => void;
-    type?: string; placeholder?: string;
-  }) => (
-    <div>
-      <label className="block text-xs font-medium text-muted-foreground mb-1">{label}</label>
-      <input
-        type={type}
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
-        placeholder={placeholder}
-        className="w-full rounded-lg border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
-      />
-    </div>
-  );
 
   return (
     <form onSubmit={handleSubmit} className="space-y-3">
@@ -180,18 +182,17 @@ export interface CompanyContactsDrawerProps {
 
 export function CompanyContactsDrawer({ company, onClose, canEdit }: CompanyContactsDrawerProps) {
   const [contacts, setContacts] = useState<CompanyContact[]>([]);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
   const [adding, setAdding] = useState(false);
   const [editing, setEditing] = useState<CompanyContact | null>(null);
 
   useEffect(() => {
     if (!company) return;
-    setLoading(true);
-    setAdding(false);
-    setEditing(null);
+    let cancelled = false;
     getCompanyContacts(company.id)
-      .then(setContacts)
-      .finally(() => setLoading(false));
+      .then((data) => { if (!cancelled) setContacts(data); })
+      .finally(() => { if (!cancelled) setLoading(false); });
+    return () => { cancelled = true; };
   }, [company]);
 
   if (!company) return null;
