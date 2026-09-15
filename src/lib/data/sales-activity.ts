@@ -3,7 +3,7 @@
 import { db } from "@/lib/db";
 import type {
   SalesCompany, SalesOpportunity, SalesActivity, SalesOppComment, SalesOppInvoice,
-  CommissionTeamMember, OppInvoiceStatus,
+  CommissionTeamMember, OppInvoiceStatus, CompanyContact,
   ActivityType, OppStage, ProposalRating, SalesContact,
 } from "@/types/sales";
 import { ACTIVITY_TYPES, PROPOSAL_RATINGS } from "@/types/sales";
@@ -487,6 +487,55 @@ export async function updateOppCommissionTeam(
     where: { id: opportunityId },
     data: { commissionTeam: team as object[] },
   });
+}
+
+// ─── Company Contacts ─────────────────────────────────────────────────────────
+
+function toCompanyContact(r: {
+  id: string; companyId: string; name: string; title: string;
+  email: string; phone: string; notes: string;
+  createdAt: Date; updatedAt: Date;
+}): CompanyContact {
+  return {
+    id: r.id,
+    companyId: r.companyId,
+    name: r.name,
+    title: r.title,
+    email: r.email,
+    phone: r.phone,
+    notes: r.notes,
+    createdAt: r.createdAt.toISOString(),
+    updatedAt: r.updatedAt.toISOString(),
+  };
+}
+
+export async function getCompanyContacts(companyId: string): Promise<CompanyContact[]> {
+  const rows = await db.salesContact.findMany({
+    where: { companyId },
+    orderBy: { name: "asc" },
+  });
+  return rows.map(toCompanyContact);
+}
+
+export async function upsertCompanyContact(
+  data: Omit<CompanyContact, "id" | "createdAt" | "updatedAt"> & { id?: string }
+): Promise<CompanyContact> {
+  const payload = {
+    companyId: data.companyId,
+    name: data.name.trim(),
+    title: data.title.trim(),
+    email: data.email.trim(),
+    phone: data.phone.trim(),
+    notes: data.notes.trim(),
+  };
+  const result = data.id
+    ? await db.salesContact.update({ where: { id: data.id }, data: payload })
+    : await db.salesContact.create({ data: payload });
+  return toCompanyContact(result);
+}
+
+export async function deleteCompanyContact(id: string): Promise<void> {
+  await db.salesContact.delete({ where: { id } });
 }
 
 // ─── Commission Statement Data ────────────────────────────────────────────────

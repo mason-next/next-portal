@@ -423,6 +423,22 @@ export const STEP_TASK_TEMPLATES: Record<string, TaskTemplate[]> = {
     },
   ],
 
+  projectSignOff: [
+    {
+      title: "Project Sign-Off",
+      description: "Send the Project Sign-Off Agreement to the customer for acceptance, then archive the signed copy in the project record.",
+      subtasks: [
+        "Review project completion status",
+        "Identify any pending/punch-list items",
+        "Generate Project Sign-Off Agreement",
+        "Send Project Sign-Off Agreement to customer",
+        "Receive signed Project Sign-Off Agreement",
+        "Upload/archive signed agreement",
+        "Confirm final acceptance",
+      ],
+    },
+  ],
+
   cadReview: [
     {
       title: "Drawing Package Review",

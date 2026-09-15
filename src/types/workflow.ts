@@ -51,6 +51,7 @@ export const WORKFLOW_STEP_KEYS = [
   "finalDayDocumentation",
   "closeoutPacket",
   "processRmas",
+  "projectSignOff",
   "closeout",
   // Service & Warranty
   "serviceWarranty",

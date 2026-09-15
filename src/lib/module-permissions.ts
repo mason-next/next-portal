@@ -179,10 +179,13 @@ export function getEffectiveLevel(
   let maxIdx = 0; // "none" at index 0
 
   for (const role of roleTypes) {
-    // Fall back to built-in defaults for roles not explicitly in the custom config.
+    // Fall back to built-in defaults for roles not explicitly in the custom config,
+    // and per-module for configs saved before a module existed (e.g. the sales
+    // CRM submodules) — a missing key must resolve to the code default, not "none".
     const perms = source[role] ?? DEFAULT_ROLE_PERMISSIONS[role];
-    if (!perms) continue;
-    const level: ModulePermLevel = perms[module] ?? "none";
+    const defaults = DEFAULT_ROLE_PERMISSIONS[role];
+    if (!perms && !defaults) continue;
+    const level: ModulePermLevel = perms?.[module] ?? defaults?.[module] ?? "none";
     const idx = PERM_LEVELS.indexOf(level);
     if (idx > maxIdx) maxIdx = idx;
   }

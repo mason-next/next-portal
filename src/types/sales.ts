@@ -32,6 +32,18 @@ export interface SalesContact {
   title: string;
 }
 
+export interface CompanyContact {
+  id: string;
+  companyId: string;
+  name: string;
+  title: string;
+  email: string;
+  phone: string;
+  notes: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
 export interface SalesCompany {
   id: string;
   name: string;

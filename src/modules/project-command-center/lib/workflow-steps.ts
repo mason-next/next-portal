@@ -101,9 +101,10 @@ export const WORKFLOW_STEP_TEMPLATE: WorkflowStepTemplateEntry[] = [
   { key: "finalDayDocumentation",       name: "Final Day Documentation",                sortOrder: 25, section: "closeout",         defaultOwnerRole: "fieldProjectManagerId" },
   { key: "closeoutPacket",              name: "Compile Closeout Packet & Submit",       sortOrder: 26, section: "closeout",         defaultOwnerRole: "seniorInsideId" },
   { key: "processRmas",                 name: "Process RMAs & Return to Stock",         sortOrder: 27, section: "closeout",         defaultOwnerRole: "insidePMId" },
-  { key: "closeout",                    name: "Closeout",                               sortOrder: 28, section: "closeout",         defaultOwnerRole: "seniorInsideId" },
+  { key: "projectSignOff",              name: "Project Sign-Off",                       sortOrder: 28, section: "closeout",         defaultOwnerRole: "seniorInsideId" },
+  { key: "closeout",                    name: "Closeout",                               sortOrder: 29, section: "closeout",         defaultOwnerRole: "seniorInsideId" },
   // ── Service & Warranty ─────────────────────────────────────────────────────
-  { key: "serviceWarranty",             name: "Service & Warranty",                     sortOrder: 29, section: "serviceWarranty",  defaultOwnerRole: "fieldProjectManagerId" },
+  { key: "serviceWarranty",             name: "Service & Warranty",                     sortOrder: 30, section: "serviceWarranty",  defaultOwnerRole: "fieldProjectManagerId" },
 ];
 
 // Each phase's fixed weight budget — independent of how many steps currently exist in it.
