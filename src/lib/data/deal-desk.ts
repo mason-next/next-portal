@@ -4,6 +4,7 @@ import { db } from "@/lib/db";
 import type { DealDeskQuote, DealCategory, TeamMember, ApprovalEvent, AuditEntry, PayoutMilestone, PayoutEvent } from "@/types/deal-desk";
 import type { DealDeskQuote as PrismaQuote } from "@prisma/client";
 import { DEFAULT_PAYOUT_MILESTONES } from "@/types/deal-desk";
+import { resolveSalesScope, resolveSalesWriteScope, ForbiddenError } from "@/lib/access-control";
 
 // ─── Type mapping ─────────────────────────────────────────────────────────────
 
@@ -63,20 +64,52 @@ function toQuote(p: PrismaQuote): DealDeskQuote {
 // ─── Queries ──────────────────────────────────────────────────────────────────
 
 export async function getDealDeskQuotes(): Promise<DealDeskQuote[]> {
+  const scope = await resolveSalesScope("salesDealDesk");
   const rows = await db.dealDeskQuote.findMany({
     orderBy: { createdAt: "desc" },
   });
-  return rows.map(toQuote);
+  const quotes = rows.map(toQuote);
+  if (scope.canSeeAll) return quotes;
+  // Reps see only quotes they own or are on the team for.
+  return quotes.filter(
+    (q) => q.salesperson === scope.userName || q.team.some((m) => m.name === scope.userName)
+  );
 }
 
 export async function getDealDeskQuote(id: string): Promise<DealDeskQuote | null> {
+  const scope = await resolveSalesScope("salesDealDesk");
   const row = await db.dealDeskQuote.findUnique({ where: { id } });
-  return row ? toQuote(row) : null;
+  if (!row) return null;
+  const quote = toQuote(row);
+  if (
+    !scope.canSeeAll &&
+    quote.salesperson !== scope.userName &&
+    !quote.team.some((m) => m.name === scope.userName)
+  ) {
+    throw new ForbiddenError("You don't have access to this quote");
+  }
+  return quote;
 }
 
 // ─── Mutations ────────────────────────────────────────────────────────────────
 
 export async function saveDealDeskQuote(quote: DealDeskQuote): Promise<void> {
+  const scope = await resolveSalesWriteScope("salesDealDesk");
+  if (!scope.canSeeAll) {
+    const existing = await db.dealDeskQuote.findUnique({
+      where: { id: quote.id },
+      select: { salesperson: true, team: true },
+    });
+    if (existing) {
+      const team = Array.isArray(existing.team) ? (existing.team as Array<{ name?: string }>) : [];
+      if (existing.salesperson !== scope.userName && !team.some((m) => m?.name === scope.userName)) {
+        throw new ForbiddenError("You can only modify your own quotes");
+      }
+    } else if (quote.salesperson !== scope.userName) {
+      // Reps can only create quotes they own.
+      throw new ForbiddenError("You can only create quotes for yourself");
+    }
+  }
   const data = {
     customer: quote.customer,
     projectName: quote.projectName,
@@ -122,5 +155,7 @@ export async function saveDealDeskQuote(quote: DealDeskQuote): Promise<void> {
 }
 
 export async function deleteDealDeskQuote(id: string): Promise<void> {
+  const scope = await resolveSalesWriteScope("salesDealDesk");
+  if (!scope.canSeeAll) throw new ForbiddenError("Only management can delete quotes");
   await db.dealDeskQuote.delete({ where: { id } });
 }
