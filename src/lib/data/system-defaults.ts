@@ -1,6 +1,8 @@
 "use server";
 
 import { db } from "@/lib/db";
+import { requireSession } from "@/lib/auth/server";
+import { requireAdmin } from "@/lib/access-control";
 
 // ─── Shared types ─────────────────────────────────────────────────────────────
 
@@ -70,6 +72,7 @@ export async function resolveAssigneeTargetMulti(target: AssigneeTarget): Promis
 const PROJECT_ROLE_DEFAULTS_KEY = "defaults:project-roles";
 
 export async function getProjectRoleDefaults(): Promise<ProjectRoleDefaults> {
+  await requireSession();
   const row = await db.appSetting.findUnique({ where: { key: PROJECT_ROLE_DEFAULTS_KEY } });
   if (row?.value && typeof row.value === "object" && !Array.isArray(row.value)) {
     return row.value as ProjectRoleDefaults;
@@ -86,6 +89,7 @@ export async function getProjectRoleDefaults(): Promise<ProjectRoleDefaults> {
 }
 
 export async function setProjectRoleDefaults(defaults: ProjectRoleDefaults): Promise<void> {
+  await requireAdmin();
   await db.appSetting.upsert({
     where: { key: PROJECT_ROLE_DEFAULTS_KEY },
     update: { value: defaults as object },
@@ -98,6 +102,7 @@ export async function setProjectRoleDefaults(defaults: ProjectRoleDefaults): Pro
 const FALLBACK_INTERNAL_ATTENDEE_IDS = ["user-sandra-verissimo", "user-alex-behan"];
 
 export async function getMeetingDefaults(type: MeetingType): Promise<MeetingDefaults> {
+  await requireSession();
   const key = `defaults:meeting:${type}`;
   const row = await db.appSetting.findUnique({ where: { key } });
   if (row?.value && typeof row.value === "object" && !Array.isArray(row.value)) {
@@ -117,6 +122,7 @@ export async function getMeetingDefaults(type: MeetingType): Promise<MeetingDefa
 }
 
 export async function setMeetingDefaults(type: MeetingType, defaults: MeetingDefaults): Promise<void> {
+  await requireAdmin();
   const key = `defaults:meeting:${type}`;
   await db.appSetting.upsert({
     where: { key },
@@ -142,6 +148,7 @@ export async function setMeetingDefaults(type: MeetingType, defaults: MeetingDef
 const WORKFLOW_STEP_DEFAULTS_KEY = "defaults:workflow-steps";
 
 export async function getWorkflowStepDefaults(): Promise<WorkflowStepDefaults> {
+  await requireSession();
   const row = await db.appSetting.findUnique({ where: { key: WORKFLOW_STEP_DEFAULTS_KEY } });
   if (row?.value && typeof row.value === "object" && !Array.isArray(row.value)) {
     return row.value as WorkflowStepDefaults;
@@ -150,6 +157,7 @@ export async function getWorkflowStepDefaults(): Promise<WorkflowStepDefaults> {
 }
 
 export async function setWorkflowStepDefaults(defaults: WorkflowStepDefaults): Promise<void> {
+  await requireAdmin();
   await db.appSetting.upsert({
     where: { key: WORKFLOW_STEP_DEFAULTS_KEY },
     update: { value: defaults as object },

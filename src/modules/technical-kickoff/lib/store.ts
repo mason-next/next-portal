@@ -1,6 +1,7 @@
 "use server";
 
 import { db } from "@/lib/db";
+import { requireModuleAction, requireEditPermission } from "@/lib/access-control";
 
 export interface TechnicalKickoffRecord {
   subject: string;
@@ -13,6 +14,7 @@ export interface TechnicalKickoffRecord {
 }
 
 export async function getTechnicalKickoffRecord(projectId: string): Promise<TechnicalKickoffRecord | null> {
+  await requireModuleAction("projects", "view");
   const row = await (db as any).technicalKickoff.findUnique({ where: { projectId } });
   if (!row) return null;
   return {
@@ -27,6 +29,7 @@ export async function getTechnicalKickoffRecord(projectId: string): Promise<Tech
 }
 
 export async function saveTechnicalKickoffRecord(projectId: string, record: TechnicalKickoffRecord): Promise<void> {
+  await requireEditPermission();
   const data = {
     subject: record.subject,
     agenda: record.agenda,

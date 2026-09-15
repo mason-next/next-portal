@@ -2,6 +2,7 @@
 
 import { Prisma, type Release as PrismaRelease } from "@prisma/client";
 import { db } from "@/lib/db";
+import { requireModuleAction, requireEditPermission } from "@/lib/access-control";
 import type { Release } from "@/types/release";
 import type { BomRowSnapshot } from "@/types/bom";
 
@@ -26,6 +27,7 @@ function toRelease(p: PrismaRelease): Release {
 }
 
 export async function getReleases(projectId: string): Promise<Release[]> {
+  await requireModuleAction("projects", "view");
   const rows = await db.release.findMany({
     where: { projectId },
     orderBy: { createdAt: "asc" },
@@ -34,6 +36,7 @@ export async function getReleases(projectId: string): Promise<Release[]> {
 }
 
 export async function createRelease(projectId: string, release: Release): Promise<Release> {
+  await requireEditPermission();
   const row = await db.release.create({
     data: {
       id: release.id,
@@ -60,6 +63,7 @@ export async function updateRelease(
   releaseId: string,
   patch: Partial<Release>
 ): Promise<Release> {
+  await requireEditPermission();
   const data: Parameters<typeof db.release.update>[0]["data"] = {};
   if ("shippingType" in patch)   data.shippingType   = patch.shippingType;
   if ("shipTo" in patch)         data.shipTo         = patch.shipTo;
