@@ -6,8 +6,8 @@ import {
   type User as PrismaUser,
 } from "@prisma/client";
 import { db } from "@/lib/db";
-import { getServerSession } from "@/lib/auth/server";
-import { requireAdmin } from "@/lib/access-control";
+import { getServerSession, requireSession } from "@/lib/auth/server";
+import { requireAdmin, requireModuleAction } from "@/lib/access-control";
 import { hashPassword, verifyPassword } from "@/lib/auth/password";
 import { toSessionRoleTypes } from "@/lib/auth/role-mapper";
 import type { AppUser, NewUserInput, UserCertification } from "@/types/user";
@@ -102,6 +102,8 @@ function toAppUser(p: PrismaUserWithCerts): AppUser {
 // ─── Queries ──────────────────────────────────────────────────────────────────
 
 export async function getUsers(): Promise<AppUser[]> {
+  // Any authenticated user may read the directory (mention pickers, assignee dropdowns).
+  await requireSession();
   const rows = await (db.user.findMany as (args: unknown) => Promise<PrismaUserWithCerts[]>)({
     orderBy: { name: "asc" },
     include: { certifications: true },
@@ -110,6 +112,7 @@ export async function getUsers(): Promise<AppUser[]> {
 }
 
 export async function getUser(id: string): Promise<AppUser | null> {
+  await requireSession();
   const row = await (db.user.findUnique as (args: unknown) => Promise<PrismaUserWithCerts | null>)({
     where: { id },
     include: { certifications: true },
@@ -120,6 +123,9 @@ export async function getUser(id: string): Promise<AppUser | null> {
 // ─── Mutations ────────────────────────────────────────────────────────────────
 
 export async function createUser(input: NewUserInput): Promise<AppUser> {
+  await requireModuleAction("users", "create");
+  // Only an Administrator may mint another Administrator (no privilege escalation).
+  if (input.roleTypes.includes("Administrator")) await requireAdmin();
   // Derive legacy DB columns from roleTypes for backward compat with old code paths.
   const isAdminRole = input.roleTypes.includes("Administrator");
   const dbAccountType = isAdminRole ? PrismaAccountType.Administrator : PrismaAccountType.Member;
@@ -148,6 +154,9 @@ export async function createUser(input: NewUserInput): Promise<AppUser> {
 }
 
 export async function updateUser(id: string, patch: Partial<AppUser>): Promise<AppUser> {
+  await requireModuleAction("users", "edit");
+  // Role changes are Administrator-only — closes the escalate-yourself-to-admin hole.
+  if ("roleTypes" in patch && patch.roleTypes) await requireAdmin();
   const data: Record<string, unknown> = {};
   if ("name" in patch)             data.name = patch.name;
   if ("title" in patch)            data.title = patch.title;
@@ -177,6 +186,7 @@ export async function updateUser(id: string, patch: Partial<AppUser>): Promise<A
 }
 
 export async function deleteUser(id: string): Promise<void> {
+  await requireModuleAction("users", "delete"); // delete action → Administrator level only
   await db.user.delete({ where: { id } });
 }
 

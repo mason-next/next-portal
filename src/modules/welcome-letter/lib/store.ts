@@ -1,6 +1,7 @@
 "use server";
 
 import { db } from "@/lib/db";
+import { requireModuleAction, requireEditPermission } from "@/lib/access-control";
 
 export interface WelcomeLetterRecord {
   subject: string;
@@ -11,6 +12,7 @@ export interface WelcomeLetterRecord {
 }
 
 export async function getWelcomeLetterRecord(projectId: string): Promise<WelcomeLetterRecord | null> {
+  await requireModuleAction("projects", "view");
   const row = await db.welcomeLetter.findUnique({ where: { projectId } });
   if (!row) return null;
   return {
@@ -23,6 +25,7 @@ export async function getWelcomeLetterRecord(projectId: string): Promise<Welcome
 }
 
 export async function saveWelcomeLetterRecord(projectId: string, record: WelcomeLetterRecord): Promise<void> {
+  await requireEditPermission();
   const data = {
     subject: record.subject,
     html: record.html,

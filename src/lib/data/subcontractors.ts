@@ -1,6 +1,8 @@
 "use server";
 
 import { db } from "@/lib/db";
+import { requireModuleAction, requireEditPermission } from "@/lib/access-control";
+import { requireSession } from "@/lib/auth/server";
 import type { Subcontractor, NewSubcontractorInput, ProjectTechnicianEntry } from "@/types/subcontractor";
 import type {
   Subcontractor as PrismaSub,
@@ -55,6 +57,7 @@ const TECH_INCLUDE = {
 
 // Active-only list — used by the technician picker on project overviews.
 export async function getSubcontractors(): Promise<Subcontractor[]> {
+  await requireSession(); // used broadly by technician pickers — authenticated users only
   const rows = await db.subcontractor.findMany({
     where: { isActive: true },
     orderBy: { name: "asc" },
@@ -64,11 +67,13 @@ export async function getSubcontractors(): Promise<Subcontractor[]> {
 
 // All subcontractors including inactive — used by the admin management view.
 export async function getAllSubcontractors(): Promise<Subcontractor[]> {
+  await requireModuleAction("subcontractors", "view");
   const rows = await db.subcontractor.findMany({ orderBy: { name: "asc" } });
   return rows.map(toSubcontractor);
 }
 
 export async function createSubcontractor(input: NewSubcontractorInput): Promise<Subcontractor> {
+  await requireModuleAction("subcontractors", "create");
   const row = await db.subcontractor.create({
     data: {
       id: crypto.randomUUID(),
@@ -92,6 +97,7 @@ export async function updateSubcontractor(
   id: string,
   input: Partial<NewSubcontractorInput>
 ): Promise<Subcontractor> {
+  await requireModuleAction("subcontractors", "edit");
   const row = await db.subcontractor.update({
     where: { id },
     data: {
@@ -112,6 +118,7 @@ export async function updateSubcontractor(
 }
 
 export async function deleteSubcontractor(id: string): Promise<void> {
+  await requireModuleAction("subcontractors", "delete");
   await db.subcontractor.delete({ where: { id } });
 }
 
@@ -126,6 +133,7 @@ export async function createSubcontractorQuick(name: string, trade = ""): Promis
 // ─── Technician queries ───────────────────────────────────────────────────────
 
 export async function getProjectTechnicians(projectId: string): Promise<ProjectTechnicianEntry[]> {
+  await requireModuleAction("projects", "view");
   const rows = await db.projectTechnician.findMany({
     where: { projectId },
     include: TECH_INCLUDE,
@@ -140,6 +148,7 @@ export async function setProjectTechnicians(
   projectId: string,
   entries: Array<{ userId?: string | null; subcontractorId?: string | null }>
 ): Promise<ProjectTechnicianEntry[]> {
+  await requireEditPermission();
   // Dedupe: userId and subcontractorId must each appear at most once per project
   const seen = new Set<string>();
   const deduped = entries.filter((e) => {

@@ -2,7 +2,7 @@
 
 import { db } from "@/lib/db";
 import { getServerSession } from "@/lib/auth/server";
-import { requireEditPermission } from "@/lib/access-control";
+import { requireEditPermission, requireModuleAction } from "@/lib/access-control";
 import type { MeetingNote, CreateMeetingNoteInput, UpdateMeetingNoteInput } from "@/types/meeting-notes";
 
 function toNote(p: {
@@ -34,6 +34,7 @@ function toNote(p: {
 }
 
 export async function getMeetingNotes(projectId: string): Promise<MeetingNote[]> {
+  await requireModuleAction("projects", "view");
   const rows = await (db as any).meetingNote.findMany({
     where: { projectId },
     orderBy: { meetingDate: "desc" },

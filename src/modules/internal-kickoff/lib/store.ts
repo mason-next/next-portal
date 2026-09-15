@@ -1,6 +1,7 @@
 "use server";
 
 import { db } from "@/lib/db";
+import { requireModuleAction, requireEditPermission } from "@/lib/access-control";
 
 export interface InternalKickoffRecord {
   subject: string;
@@ -13,6 +14,7 @@ export interface InternalKickoffRecord {
 }
 
 export async function getInternalKickoffRecord(projectId: string): Promise<InternalKickoffRecord | null> {
+  await requireModuleAction("projects", "view");
   const row = await db.internalKickoff.findUnique({ where: { projectId } });
   if (!row) return null;
   return {
@@ -27,6 +29,7 @@ export async function getInternalKickoffRecord(projectId: string): Promise<Inter
 }
 
 export async function saveInternalKickoffRecord(projectId: string, record: InternalKickoffRecord): Promise<void> {
+  await requireEditPermission();
   const data = {
     subject: record.subject,
     agenda: record.agenda,

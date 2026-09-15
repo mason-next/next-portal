@@ -7,6 +7,7 @@ import {
   type EquipmentUpload as PrismaUpload,
 } from "@prisma/client";
 import { db } from "@/lib/db";
+import { requireModuleAction, requireEditPermission } from "@/lib/access-control";
 import { computeEquipmentStatus } from "@/modules/equipment-tracking/lib/status";
 import type { AuditEntry } from "@/types/audit";
 import type { EquipmentRow, EquipmentUploadRecord } from "@/types/equipment";
@@ -77,6 +78,7 @@ function toUploadRecord(p: PrismaUpload): EquipmentUploadRecord {
 // ─── Queries ──────────────────────────────────────────────────────────────────
 
 export async function getEquipmentRows(projectId: string): Promise<EquipmentRow[]> {
+  await requireModuleAction("projects", "view");
   const rows = await db.equipmentRow.findMany({
     where: { projectId },
     orderBy: { sortOrder: "asc" },
@@ -86,6 +88,7 @@ export async function getEquipmentRows(projectId: string): Promise<EquipmentRow[
 }
 
 export async function getEquipmentUploadHistory(projectId: string): Promise<EquipmentUploadRecord[]> {
+  await requireModuleAction("projects", "view");
   const rows = await db.equipmentUpload.findMany({
     where: { projectId },
     orderBy: { uploadedAt: "desc" },
@@ -99,6 +102,7 @@ export async function getEquipmentUploadHistory(projectId: string): Promise<Equi
 // Deletes all existing rows for the project (cascade removes their audit logs),
 // then recreates the full list preserving IDs and embedded audit history.
 export async function saveEquipmentRows(projectId: string, rows: EquipmentRow[]): Promise<void> {
+  await requireEditPermission();
   await db.$transaction(
     async (tx) => {
       await tx.equipmentRow.deleteMany({ where: { projectId } });
@@ -169,6 +173,7 @@ export async function updateEquipmentRow(
   patch: EquipmentRowPatch,
   auditEntry: AuditEntry
 ): Promise<void> {
+  await requireEditPermission();
   const data: Parameters<typeof db.equipmentRow.update>[0]["data"] = {};
 
   if ("seq" in patch)              data.seq = patch.seq;
@@ -211,6 +216,7 @@ export async function appendEquipmentUploadRecord(
   projectId: string,
   record: EquipmentUploadRecord
 ): Promise<void> {
+  await requireEditPermission();
   await db.equipmentUpload.create({
     data: {
       id: record.id,

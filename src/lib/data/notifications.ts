@@ -2,6 +2,8 @@
 
 import { Prisma, type Notification as PrismaNotification } from "@prisma/client";
 import { db } from "@/lib/db";
+import { requireSession } from "@/lib/auth/server";
+import { ForbiddenError } from "@/lib/access-control";
 import type { NewNotificationInput, Notification, NotificationType } from "@/types/notification";
 
 // ─── Type mapper ──────────────────────────────────────────────────────────────
@@ -27,9 +29,11 @@ function toNotification(p: PrismaNotification): Notification {
 
 // ─── Queries ──────────────────────────────────────────────────────────────────
 
-export async function getNotificationsForUser(userId: string): Promise<Notification[]> {
+export async function getNotificationsForUser(_userId: string): Promise<Notification[]> {
+  // Always the caller's own notifications — the passed id is ignored (never trust the client).
+  const session = await requireSession();
   const rows = await db.notification.findMany({
-    where: { userId },
+    where: { userId: session.id },
     orderBy: { createdAt: "desc" },
     take: 50,
   });
@@ -41,6 +45,9 @@ export async function getNotificationsForUser(userId: string): Promise<Notificat
 // Dedup key: (userId, commentId) for project comments; (userId, taskCommentId) for task comments;
 // (userId, type, projectId) for all other notification types.
 export async function createNotification(input: NewNotificationInput): Promise<Notification | null> {
+  // Notifications are generated for OTHER users (e.g. @mentions), so we can't pin to self —
+  // but the caller must at least be an authenticated user.
+  await requireSession();
   const dedup = input.commentId
     ? { userId: input.userId, commentId: input.commentId }
     : input.taskCommentId
@@ -68,13 +75,21 @@ export async function createNotification(input: NewNotificationInput): Promise<N
 }
 
 export async function markNotificationRead(id: string): Promise<void> {
+  const session = await requireSession();
+  const notif = await db.notification.findUnique({ where: { id }, select: { userId: true } });
+  if (!notif) return;
+  if (notif.userId !== session.id) throw new ForbiddenError("You can only update your own notifications");
   await db.notification.update({ where: { id }, data: { isRead: true } });
 }
 
-export async function markAllNotificationsRead(userId: string): Promise<void> {
-  await db.notification.updateMany({ where: { userId }, data: { isRead: true } });
+export async function markAllNotificationsRead(_userId: string): Promise<void> {
+  // Only the caller's own notifications — passed id ignored.
+  const session = await requireSession();
+  await db.notification.updateMany({ where: { userId: session.id }, data: { isRead: true } });
 }
 
 export async function deleteNotificationsForProject(projectId: string): Promise<void> {
+  // Housekeeping when a project's comments are removed; authenticated users only.
+  await requireSession();
   await db.notification.deleteMany({ where: { projectId } });
 }
