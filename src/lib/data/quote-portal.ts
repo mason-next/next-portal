@@ -3,6 +3,15 @@
 import { db } from "@/lib/db";
 import type { QuotePresentation, QuoteAccessLog } from "@/types/sales";
 import type { QuotePresentation as PrismaQuote } from "@prisma/client";
+import { resolveSalesScope, resolveSalesWriteScope, ForbiddenError, type SalesScope } from "@/lib/access-control";
+
+// Reps manage only their own presentations; admins/management see all.
+async function assertOwnsQuote(id: string, scope: SalesScope): Promise<void> {
+  if (scope.canSeeAll) return;
+  const q = await db.quotePresentation.findUnique({ where: { id }, select: { createdBy: true } });
+  if (!q) throw new ForbiddenError("Presentation not found");
+  if (q.createdBy !== scope.userName) throw new ForbiddenError("You can only manage your own presentations");
+}
 
 // ─── Mappers ──────────────────────────────────────────────────────────────────
 
@@ -29,8 +38,10 @@ function toQuote(
 // ─── Queries ──────────────────────────────────────────────────────────────────
 
 export async function getQuotePresentations(): Promise<QuotePresentation[]> {
+  const scope = await resolveSalesScope("salesQuotes");
   const rows = await db.quotePresentation.findMany({
     orderBy: { createdAt: "desc" },
+    where: scope.canSeeAll ? undefined : { createdBy: scope.userName },
     include: { _count: { select: { accessLogs: true } } },
   });
   return rows.map(toQuote);
@@ -53,6 +64,8 @@ export async function getQuotePresentationById(id: string): Promise<QuotePresent
 }
 
 export async function getQuoteAccessLogs(quoteId: string): Promise<QuoteAccessLog[]> {
+  const scope = await resolveSalesScope("salesQuotes");
+  await assertOwnsQuote(quoteId, scope);
   const rows = await db.quoteAccessLog.findMany({
     where: { quoteId },
     orderBy: { accessedAt: "desc" },
@@ -77,12 +90,14 @@ export async function createQuotePresentation(data: {
   htmlFile?: string;
   storageKey?: string;
 }): Promise<QuotePresentation> {
+  const scope = await resolveSalesWriteScope("salesQuotes");
   const row = await db.quotePresentation.create({
     data: {
       slug: data.slug,
       title: data.title,
       customer: data.customer,
-      createdBy: data.createdBy,
+      // Reps always create under their own identity.
+      createdBy: scope.canSeeAll ? data.createdBy : scope.userName,
       htmlFile: data.htmlFile ?? "presentation.html",
       storageKey: data.storageKey ?? "",
     },
@@ -92,12 +107,16 @@ export async function createQuotePresentation(data: {
 }
 
 export async function toggleQuoteActive(id: string): Promise<void> {
+  const scope = await resolveSalesWriteScope("salesQuotes");
+  await assertOwnsQuote(id, scope);
   const current = await db.quotePresentation.findUnique({ where: { id }, select: { isActive: true } });
   if (!current) return;
   await db.quotePresentation.update({ where: { id }, data: { isActive: !current.isActive } });
 }
 
 export async function deleteQuotePresentation(id: string): Promise<void> {
+  const scope = await resolveSalesWriteScope("salesQuotes");
+  await assertOwnsQuote(id, scope);
   await db.quotePresentation.delete({ where: { id } });
 }
 

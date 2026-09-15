@@ -1,11 +1,13 @@
 import { cookies } from "next/headers";
 import { getServerSession } from "@/lib/auth/server";
+import type { SessionUser } from "@/lib/auth/types";
 import {
   hasModulePermission,
   canLevelEdit,
   getEffectiveLevel,
   type ModuleKey,
   type ModuleAction,
+  type ModulePermLevel,
 } from "@/lib/module-permissions";
 import { VIEW_AS_COOKIE } from "@/lib/view-as/ViewAsContext";
 
@@ -40,6 +42,53 @@ export async function requireAdmin(): Promise<void> {
   if (!session.roleTypes.includes("Administrator")) {
     throw new ForbiddenError("Administrator access required");
   }
+}
+
+// ─── Sales row-level scope ──────────────────────────────────────────────────────
+// Sales data is exposed via Server Actions (RPC endpoints), so "self-only" visibility
+// must be enforced here on the server — never trust a client-supplied owner filter.
+
+export interface SalesScope {
+  session: SessionUser;
+  level: ModulePermLevel;
+  /** administrator level → may see and act on every record (Administrator + Management). */
+  canSeeAll: boolean;
+  /** member or administrator → may create/edit. */
+  canEdit: boolean;
+  /** The caller's own owner key — the filter applied to every read for non-admins. */
+  userName: string;
+  userId: string;
+}
+
+/**
+ * Resolves the caller's visibility/mutation scope for a sales module.
+ * Fails closed: throws if unauthenticated or the effective level is "none".
+ * Non-administrator callers are limited to their own records (userName/userId);
+ * administrators (the Administrator role type, and Management via the default role
+ * config) get canSeeAll. Uses the built-in role defaults, matching the rest of this
+ * module's server-side checks.
+ */
+export async function resolveSalesScope(module: ModuleKey): Promise<SalesScope> {
+  const session = await getServerSession();
+  if (!session) throw new ForbiddenError("You must be signed in to perform this action");
+  const level = getEffectiveLevel(session.roleTypes, module);
+  if (level === "none") throw new ForbiddenError("You do not have access to this feature");
+  return {
+    session,
+    level,
+    canSeeAll: level === "administrator",
+    canEdit: canLevelEdit(level),
+    userName: session.name,
+    userId: session.id,
+  };
+}
+
+/** Like resolveSalesScope, but also enforces edit rights and blocks View As writes. */
+export async function resolveSalesWriteScope(module: ModuleKey): Promise<SalesScope> {
+  await requireNotViewAsMode();
+  const scope = await resolveSalesScope(module);
+  if (!scope.canEdit) throw new ForbiddenError("You don't have permission to modify sales records");
+  return scope;
 }
 
 const WRITE_ACTIONS = new Set<ModuleAction>(["create", "edit", "delete", "approve", "assign", "manageSettings"]);
