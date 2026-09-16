@@ -39,7 +39,9 @@ export default function SalesActivityPage() {
 
   const salesLevel = getLevel("salesActivity");
   const isAdmin = salesLevel === "administrator";
-  const canEdit = salesLevel !== "none" && salesLevel !== "viewer" && !isViewAsMode;
+  // View As is now full impersonation: edit affordances follow the viewed user's own
+  // level (getLevel already reflects them in View As), and writes are attributed to them.
+  const canEdit = salesLevel !== "none" && salesLevel !== "viewer";
 
   // Effective user name: in View As mode scope to the viewed user; admins see all data.
   const effectiveName = isViewAsMode ? (viewAsUser?.name ?? session.name) : session.name;
