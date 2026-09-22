@@ -56,6 +56,11 @@ const MOBILE_NAV_SECTIONS: MobileNavSection[] = [
     feature: "sales",
     items: [
       { href: "/sales",                                  label: "Overview" },
+      { href: "/sales/crm",                              label: "CRM Dashboard" },
+      { href: "/sales/agenda",                           label: "Agenda" },
+      { href: "/sales/accounts",                         label: "Accounts" },
+      { href: "/sales/opportunities",                    label: "Opportunities" },
+      { href: "/sales/leads",                            label: "Leads" },
       { href: "/sales/activity",                         label: "Activity Log" },
       { href: "/sales/deal-desk",                        label: "Deal Desk" },
       { href: "/sales/deal-desk/commission-statement",   label: "Commission Statement" },

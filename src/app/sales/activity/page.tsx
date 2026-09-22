@@ -20,6 +20,7 @@ import { OppCommissionDrawer } from "@/modules/sales-activity/components/OppComm
 import { OpportunityKanban } from "@/modules/sales-activity/components/OpportunityKanban";
 import { ActivityCalendar } from "@/modules/sales-activity/components/ActivityCalendar";
 import { CompanyContactsDrawer } from "@/modules/sales-activity/components/CompanyContactsDrawer";
+import { CrmSubNav } from "@/modules/crm/components/ui";
 import { formatWeekLabel } from "@/types/sales";
 import type { SalesCompany, SalesOpportunity, SalesActivity } from "@/types/sales";
 import type { CWImportPayload, ImportProgressCallback } from "@/modules/sales-activity/components/CWImportModal";
@@ -147,6 +148,7 @@ export default function SalesActivityPage() {
 
   return (
     <div className="mx-auto max-w-7xl p-8 space-y-6">
+      <CrmSubNav />
       {/* Breadcrumb */}
       <div className="flex items-center gap-2 text-sm text-muted-foreground">
         <Link href="/sales" className="hover:text-foreground">Sales</Link>

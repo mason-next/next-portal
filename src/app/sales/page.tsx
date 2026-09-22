@@ -77,8 +77,9 @@ export default function SalesDashboardPage() {
       </div>
 
       {/* Module Nav Cards */}
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
         {[
+          { href: "/sales/crm", label: "CRM", desc: "Accounts, opportunities, dated notes, follow-ups, forecast and your agenda", icon: "🗂️" },
           { href: "/sales/activity", label: "Sales Activity", desc: "Track prospects and log weekly calls, emails, meetings, and demos", icon: "📊" },
           { href: "/sales/deal-desk", label: "Deal Desk", desc: "Import quotes, review commissions, and manage payout milestones", icon: "💼" },
           { href: "/sales/quotes", label: "Interactive Quote Portal", desc: "Share customer-facing HTML presentations with email-gated access", icon: "🔗" },
