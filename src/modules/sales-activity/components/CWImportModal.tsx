@@ -7,14 +7,15 @@ import type { AppUser } from "@/types/user";
 import { UserPicker } from "@/components/shared/UserPicker";
 
 const STAGE_OPTIONS: OppStage[] = [
-  "Prospecting", "Qualifying", "Proposal", "Negotiation", "Closed Won", "Closed Lost",
+  "Prospecting", "Qualifying", "Proposal", "Closed Won", "Closed Lost",
 ];
 
 const STAGE_MAP: Record<string, OppStage> = {
   "Prospect":       "Prospecting",
   "Qualified":      "Qualifying",
   "Quote Complete": "Proposal",
-  "Negotiation":    "Negotiation",
+  // Negotiation isn't a stage in our workflow — CW negotiation deals land in Proposal.
+  "Negotiation":    "Proposal",
   "Won":            "Closed Won",
   "Lost":           "Closed Lost",
 };
@@ -23,7 +24,6 @@ const STAGE_COLORS: Record<string, string> = {
   Prospecting:    "bg-slate-100 text-slate-600",
   Qualifying:     "bg-blue-100 text-blue-700",
   Proposal:       "bg-violet-100 text-violet-700",
-  Negotiation:    "bg-amber-100 text-amber-700",
   "Closed Won":   "bg-emerald-100 text-emerald-700",
   "Closed Lost":  "bg-red-100 text-red-700",
 };
@@ -56,6 +56,7 @@ export interface CWImportPayload {
 }
 
 export type ImportProgressCallback = (done: number, total: number, label: string) => void;
+export interface CWImportResult { created: number; updated: number; skipped: number }
 
 // Convert "Charles Horn" → "chorn" to match CW's rep format
 function cwSlug(user: AppUser): string {
@@ -72,7 +73,8 @@ function autoMatchRep(cwName: string, users: AppUser[]): AppUser | null {
 
 interface CWImportModalProps {
   companies: SalesCompany[];
-  onImport: (data: CWImportPayload, onProgress: ImportProgressCallback) => Promise<void>;
+  /** May return actual counts, e.g. when rows were skipped because they belong to another rep. */
+  onImport: (data: CWImportPayload, onProgress: ImportProgressCallback) => Promise<CWImportResult | void>;
   onClose: () => void;
 }
 
@@ -236,7 +238,7 @@ export function CWImportModal({ companies, onImport, onClose }: CWImportModalPro
   const [error, setError] = useState<string | null>(null);
   const [isImporting, setIsImporting] = useState(false);
   const [progress, setProgress] = useState<{ done: number; total: number; label: string } | null>(null);
-  const [done, setDone] = useState<{ created: number; updated: number } | null>(null);
+  const [done, setDone] = useState<CWImportResult | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
 
   // Per-company: selected existing company id, or "" = create new
@@ -400,10 +402,10 @@ export function CWImportModal({ companies, onImport, onClose }: CWImportModalPro
       );
       const created = selectedOpps.filter((o) => !o.existingId).length;
       const updated = selectedOpps.filter((o) => !!o.existingId).length;
-      await onImport({ companyMappings, selectedOpps }, (done, total, label) => {
+      const result = await onImport({ companyMappings, selectedOpps }, (done, total, label) => {
         setProgress({ done, total, label });
       });
-      setDone({ created, updated });
+      setDone(result ?? { created, updated, skipped: 0 });
     } catch (err) {
       console.error("[CWImport] Import failed:", err);
       setError(`Import failed: ${err instanceof Error ? err.message : String(err)}`);
@@ -465,6 +467,11 @@ export function CWImportModal({ companies, onImport, onClose }: CWImportModalPro
                 {done.created > 0 && done.updated > 0 && " · "}
                 {done.updated > 0 && `${done.updated} updated`}
               </p>
+              {done.skipped > 0 && (
+                <p className="text-xs text-amber-600 dark:text-amber-400">
+                  {done.skipped} skipped — owned by another rep
+                </p>
+              )}
               <button onClick={onClose} className="mt-4 rounded-md bg-primary px-6 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90">
                 Done
               </button>

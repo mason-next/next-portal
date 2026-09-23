@@ -36,7 +36,8 @@ export default function CrmDashboardPage() {
   const [data, setData] = useState<{ companies: SalesCompany[]; rollups: Record<string, AccountRollup> } | null>(null);
   const [agenda, setAgenda] = useState<AgendaItem[]>([]);
   const [leads, setLeads] = useState<SalesLead[]>([]);
-  const [dim, setDim] = useState<Dim>("owner");
+  // A rep only ever sees their own deals, so "by salesperson" would be a single row.
+  const [dim, setDim] = useState<Dim>(access.isManager ? "owner" : "account");
   const [rep, setRep] = useState("");
 
   useEffect(() => {
@@ -166,7 +167,7 @@ export default function CrmDashboardPage() {
               title={`Pipeline by ${DIM_LABEL[dim].toLowerCase()}`}
               actions={
                 <FilterSelect label="Break down by" value={dim} onChange={(v) => setDim(v as Dim)}>
-                  {(Object.keys(DIM_LABEL) as Dim[]).map((d) => <option key={d} value={d}>{DIM_LABEL[d]}</option>)}
+                  {(Object.keys(DIM_LABEL) as Dim[]).filter((d) => access.isManager || d !== "owner").map((d) => <option key={d} value={d}>{DIM_LABEL[d]}</option>)}
                 </FilterSelect>
               }
             >

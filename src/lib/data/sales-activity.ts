@@ -136,6 +136,16 @@ export async function upsertSalesCompany(
   const existing = data.id ? await db.salesCompany.findUnique({ where: { id: data.id } }) : null;
   if (data.id && !existing) throw new ForbiddenError("Company not found");
 
+  if (!existing && !scope.canSeeAll) {
+    // Reps only see their own accounts, so an import or "Add company" can name a company
+    // that already exists under another rep. Reuse it instead of creating a duplicate;
+    // the rep gains visibility of the account only once they have a deal on it.
+    const sameName = await db.salesCompany.findFirst({
+      where: { name: { equals: data.name.trim(), mode: "insensitive" } },
+    });
+    if (sameName) return toCompany(sameName);
+  }
+
   // Account ownership: management may assign anyone. A rep may claim an unowned
   // account (or create one, defaulting to themselves) but can't reassign someone else's.
   let ownerId = existing?.ownerId ?? null;

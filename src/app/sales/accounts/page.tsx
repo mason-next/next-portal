@@ -206,7 +206,15 @@ export default function AccountsPage() {
             currentUser={access.userName}
             territories={territories}
             verticals={verticals}
-            onSave={async (d) => { const c = await upsertSalesCompany(d); router.push(`/sales/accounts/${c.id}`); }}
+            onSave={async (d) => {
+              const c = await upsertSalesCompany(d);
+              const mine = access.isManager || !c.ownerName || c.ownerName === access.userName || data?.companies.some((x) => x.id === c.id);
+              if (!mine) {
+                // The server reused an existing account that belongs to another rep.
+                throw new Error(`"${c.name}" already exists and is owned by ${c.ownerName}. Ask them or a manager to add you, or log a deal on it from an import.`);
+              }
+              router.push(`/sales/accounts/${c.id}`);
+            }}
             onCancel={() => setCreating(false)}
           />
         )}

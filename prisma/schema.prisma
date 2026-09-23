@@ -804,7 +804,6 @@ enum OppStage {
   Prospecting
   Qualifying
   Proposal
-  Negotiation
   ClosedWon  @map("Closed Won")
   ClosedLost @map("Closed Lost")
 }

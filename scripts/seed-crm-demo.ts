@@ -30,7 +30,7 @@ const at = (days: number) => {
   return d;
 };
 
-type Stage = "Prospecting" | "Qualifying" | "Proposal" | "Negotiation" | "ClosedWon" | "ClosedLost";
+type Stage = "Prospecting" | "Qualifying" | "Proposal" | "ClosedWon" | "ClosedLost";
 
 async function main() {
   if (process.argv.includes("--reset")) {
@@ -85,14 +85,14 @@ async function main() {
     key: string; acct: string; name: string; stage: Stage; owner: { id: string | null; name: string };
     value: number; close: number; prob?: number; next?: string; nextIn?: number; nextOwner?: { id: string | null; name: string }; source?: string;
   }[] = [
-    { key: "h1", acct: "harbor", name: "Clinic Wi-Fi 6E refresh (12 sites)", stage: "Negotiation", owner: marcus, value: 412000, close: 12, next: "Send revised quote with 5-yr support", nextIn: 2, source: "Existing Customer" },
-    { key: "h2", acct: "harbor", name: "Nurse-call integration", stage: "Proposal", owner: marcus, value: 96000, close: 40, next: "Demo integration with CNO", nextIn: -3, nextOwner: juan },
+    { key: "h1", acct: "harbor", name: "Clinic Wi-Fi 6E refresh (12 sites)", stage: "Proposal", owner: marcus, value: 412000, close: 12, prob: 75, next: "Send revised quote with 5-yr support", nextIn: 2, source: "Existing Customer" },
+    { key: "h2", acct: "harbor", name: "Nurse-call integration", stage: "Qualifying", owner: marcus, value: 96000, close: 40, next: "Demo integration with CNO", nextIn: -3, nextOwner: juan },
     { key: "h3", acct: "harbor", name: "Main campus access control", stage: "ClosedWon", owner: marcus, value: 188000, close: -45 },
     { key: "l1", acct: "lakeside", name: "District-wide camera upgrade", stage: "Qualifying", owner: sandra, value: 265000, close: 75, next: "Confirm E-rate timeline with CFO", nextIn: 6, source: "Event" },
     { key: "l2", acct: "lakeside", name: "Stadium PA & scoreboard", stage: "Prospecting", owner: sandra, value: 58000, close: 120 },
     { key: "c1", acct: "copper", name: "Plant floor network segmentation", stage: "Proposal", owner: alex, value: 174000, close: 21, prob: 60, next: "Walk plant 2 with OT lead", nextIn: 1, source: "Referral" },
-    { key: "c2", acct: "copper", name: "Warehouse DAS", stage: "Negotiation", owner: alex, value: 88000, close: -4 },
-    { key: "v1", acct: "vantage", name: "Branch SD-WAN (22 branches)", stage: "Negotiation", owner: marcus, value: 530000, close: 30, prob: 85, next: "Legal redlines back to procurement", nextIn: 4, nextOwner: juan },
+    { key: "c2", acct: "copper", name: "Warehouse DAS", stage: "Proposal", owner: alex, value: 88000, close: -4 },
+    { key: "v1", acct: "vantage", name: "Branch SD-WAN (22 branches)", stage: "Proposal", owner: marcus, value: 530000, close: 30, prob: 85, next: "Legal redlines back to procurement", nextIn: 4, nextOwner: juan },
     { key: "v2", acct: "vantage", name: "Drive-thru teller video", stage: "ClosedLost", owner: marcus, value: 64000, close: -20 },
     { key: "s1", acct: "summit", name: "911 dispatch console refresh", stage: "Proposal", owner: sandra, value: 310000, close: 55, next: "Council budget vote", nextIn: 18 },
     { key: "s2", acct: "summit", name: "Courthouse security cameras", stage: "Qualifying", owner: sandra, value: 142000, close: 95 },

@@ -126,7 +126,6 @@ interface StageRule {
 export const STAGE_AUTOMATIONS: Partial<Record<OppStage, StageRule>> = {
   Qualifying:   { taskTitle: "Confirm budget, authority, need & timeline", dueInDays: 7, priority: "Normal" },
   Proposal:     { taskTitle: "Follow up on proposal",                        dueInDays: 7, priority: "Normal" },
-  Negotiation:  { taskTitle: "Confirm decision date and paperwork",          dueInDays: 5, priority: "High" },
   "Closed Won": { taskTitle: "Hand off to Operations and schedule kickoff",  dueInDays: 2, priority: "High" },
 };
 

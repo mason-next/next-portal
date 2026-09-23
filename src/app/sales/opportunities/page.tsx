@@ -14,6 +14,7 @@ import {
   PageHeader, FilterSelect, SearchInput, StageBadge, DueChip, PrimaryButton, SecondaryButton, Empty, STAGE_COLORS,
 } from "@/modules/crm/components/ui";
 import { OpportunityEditor } from "@/modules/crm/components/OpportunityEditor";
+import { OpportunityDrawer } from "@/modules/crm/components/OpportunityDrawer";
 import { usePersistentFilter } from "@/lib/storage/use-persistent-filter";
 import { cn } from "@/lib/utils";
 
@@ -63,6 +64,7 @@ export default function OpportunitiesPage() {
   const [attentionOnly, setAttentionOnly] = useState(false);
   const [sort, setSort] = useState<{ key: SortKey; dir: 1 | -1 }>({ key: "close", dir: 1 });
   const [editing, setEditing] = useState<{ opp?: SalesOpportunity } | null>(null);
+  const [drawerOppId, setDrawerOppId] = useState<string | null>(null);
 
   const reload = useCallback(() => getCrmAccounts().then((d) => setCompanies(d.companies)), []);
   useEffect(() => { reload(); }, [reload]);
@@ -271,9 +273,16 @@ export default function OpportunitiesPage() {
                   ...g.rows.map(({ o, c, prob, weighted, nextOwner, attention }) => {
                     const inStage = daysSince(o.stageChangedAt ?? o.createdAt);
                     return (
-                      <tr key={o.id} className="border-t align-top hover:bg-muted/20">
+                      <tr
+                        key={o.id}
+                        onClick={(e) => {
+                          if ((e.target as HTMLElement).closest("button, a, select, input")) return;
+                          setDrawerOppId(o.id);
+                        }}
+                        className={cn("cursor-pointer border-t align-top hover:bg-muted/20", drawerOppId === o.id && "bg-primary/5")}
+                      >
                         <td className="py-2 pl-4 pr-2">
-                          <Link href={`/sales/accounts/${c.id}?opp=${o.id}`} className="font-medium hover:underline">{o.name}</Link>
+                          <button type="button" onClick={() => setDrawerOppId(o.id)} className="text-left font-medium hover:underline">{o.name}</button>
                           {attention.length > 0 && (
                             <div className="mt-0.5 flex flex-wrap gap-1">
                               {attention.map((a) => <span key={a} className="rounded bg-amber-100 px-1 py-px text-[10px] font-medium text-amber-800 dark:bg-amber-900/40 dark:text-amber-300">{a}</span>)}
@@ -324,6 +333,8 @@ export default function OpportunitiesPage() {
           </table>
         )}
       </div>
+
+      <OpportunityDrawer opportunityId={drawerOppId} onClose={() => setDrawerOppId(null)} onChanged={reload} />
 
       <Modal open={!!editing} onClose={() => setEditing(null)} className="max-w-xl max-h-[92vh] overflow-y-auto">
         {editing && companies && (

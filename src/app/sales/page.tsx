@@ -173,8 +173,8 @@ export default function SalesDashboardPage() {
             <h2 className="text-sm font-semibold">Pipeline by Stage</h2>
             <Link href="/sales/activity" className="text-xs text-primary hover:underline">Manage →</Link>
           </div>
-          <div className="grid grid-cols-3 gap-3 sm:grid-cols-6">
-            {["Prospecting","Qualifying","Proposal","Negotiation","Closed Won","Closed Lost"].map((stage) => {
+          <div className="grid grid-cols-3 gap-3 sm:grid-cols-5">
+            {["Prospecting","Qualifying","Proposal","Closed Won","Closed Lost"].map((stage) => {
               const stageOpps = allOpps.filter((o) => o.stage === stage);
               const stageValue = stageOpps.reduce((s, o) => s + (o.value ?? 0), 0);
               return (

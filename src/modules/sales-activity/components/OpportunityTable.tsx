@@ -9,7 +9,6 @@ const STAGE_COLORS: Record<string, string> = {
   Prospecting:   "bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300",
   Qualifying:    "bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300",
   Proposal:      "bg-violet-100 text-violet-700 dark:bg-violet-900/40 dark:text-violet-300",
-  Negotiation:   "bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300",
   "Closed Won":  "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300",
   "Closed Lost": "bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-300",
 };
@@ -26,11 +25,11 @@ const RATING_ORDER: Record<string, number> = {
 };
 
 const STAGE_ORDER: Record<string, number> = {
-  Negotiation: 0, Proposal: 1, Qualifying: 2, Prospecting: 3,
-  "Closed Won": 4, "Closed Lost": 5,
+  Proposal: 0, Qualifying: 1, Prospecting: 2,
+  "Closed Won": 3, "Closed Lost": 4,
 };
 
-const ACTIVE_STAGES = new Set(["Prospecting", "Qualifying", "Proposal", "Negotiation"]);
+const ACTIVE_STAGES = new Set(["Prospecting", "Qualifying", "Proposal"]);
 
 type SortKey = "name" | "company" | "rep" | "rating" | "age" | "closeDate" | "value" | "stage" | "createdAt";
 type SortDir = "asc" | "desc";
@@ -131,10 +130,13 @@ export interface OpportunityTableProps {
   onOpenConversation: (opp: SalesOpportunity) => void;
   onOpenCommission?: (opp: SalesOpportunity) => void;
   onOpenContacts?: (company: SalesCompany) => void;
+  /** Row click → show the opportunity's details (side panel). */
+  onOpenOpportunity?: (opp: SalesOpportunity) => void;
 }
 
 export function OpportunityTable({
   companies, activities, isManagement, repFilter, onRepFilterChange, onOpenConversation, onOpenCommission, onOpenContacts,
+  onOpenOpportunity,
 }: OpportunityTableProps) {
   const [sortKey, setSortKey] = useState<SortKey>("stage");
   const [sortDir, setSortDir] = useState<SortDir>("asc");
@@ -271,7 +273,7 @@ export function OpportunityTable({
     });
   }
 
-  const stages = ["All", "Prospecting", "Qualifying", "Proposal", "Negotiation", "Closed Won", "Closed Lost"];
+  const stages = ["All", "Prospecting", "Qualifying", "Proposal", "Closed Won", "Closed Lost"];
 
   const totalPipeline = sorted.filter((r) => ACTIVE_STAGES.has(r.opp.stage)).reduce((s, r) => s + (r.opp.value ?? 0), 0);
 
@@ -401,7 +403,15 @@ export function OpportunityTable({
                   age > 30 ? "text-amber-600 font-semibold" :
                   "text-muted-foreground";
                 return (
-                  <tr key={opp.id} className="hover:bg-muted/20 transition-colors">
+                  <tr
+                    key={opp.id}
+                    onClick={onOpenOpportunity ? (e) => {
+                      // Buttons/links inside the row keep their own behaviour.
+                      if ((e.target as HTMLElement).closest("button, a, select, input")) return;
+                      onOpenOpportunity(opp);
+                    } : undefined}
+                    className={`hover:bg-muted/20 transition-colors ${onOpenOpportunity ? "cursor-pointer" : ""}`}
+                  >
                     <td className="px-3 py-2.5 font-medium max-w-[220px]">
                       <span className="truncate block" title={opp.name}>{opp.name}</span>
                       {opp.cwNumber && (

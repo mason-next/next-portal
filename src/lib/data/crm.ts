@@ -23,7 +23,7 @@ import {
 } from "@/lib/data/crm-internal";
 import type {
   AccountSnapshot, AgendaItem, SalesNote, SalesTask, SalesLead, NoteKind, NoteAttachment,
-  TaskPriority, SalesCompany,
+  TaskPriority, SalesCompany, SalesOpportunity, CompanyContact, SalesAuditEntry,
 } from "@/types/sales";
 import { NOTE_KINDS, TASK_PRIORITIES, LEAD_STATUSES, isOpenStage } from "@/types/sales";
 
@@ -59,7 +59,9 @@ function taskWhere(scope: SalesScope): Prisma.SalesTaskWhereInput {
       { assigneeId: scope.userId },
       { createdByName: scope.userName },
       { opportunity: mineOppWhere(scope) },
-      { opportunityId: null, company: visibleCompanyWhere(scope) },
+      // Account-level follow-ups (no deal) are visible to the account's owner, not to
+      // every rep who happens to have a deal there.
+      { opportunityId: null, company: { OR: [{ ownerName: scope.userName }, { ownerId: scope.userId }] } },
     ],
   };
 }
@@ -190,7 +192,14 @@ export async function getAccountSnapshot(companyId: string): Promise<AccountSnap
   const history = await db.salesAuditLog.findMany({
     where: {
       companyId,
-      ...(scope.canSeeAll ? {} : { OR: [{ opportunityId: null }, { opportunityId: { in: oppIds } }] }),
+      // Reps see account-level history (account, contacts, notes) and their own deals —
+      // never other reps' deals or follow-ups.
+      ...(scope.canSeeAll ? {} : {
+        OR: [
+          { opportunityId: { in: oppIds } },
+          { opportunityId: null, entityType: { in: ["company", "contact", "note"] } },
+        ],
+      }),
     },
     orderBy: { createdAt: "desc" },
     take: 300,
@@ -203,6 +212,54 @@ export async function getAccountSnapshot(companyId: string): Promise<AccountSnap
     notes: notes.map(toNote),
     tasks: tasks.map(toTask),
     activities: activities.map(toActivity),
+    history: history.map(toAudit),
+  };
+}
+
+// ─── Opportunity detail (side panel) ─────────────────────────────────────────
+
+export interface OpportunityDetail {
+  opportunity: SalesOpportunity;
+  company: Pick<SalesCompany, "id" | "name" | "domain" | "ownerName" | "territory" | "vertical">;
+  contacts: CompanyContact[];
+  notes: SalesNote[];
+  tasks: SalesTask[];
+  history: SalesAuditEntry[];
+}
+
+export async function getOpportunityDetail(opportunityId: string): Promise<OpportunityDetail> {
+  const scope = await resolveSalesScope(MODULE);
+  // Reps can only open their own deals — same rule as every other opp read.
+  if (!scope.canSeeAll) await assertOppMine(opportunityId, scope);
+  const opp = await db.salesOpportunity.findUnique({
+    where: { id: opportunityId },
+    include: { company: { select: { id: true, name: true, domain: true, ownerName: true, territory: true, vertical: true } } },
+  });
+  if (!opp) throw new ForbiddenError("Opportunity not found");
+
+  const [contacts, notes, tasks, history] = await Promise.all([
+    db.salesContact.findMany({ where: { companyId: opp.companyId }, orderBy: { name: "asc" } }),
+    db.salesNote.findMany({
+      where: { opportunityId, ...noteWhere(scope) },
+      include: noteInclude,
+      orderBy: [{ noteDate: "desc" }, { createdAt: "desc" }],
+      take: 50,
+    }),
+    db.salesTask.findMany({
+      where: { opportunityId, ...taskWhere(scope) },
+      include: taskInclude,
+      orderBy: [{ status: "desc" }, { dueDate: "asc" }],
+    }),
+    db.salesAuditLog.findMany({ where: { opportunityId }, orderBy: { createdAt: "desc" }, take: 40 }),
+  ]);
+
+  const { company, ...oppRow } = opp;
+  return {
+    opportunity: toOpp(oppRow),
+    company,
+    contacts: contacts.map(toCompanyContact),
+    notes: notes.map(toNote),
+    tasks: tasks.map(toTask),
     history: history.map(toAudit),
   };
 }
@@ -632,7 +689,7 @@ export async function getAgenda(opts: { days?: number; ownerName?: string } = {}
       where: {
         AND: [
           scope.canSeeAll ? {} : mineOppWhere(scope),
-          { stage: { in: ["Prospecting", "Qualifying", "Proposal", "Negotiation"] } },
+          { stage: { in: ["Prospecting", "Qualifying", "Proposal"] } },
           { OR: [{ nextStepDate: { lte: horizon } }, { closeDate: { lte: horizon } }] },
           ownerFilter ? { OR: [{ ownerName: ownerFilter }, { nextStepOwnerName: ownerFilter }] } : {},
         ],

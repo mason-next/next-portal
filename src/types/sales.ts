@@ -10,7 +10,6 @@ export const OPP_STAGES = [
   "Prospecting",
   "Qualifying",
   "Proposal",
-  "Negotiation",
   "Closed Won",
   "Closed Lost",
 ] as const;
@@ -199,7 +198,7 @@ export function formatWeekLabel(weekStart: string): string {
 
 const STAGE_ORDER: Record<OppStage, number> = {
   Prospecting: 0, Qualifying: 1, Proposal: 2,
-  Negotiation: 3, "Closed Won": 4, "Closed Lost": 5,
+  "Closed Won": 3, "Closed Lost": 4,
 };
 
 export function sortByStage(a: SalesOpportunity, b: SalesOpportunity): number {
@@ -211,7 +210,7 @@ export function sortByStage(a: SalesOpportunity, b: SalesOpportunity): number {
 export const ACCOUNT_STATUSES = ["Prospect", "Customer", "Former Customer", "Partner"] as const;
 export type AccountStatus = (typeof ACCOUNT_STATUSES)[number];
 
-export const ACTIVE_STAGES: readonly OppStage[] = ["Prospecting", "Qualifying", "Proposal", "Negotiation"];
+export const ACTIVE_STAGES: readonly OppStage[] = ["Prospecting", "Qualifying", "Proposal"];
 export function isOpenStage(stage: OppStage): boolean {
   return stage !== "Closed Won" && stage !== "Closed Lost";
 }
@@ -221,7 +220,6 @@ export const STAGE_PROBABILITY: Record<OppStage, number> = {
   Prospecting: 10,
   Qualifying: 25,
   Proposal: 50,
-  Negotiation: 75,
   "Closed Won": 100,
   "Closed Lost": 0,
 };

@@ -46,14 +46,14 @@ test.describe("Sales CRM", () => {
     await expect(page.getByText(text)).toHaveCount(0);
   });
 
-  test("moving a deal to Negotiation creates the automated follow-up", async ({ page }) => {
+  test("moving a deal to Proposal creates the automated follow-up", async ({ page }) => {
     const stage = page.getByLabel("Stage for Nurse-call integration");
     const current = await stage.inputValue();
-    test.skip(current === "Negotiation", "already in Negotiation — reset the demo data");
-    await stage.selectOption("Negotiation");
-    await expect(page.getByText("Confirm decision date and paperwork").first()).toBeVisible({ timeout: 15000 });
+    test.skip(current !== "Qualifying", "not in Qualifying — reset the demo data");
+    await stage.selectOption("Proposal");
+    await expect(page.getByText("Follow up on proposal").first()).toBeVisible({ timeout: 15000 });
     await page.getByLabel("Show change history").check();
-    await expect(page.getByText(/moved opportunity Nurse-call integration from Proposal → Negotiation/)).toBeVisible();
+    await expect(page.getByText(/moved opportunity Nurse-call integration from Qualifying → Proposal/)).toBeVisible();
   });
 
   test("opportunities list groups by territory with subtotals", async ({ page }) => {

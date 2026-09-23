@@ -31,7 +31,7 @@ const STAGE_TO_DB: Record<string, string> = {
   "Closed Lost": "ClosedLost",
 };
 
-export type DbOppStage = "Prospecting" | "Qualifying" | "Proposal" | "Negotiation" | "ClosedWon" | "ClosedLost";
+export type DbOppStage = "Prospecting" | "Qualifying" | "Proposal" | "ClosedWon" | "ClosedLost";
 
 export function toStage(s: string): OppStage {
   return (STAGE_MAP[s] ?? s) as OppStage;

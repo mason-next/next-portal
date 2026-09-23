@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import Anthropic from "@anthropic-ai/sdk";
 
 const ACTIVITY_TYPES = ["Call", "Email", "Meeting", "Research", "Demo", "Proposal", "Other"] as const;
-const OPP_STAGES = ["Prospecting", "Qualifying", "Proposal", "Negotiation", "Closed Won", "Closed Lost"] as const;
+const OPP_STAGES = ["Prospecting", "Qualifying", "Proposal", "Closed Won", "Closed Lost"] as const;
 
 export async function POST(req: NextRequest) {
   const apiKey = process.env.ANTHROPIC_API_KEY;
