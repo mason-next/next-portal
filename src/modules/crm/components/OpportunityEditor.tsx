@@ -4,6 +4,7 @@ import { useState } from "react";
 import type { SalesOpportunity, SalesCompany, OppStage, ForecastCategory } from "@/types/sales";
 import { OPP_STAGES, FORECAST_CATEGORIES, LEAD_SOURCES, STAGE_PROBABILITY, effectiveForecastCategory } from "@/types/sales";
 import { toDateInput } from "@/modules/crm/lib/format";
+import { checkCwNumberAvailable } from "@/lib/data/cw-sync";
 import { Field, TextInput, Select, TextArea, OwnerSelect, PrimaryButton, SecondaryButton } from "./ui";
 
 export type OpportunityInput = Omit<SalesOpportunity, "id" | "createdAt" | "updatedAt" | "company"> & { id?: string };
@@ -40,6 +41,7 @@ export function OpportunityEditor({
   const [nextOwnerId, setNextOwnerId] = useState<string | null>(initial?.nextStepOwnerId ?? null);
   const [leadSource, setLeadSource] = useState(initial?.leadSource ?? "");
   const [cwLink, setCwLink] = useState(initial?.cwLink ?? "");
+  const [cwNumber, setCwNumber] = useState(initial?.cwNumber ?? "");
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -54,6 +56,12 @@ export function OpportunityEditor({
     setSaving(true);
     setError(null);
     try {
+      const cw = cwNumber.trim().replace(/^#/, "");
+      if (cw && cw !== (initial?.cwNumber ?? "") && !(await checkCwNumberAvailable(cw, initial?.id))) {
+        setError(`ConnectWise #${cw} is already linked to another deal.`);
+        setSaving(false);
+        return;
+      }
       await onSave({
         ...(initial?.id ? { id: initial.id } : {}),
         companyId: company,
@@ -64,7 +72,7 @@ export function OpportunityEditor({
         value: Math.round((parseFloat(value.replace(/[$,]/g, "")) || 0) * 100),
         notes: initial?.notes ?? "",
         closeDate: closeDate || null,
-        cwNumber: initial?.cwNumber ?? null,
+        cwNumber: cwNumber.trim().replace(/^#/, "") || null,
         cwLink: cwLink.trim() || null,
         proposalCreatedAt: initial?.proposalCreatedAt ?? null,
         rating: initial?.rating ?? null,
@@ -89,7 +97,8 @@ export function OpportunityEditor({
       <h2 className="text-base font-semibold">{initial ? "Edit Opportunity" : "New Opportunity"}</h2>
       {isCW && (
         <p className="rounded-md border border-blue-200 bg-blue-50 px-3 py-2 text-xs text-blue-700 dark:border-blue-800 dark:bg-blue-950/40 dark:text-blue-300">
-          Imported from ConnectWise · CW#{initial?.cwNumber}. Name, value and close date refresh on re-import.
+          Linked to ConnectWise #{initial?.cwNumber}. When this deal&apos;s name, value, close date, stage or rep changes in
+          ConnectWise, the next import updates it here. Your edits stay until ConnectWise changes that field. Nothing is sent to ConnectWise.
         </p>
       )}
       <div className="grid grid-cols-2 gap-3">
@@ -131,7 +140,10 @@ export function OpportunityEditor({
         </Field>
 
         <div className="col-span-2 mt-1 rounded-lg border bg-muted/30 p-3 space-y-3">
-          <div className="text-xs font-semibold">Next action</div>
+          <div>
+            <div className="text-xs font-semibold">Next task</div>
+            <p className="text-[11px] text-muted-foreground">Saved as a task on this deal. The deal&apos;s next step is always its earliest open task.</p>
+          </div>
           <Field label="What needs to happen next">
             <TextInput value={nextStep} onChange={(e) => setNextStep(e.target.value)} placeholder="Send revised quote with 3-year support" />
           </Field>
@@ -149,7 +161,10 @@ export function OpportunityEditor({
           <TextInput list="crm-lead-sources" value={leadSource} onChange={(e) => setLeadSource(e.target.value)} />
           <datalist id="crm-lead-sources">{LEAD_SOURCES.map((s) => <option key={s} value={s} />)}</datalist>
         </Field>
-        <Field label="ConnectWise link">
+        <Field label="ConnectWise opportunity #">
+          <TextInput value={cwNumber} onChange={(e) => setCwNumber(e.target.value)} placeholder="Blank = local only" inputMode="numeric" />
+        </Field>
+        <Field label="ConnectWise link" className="col-span-2">
           <TextInput type="url" value={cwLink} onChange={(e) => setCwLink(e.target.value)} placeholder="https://…" />
         </Field>
         {initial?.notes && (

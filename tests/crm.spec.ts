@@ -46,14 +46,25 @@ test.describe("Sales CRM", () => {
     await expect(page.getByText(text)).toHaveCount(0);
   });
 
-  test("moving a deal to Proposal creates the automated follow-up", async ({ page }) => {
-    const stage = page.getByLabel("Stage for Nurse-call integration");
+  test("moving a deal to Proposal creates the automated task", async ({ page }) => {
+    const stage = page.getByLabel("Stage for Nurse-call integration", { exact: true });
     const current = await stage.inputValue();
     test.skip(current !== "Qualifying", "not in Qualifying — reset the demo data");
     await stage.selectOption("Proposal");
     await expect(page.getByText("Follow up on proposal").first()).toBeVisible({ timeout: 15000 });
     await page.getByLabel("Show change history").check();
     await expect(page.getByText(/moved opportunity Nurse-call integration from Qualifying → Proposal/)).toBeVisible();
+  });
+
+  test("a task due sooner becomes the deal's next task", async ({ page }) => {
+    const title = `Spec task ${Date.now()}`;
+    await page.getByTitle("Add task").first().click();
+    await page.getByLabel("Task title").first().fill(title);
+    await page.locator('input[aria-label="Due date"]').first().fill("2026-01-02");
+    await page.getByLabel("Opportunity").first().selectOption({ label: "Clinic Wi-Fi 6E refresh (12 sites)" });
+    await page.getByRole("button", { name: "Add task" }).first().click();
+    const row = page.locator("tr").filter({ hasText: "Clinic Wi-Fi 6E refresh (12 sites)" });
+    await expect(row).toContainText(title);
   });
 
   test("opportunities list groups by territory with subtotals", async ({ page }) => {

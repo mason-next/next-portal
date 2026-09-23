@@ -1,6 +1,8 @@
 "use server";
 
+import { Prisma } from "@prisma/client";
 import { db } from "@/lib/db";
+import { syncCwOpportunity } from "@/lib/data/cw-sync";
 import type {
   SalesCompany, SalesOpportunity, SalesActivity, SalesOppComment, SalesOppInvoice,
   CommissionTeamMember, OppInvoiceStatus, CompanyContact,
@@ -12,7 +14,7 @@ import {
   sanitizeAccountStatus, sanitizeForecast, clampProbability,
 } from "@/lib/data/sales-mappers";
 import {
-  visibleCompanyWhere, mineOppWhere, recordAudit, diffAudit, runStageAutomation,
+  visibleCompanyWhere, mineOppWhere, recordAudit, diffAudit, runStageAutomation, refreshOppNextStep,
 } from "@/lib/data/crm-internal";
 import {
   resolveSalesScope,
@@ -95,7 +97,7 @@ function sanitizeType(t: string | undefined | null): ActivityType {
 const COMPANY_AUDIT_FIELDS = ["name", "domain", "ownerName", "accountStatus", "territory", "vertical", "phone", "address"];
 const OPP_AUDIT_FIELDS = [
   "name", "stage", "ownerName", "value", "closeDate", "probability", "forecastCategory",
-  "nextStep", "nextStepDate", "nextStepOwnerName", "leadSource", "rating", "companyId",
+  "leadSource", "rating", "companyId", "cwNumber",
 ];
 
 // ─── Companies ────────────────────────────────────────────────────────────────
@@ -269,50 +271,50 @@ export async function upsertSalesOpportunity(
     // CRM fields are optional on the wire; only touch them when the caller sent them.
     ...(data.probability !== undefined ? { probability: clampProbability(data.probability) } : {}),
     ...(data.forecastCategory !== undefined ? { forecastCategory: sanitizeForecast(data.forecastCategory) } : {}),
-    ...(data.nextStep !== undefined ? { nextStep: data.nextStep.trim() } : {}),
-    ...(data.nextStepDate !== undefined ? { nextStepDate: data.nextStepDate ? new Date(data.nextStepDate) : null } : {}),
-    ...(data.nextStepOwnerName !== undefined
-      ? {
-          nextStepOwnerId: data.nextStepOwnerId ?? null,
-          nextStepOwnerName: data.nextStepOwnerName.trim(),
-        }
-      : {}),
     ...(data.leadSource !== undefined ? { leadSource: data.leadSource.trim() } : {}),
   };
 
-  // CW-imported opps: upsert by cwNumber to avoid duplicates on reimport
-  if (data.cwNumber) {
-    const existing = await db.salesOpportunity.findFirst({
-      where: { cwNumber: data.cwNumber },
+  // A new deal carrying a CW # is an import: route it through the ConnectWise sync so
+  // re-imports update the existing deal instead of duplicating it. Edits to an existing
+  // deal (data.id set) always save every field the user changed.
+  if (!data.id && data.cwNumber) {
+    const res = await syncCwOpportunity({
+      cwNumber: data.cwNumber,
+      companyId: data.companyId,
+      name: data.name,
+      stage: data.stage,
+      ownerName: ownerName ?? "",
+      ownerId: ownerId ?? null,
+      value: data.value,
+      closeDate: data.closeDate,
+      proposalCreatedAt: data.proposalCreatedAt,
+      rating: data.rating,
     });
-    if (existing) {
-      if (!scope.canSeeAll && existing.ownerName !== scope.userName && existing.ownerId !== scope.userId) {
-        throw new ForbiddenError("You can only modify your own opportunities");
-      }
-      const row = await db.salesOpportunity.update({
-        where: { id: existing.id },
-        // On reimport: refresh CW-owned fields only; preserve user-managed fields
-        data: {
-          name: payload.name,
-          value: payload.value,
-          closeDate: payload.closeDate,
-          proposalCreatedAt: payload.proposalCreatedAt,
-          rating: payload.rating,
-        },
-      });
-      await recordAudit(scope, diffAudit(
-        { entityType: "opportunity", entityId: row.id, companyId: row.companyId, opportunityId: row.id },
-        existing, row, OPP_AUDIT_FIELDS,
-      ));
-      return toOpp(row);
-    }
+    const row = res.id ? await db.salesOpportunity.findUnique({ where: { id: res.id } }) : null;
+    if (!row) throw new ForbiddenError(res.reason ?? "Import skipped");
+    return toOpp(row);
   }
 
   const before = data.id ? await db.salesOpportunity.findUnique({ where: { id: data.id } }) : null;
+  const newCw = (data.cwNumber ?? "").trim() || null;
+  const cwChanged = (before?.cwNumber ?? null) !== newCw;
+  if (newCw && cwChanged) {
+    const taken = await db.salesOpportunity.findFirst({
+      where: { cwNumber: newCw, ...(before ? { id: { not: before.id } } : {}) },
+      select: { id: true },
+    });
+    if (taken) throw new ForbiddenError(`ConnectWise #${newCw} is already linked to another deal`);
+  }
   const row = before
     ? await db.salesOpportunity.update({
         where: { id: before.id },
-        data: { ...payload, ...(before.stage !== stage ? { stageChangedAt: new Date() } : {}) },
+        data: {
+          ...payload,
+          cwNumber: newCw,
+          ...(before.stage !== stage ? { stageChangedAt: new Date() } : {}),
+          // Re-pointing a deal at a different CW record starts its sync history over.
+          ...(cwChanged ? { cwSnapshot: Prisma.DbNull, cwSyncedAt: null } : {}),
+        },
       })
     : await db.salesOpportunity.create({ data: { ...payload, stageChangedAt: new Date() } });
 
@@ -324,10 +326,45 @@ export async function upsertSalesOpportunity(
   const toStageVal = toStage(row.stage);
   if (fromStage !== toStageVal) {
     await runStageAutomation(scope, row, fromStage ?? "Prospecting", toStageVal);
-    const fresh = await db.salesOpportunity.findUnique({ where: { id: row.id } });
-    if (fresh) return toOpp(fresh);
   }
-  return toOpp(row);
+  if (data.nextStep !== undefined) await saveNextStepAsTask(scope, row, data);
+  const fresh = await db.salesOpportunity.findUnique({ where: { id: row.id } });
+  return toOpp(fresh ?? row);
+}
+
+// The deal editor's "Next action" is a task: editing the current next task (same title)
+// updates it; a new title adds a task. The deal's cached next step is then refreshed.
+async function saveNextStepAsTask(
+  scope: SalesScope,
+  opp: { id: string; companyId: string; ownerId: string | null; ownerName: string },
+  data: { nextStep?: string; nextStepDate?: string | null; nextStepOwnerName?: string; nextStepOwnerId?: string | null },
+): Promise<void> {
+  const title = (data.nextStep ?? "").trim();
+  if (title) {
+    const due = data.nextStepDate ? new Date(`${data.nextStepDate.slice(0, 10)}T12:00:00.000Z`) : null;
+    const assigneeName = data.nextStepOwnerName?.trim() || opp.ownerName;
+    const assigneeId = data.nextStepOwnerName?.trim() ? (data.nextStepOwnerId ?? null) : opp.ownerId;
+    const current = await db.salesTask.findFirst({
+      where: { opportunityId: opp.id, status: "Open" },
+      orderBy: [{ dueDate: { sort: "asc", nulls: "last" } }, { createdAt: "asc" }],
+    });
+    if (current && current.title === title) {
+      if (current.dueDate?.getTime() !== due?.getTime() || current.assigneeName !== assigneeName) {
+        await db.salesTask.update({ where: { id: current.id }, data: { dueDate: due, assigneeName, assigneeId } });
+      }
+    } else {
+      const t = await db.salesTask.create({
+        data: {
+          companyId: opp.companyId, opportunityId: opp.id, title, dueDate: due,
+          assigneeId, assigneeName, createdById: scope.userId, createdByName: scope.userName,
+        },
+      });
+      await recordAudit(scope, [{
+        entityType: "task", entityId: t.id, companyId: opp.companyId, opportunityId: opp.id, action: "created", newValue: title,
+      }]);
+    }
+  }
+  await refreshOppNextStep(opp.id);
 }
 
 export async function deleteSalesOpportunity(id: string): Promise<void> {

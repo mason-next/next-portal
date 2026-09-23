@@ -31,7 +31,7 @@ const SALES_ITEMS: { href: string; label: string; module: ModuleKey }[] = [
   { href: "/sales/leads",                          label: "Leads",                module: "salesActivity" },
   { href: "/sales/activity",                       label: "Activity Log",         module: "salesActivity" },
   { href: "/sales/deal-desk",                      label: "Deal Desk",            module: "salesDealDesk" },
-  { href: "/sales/deal-desk/commission-statement", label: "Commission Statement", module: "salesDealDesk" },
+  { href: "/sales/deal-desk/commission-statement", label: "Commission Statement (Coming Soon)", module: "salesDealDesk" },
   { href: "/sales/quotes",                         label: "Quote Portal",         module: "salesQuotes" },
 ];
 

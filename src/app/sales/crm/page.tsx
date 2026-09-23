@@ -124,8 +124,8 @@ export default function CrmDashboardPage() {
       const cd = daysFromToday(r.o.closeDate);
       const touch = daysSince(data?.rollups[r.c.id]?.lastTouch);
       if (cd !== null && cd < 0) out.push({ r, reason: `Close date passed ${-cd}d ago`, sev: 3 });
-      else if (nd !== null && nd < 0) out.push({ r, reason: `Next step ${-nd}d overdue`, sev: 2 });
-      else if (!r.o.nextStep?.trim()) out.push({ r, reason: "No next step set", sev: 1 });
+      else if (nd !== null && nd < 0) out.push({ r, reason: `Next task ${-nd}d overdue`, sev: 2 });
+      else if (!r.o.nextStep?.trim()) out.push({ r, reason: "No next task", sev: 1 });
       else if (touch === null || touch > 30) out.push({ r, reason: touch === null ? "No notes on this account" : `No touch in ${touch}d`, sev: 1 });
     }
     return out.sort((a, b) => b.sev - a.sev || b.r.o.value - a.r.o.value).slice(0, 12);
@@ -135,7 +135,7 @@ export default function CrmDashboardPage() {
   const activeLeads = leads.filter((l) => ["New", "Working", "Qualified"].includes(l.status)).length;
 
   return (
-    <div className="crm-viz mx-auto max-w-7xl space-y-5 p-8">
+    <div className="crm-viz mx-auto max-w-7xl space-y-5 px-4 py-5 sm:p-8">
       <style>{VIZ_STYLE}</style>
       <PageHeader
         title="Sales CRM"
@@ -177,25 +177,25 @@ export default function CrmDashboardPage() {
                     <span className="inline-flex items-center gap-1.5"><span className="h-2.5 w-2.5 rounded-sm" style={{ background: "var(--viz-1)" }} />Weighted</span>
                     <span className="inline-flex items-center gap-1.5"><span className="h-2.5 w-2.5 rounded-sm opacity-30" style={{ background: "var(--viz-1)" }} />Total pipeline</span>
                   </div>
-                  <table className="w-full text-sm">
+                  <table className="w-full table-fixed text-sm sm:table-auto">
                     <thead className="text-left text-[11px] uppercase tracking-wide text-muted-foreground">
                       <tr>
                         <th className="px-4 py-2 font-medium">{DIM_LABEL[dim]}</th>
-                        <th className="px-2 py-2 text-right font-medium">Opps</th>
-                        <th className="w-[38%] px-2 py-2 font-medium" />
+                        <th className="hidden px-2 py-2 text-right font-medium sm:table-cell">Opps</th>
+                        <th className="hidden w-[38%] px-2 py-2 font-medium sm:table-cell" />
                         <th className="px-2 py-2 text-right font-medium">Pipeline</th>
                         <th className="px-2 py-2 text-right font-medium">Weighted</th>
-                        <th className="px-4 py-2 text-right font-medium">Commit</th>
+                        <th className="hidden px-4 py-2 text-right font-medium sm:table-cell">Commit</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y">
                       {breakdown.slice(0, 15).map((b) => (
                         <tr key={b.key} className="hover:bg-muted/30" title={`${b.key}: ${fmtMoney(b.pipeline)} pipeline, ${fmtMoney(b.weighted)} weighted, ${b.count} opps`}>
-                          <td className="max-w-[12rem] truncate px-4 py-2 font-medium">
+                          <td className="max-w-[9rem] truncate px-4 py-2 font-medium sm:max-w-[12rem]">
                             {b.href ? <Link href={b.href} className="hover:underline">{b.key}</Link> : b.key}
                           </td>
-                          <td className="px-2 py-2 text-right tabular-nums text-muted-foreground">{b.count}</td>
-                          <td className="px-2 py-2">
+                          <td className="hidden px-2 py-2 text-right tabular-nums text-muted-foreground sm:table-cell">{b.count}</td>
+                          <td className="hidden px-2 py-2 sm:table-cell">
                             <div className="relative h-3">
                               <div className="absolute inset-y-0 left-0 rounded-r opacity-30" style={{ width: `${(b.pipeline / maxPipe) * 100}%`, background: "var(--viz-1)" }} />
                               <div className="absolute inset-y-0 left-0 rounded-r" style={{ width: `${(b.weighted / maxPipe) * 100}%`, background: "var(--viz-1)" }} />
@@ -203,7 +203,7 @@ export default function CrmDashboardPage() {
                           </td>
                           <td className="px-2 py-2 text-right font-medium tabular-nums">{fmtMoneyShort(b.pipeline)}</td>
                           <td className="px-2 py-2 text-right tabular-nums text-muted-foreground">{fmtMoneyShort(b.weighted)}</td>
-                          <td className="px-4 py-2 text-right tabular-nums text-muted-foreground">{b.commit ? fmtMoneyShort(b.commit) : "—"}</td>
+                          <td className="hidden px-4 py-2 text-right tabular-nums text-muted-foreground sm:table-cell">{b.commit ? fmtMoneyShort(b.commit) : "—"}</td>
                         </tr>
                       ))}
                     </tbody>
@@ -237,7 +237,7 @@ export default function CrmDashboardPage() {
                   <span key={s.key} className="inline-flex items-center gap-1.5"><span className="h-2.5 w-2.5 rounded-sm" style={{ background: s.color }} />{s.label}</span>
                 ))}
               </div>
-              <div className="flex h-56 items-end gap-3 px-4 pb-2 pt-4">
+              <div className="flex h-56 items-end gap-1.5 px-3 pb-2 pt-4 sm:gap-3 sm:px-4">
                 {forecast.map((c) => {
                   const total = Object.values(c.byCat).reduce((a, b) => a + b, 0);
                   return (
@@ -258,7 +258,7 @@ export default function CrmDashboardPage() {
                   );
                 })}
               </div>
-              <div className="flex gap-3 border-t px-4 py-2">
+              <div className="flex gap-1.5 border-t px-3 py-2 sm:gap-3 sm:px-4">
                 {forecast.map((c) => <div key={c.mk} className="flex-1 text-center text-[11px] text-muted-foreground">{monthLabel(c.mk)}</div>)}
               </div>
               <details className="border-t px-4 py-2 text-xs">

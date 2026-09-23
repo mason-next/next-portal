@@ -113,6 +113,28 @@ export function diffAudit(
   return out;
 }
 
+// ─── Next step = earliest open task ──────────────────────────────────────────
+// A deal's "next step" is not edited on its own: it is always the deal's earliest-due
+// open task. The nextStep* columns on the opportunity are a cached copy of that task so
+// lists, filters and the agenda can read it cheaply. Call this after any task change.
+
+export async function refreshOppNextStep(opportunityId: string | null | undefined): Promise<void> {
+  if (!opportunityId) return;
+  const next = await db.salesTask.findFirst({
+    where: { opportunityId, status: "Open" },
+    orderBy: [{ dueDate: { sort: "asc", nulls: "last" } }, { createdAt: "asc" }],
+  });
+  await db.salesOpportunity.updateMany({
+    where: { id: opportunityId },
+    data: {
+      nextStep: next?.title ?? "",
+      nextStepDate: next?.dueDate ?? null,
+      nextStepOwnerId: next?.assigneeId ?? null,
+      nextStepOwnerName: next?.assigneeName ?? "",
+    },
+  });
+}
+
 // ─── Workflow automation ─────────────────────────────────────────────────────
 // Rules that run when an opportunity changes stage. Kept as data so the team can
 // tune them without touching the stage-change code path.
@@ -140,12 +162,12 @@ function addDays(days: number): Date {
  * Called after an opportunity's stage has been persisted.
  *  - closes the previous stage's auto-generated follow-ups
  *  - creates the new stage's follow-up task for the opp owner
- *  - fills the opp's "next step" if the rep hasn't set one
+ *  - refreshes the deal's next step (its earliest open task)
  *  - promotes the account to Customer on Closed Won
  */
 export async function runStageAutomation(
   scope: SalesScope,
-  opp: { id: string; companyId: string; name: string; ownerId: string | null; ownerName: string; nextStep: string },
+  opp: { id: string; companyId: string; name: string; ownerId: string | null; ownerName: string },
   fromStage: OppStage,
   toStage: OppStage,
 ): Promise<void> {
@@ -177,26 +199,16 @@ export async function runStageAutomation(
         entityType: "task", entityId: task.id, companyId: opp.companyId, opportunityId: opp.id,
         action: "automation", field: "task", newValue: `${rule.taskTitle} (due ${due.toISOString().slice(0, 10)})`,
       }]);
-      if (!opp.nextStep.trim() && toStage !== "Closed Won") {
-        await db.salesOpportunity.update({
-          where: { id: opp.id },
-          data: {
-            nextStep: rule.taskTitle,
-            nextStepDate: due,
-            nextStepOwnerId: opp.ownerId,
-            nextStepOwnerName: opp.ownerName,
-          },
-        });
-      }
     }
 
-    if (toStage === "Closed Won" || toStage === "Closed Lost") {
-      // A closed deal has no next step — clear it so it stops showing on agendas.
-      await db.salesOpportunity.update({
-        where: { id: opp.id },
-        data: { nextStep: "", nextStepDate: null },
+    if (toStage === "Closed Lost") {
+      // A lost deal has nothing left to do.
+      await db.salesTask.updateMany({
+        where: { opportunityId: opp.id, status: "Open" },
+        data: { status: "Done", completedAt: new Date() },
       });
     }
+    await refreshOppNextStep(opp.id);
 
     if (toStage === "Closed Won") {
       const company = await db.salesCompany.findUnique({ where: { id: opp.companyId }, select: { accountStatus: true } });

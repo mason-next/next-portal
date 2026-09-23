@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { CalendarClock, CheckSquare, Flag } from "lucide-react";
+import { CalendarClock, CheckSquare } from "lucide-react";
 import { getAgenda, getNotes, setTaskDone } from "@/lib/data/crm";
 import type { AgendaItem, SalesNote } from "@/types/sales";
 import { useCrmAccess } from "@/modules/crm/hooks/useCrmAccess";
@@ -19,8 +19,7 @@ const BUCKETS = [
 ] as const;
 
 const KIND_META = {
-  task:      { icon: CheckSquare,   label: "Follow-up" },
-  nextStep:  { icon: Flag,          label: "Next step" },
+  task:      { icon: CheckSquare,   label: "Task" },
   closeDate: { icon: CalendarClock, label: "Expected close" },
 } as const;
 
@@ -28,7 +27,7 @@ export default function AgendaPage() {
   const access = useCrmAccess();
   const [days, setDays] = usePersistentFilter("crm.agenda.days", "30");
   const [who, setWho] = usePersistentFilter("crm.agenda.who", "me");
-  const [kinds, setKinds] = useState<Record<AgendaItem["kind"], boolean>>({ task: true, nextStep: true, closeDate: true });
+  const [kinds, setKinds] = useState<Record<AgendaItem["kind"], boolean>>({ task: true, closeDate: true });
   const [items, setItems] = useState<AgendaItem[] | null>(null);
   const [noteDays, setNoteDays] = usePersistentFilter("crm.agenda.noteDays", "7");
   const [notes, setNotes] = useState<SalesNote[] | null>(null);
@@ -64,7 +63,7 @@ export default function AgendaPage() {
   }, [notes]);
 
   return (
-    <div className="mx-auto max-w-7xl space-y-5 p-8">
+    <div className="mx-auto max-w-7xl space-y-5 px-4 py-5 sm:p-8">
       <PageHeader
         title="Agenda"
         subtitle="What's due, what's closing, and what customers have been telling us"
@@ -107,7 +106,7 @@ export default function AgendaPage() {
                       {i.kind === "task" ? (
                         <input
                           type="checkbox"
-                          className="mt-1 h-4 w-4 cursor-pointer"
+                          className="mt-0.5 h-5 w-5 shrink-0 cursor-pointer sm:mt-1 sm:h-4 sm:w-4"
                           aria-label={`Mark "${i.title}" done`}
                           disabled={!access.canEdit}
                           onChange={async () => { await setTaskDone(i.id, true); load(); }}

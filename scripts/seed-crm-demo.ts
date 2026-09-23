@@ -177,6 +177,33 @@ async function main() {
     });
   }
 
+  // A deal's next step is its earliest open task — create those tasks, then cache it.
+  for (const o of opps.filter((x) => x.next)) {
+    const who = o.nextOwner ?? o.owner;
+    await db.salesTask.upsert({
+      where: { id: `demo_ns_${o.key}` },
+      update: {},
+      create: {
+        id: `demo_ns_${o.key}`, companyId: `demo_${o.acct}`, opportunityId: `demo_${o.key}`, title: o.next!,
+        dueDate: o.nextIn !== undefined ? at(o.nextIn) : null, assigneeId: who.id, assigneeName: who.name,
+        createdById: o.owner.id, createdByName: o.owner.name,
+      },
+    });
+  }
+  for (const o of opps) {
+    const next = await db.salesTask.findFirst({
+      where: { opportunityId: `demo_${o.key}`, status: "Open" },
+      orderBy: [{ dueDate: { sort: "asc", nulls: "last" } }, { createdAt: "asc" }],
+    });
+    await db.salesOpportunity.update({
+      where: { id: `demo_${o.key}` },
+      data: {
+        nextStep: next?.title ?? "", nextStepDate: next?.dueDate ?? null,
+        nextStepOwnerId: next?.assigneeId ?? null, nextStepOwnerName: next?.assigneeName ?? "",
+      },
+    });
+  }
+
   const leads = [
     { key: "ld1", name: "Karen Holt", companyName: "Riverbend Medical Group", title: "IT Manager", email: "kholt@riverbendmed.com", source: "Website", status: "New", owner: null, territory: "Southeast", vertical: "Healthcare", value: 80000, notes: "Filled out contact form asking about Wi-Fi assessments for 4 clinics." },
     { key: "ld2", name: "Jorge Medina", companyName: "Port City Charter Schools", title: "Director of Technology", email: "jmedina@portcitycharter.org", source: "Event", status: "Working", owner: sandra, territory: "Midwest", vertical: "Education", value: 120000, notes: "Met at state ed-tech conference. Wants camera + vape detection pricing." },

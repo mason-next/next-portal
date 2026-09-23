@@ -43,7 +43,7 @@ function describeHistory(h: SalesAuditEntry, oppName: (id: string | null) => str
     case "completed": return `completed task: ${h.newValue}`;
     case "reopened": return `reopened task: ${h.newValue}`;
     case "converted": return `converted lead: ${h.newValue}`;
-    case "automation": return h.field === "task" ? `automation created follow-up: ${h.newValue}` : `automation set ${FIELD_LABELS[h.field] ?? h.field} → ${h.newValue}`;
+    case "automation": return h.field === "task" ? `automation created task: ${h.newValue}` : `automation set ${FIELD_LABELS[h.field] ?? h.field} → ${h.newValue}`;
     case "stage_changed": return `moved ${what} from ${h.oldValue} → ${h.newValue}`;
     default: return `changed ${what} ${FIELD_LABELS[h.field] ?? h.field}: ${fmtVal(h.field, h.oldValue)} → ${fmtVal(h.field, h.newValue)}`;
   }
@@ -163,14 +163,14 @@ export function AccountTimeline({
                       <span className="text-muted-foreground">· {n.userName}</span>
                       {n.pinned && <Pin className="h-3 w-3 text-amber-600" />}
                       {canEdit && (
-                        <span className="ml-auto flex gap-1 opacity-0 transition-opacity group-hover:opacity-100 focus-within:opacity-100">
-                          <button type="button" title={n.pinned ? "Unpin" : "Pin to top"} onClick={() => onTogglePin(n.id, !n.pinned)} className="rounded p-1 hover:bg-muted">
+                        <span className="ml-auto flex gap-1 transition-opacity sm:opacity-0 sm:group-hover:opacity-100 sm:focus-within:opacity-100">
+                          <button type="button" title={n.pinned ? "Unpin" : "Pin to top"} onClick={() => onTogglePin(n.id, !n.pinned)} className="rounded p-1.5 hover:bg-muted sm:p-1">
                             {n.pinned ? <PinOff className="h-3.5 w-3.5" /> : <Pin className="h-3.5 w-3.5" />}
                           </button>
                           {mine && (
                             <>
-                              <button type="button" title="Edit" onClick={() => setEditing(n.id)} className="rounded p-1 hover:bg-muted"><Pencil className="h-3.5 w-3.5" /></button>
-                              <button type="button" title="Delete" onClick={() => confirm("Delete this note?") && onDeleteNote(n.id)} className="rounded p-1 text-destructive hover:bg-muted"><Trash2 className="h-3.5 w-3.5" /></button>
+                              <button type="button" title="Edit" onClick={() => setEditing(n.id)} className="rounded p-1.5 hover:bg-muted sm:p-1"><Pencil className="h-3.5 w-3.5" /></button>
+                              <button type="button" title="Delete" onClick={() => confirm("Delete this note?") && onDeleteNote(n.id)} className="rounded p-1.5 text-destructive hover:bg-muted sm:p-1"><Trash2 className="h-3.5 w-3.5" /></button>
                             </>
                           )}
                         </span>

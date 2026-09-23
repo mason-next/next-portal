@@ -63,7 +63,7 @@ const MOBILE_NAV_SECTIONS: MobileNavSection[] = [
       { href: "/sales/leads",                            label: "Leads" },
       { href: "/sales/activity",                         label: "Activity Log" },
       { href: "/sales/deal-desk",                        label: "Deal Desk" },
-      { href: "/sales/deal-desk/commission-statement",   label: "Commission Statement" },
+      { href: "/sales/deal-desk/commission-statement",   label: "Commission Statement (Coming Soon)" },
       { href: "/sales/quotes",                           label: "Quote Portal" },
     ],
   },

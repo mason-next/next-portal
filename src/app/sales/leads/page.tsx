@@ -62,7 +62,7 @@ export default function LeadsPage() {
   }
 
   return (
-    <div className="mx-auto max-w-7xl space-y-5 p-8">
+    <div className="mx-auto max-w-7xl space-y-5 px-4 py-5 sm:p-8">
       <PageHeader
         title="Leads"
         subtitle="Unqualified interest — work it, qualify it, then convert it into an account and opportunity"
@@ -95,7 +95,37 @@ export default function LeadsPage() {
 
       <div className="overflow-x-auto rounded-xl border bg-card">
         {!leads ? <Empty>Loading…</Empty> : filtered.length === 0 ? <Empty>No leads here. Add one to start qualifying.</Empty> : (
-          <table className="w-full text-sm">
+          <>
+          <ul className="divide-y md:hidden">
+            {filtered.map((l) => (
+              <li key={l.id} className="px-4 py-3">
+                <div className="flex items-start justify-between gap-2">
+                  <div className="min-w-0">
+                    <div className="font-medium">{l.companyName || l.name || "—"}</div>
+                    <div className="truncate text-xs text-muted-foreground">{[l.companyName ? l.name : "", l.title, l.source].filter(Boolean).join(" · ") || "—"}</div>
+                  </div>
+                  <StatusBadge status={l.status} />
+                </div>
+                <div className="mt-2 flex flex-wrap items-center gap-1.5">
+                  {l.status === "Converted" && l.convertedCompanyId ? (
+                    <button type="button" className="text-xs text-primary" onClick={() => router.push(`/sales/accounts/${l.convertedCompanyId}`)}>Open account →</button>
+                  ) : canTouch(l) ? (
+                    <>
+                      {!l.ownerName && !access.isManager && (
+                        <SecondaryButton className="h-8 px-2.5 text-xs" onClick={async () => { await upsertLead({ ...l, ownerName: access.userName }); reload(); }}>Claim</SecondaryButton>
+                      )}
+                      <SecondaryButton className="h-8 px-2.5 text-xs" onClick={() => setEditing({ lead: l })}>Edit</SecondaryButton>
+                      {l.status !== "Disqualified" && (
+                        <PrimaryButton className="h-8 px-2.5 text-xs" onClick={() => { setConverting(l); setOppName(`${l.companyName || l.name} — New Opportunity`); setCreateOpp(true); setError(null); }}>Convert</PrimaryButton>
+                      )}
+                    </>
+                  ) : null}
+                  <span className="ml-auto text-xs text-muted-foreground">{l.estimatedValue ? fmtMoneyShort(l.estimatedValue) : ""}</span>
+                </div>
+              </li>
+            ))}
+          </ul>
+          <table className="hidden w-full text-sm md:table">
             <thead className="bg-muted/40 text-left text-[11px] uppercase tracking-wide text-muted-foreground">
               <tr>
                 <th className="py-2 pl-4 pr-2 font-medium">Lead</th>
@@ -142,6 +172,7 @@ export default function LeadsPage() {
               ))}
             </tbody>
           </table>
+          </>
         )}
       </div>
 

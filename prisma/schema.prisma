@@ -873,6 +873,10 @@ model SalesOpportunity {
   nextStepOwnerName  String     @default("")
   leadSource         String     @default("")
   stageChangedAt     DateTime?
+  // ConnectWise import sync (20260923b_cw_sync): the CW values from the last import,
+  // so a re-import only overwrites fields that actually changed in ConnectWise.
+  cwSnapshot         Json?
+  cwSyncedAt         DateTime?
   createdAt          DateTime   @default(now())
   updatedAt          DateTime   @updatedAt
 
@@ -886,6 +890,7 @@ model SalesOpportunity {
   children   SalesOpportunity[] @relation("OppParent")
 
   @@index([companyId])
+  @@index([cwNumber])
   @@map("sales_opportunities")
 }
 

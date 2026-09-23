@@ -19,7 +19,7 @@ import {
 } from "@/lib/data/sales-mappers";
 import {
   isMine, mineOppWhere, visibleCompanyWhere, assertCompanyVisible, assertOppMine,
-  recordAudit, diffAudit, runStageAutomation,
+  recordAudit, diffAudit, runStageAutomation, refreshOppNextStep,
 } from "@/lib/data/crm-internal";
 import type {
   AccountSnapshot, AgendaItem, SalesNote, SalesTask, SalesLead, NoteKind, NoteAttachment,
@@ -467,6 +467,8 @@ export async function upsertTask(data: {
         before, row, ["title", "dueDate", "assigneeName", "priority"])
     : [{ entityType: "task", entityId: row.id, companyId: row.companyId, opportunityId: row.opportunityId,
         action: "created", newValue: row.title }]);
+  await refreshOppNextStep(row.opportunityId);
+  if (before?.opportunityId && before.opportunityId !== row.opportunityId) await refreshOppNextStep(before.opportunityId);
   return toTask(row);
 }
 
@@ -481,6 +483,7 @@ export async function setTaskDone(id: string, done: boolean): Promise<void> {
     entityType: "task", entityId: id, companyId: task.companyId, opportunityId: task.opportunityId,
     action: done ? "completed" : "reopened", newValue: task.title,
   }]);
+  await refreshOppNextStep(task.opportunityId);
 }
 
 export async function deleteTask(id: string): Promise<void> {
@@ -491,6 +494,7 @@ export async function deleteTask(id: string): Promise<void> {
     entityType: "task", entityId: id, companyId: task.companyId, opportunityId: task.opportunityId,
     action: "deleted", oldValue: task.title,
   }]);
+  await refreshOppNextStep(task.opportunityId);
 }
 
 // ─── Leads ────────────────────────────────────────────────────────────────────
@@ -690,8 +694,8 @@ export async function getAgenda(opts: { days?: number; ownerName?: string } = {}
         AND: [
           scope.canSeeAll ? {} : mineOppWhere(scope),
           { stage: { in: ["Prospecting", "Qualifying", "Proposal"] } },
-          { OR: [{ nextStepDate: { lte: horizon } }, { closeDate: { lte: horizon } }] },
-          ownerFilter ? { OR: [{ ownerName: ownerFilter }, { nextStepOwnerName: ownerFilter }] } : {},
+          { closeDate: { lte: horizon } },
+          ownerFilter ? { ownerName: ownerFilter } : {},
         ],
       },
       include: { company: { select: { id: true, name: true } } },
@@ -715,20 +719,7 @@ export async function getAgenda(opts: { days?: number; ownerName?: string } = {}
     });
   }
   for (const o of opps) {
-    if (o.nextStepDate && o.nextStepDate <= horizon) {
-      items.push({
-        kind: "nextStep",
-        id: `ns_${o.id}`,
-        date: o.nextStepDate.toISOString(),
-        title: o.nextStep || "Next step",
-        ownerName: o.nextStepOwnerName || o.ownerName,
-        companyId: o.companyId,
-        companyName: o.company.name,
-        opportunityId: o.id,
-        opportunityName: o.name,
-        value: o.value,
-      });
-    }
+    // Next steps are tasks, so they're already in the list above.
     if (o.closeDate && o.closeDate <= horizon) {
       items.push({
         kind: "closeDate",
@@ -799,7 +790,7 @@ export async function summarizeNotes(
     return `- [${d}] ${n.kind} · ${where} · by ${n.userName}${n.contact ? ` · with ${n.contact.name}` : ""}\n  ${n.body.replace(/\s+/g, " ").slice(0, 1500)}`;
   });
   const agendaLines = agenda.map((a) =>
-    `- [${a.date.slice(0, 10)}] ${a.kind === "task" ? "Task" : a.kind === "nextStep" ? "Next step" : "Expected close"}: ${a.title} · ${a.companyName}${a.opportunityName ? ` / ${a.opportunityName}` : ""} · owner ${a.ownerName || "unassigned"}`);
+    `- [${a.date.slice(0, 10)}] ${a.kind === "task" ? "Task" : "Expected close"}: ${a.title} · ${a.companyName}${a.opportunityName ? ` / ${a.opportunityName}` : ""} · owner ${a.ownerName || "unassigned"}`);
 
   const userContent = `Today is ${new Date().toISOString().slice(0, 10)}. Notes from the last ${days} days:\n\n${noteLines.join("\n")}\n\nUpcoming dated items:\n${agendaLines.join("\n") || "- none"}`;
 

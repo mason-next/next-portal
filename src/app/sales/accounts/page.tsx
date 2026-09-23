@@ -110,7 +110,7 @@ export default function AccountsPage() {
   }
 
   return (
-    <div className="mx-auto max-w-7xl space-y-5 p-8">
+    <div className="mx-auto max-w-7xl space-y-5 px-4 py-5 sm:p-8">
       <PageHeader
         title="Accounts"
         subtitle="Every company at a glance — owner, pipeline, last touch and what's next"
@@ -142,7 +142,7 @@ export default function AccountsPage() {
           <input type="checkbox" checked={pipelineOnly} onChange={(e) => setPipelineOnly(e.target.checked)} />
           Has open pipeline
         </label>
-        <div className="ml-auto text-xs text-muted-foreground">
+        <div className="w-full text-xs text-muted-foreground md:ml-auto md:w-auto">
           {filtered.length} accounts · {totals.opps} open opps · <span className="font-medium text-foreground">{fmtMoneyShort(totals.pipeline)}</span> pipeline · {fmtMoneyShort(totals.weighted)} weighted
           {totals.overdue > 0 && <span className="text-red-600 dark:text-red-400"> · {totals.overdue} overdue tasks</span>}
         </div>
@@ -150,7 +150,31 @@ export default function AccountsPage() {
 
       <div className="overflow-x-auto rounded-xl border bg-card">
         {!data ? <Empty>Loading…</Empty> : filtered.length === 0 ? <Empty>No accounts match these filters.</Empty> : (
-          <table className="w-full text-sm">
+          <>
+          <ul className="divide-y md:hidden">
+            {filtered.map(({ c, r, openCount, pipeline }) => {
+              const since = daysSince(r.lastTouch);
+              return (
+                <li key={c.id}>
+                  <Link href={`/sales/accounts/${c.id}`} className="flex items-center gap-3 px-4 py-3 active:bg-muted/40">
+                    <CompanyLogo name={c.name} domain={c.domain} size={36} />
+                    <div className="min-w-0 flex-1">
+                      <div className="truncate font-medium">{c.name}</div>
+                      <div className="truncate text-xs text-muted-foreground">
+                        {openCount ? `${openCount} open · ${fmtMoneyShort(pipeline)}` : "No open deals"}
+                        {" · "}{since === null ? "never touched" : since === 0 ? "touched today" : `touched ${since}d ago`}
+                      </div>
+                    </div>
+                    <div className="shrink-0 text-right">
+                      <DueChip iso={r.nextDate} />
+                      {r.overdueTasks > 0 && <div className="text-[11px] text-red-600 dark:text-red-400">{r.overdueTasks} overdue</div>}
+                    </div>
+                  </Link>
+                </li>
+              );
+            })}
+          </ul>
+          <table className="hidden w-full text-sm md:table">
             <thead className="bg-muted/40 text-left text-[11px] uppercase tracking-wide text-muted-foreground">
               <tr>
                 {header("Account", "name", "pl-4")}
@@ -196,6 +220,7 @@ export default function AccountsPage() {
               })}
             </tbody>
           </table>
+          </>
         )}
       </div>
 

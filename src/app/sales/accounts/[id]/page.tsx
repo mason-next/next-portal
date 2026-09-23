@@ -82,7 +82,6 @@ export default function AccountSnapshotPage() {
     const lastTouch = snap.notes[0]?.noteDate ?? null;
     const upcoming = [
       ...snap.tasks.filter((t) => t.status === "Open" && t.dueDate).map((t) => ({ date: t.dueDate!, label: t.title, sub: t.assigneeName, key: `t${t.id}` })),
-      ...open.filter((o) => o.nextStepDate).map((o) => ({ date: o.nextStepDate!, label: o.nextStep || "Next step", sub: `${o.name} · ${o.nextStepOwnerName || o.ownerName}`, key: `n${o.id}` })),
       ...open.filter((o) => o.closeDate).map((o) => ({ date: o.closeDate!, label: `Expected close · ${fmtMoneyShort(o.value)}`, sub: o.name, key: `c${o.id}` })),
     ].sort((a, b) => a.date.localeCompare(b.date));
     return {
@@ -98,7 +97,7 @@ export default function AccountSnapshotPage() {
 
   if (error) {
     return (
-      <div className="mx-auto max-w-7xl space-y-4 p-8">
+      <div className="mx-auto max-w-7xl space-y-4 px-4 py-5 sm:p-8">
         <CrmSubNav />
         <div className="rounded-xl border bg-card p-8 text-center text-sm text-muted-foreground">
           {error} · <Link href="/sales/accounts" className="text-primary hover:underline">Back to accounts</Link>
@@ -107,7 +106,7 @@ export default function AccountSnapshotPage() {
     );
   }
   if (!snap || !stats) {
-    return <div className="mx-auto max-w-7xl p-8"><CrmSubNav /><div className="py-16 text-center text-sm text-muted-foreground">Loading…</div></div>;
+    return <div className="mx-auto max-w-7xl px-4 py-5 sm:p-8"><CrmSubNav /><div className="py-16 text-center text-sm text-muted-foreground">Loading…</div></div>;
   }
 
   const { company } = snap;
@@ -122,7 +121,7 @@ export default function AccountSnapshotPage() {
   }
 
   return (
-    <div className="mx-auto max-w-7xl space-y-5 p-8">
+    <div className="mx-auto max-w-7xl space-y-5 px-4 pb-28 pt-5 sm:px-8 sm:pt-8 lg:pb-8">
       <CrmSubNav />
 
       {/* Header */}
@@ -165,9 +164,12 @@ export default function AccountSnapshotPage() {
           sub={stats.upcoming[0]?.label ?? "nothing scheduled"} tone={stats.upcoming[0] && stats.upcoming[0].date < new Date().toISOString() ? "warn" : undefined} />
       </div>
 
+      {/* On phones the two columns dissolve (display: contents) so panels can be ordered
+          Tasks → Opportunities → Notes → the rest. */}
       <div className="grid gap-5 lg:grid-cols-3">
-        <div className="space-y-5 lg:col-span-2">
+        <div className="contents lg:col-span-2 lg:block lg:space-y-5">
           {/* Opportunities */}
+          <div className="order-2 min-w-0 lg:order-none">
           <Panel
             title={`Opportunities (${oppsShown.length})`}
             actions={
@@ -180,7 +182,42 @@ export default function AccountSnapshotPage() {
             {oppsShown.length === 0 ? (
               <Empty>{snap.opportunities.length ? "No open opportunities." : "No opportunities yet."}</Empty>
             ) : (
-              <div className="overflow-x-auto">
+              <>
+              <ul className="divide-y md:hidden">
+                {oppsShown.map((o) => (
+                  <li key={o.id} className={cn("px-4 py-3", focusOpp === o.id && "bg-primary/5")}>
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="min-w-0">
+                        <div className="font-medium leading-snug">{o.name}</div>
+                        <div className="text-xs text-muted-foreground">{fmtMoney(o.value)} · {effectiveProbability(o)}% · close {fmtDate(o.closeDate, { year: false })}</div>
+                      </div>
+                      {canEditOpp(o) && (
+                        <button type="button" aria-label={`Edit ${o.name}`} onClick={() => setModal({ type: "opp", opp: o })} className="rounded p-2 text-muted-foreground hover:bg-muted">
+                          <Pencil className="h-4 w-4" />
+                        </button>
+                      )}
+                    </div>
+                    <div className="mt-2 flex flex-wrap items-center gap-2">
+                      {canEditOpp(o) ? (
+                        <select
+                          aria-label={`Stage for ${o.name} (mobile)`}
+                          value={o.stage}
+                          onChange={(e) => changeStage(o, e.target.value as OppStage)}
+                          className={cn("rounded-full border-0 px-2.5 py-1 text-xs font-medium", STAGE_COLORS[o.stage])}
+                        >
+                          {OPP_STAGES.map((st) => <option key={st}>{st}</option>)}
+                        </select>
+                      ) : <StageBadge stage={o.stage} />}
+                      {o.nextStep ? (
+                        <span className="min-w-0 truncate text-xs">
+                          <span className="text-muted-foreground">Next:</span> {o.nextStep} · <DueChip iso={o.nextStepDate} />
+                        </span>
+                      ) : isOpenStage(o.stage) ? <span className="text-xs text-amber-600 dark:text-amber-400">No next task</span> : null}
+                    </div>
+                  </li>
+                ))}
+              </ul>
+              <div className="hidden overflow-x-auto md:block">
                 <table className="w-full text-sm">
                   <thead className="bg-muted/40 text-left text-[11px] uppercase tracking-wide text-muted-foreground">
                     <tr>
@@ -224,7 +261,7 @@ export default function AccountSnapshotPage() {
                                 <span>· {o.nextStepOwnerName || o.ownerName}</span>
                               </div>
                             </>
-                          ) : isOpenStage(o.stage) ? <span className="text-xs text-amber-600 dark:text-amber-400">No next step</span> : <span className="text-xs text-muted-foreground">—</span>}
+                          ) : isOpenStage(o.stage) ? <span className="text-xs text-amber-600 dark:text-amber-400">No next task</span> : <span className="text-xs text-muted-foreground">—</span>}
                         </td>
                         <td className="px-2 py-2.5 text-right">
                           {canEditOpp(o) && (
@@ -238,10 +275,13 @@ export default function AccountSnapshotPage() {
                   </tbody>
                 </table>
               </div>
+              </>
             )}
           </Panel>
+          </div>
 
           {/* Notes & history */}
+          <div id="notes-panel" className="order-3 min-w-0 scroll-mt-4 lg:order-none">
           <Panel title="Notes & customer history">
             {access.canEdit && (
               <div className="border-b bg-muted/20 px-4 py-3">
@@ -269,19 +309,21 @@ export default function AccountSnapshotPage() {
               onTogglePin={async (nid, p) => { await setNotePinned(nid, p); await reload(); }}
             />
           </Panel>
+          </div>
         </div>
 
-        <div className="space-y-5">
-          {/* Follow-ups */}
+        <div className="contents lg:block lg:space-y-5">
+          {/* Tasks */}
+          <div id="tasks-panel" className="order-1 min-w-0 scroll-mt-4 lg:order-none">
           <Panel
-            title={`Follow-ups (${snap.tasks.filter((t) => t.status === "Open").length} open)`}
+            title={`Tasks (${snap.tasks.filter((t) => t.status === "Open").length} open)`}
             actions={
               <>
                 <label className="inline-flex items-center gap-1 text-xs text-muted-foreground">
                   <input type="checkbox" checked={showDoneTasks} onChange={(e) => setShowDoneTasks(e.target.checked)} />Done
                 </label>
                 {access.canEdit && !addingTask && (
-                  <button type="button" onClick={() => setAddingTask(true)} className="rounded p-1 hover:bg-muted" title="Add follow-up"><Plus className="h-4 w-4" /></button>
+                  <button type="button" onClick={() => setAddingTask(true)} className="rounded p-1 hover:bg-muted" title="Add task"><Plus className="h-4 w-4" /></button>
                 )}
               </>
             }
@@ -304,8 +346,10 @@ export default function AccountSnapshotPage() {
               onDelete={async (tid) => { await deleteTask(tid); await reload(); }}
             />
           </Panel>
+          </div>
 
           {/* Upcoming dates */}
+          <div className="order-4 min-w-0 lg:order-none">
           <Panel title="Upcoming dates">
             {stats.upcoming.length === 0 ? <Empty>Nothing scheduled.</Empty> : (
               <ul className="divide-y">
@@ -321,8 +365,10 @@ export default function AccountSnapshotPage() {
               </ul>
             )}
           </Panel>
+          </div>
 
           {/* Contacts */}
+          <div className="order-5 min-w-0 lg:order-none">
           <Panel
             title={`Contacts (${snap.contacts.length})`}
             actions={
@@ -346,10 +392,38 @@ export default function AccountSnapshotPage() {
               </ul>
             )}
           </Panel>
+          </div>
 
-          <SummaryPanel companyId={company.id} defaultDays={90} title="AI account summary" />
+          <div className="order-6 min-w-0 lg:order-none">
+            <SummaryPanel companyId={company.id} defaultDays={90} title="AI account summary" />
+          </div>
         </div>
       </div>
+
+      {/* Phone quick actions: log a note or add a task without scrolling. */}
+      {access.canEdit && (
+        <div className="fixed inset-x-0 bottom-0 z-30 flex gap-2 border-t bg-card/95 px-4 py-3 backdrop-blur lg:hidden"
+          style={{ paddingBottom: "max(0.75rem, env(safe-area-inset-bottom))" }}>
+          <SecondaryButton
+            className="h-11 flex-1 justify-center text-base"
+            onClick={() => {
+              setAddingTask(true);
+              document.getElementById("tasks-panel")?.scrollIntoView({ behavior: "smooth" });
+            }}
+          >
+            <Plus className="h-4 w-4" />Task
+          </SecondaryButton>
+          <PrimaryButton
+            className="h-11 flex-1 justify-center text-base"
+            onClick={() => {
+              document.getElementById("notes-panel")?.scrollIntoView({ behavior: "smooth" });
+              setTimeout(() => (document.querySelector('#notes-panel textarea') as HTMLTextAreaElement | null)?.focus(), 350);
+            }}
+          >
+            <Plus className="h-4 w-4" />Note
+          </PrimaryButton>
+        </div>
+      )}
 
       {/* Modals */}
       <Modal open={modal?.type === "account"} onClose={() => setModal(null)} className="max-w-xl">

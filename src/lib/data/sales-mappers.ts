@@ -117,6 +117,7 @@ export function toOpp(
     nextStepOwnerName: r.nextStepOwnerName,
     leadSource: r.leadSource,
     stageChangedAt: r.stageChangedAt?.toISOString() ?? null,
+    cwSyncedAt: r.cwSyncedAt?.toISOString() ?? null,
     createdAt: r.createdAt.toISOString(),
     updatedAt: r.updatedAt.toISOString(),
     company: r.company,

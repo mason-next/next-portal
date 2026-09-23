@@ -113,6 +113,7 @@ export interface SalesOpportunity {
   nextStepOwnerName?: string;
   leadSource?: string;
   stageChangedAt?: string | null;
+  cwSyncedAt?: string | null;
   invoices?: SalesOppInvoice[];
   children?: SalesOpportunity[];
   createdAt: string;
@@ -358,9 +359,9 @@ export interface AccountSnapshot {
   history: SalesAuditEntry[];
 }
 
-/** A dated item for the agenda: open task, opp next step, or expected close. */
+/** A dated item for the agenda: an open task (incl. deals' next steps) or an expected close. */
 export interface AgendaItem {
-  kind: "task" | "nextStep" | "closeDate";
+  kind: "task" | "closeDate";
   id: string;
   date: string;
   title: string;

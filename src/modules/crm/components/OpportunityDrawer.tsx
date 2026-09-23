@@ -17,7 +17,7 @@ import { OpportunityEditor } from "./OpportunityEditor";
 
 /**
  * Right-hand side panel with everything about one opportunity: key numbers, next
- * action, follow-ups and notes, with quick stage change, note logging and editing.
+ * action, tasks and notes, with quick stage change, note logging and editing.
  */
 export function OpportunityDrawer({
   opportunityId, onClose, onChanged,
@@ -142,7 +142,7 @@ export function OpportunityDrawer({
               </dl>
 
               <section className="rounded-lg border bg-muted/30 p-3">
-                <div className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">Next action</div>
+                <div className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">Next task</div>
                 {opp.nextStep ? (
                   <>
                     <p className="mt-1 text-sm font-medium">{opp.nextStep}</p>
@@ -152,13 +152,13 @@ export function OpportunityDrawer({
                     </div>
                   </>
                 ) : (
-                  <p className="mt-1 text-sm text-amber-600 dark:text-amber-400">{isOpenStage(opp.stage) ? "No next step set" : "Deal closed"}</p>
+                  <p className="mt-1 text-sm text-amber-600 dark:text-amber-400">{isOpenStage(opp.stage) ? "No open tasks" : "Deal closed"}</p>
                 )}
               </section>
 
               <section>
                 <div className="mb-1 flex items-center justify-between">
-                  <h3 className="text-sm font-semibold">Follow-ups ({openTasks.length} open)</h3>
+                  <h3 className="text-sm font-semibold">Tasks ({openTasks.length} open)</h3>
                   {access.canEdit && !addingTask && (
                     <button type="button" onClick={() => setAddingTask(true)} className="inline-flex items-center gap-1 text-xs text-primary hover:underline"><Plus className="h-3 w-3" />Add</button>
                   )}
@@ -217,6 +217,12 @@ export function OpportunityDrawer({
                   </ol>
                 )}
               </section>
+
+              <p className="text-[11px] text-muted-foreground">
+                {opp.cwNumber
+                  ? <>ConnectWise #{opp.cwNumber}{opp.cwSyncedAt ? ` · last synced ${fmtDate(opp.cwSyncedAt)}` : " · not synced yet"}. Updates arrive via ConnectWise import.</>
+                  : <>Local only. Linked automatically when it shows up in a ConnectWise import, or add the CW # under Edit deal.</>}
+              </p>
 
               {detail.history.length > 0 && (
                 <details className="text-xs">

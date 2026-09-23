@@ -22,6 +22,7 @@ import { ActivityCalendar } from "@/modules/sales-activity/components/ActivityCa
 import { CompanyContactsDrawer } from "@/modules/sales-activity/components/CompanyContactsDrawer";
 import { CrmSubNav } from "@/modules/crm/components/ui";
 import { OpportunityDrawer } from "@/modules/crm/components/OpportunityDrawer";
+import { runCwImport } from "@/modules/crm/lib/cw-import";
 import { formatWeekLabel } from "@/types/sales";
 import type { SalesCompany, SalesOpportunity, SalesActivity } from "@/types/sales";
 import type { CWImportPayload, ImportProgressCallback, CWImportResult } from "@/modules/sales-activity/components/CWImportModal";
@@ -107,61 +108,12 @@ export default function SalesActivityPage() {
     setLogoFetch(null);
   }
 
-  async function handleCWImport({ companyMappings, selectedOpps }: CWImportPayload, onProgress: ImportProgressCallback): Promise<CWImportResult> {
-    // Reps import only their own deals: rows assigned to another rep in the CSV are
-    // skipped rather than silently re-owned, and rows the server refuses (e.g. a CW#
-    // that already belongs to someone else) are counted as skipped, not fatal.
-    const ownRows = isAdmin && !isViewAsMode
-      ? selectedOpps
-      : selectedOpps.filter((o) => !o.resolvedOwnerName || o.resolvedOwnerName === effectiveName);
-    const neededCompanies = new Set(ownRows.map((o) => o.resolvedCsvName));
-    let skipped = selectedOpps.length - ownRows.length;
-    let created = 0, updated = 0;
-    const total = ownRows.length;
-
-    // Phase 1: ensure all companies exist (label shows company name)
-    const companyIdMap = new Map<string, string>();
-    for (const mapping of companyMappings) {
-      if (!neededCompanies.has(mapping.csvName)) continue;
-      if (mapping.matchedId) {
-        companyIdMap.set(mapping.csvName, mapping.matchedId);
-      } else {
-        onProgress(0, total, `Creating company: ${mapping.csvName}`);
-        const created = await saveCompany({ name: mapping.csvName, domain: "", notes: "", dealDeskId: null });
-        companyIdMap.set(mapping.csvName, (created as SalesCompany).id);
-      }
-    }
-
-    // Phase 2: upsert each opp with live progress
-    let done = 0;
-    for (const o of ownRows) {
-      onProgress(done, total, `${o.existingId ? "Updating" : "Saving"}: ${o.name}`);
-      const companyId = companyIdMap.get(o.resolvedCsvName);
-      if (!companyId) { done++; skipped++; continue; }
-      try {
-        await saveOpportunity({
-          id: o.existingId,
-          companyId,
-          name: o.name,
-          stage: o.stage,
-          ownerId: o.resolvedOwnerId,
-          ownerName: o.resolvedOwnerName,
-          value: Math.round(o.value * 100),
-          notes: "",
-          closeDate: o.closeDate ?? null,
-          cwNumber: o.cwNumber || null,
-          cwLink: null,
-          proposalCreatedAt: o.proposalCreatedAt ?? null,
-          rating: o.rating ?? null,
-        });
-        if (o.existingId) updated++; else created++;
-      } catch {
-        skipped++;
-      }
-      done++;
-      onProgress(done, total, `${o.existingId ? "Updated" : "Saved"}: ${o.name}`);
-    }
-    return { created, updated, skipped };
+  function handleCWImport(payload: CWImportPayload, onProgress: ImportProgressCallback): Promise<CWImportResult> {
+    return runCwImport(payload, onProgress, {
+      isManager: isAdmin && !isViewAsMode,
+      userName: effectiveName,
+      saveCompany: async (c) => (await saveCompany(c)) as SalesCompany,
+    }).finally(bump);
   }
 
   return (

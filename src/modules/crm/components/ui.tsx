@@ -110,24 +110,24 @@ export function DueChip({ iso, className }: { iso: string | null | undefined; cl
 
 export function Kpi({ label, value, sub, tone }: { label: string; value: ReactNode; sub?: ReactNode; tone?: "warn" | "good" }) {
   return (
-    <div className="rounded-xl border bg-card p-4">
-      <div className="text-xs text-muted-foreground">{label}</div>
+    <div className="min-w-0 rounded-xl border bg-card p-3 sm:p-4">
+      <div className="truncate text-xs text-muted-foreground">{label}</div>
       <div className={cn(
-        "mt-1 text-2xl font-bold tabular-nums",
+        "mt-1 truncate text-xl font-bold tabular-nums sm:text-2xl",
         tone === "warn" && "text-amber-600 dark:text-amber-400",
         tone === "good" && "text-emerald-600 dark:text-emerald-400",
       )}>{value}</div>
-      {sub && <div className="mt-0.5 text-xs text-muted-foreground">{sub}</div>}
+      {sub && <div className="mt-0.5 line-clamp-2 text-xs text-muted-foreground">{sub}</div>}
     </div>
   );
 }
 
 export function Panel({ title, actions, children, className }: { title: ReactNode; actions?: ReactNode; children: ReactNode; className?: string }) {
   return (
-    <section className={cn("rounded-xl border bg-card", className)}>
-      <header className="flex items-center justify-between gap-2 border-b px-4 py-2.5">
+    <section className={cn("min-w-0 rounded-xl border bg-card", className)}>
+      <header className="flex flex-wrap items-center justify-between gap-2 border-b px-4 py-2.5">
         <h2 className="text-sm font-semibold">{title}</h2>
-        {actions && <div className="flex items-center gap-1.5">{actions}</div>}
+        {actions && <div className="flex flex-wrap items-center gap-1.5">{actions}</div>}
       </header>
       {children}
     </section>
@@ -184,7 +184,7 @@ export function SearchInput({ value, onChange, placeholder }: { value: string; o
       value={value}
       onChange={(e) => onChange(e.target.value)}
       placeholder={placeholder}
-      className="h-8 w-56 rounded-md border bg-background px-3 text-xs focus:outline-none focus:ring-2 focus:ring-ring"
+      className="h-9 w-full rounded-md border bg-background px-3 text-sm focus:outline-none focus:ring-2 focus:ring-ring sm:h-8 sm:w-56 sm:text-xs"
     />
   );
 }
