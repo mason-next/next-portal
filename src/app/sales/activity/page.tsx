@@ -20,9 +20,12 @@ import { OppCommissionDrawer } from "@/modules/sales-activity/components/OppComm
 import { OpportunityKanban } from "@/modules/sales-activity/components/OpportunityKanban";
 import { ActivityCalendar } from "@/modules/sales-activity/components/ActivityCalendar";
 import { CompanyContactsDrawer } from "@/modules/sales-activity/components/CompanyContactsDrawer";
+import { CrmSubNav } from "@/modules/crm/components/ui";
+import { OpportunityDrawer } from "@/modules/crm/components/OpportunityDrawer";
+import { runCwImport } from "@/modules/crm/lib/cw-import";
 import { formatWeekLabel } from "@/types/sales";
 import type { SalesCompany, SalesOpportunity, SalesActivity } from "@/types/sales";
-import type { CWImportPayload, ImportProgressCallback } from "@/modules/sales-activity/components/CWImportModal";
+import type { CWImportPayload, ImportProgressCallback, CWImportResult } from "@/modules/sales-activity/components/CWImportModal";
 
 type Modal =
   | { type: "company"; data?: SalesCompany }
@@ -52,7 +55,7 @@ export default function SalesActivityPage() {
     weekStart, setWeekStart,
     saveCompany, removeCompany,
     saveOpportunity, removeOpportunity, changeOppStage,
-    logActivity, editActivity, removeActivity,
+    logActivity, editActivity, removeActivity, bump,
   } = useSalesActivity({ scopeToUser });
 
   const [modal, setModal] = useState<Modal>(null);
@@ -65,6 +68,7 @@ export default function SalesActivityPage() {
   const [commOpp, setCommOpp] = useState<SalesOpportunity | null>(null);
   const [contactsCompany, setContactsCompany] = useState<SalesCompany | null>(null);
   const [pipelineView, setPipelineView] = useState<"table" | "board">("table");
+  const [drawerOppId, setDrawerOppId] = useState<string | null>(null);
   const importRef = useRef<HTMLDivElement>(null);
 
   function prevWeek() {
@@ -104,49 +108,17 @@ export default function SalesActivityPage() {
     setLogoFetch(null);
   }
 
-  async function handleCWImport({ companyMappings, selectedOpps }: CWImportPayload, onProgress: ImportProgressCallback) {
-    const total = selectedOpps.length;
-
-    // Phase 1: ensure all companies exist (label shows company name)
-    const companyIdMap = new Map<string, string>();
-    for (const mapping of companyMappings) {
-      if (mapping.matchedId) {
-        companyIdMap.set(mapping.csvName, mapping.matchedId);
-      } else {
-        onProgress(0, total, `Creating company: ${mapping.csvName}`);
-        const created = await saveCompany({ name: mapping.csvName, domain: "", notes: "", dealDeskId: null });
-        companyIdMap.set(mapping.csvName, (created as SalesCompany).id);
-      }
-    }
-
-    // Phase 2: upsert each opp with live progress
-    let done = 0;
-    for (const o of selectedOpps) {
-      onProgress(done, total, `${o.existingId ? "Updating" : "Saving"}: ${o.name}`);
-      const companyId = companyIdMap.get(o.resolvedCsvName);
-      if (!companyId) { done++; continue; }
-      await saveOpportunity({
-        id: o.existingId,
-        companyId,
-        name: o.name,
-        stage: o.stage,
-        ownerId: o.resolvedOwnerId,
-        ownerName: o.resolvedOwnerName,
-        value: Math.round(o.value * 100),
-        notes: "",
-        closeDate: o.closeDate ?? null,
-        cwNumber: o.cwNumber || null,
-        cwLink: null,
-        proposalCreatedAt: o.proposalCreatedAt ?? null,
-        rating: o.rating ?? null,
-      });
-      done++;
-      onProgress(done, total, `${o.existingId ? "Updated" : "Saved"}: ${o.name}`);
-    }
+  function handleCWImport(payload: CWImportPayload, onProgress: ImportProgressCallback): Promise<CWImportResult> {
+    return runCwImport(payload, onProgress, {
+      isManager: isAdmin && !isViewAsMode,
+      userName: effectiveName,
+      saveCompany: async (c) => (await saveCompany(c)) as SalesCompany,
+    }).finally(bump);
   }
 
   return (
     <div className="mx-auto max-w-7xl p-8 space-y-6">
+      <CrmSubNav />
       {/* Breadcrumb */}
       <div className="flex items-center gap-2 text-sm text-muted-foreground">
         <Link href="/sales" className="hover:text-foreground">Sales</Link>
@@ -326,6 +298,7 @@ export default function SalesActivityPage() {
                   onOpenConversation={setConvOpp}
                   onOpenCommission={setCommOpp}
                   onOpenContacts={setContactsCompany}
+                  onOpenOpportunity={(o) => setDrawerOppId(o.id)}
                 />
               ) : (
                 <OpportunityKanban
@@ -337,7 +310,7 @@ export default function SalesActivityPage() {
                   onOpenConversation={setConvOpp}
                   onOpenCommission={setCommOpp}
                   onStageChange={canEdit ? changeOppStage : undefined}
-                  onEditOpportunity={canEdit ? (o) => setModal({ type: "opportunity", companyId: o.companyId, data: o }) : undefined}
+                  onEditOpportunity={(o) => setDrawerOppId(o.id)}
                 />
               )}
             </>
@@ -476,6 +449,12 @@ export default function SalesActivityPage() {
       <OppCommissionDrawer
         opp={commOpp}
         onClose={() => setCommOpp(null)}
+      />
+
+      <OpportunityDrawer
+        opportunityId={drawerOppId}
+        onClose={() => setDrawerOppId(null)}
+        onChanged={bump}
       />
 
       <CompanyContactsDrawer

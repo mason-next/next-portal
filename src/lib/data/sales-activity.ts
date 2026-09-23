@@ -1,12 +1,21 @@
 "use server";
 
+import { Prisma } from "@prisma/client";
 import { db } from "@/lib/db";
+import { syncCwOpportunity } from "@/lib/data/cw-sync";
 import type {
   SalesCompany, SalesOpportunity, SalesActivity, SalesOppComment, SalesOppInvoice,
   CommissionTeamMember, OppInvoiceStatus, CompanyContact,
-  ActivityType, OppStage, ProposalRating, SalesContact,
+  ActivityType, OppStage,
 } from "@/types/sales";
-import { ACTIVITY_TYPES, PROPOSAL_RATINGS } from "@/types/sales";
+import { ACTIVITY_TYPES } from "@/types/sales";
+import {
+  toCompany, toOpp, toInvoice, toActivity, toCompanyContact, toStage, stageToDb,
+  sanitizeAccountStatus, sanitizeForecast, clampProbability,
+} from "@/lib/data/sales-mappers";
+import {
+  visibleCompanyWhere, mineOppWhere, recordAudit, diffAudit, runStageAutomation, refreshOppNextStep,
+} from "@/lib/data/crm-internal";
 import {
   resolveSalesScope,
   resolveSalesWriteScope,
@@ -57,11 +66,12 @@ async function assertOwnsComment(id: string, scope: SalesScope): Promise<void> {
 
 async function assertCanSeeCompany(companyId: string, scope: SalesScope): Promise<void> {
   if (scope.canSeeAll) return;
-  const own = await db.salesOpportunity.findFirst({
-    where: { companyId, ownerName: scope.userName },
+  // Visible when the caller owns the account or has an opportunity on it.
+  const hit = await db.salesCompany.findFirst({
+    where: { id: companyId, ...visibleCompanyWhere(scope) },
     select: { id: true },
   });
-  if (!own) throw new ForbiddenError("You don't have access to this company");
+  if (!hit) throw new ForbiddenError("You don't have access to this company");
 }
 
 // Financials (invoices/commission) are visible to the opp owner or a commission-team member.
@@ -79,155 +89,44 @@ async function assertCanAccessOppFinancials(opportunityId: string, scope: SalesS
 }
 
 const VALID_ACTIVITY_TYPES = new Set<string>(ACTIVITY_TYPES);
-const VALID_RATINGS = new Set<string>(PROPOSAL_RATINGS);
-function sanitizeRating(r: string | undefined | null): ProposalRating | null {
-  if (r && VALID_RATINGS.has(r)) return r as ProposalRating;
-  return null;
-}
 function sanitizeType(t: string | undefined | null): ActivityType {
   if (t && VALID_ACTIVITY_TYPES.has(t)) return t as ActivityType;
   return "Other";
 }
 
-// ─── Mappers ──────────────────────────────────────────────────────────────────
-
-const STAGE_MAP: Record<string, OppStage> = {
-  ClosedWon: "Closed Won",
-  ClosedLost: "Closed Lost",
-};
-const STAGE_TO_DB: Record<string, string> = {
-  "Closed Won": "ClosedWon",
-  "Closed Lost": "ClosedLost",
-};
-
-function toStage(s: string): OppStage {
-  return (STAGE_MAP[s] ?? s) as OppStage;
-}
-
-function toCompany(r: {
-  id: string; name: string; domain: string; notes: string;
-  dealDeskId: string | null; createdAt: Date; updatedAt: Date;
-  opportunities?: ReturnType<typeof toOpp>[];
-}): SalesCompany {
-  return {
-    id: r.id,
-    name: r.name,
-    domain: r.domain,
-    notes: r.notes,
-    dealDeskId: r.dealDeskId,
-    createdAt: r.createdAt.toISOString(),
-    updatedAt: r.updatedAt.toISOString(),
-    opportunities: r.opportunities,
-  };
-}
-
-function toOpp(r: {
-  id: string; companyId: string; name: string; stage: string;
-  ownerId: string | null; ownerName: string; value: number;
-  notes: string; closeDate: Date | null; cwNumber: string | null; cwLink: string | null;
-  proposalCreatedAt: Date | null; rating: string | null;
-  commissionTeam?: unknown; parentOppId?: string | null;
-  createdAt: Date; updatedAt: Date;
-  company?: { id: string; name: string; domain: string };
-  invoices?: ReturnType<typeof toInvoice>[];
-  children?: SalesOpportunity[];
-}): SalesOpportunity {
-  return {
-    id: r.id,
-    companyId: r.companyId,
-    name: r.name,
-    stage: toStage(r.stage),
-    ownerId: r.ownerId,
-    ownerName: r.ownerName,
-    value: r.value,
-    notes: r.notes,
-    closeDate: r.closeDate?.toISOString() ?? null,
-    cwNumber: r.cwNumber,
-    cwLink: r.cwLink,
-    proposalCreatedAt: r.proposalCreatedAt?.toISOString() ?? null,
-    rating: sanitizeRating(r.rating),
-    commissionTeam: Array.isArray(r.commissionTeam) ? (r.commissionTeam as CommissionTeamMember[]) : null,
-    parentOppId: r.parentOppId ?? null,
-    createdAt: r.createdAt.toISOString(),
-    updatedAt: r.updatedAt.toISOString(),
-    company: r.company,
-    invoices: r.invoices,
-    children: r.children,
-  };
-}
-
-function toInvoice(r: {
-  id: string; opportunityId: string; invoiceNumber: string;
-  invoiceDate: Date; subtotalCents: number; salesTaxCents: number;
-  openBalanceCents: number; paymentStatus: string; paymentDate: Date | null;
-  appliesToOppId: string | null; notes: string; createdAt: Date; updatedAt: Date;
-}): SalesOppInvoice {
-  return {
-    id: r.id,
-    opportunityId: r.opportunityId,
-    invoiceNumber: r.invoiceNumber,
-    invoiceDate: r.invoiceDate.toISOString(),
-    subtotalCents: r.subtotalCents,
-    salesTaxCents: r.salesTaxCents,
-    openBalanceCents: r.openBalanceCents,
-    paymentStatus: r.paymentStatus as OppInvoiceStatus,
-    paymentDate: r.paymentDate?.toISOString() ?? null,
-    appliesToOppId: r.appliesToOppId,
-    notes: r.notes,
-    createdAt: r.createdAt.toISOString(),
-    updatedAt: r.updatedAt.toISOString(),
-  };
-}
-
-function toActivity(r: {
-  id: string; userId: string | null; userName: string;
-  companyId: string | null; opportunityId: string | null; type: string;
-  description: string; contacts: unknown; aiGenerated: boolean;
-  weekStart: Date; createdAt: Date;
-  company?: { id: string; name: string; domain: string } | null;
-  opportunity?: {
-    id: string; name: string;
-    company: { id: string; name: string; domain: string };
-  } | null;
-}): SalesActivity {
-  return {
-    id: r.id,
-    userId: r.userId,
-    userName: r.userName,
-    companyId: r.companyId,
-    opportunityId: r.opportunityId,
-    type: r.type as ActivityType,
-    description: r.description,
-    contacts: (r.contacts as SalesContact[]) ?? [],
-    aiGenerated: r.aiGenerated,
-    weekStart: r.weekStart.toISOString(),
-    createdAt: r.createdAt.toISOString(),
-    company: r.company ?? null,
-    opportunity: r.opportunity ?? null,
-  };
-}
+const COMPANY_AUDIT_FIELDS = ["name", "domain", "ownerName", "accountStatus", "territory", "vertical", "phone", "address"];
+const OPP_AUDIT_FIELDS = [
+  "name", "stage", "ownerName", "value", "closeDate", "probability", "forecastCategory",
+  "leadSource", "rating", "companyId", "cwNumber",
+];
 
 // ─── Companies ────────────────────────────────────────────────────────────────
 
 export async function getSalesCompanies(ownerName?: string): Promise<SalesCompany[]> {
   const scope = await resolveSalesScope("salesActivity");
-  // Non-admins are pinned to their own records regardless of the client-supplied filter.
-  const effectiveOwner = scope.canSeeAll ? ownerName : scope.userName;
+  // Non-admins are pinned to their own records regardless of the client-supplied filter:
+  // accounts they own or have an opp on, and only their own opps within them.
+  const companyWhere = scope.canSeeAll
+    ? (ownerName
+        ? { OR: [{ ownerName }, { opportunities: { some: { ownerName } } }] }
+        : undefined)
+    : visibleCompanyWhere(scope);
+  const oppWhere = scope.canSeeAll
+    ? (ownerName ? { ownerName } : undefined)
+    : mineOppWhere(scope);
   const rows = await db.salesCompany.findMany({
     orderBy: { createdAt: "desc" },
-    where: effectiveOwner ? { opportunities: { some: { ownerName: effectiveOwner } } } : undefined,
+    where: companyWhere,
     include: {
       opportunities: {
         orderBy: { createdAt: "asc" },
-        where: effectiveOwner ? { ownerName: effectiveOwner } : undefined,
+        where: oppWhere,
       },
     },
   });
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   return rows.map((r) => toCompany({
     ...r,
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    opportunities: r.opportunities.map((o) => toOpp(o as any)),
+    opportunities: r.opportunities.map((o) => toOpp(o)),
   }));
 }
 
@@ -235,16 +134,69 @@ export async function upsertSalesCompany(
   data: Omit<SalesCompany, "id" | "createdAt" | "updatedAt" | "opportunities"> & { id?: string }
 ): Promise<SalesCompany> {
   // Companies are shared across reps, so any sales member may add/edit them.
-  await resolveSalesWriteScope("salesActivity");
+  const scope = await resolveSalesWriteScope("salesActivity");
+  const existing = data.id ? await db.salesCompany.findUnique({ where: { id: data.id } }) : null;
+  if (data.id && !existing) throw new ForbiddenError("Company not found");
+
+  if (!existing && !scope.canSeeAll) {
+    // Reps only see their own accounts, so an import or "Add company" can name a company
+    // that already exists under another rep. Reuse it instead of creating a duplicate;
+    // the rep gains visibility of the account only once they have a deal on it.
+    const sameName = await db.salesCompany.findFirst({
+      where: { name: { equals: data.name.trim(), mode: "insensitive" } },
+    });
+    if (sameName) return toCompany(sameName);
+  }
+
+  // Account ownership: management may assign anyone. A rep may claim an unowned
+  // account (or create one, defaulting to themselves) but can't reassign someone else's.
+  let ownerId = existing?.ownerId ?? null;
+  let ownerName = existing?.ownerName ?? "";
+  if (data.ownerName !== undefined) {
+    const requested = { id: data.ownerId ?? null, name: data.ownerName ?? "" };
+    const changing = requested.name !== ownerName || requested.id !== ownerId;
+    if (changing) {
+      if (scope.canSeeAll) {
+        ownerId = requested.id;
+        ownerName = requested.name;
+      } else {
+        const currentlyUnowned = !ownerName && !ownerId;
+        const currentlyMine = ownerName === scope.userName || ownerId === scope.userId;
+        const toSelfOrNobody = !requested.name || requested.name === scope.userName;
+        if (!(currentlyUnowned || currentlyMine) || !toSelfOrNobody) {
+          throw new ForbiddenError("Only management can reassign an account owned by someone else");
+        }
+        ownerId = requested.name ? scope.userId : null;
+        ownerName = requested.name ? scope.userName : "";
+      }
+    }
+  } else if (!existing && !scope.canSeeAll) {
+    // Legacy callers (Activity Log, CW import) don't send an owner. A rep's new account
+    // is theirs; a manager's bulk-created accounts stay unassigned until someone owns them.
+    ownerId = scope.userId;
+    ownerName = scope.userName;
+  }
+
   const payload = {
     name: data.name,
     domain: data.domain.trim().toLowerCase(),
     notes: data.notes,
     dealDeskId: data.dealDeskId,
+    ownerId,
+    ownerName,
+    ...(data.accountStatus !== undefined ? { accountStatus: sanitizeAccountStatus(data.accountStatus) } : {}),
+    ...(data.territory !== undefined ? { territory: data.territory.trim() } : {}),
+    ...(data.vertical !== undefined ? { vertical: data.vertical.trim() } : {}),
+    ...(data.phone !== undefined ? { phone: data.phone.trim() } : {}),
+    ...(data.address !== undefined ? { address: data.address.trim() } : {}),
   };
-  const row = data.id
-    ? await db.salesCompany.update({ where: { id: data.id }, data: payload })
+  const row = existing
+    ? await db.salesCompany.update({ where: { id: existing.id }, data: payload })
     : await db.salesCompany.create({ data: payload });
+
+  await recordAudit(scope, existing
+    ? diffAudit({ entityType: "company", entityId: row.id, companyId: row.id }, existing, row, COMPANY_AUDIT_FIELDS)
+    : [{ entityType: "company", entityId: row.id, companyId: row.id, action: "created", newValue: row.name }]);
   return toCompany(row);
 }
 
@@ -253,7 +205,8 @@ export async function deleteSalesCompany(id: string): Promise<void> {
   // Deleting a company cascades to every rep's opportunities/activities under it,
   // so it's restricted to admins/management.
   if (!scope.canSeeAll) throw new ForbiddenError("Only management can delete a company");
-  await db.salesCompany.delete({ where: { id } });
+  const row = await db.salesCompany.delete({ where: { id } });
+  await recordAudit(scope, [{ entityType: "company", entityId: id, companyId: id, action: "deleted", oldValue: row.name }]);
 }
 
 // ─── Owner name normalization ─────────────────────────────────────────────────
@@ -298,7 +251,7 @@ export async function upsertSalesOpportunity(
 ): Promise<SalesOpportunity> {
   const scope = await resolveSalesWriteScope("salesActivity");
   if (data.id) await assertOwnsOpp(data.id, scope);
-  const stage = (STAGE_TO_DB[data.stage] ?? data.stage) as "Prospecting" | "Qualifying" | "Proposal" | "Negotiation" | "ClosedWon" | "ClosedLost";
+  const stage = stageToDb(data.stage);
   // Non-admins can only ever own the opps they create/edit — they can't assign to other reps.
   const ownerId = scope.canSeeAll ? data.ownerId : scope.userId;
   const ownerName = scope.canSeeAll ? data.ownerName : scope.userName;
@@ -315,55 +268,131 @@ export async function upsertSalesOpportunity(
     cwLink: data.cwLink ?? null,
     proposalCreatedAt: data.proposalCreatedAt ? new Date(data.proposalCreatedAt) : null,
     rating: data.rating ?? null,
+    // CRM fields are optional on the wire; only touch them when the caller sent them.
+    ...(data.probability !== undefined ? { probability: clampProbability(data.probability) } : {}),
+    ...(data.forecastCategory !== undefined ? { forecastCategory: sanitizeForecast(data.forecastCategory) } : {}),
+    ...(data.leadSource !== undefined ? { leadSource: data.leadSource.trim() } : {}),
   };
 
-  // CW-imported opps: upsert by cwNumber to avoid duplicates on reimport
-  if (data.cwNumber) {
-    const existing = await db.salesOpportunity.findFirst({
-      where: { cwNumber: data.cwNumber },
+  // A new deal carrying a CW # is an import: route it through the ConnectWise sync so
+  // re-imports update the existing deal instead of duplicating it. Edits to an existing
+  // deal (data.id set) always save every field the user changed.
+  if (!data.id && data.cwNumber) {
+    const res = await syncCwOpportunity({
+      cwNumber: data.cwNumber,
+      companyId: data.companyId,
+      name: data.name,
+      stage: data.stage,
+      ownerName: ownerName ?? "",
+      ownerId: ownerId ?? null,
+      value: data.value,
+      closeDate: data.closeDate,
+      proposalCreatedAt: data.proposalCreatedAt,
+      rating: data.rating,
     });
-    if (existing) {
-      if (!scope.canSeeAll && existing.ownerName !== scope.userName && existing.ownerId !== scope.userId) {
-        throw new ForbiddenError("You can only modify your own opportunities");
-      }
-      const row = await db.salesOpportunity.update({
-        where: { id: existing.id },
-        // On reimport: refresh CW-owned fields only; preserve user-managed fields
-        data: {
-          name: payload.name,
-          value: payload.value,
-          closeDate: payload.closeDate,
-          proposalCreatedAt: payload.proposalCreatedAt,
-          rating: payload.rating,
-        },
-      });
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      return toOpp(row as any);
-    }
+    const row = res.id ? await db.salesOpportunity.findUnique({ where: { id: res.id } }) : null;
+    if (!row) throw new ForbiddenError(res.reason ?? "Import skipped");
+    return toOpp(row);
   }
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const payloadAny = payload as any;
-  const row = data.id
-    ? await db.salesOpportunity.update({ where: { id: data.id }, data: payloadAny })
-    : await db.salesOpportunity.create({ data: payloadAny });
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  return toOpp(row as any);
+  const before = data.id ? await db.salesOpportunity.findUnique({ where: { id: data.id } }) : null;
+  const newCw = (data.cwNumber ?? "").trim() || null;
+  const cwChanged = (before?.cwNumber ?? null) !== newCw;
+  if (newCw && cwChanged) {
+    const taken = await db.salesOpportunity.findFirst({
+      where: { cwNumber: newCw, ...(before ? { id: { not: before.id } } : {}) },
+      select: { id: true },
+    });
+    if (taken) throw new ForbiddenError(`ConnectWise #${newCw} is already linked to another deal`);
+  }
+  const row = before
+    ? await db.salesOpportunity.update({
+        where: { id: before.id },
+        data: {
+          ...payload,
+          cwNumber: newCw,
+          ...(before.stage !== stage ? { stageChangedAt: new Date() } : {}),
+          // Re-pointing a deal at a different CW record starts its sync history over.
+          ...(cwChanged ? { cwSnapshot: Prisma.DbNull, cwSyncedAt: null } : {}),
+        },
+      })
+    : await db.salesOpportunity.create({ data: { ...payload, stageChangedAt: new Date() } });
+
+  await recordAudit(scope, before
+    ? diffAudit({ entityType: "opportunity", entityId: row.id, companyId: row.companyId, opportunityId: row.id }, before, row, OPP_AUDIT_FIELDS)
+    : [{ entityType: "opportunity", entityId: row.id, companyId: row.companyId, opportunityId: row.id, action: "created", newValue: `${row.name} (${toStage(row.stage)})` }]);
+
+  const fromStage = before ? toStage(before.stage) : null;
+  const toStageVal = toStage(row.stage);
+  if (fromStage !== toStageVal) {
+    await runStageAutomation(scope, row, fromStage ?? "Prospecting", toStageVal);
+  }
+  if (data.nextStep !== undefined) await saveNextStepAsTask(scope, row, data);
+  const fresh = await db.salesOpportunity.findUnique({ where: { id: row.id } });
+  return toOpp(fresh ?? row);
+}
+
+// The deal editor's "Next action" is a task: editing the current next task (same title)
+// updates it; a new title adds a task. The deal's cached next step is then refreshed.
+async function saveNextStepAsTask(
+  scope: SalesScope,
+  opp: { id: string; companyId: string; ownerId: string | null; ownerName: string },
+  data: { nextStep?: string; nextStepDate?: string | null; nextStepOwnerName?: string; nextStepOwnerId?: string | null },
+): Promise<void> {
+  const title = (data.nextStep ?? "").trim();
+  if (title) {
+    const due = data.nextStepDate ? new Date(`${data.nextStepDate.slice(0, 10)}T12:00:00.000Z`) : null;
+    const assigneeName = data.nextStepOwnerName?.trim() || opp.ownerName;
+    const assigneeId = data.nextStepOwnerName?.trim() ? (data.nextStepOwnerId ?? null) : opp.ownerId;
+    const current = await db.salesTask.findFirst({
+      where: { opportunityId: opp.id, status: "Open" },
+      orderBy: [{ dueDate: { sort: "asc", nulls: "last" } }, { createdAt: "asc" }],
+    });
+    if (current && current.title === title) {
+      if (current.dueDate?.getTime() !== due?.getTime() || current.assigneeName !== assigneeName) {
+        await db.salesTask.update({ where: { id: current.id }, data: { dueDate: due, assigneeName, assigneeId } });
+      }
+    } else {
+      const t = await db.salesTask.create({
+        data: {
+          companyId: opp.companyId, opportunityId: opp.id, title, dueDate: due,
+          assigneeId, assigneeName, createdById: scope.userId, createdByName: scope.userName,
+        },
+      });
+      await recordAudit(scope, [{
+        entityType: "task", entityId: t.id, companyId: opp.companyId, opportunityId: opp.id, action: "created", newValue: title,
+      }]);
+    }
+  }
+  await refreshOppNextStep(opp.id);
 }
 
 export async function deleteSalesOpportunity(id: string): Promise<void> {
   const scope = await resolveSalesWriteScope("salesActivity");
   await assertOwnsOpp(id, scope);
-  await db.salesOpportunity.delete({ where: { id } });
+  const row = await db.salesOpportunity.delete({ where: { id } });
+  await recordAudit(scope, [{
+    entityType: "opportunity", entityId: id, companyId: row.companyId, opportunityId: id,
+    action: "deleted", oldValue: row.name,
+  }]);
 }
 
 export async function updateOpportunityStage(id: string, stage: OppStage): Promise<void> {
   const scope = await resolveSalesWriteScope("salesActivity");
   await assertOwnsOpp(id, scope);
-  await db.salesOpportunity.update({
+  const before = await db.salesOpportunity.findUnique({ where: { id } });
+  if (!before) throw new ForbiddenError("Opportunity not found");
+  const dbStage = stageToDb(stage);
+  if (before.stage === dbStage) return;
+  const row = await db.salesOpportunity.update({
     where: { id },
-    data: { stage: (STAGE_TO_DB[stage] ?? stage) as "Prospecting" | "Qualifying" | "Proposal" | "Negotiation" | "ClosedWon" | "ClosedLost" },
+    data: { stage: dbStage, stageChangedAt: new Date() },
   });
+  await recordAudit(scope, [{
+    entityType: "opportunity", entityId: id, companyId: row.companyId, opportunityId: id,
+    action: "stage_changed", field: "stage", oldValue: toStage(before.stage), newValue: stage,
+  }]);
+  await runStageAutomation(scope, row, toStage(before.stage), stage);
 }
 
 // ─── Activities ───────────────────────────────────────────────────────────────
@@ -619,24 +648,6 @@ export async function updateOppCommissionTeam(
 
 // ─── Company Contacts ─────────────────────────────────────────────────────────
 
-function toCompanyContact(r: {
-  id: string; companyId: string; name: string; title: string;
-  email: string; phone: string; notes: string;
-  createdAt: Date; updatedAt: Date;
-}): CompanyContact {
-  return {
-    id: r.id,
-    companyId: r.companyId,
-    name: r.name,
-    title: r.title,
-    email: r.email,
-    phone: r.phone,
-    notes: r.notes,
-    createdAt: r.createdAt.toISOString(),
-    updatedAt: r.updatedAt.toISOString(),
-  };
-}
-
 export async function getCompanyContacts(companyId: string): Promise<CompanyContact[]> {
   const scope = await resolveSalesScope("salesActivity");
   await assertCanSeeCompany(companyId, scope);
@@ -660,9 +671,17 @@ export async function upsertCompanyContact(
     phone: data.phone.trim(),
     notes: data.notes.trim(),
   };
-  const result = data.id
-    ? await db.salesContact.update({ where: { id: data.id }, data: payload })
+  const before = data.id ? await db.salesContact.findUnique({ where: { id: data.id } }) : null;
+  if (before && before.companyId !== data.companyId) {
+    // Don't let a contact be re-parented onto (or off of) an account via its id.
+    await assertCanSeeCompany(before.companyId, scope);
+  }
+  const result = before
+    ? await db.salesContact.update({ where: { id: before.id }, data: payload })
     : await db.salesContact.create({ data: payload });
+  await recordAudit(scope, before
+    ? diffAudit({ entityType: "contact", entityId: result.id, companyId: result.companyId }, before, result, ["name", "title", "email", "phone"])
+    : [{ entityType: "contact", entityId: result.id, companyId: result.companyId, action: "created", newValue: result.name }]);
   return toCompanyContact(result);
 }
 
@@ -673,7 +692,8 @@ export async function deleteCompanyContact(id: string): Promise<void> {
     if (!contact) throw new ForbiddenError("Contact not found");
     await assertCanSeeCompany(contact.companyId, scope);
   }
-  await db.salesContact.delete({ where: { id } });
+  const row = await db.salesContact.delete({ where: { id } });
+  await recordAudit(scope, [{ entityType: "contact", entityId: id, companyId: row.companyId, action: "deleted", oldValue: row.name }]);
 }
 
 // ─── Commission Statement Data ────────────────────────────────────────────────

@@ -7,14 +7,15 @@ import type { AppUser } from "@/types/user";
 import { UserPicker } from "@/components/shared/UserPicker";
 
 const STAGE_OPTIONS: OppStage[] = [
-  "Prospecting", "Qualifying", "Proposal", "Negotiation", "Closed Won", "Closed Lost",
+  "Prospecting", "Qualifying", "Proposal", "Closed Won", "Closed Lost",
 ];
 
 const STAGE_MAP: Record<string, OppStage> = {
   "Prospect":       "Prospecting",
   "Qualified":      "Qualifying",
   "Quote Complete": "Proposal",
-  "Negotiation":    "Negotiation",
+  // Negotiation isn't a stage in our workflow — CW negotiation deals land in Proposal.
+  "Negotiation":    "Proposal",
   "Won":            "Closed Won",
   "Lost":           "Closed Lost",
 };
@@ -23,7 +24,6 @@ const STAGE_COLORS: Record<string, string> = {
   Prospecting:    "bg-slate-100 text-slate-600",
   Qualifying:     "bg-blue-100 text-blue-700",
   Proposal:       "bg-violet-100 text-violet-700",
-  Negotiation:    "bg-amber-100 text-amber-700",
   "Closed Won":   "bg-emerald-100 text-emerald-700",
   "Closed Lost":  "bg-red-100 text-red-700",
 };
@@ -52,10 +52,25 @@ interface MatchedCompany {
 
 export interface CWImportPayload {
   companyMappings: Array<{ csvName: string; matchedId?: string }>;
-  selectedOpps: Array<ParsedOpp & { resolvedCsvName: string; resolvedOwnerName: string; resolvedOwnerId: string | null; existingId?: string }>;
+  selectedOpps: Array<ParsedOpp & {
+    resolvedCsvName: string; resolvedOwnerName: string; resolvedOwnerId: string | null; existingId?: string;
+    /** Local deal (created in the portal, no CW # yet) this CW row should be linked to. */
+    linkToId?: string;
+  }>;
 }
 
 export type ImportProgressCallback = (done: number, total: number, label: string) => void;
+export interface CWImportResult { created: number; updated: number; skipped: number; linked?: number; unchanged?: number }
+
+// Loose name match used to suggest linking a CW row to a deal first created in the portal.
+function normName(s: string) { return s.toLowerCase().replace(/[^a-z0-9]+/g, " ").trim(); }
+function namesLookAlike(a: string, b: string) {
+  const x = normName(a), y = normName(b);
+  if (!x || !y) return false;
+  if (x === y) return true;
+  const [short, long] = x.length < y.length ? [x, y] : [y, x];
+  return short.length >= 6 && long.includes(short);
+}
 
 // Convert "Charles Horn" → "chorn" to match CW's rep format
 function cwSlug(user: AppUser): string {
@@ -72,7 +87,8 @@ function autoMatchRep(cwName: string, users: AppUser[]): AppUser | null {
 
 interface CWImportModalProps {
   companies: SalesCompany[];
-  onImport: (data: CWImportPayload, onProgress: ImportProgressCallback) => Promise<void>;
+  /** May return actual counts, e.g. when rows were skipped because they belong to another rep. */
+  onImport: (data: CWImportPayload, onProgress: ImportProgressCallback) => Promise<CWImportResult | void>;
   onClose: () => void;
 }
 
@@ -236,7 +252,7 @@ export function CWImportModal({ companies, onImport, onClose }: CWImportModalPro
   const [error, setError] = useState<string | null>(null);
   const [isImporting, setIsImporting] = useState(false);
   const [progress, setProgress] = useState<{ done: number; total: number; label: string } | null>(null);
-  const [done, setDone] = useState<{ created: number; updated: number } | null>(null);
+  const [done, setDone] = useState<CWImportResult | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
 
   // Per-company: selected existing company id, or "" = create new
@@ -344,6 +360,10 @@ export function CWImportModal({ companies, onImport, onClose }: CWImportModalPro
 
   const selectedCount = useMemo(() => checked.size, [checked]);
 
+  // Per-row choice for CW rows that aren't in the portal yet: "" = create a new deal,
+  // otherwise the id of a local deal (no CW #) to link it to. Unset → the suggestion.
+  const [linkChoice, setLinkChoice] = useState<Record<string, string>>({});
+
   // For each parsed opp, check if an existing opp with the same CW# already exists
   // in the matched company. Key: oppKey → existing opp id.
   const existingOppLookup = useMemo(() => {
@@ -373,6 +393,28 @@ export function CWImportModal({ companies, onImport, onClose }: CWImportModalPro
     return lookup;
   }, [parsed, companyMatch, companies]);
 
+  // Local, not-yet-linked deals in the matched company that a CW row could be linked to,
+  // plus the best name-based suggestion.
+  const linkCandidates = useMemo(() => {
+    const out = new Map<string, { options: { id: string; name: string }[]; suggested: string }>();
+    if (!parsed) return out;
+    for (const m of parsed) {
+      const company = companies.find((c) => c.id === companyMatch[m.csvName]);
+      const local = (company?.opportunities ?? []).filter((o) => !o.cwNumber && !/^CW#\d+/.test(o.notes ?? ""));
+      if (local.length === 0) continue;
+      m.opps.forEach((o, i) => {
+        const key = oppKey(m.csvName, i);
+        if (existingOppLookup.has(key)) return;
+        const suggested = local.find((l) => namesLookAlike(l.name, o.name))?.id ?? "";
+        out.set(key, { options: local.map((l) => ({ id: l.id, name: l.name })), suggested });
+      });
+    }
+    return out;
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [parsed, companyMatch, companies, existingOppLookup]);
+
+  const linkFor = (key: string) => linkChoice[key] ?? linkCandidates.get(key)?.suggested ?? "";
+
   async function handleImport() {
     if (!parsed) return;
     setIsImporting(true);
@@ -394,16 +436,17 @@ export function CWImportModal({ companies, onImport, onClose }: CWImportModalPro
               resolvedOwnerName: resolvedUser?.name ?? o.ownerName,
               resolvedOwnerId: resolvedUser?.id ?? null,
               existingId: existingOppLookup.get(key),
+              linkToId: linkFor(key) || undefined,
             };
           })
           .filter((_, i) => checked.has(oppKey(m.csvName, i)))
       );
       const created = selectedOpps.filter((o) => !o.existingId).length;
       const updated = selectedOpps.filter((o) => !!o.existingId).length;
-      await onImport({ companyMappings, selectedOpps }, (done, total, label) => {
+      const result = await onImport({ companyMappings, selectedOpps }, (done, total, label) => {
         setProgress({ done, total, label });
       });
-      setDone({ created, updated });
+      setDone(result ?? { created, updated, skipped: 0 });
     } catch (err) {
       console.error("[CWImport] Import failed:", err);
       setError(`Import failed: ${err instanceof Error ? err.message : String(err)}`);
@@ -461,10 +504,18 @@ export function CWImportModal({ companies, onImport, onClose }: CWImportModalPro
               <div className="text-4xl mb-3">✓</div>
               <p className="text-sm font-semibold">Import complete</p>
               <p className="text-xs text-muted-foreground">
-                {done.created > 0 && `${done.created} created`}
-                {done.created > 0 && done.updated > 0 && " · "}
-                {done.updated > 0 && `${done.updated} updated`}
+                {[
+                  done.created ? `${done.created} new` : "",
+                  done.updated ? `${done.updated} updated` : "",
+                  done.linked ? `${done.linked} linked to portal deals` : "",
+                  done.unchanged ? `${done.unchanged} already up to date` : "",
+                ].filter(Boolean).join(" · ") || "Nothing to change"}
               </p>
+              {done.skipped > 0 && (
+                <p className="text-xs text-amber-600 dark:text-amber-400">
+                  {done.skipped} skipped — owned by another rep
+                </p>
+              )}
               <button onClick={onClose} className="mt-4 rounded-md bg-primary px-6 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90">
                 Done
               </button>
@@ -597,6 +648,11 @@ export function CWImportModal({ companies, onImport, onClose }: CWImportModalPro
                                     ↺ update
                                   </span>
                                 )}
+                                {!isUpdate && linkFor(key) && (
+                                  <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-violet-700 bg-violet-50 border border-violet-200 px-2 py-0.5 rounded-full">
+                                    ⇄ link
+                                  </span>
+                                )}
                                 {isLost && (
                                   <span className="text-[11px] text-muted-foreground italic">win rate only</span>
                                 )}
@@ -614,6 +670,22 @@ export function CWImportModal({ companies, onImport, onClose }: CWImportModalPro
                                   <span className="text-[11px]">closes {new Date(o.closeDate).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}</span>
                                 )}
                               </div>
+                              {linkCandidates.has(key) && (
+                                <label className="mt-1.5 flex items-center gap-1.5 text-[11px] text-muted-foreground">
+                                  <span className="shrink-0">In portal as:</span>
+                                  <select
+                                    value={linkFor(key)}
+                                    disabled={!isChecked}
+                                    onChange={(e) => setLinkChoice((prev) => ({ ...prev, [key]: e.target.value }))}
+                                    className={`max-w-[260px] rounded-md border bg-card px-1.5 py-0.5 text-[11px] ${linkFor(key) ? "border-violet-300 text-violet-700 dark:text-violet-300" : ""}`}
+                                  >
+                                    <option value="">New deal (not in portal yet)</option>
+                                    {linkCandidates.get(key)!.options.map((l) => (
+                                      <option key={l.id} value={l.id}>Link to: {l.name}</option>
+                                    ))}
+                                  </select>
+                                </label>
+                              )}
                             </div>
                             {/* Right-side badges */}
                             <div className="flex items-center gap-2 shrink-0 pt-0.5">

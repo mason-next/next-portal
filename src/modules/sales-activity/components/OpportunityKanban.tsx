@@ -31,12 +31,6 @@ const STAGE_CONFIG: Record<OppStage, {
     colBorder: "border-violet-200 dark:border-violet-800",
     headerBorder: "border-violet-200 dark:border-violet-800",
   },
-  "Negotiation": {
-    dot: "bg-amber-400",
-    colBg: "bg-amber-50/40 dark:bg-amber-900/10",
-    colBorder: "border-amber-200 dark:border-amber-800",
-    headerBorder: "border-amber-200 dark:border-amber-800",
-  },
   "Closed Won": {
     dot: "bg-emerald-400",
     colBg: "bg-emerald-50/40 dark:bg-emerald-900/10",

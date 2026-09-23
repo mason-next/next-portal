@@ -11,7 +11,6 @@ const STAGE_COLORS: Record<string, string> = {
   Prospecting:   "bg-slate-100 text-slate-700",
   Qualifying:    "bg-blue-100 text-blue-700",
   Proposal:      "bg-violet-100 text-violet-700",
-  Negotiation:   "bg-amber-100 text-amber-700",
   "Closed Won":  "bg-emerald-100 text-emerald-700",
   "Closed Lost": "bg-red-100 text-red-700",
 };
@@ -20,13 +19,12 @@ const STAGE_BORDER_COLOR: Record<string, string> = {
   Prospecting:   "#94a3b8",
   Qualifying:    "#60a5fa",
   Proposal:      "#a78bfa",
-  Negotiation:   "#fbbf24",
   "Closed Won":  "#34d399",
   "Closed Lost": "#f87171",
 };
 
 const STAGE_PRIORITY: Record<string, number> = {
-  Negotiation: 0, Proposal: 1, Qualifying: 2, Prospecting: 3,
+  Proposal: 0, Qualifying: 1, Prospecting: 2,
   "Closed Won": 4, "Closed Lost": 5,
 };
 
@@ -56,7 +54,7 @@ const TYPE_BG: Record<string, string> = {
   Other:    "bg-slate-100 text-slate-500 dark:bg-slate-800 dark:text-slate-400",
 };
 
-const ACTIVE_STAGES = new Set(["Prospecting", "Qualifying", "Proposal", "Negotiation"]);
+const ACTIVE_STAGES = new Set(["Prospecting", "Qualifying", "Proposal"]);
 const THIS_YEAR = new Date().getFullYear();
 
 type ActivityRange = "week" | "month" | "quarter" | "all";
