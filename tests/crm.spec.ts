@@ -17,7 +17,7 @@ test.describe("Sales CRM", () => {
     const errors: string[] = [];
     page.on("pageerror", (e) => errors.push(e.message));
     for (const [path, heading] of [
-      ["/sales/crm", "Sales CRM"],
+      ["/sales", "Sales Dashboard"],
       ["/sales/agenda", "Agenda"],
       ["/sales/accounts", "Accounts"],
       ["/sales/opportunities", "Opportunities"],
@@ -65,6 +65,16 @@ test.describe("Sales CRM", () => {
     await page.getByRole("button", { name: "Add task" }).first().click();
     const row = page.locator("tr").filter({ hasText: "Clinic Wi-Fi 6E refresh (12 sites)" });
     await expect(row).toContainText(title);
+  });
+
+  test("clicking an agenda task opens its account with the task highlighted", async ({ page }) => {
+    await page.goto(`${BASE}/sales/agenda`, { waitUntil: "networkidle" });
+    await page.getByLabel("Whose agenda").selectOption("all");
+    await page.getByText("Review MSA redlines with legal").first().click();
+    await page.waitForURL(/\/sales\/accounts\/demo_vantage\?.*task=demo_t4/);
+    const task = page.locator('[data-focus="task-demo_t4"]:visible');
+    await expect(task).toContainText("Review MSA redlines with legal");
+    await expect(task).toHaveClass(/ring-amber-400/);
   });
 
   test("opportunities list groups by territory with subtotals", async ({ page }) => {

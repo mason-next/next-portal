@@ -47,7 +47,10 @@ export default function AccountSnapshotPage() {
   const [addingTask, setAddingTask] = useState(false);
   const [contactsOpen, setContactsOpen] = useState(false);
   // ?opp=<id> deep link from the opportunities list / agenda: highlight that deal.
-  const focusOpp = useSearchParams().get("opp");
+  const searchParams = useSearchParams();
+  const focusOpp = searchParams.get("opp");
+  // ?task=<id> from the agenda / dashboard: highlight that task and scroll to it.
+  const focusTask = searchParams.get("task");
   const [lookups, setLookups] = useState<{ territories: string[]; verticals: string[] }>({ territories: [], verticals: [] });
 
   const reload = useCallback(async () => {
@@ -74,6 +77,18 @@ export default function AccountSnapshotPage() {
       setLookups({ territories: uniq(companies.map((c) => c.territory)), verticals: uniq(companies.map((c) => c.vertical)) });
     }).catch(() => {});
   }, []);
+
+  // Bring the task (or deal) you came for into view once the page has data.
+  const loaded = !!snap;
+  useEffect(() => {
+    if (!loaded || (!focusTask && !focusOpp)) return;
+    const key = focusTask ? `task-${focusTask}` : `opp-${focusOpp}`;
+    const t = setTimeout(() => {
+      const el = Array.from(document.querySelectorAll<HTMLElement>(`[data-focus="${key}"]`)).find((n) => n.offsetParent !== null);
+      el?.scrollIntoView({ behavior: "smooth", block: "center" });
+    }, 150);
+    return () => clearTimeout(t);
+  }, [loaded, focusTask, focusOpp]);
 
   const stats = useMemo(() => {
     if (!snap) return null;
@@ -111,7 +126,7 @@ export default function AccountSnapshotPage() {
 
   const { company } = snap;
   const oppsShown = showClosed ? snap.opportunities : stats.open;
-  const tasksShown = snap.tasks.filter((t) => showDoneTasks || t.status === "Open");
+  const tasksShown = snap.tasks.filter((t) => showDoneTasks || t.status === "Open" || t.id === focusTask);
   const canEditOpp = (o: SalesOpportunity) => access.canEdit && (access.isManager || o.ownerName === access.userName || o.ownerId === access.userId);
   const lastTouchDays = daysSince(stats.lastTouch);
 
@@ -185,7 +200,7 @@ export default function AccountSnapshotPage() {
               <>
               <ul className="divide-y md:hidden">
                 {oppsShown.map((o) => (
-                  <li key={o.id} className={cn("px-4 py-3", focusOpp === o.id && "bg-primary/5")}>
+                  <li key={o.id} data-focus={`opp-${o.id}`} className={cn("px-4 py-3", focusOpp === o.id && "bg-primary/5 ring-2 ring-inset ring-primary/40")}>
                     <div className="flex items-start justify-between gap-2">
                       <div className="min-w-0">
                         <div className="font-medium leading-snug">{o.name}</div>
@@ -232,7 +247,7 @@ export default function AccountSnapshotPage() {
                   </thead>
                   <tbody className="divide-y">
                     {oppsShown.map((o) => (
-                      <tr key={o.id} className={cn("align-top", focusOpp === o.id && "bg-primary/5")}>
+                      <tr key={o.id} data-focus={`opp-${o.id}`} className={cn("align-top", focusOpp === o.id && "bg-primary/5 ring-2 ring-inset ring-primary/40")}>
                         <td className="px-4 py-2.5">
                           <div className="font-medium">{o.name}</div>
                           <div className="text-xs text-muted-foreground">{o.ownerName || "Unassigned"}{o.cwNumber ? ` · CW#${o.cwNumber}` : ""}</div>
@@ -341,6 +356,7 @@ export default function AccountSnapshotPage() {
             )}
             <TaskList
               tasks={tasksShown}
+              highlightId={focusTask}
               canEdit={access.canEdit}
               onToggle={async (tid, done) => { await setTaskDone(tid, done); await reload(); }}
               onDelete={async (tid) => { await deleteTask(tid); await reload(); }}

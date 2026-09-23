@@ -23,8 +23,7 @@ const OPERATIONS_ITEMS: { href: string; label: string; feature: PermissionFeatur
 ];
 
 const SALES_ITEMS: { href: string; label: string; module: ModuleKey }[] = [
-  { href: "/sales",                                label: "Overview",             module: "sales" },
-  { href: "/sales/crm",                            label: "CRM Dashboard",        module: "salesActivity" },
+  { href: "/sales",                                label: "Dashboard",            module: "sales" },
   { href: "/sales/agenda",                         label: "Agenda",               module: "salesActivity" },
   { href: "/sales/accounts",                       label: "Accounts",             module: "salesActivity" },
   { href: "/sales/opportunities",                  label: "Opportunities",        module: "salesActivity" },

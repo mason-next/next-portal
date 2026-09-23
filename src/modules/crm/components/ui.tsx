@@ -14,7 +14,7 @@ import { daysFromToday, relativeDay } from "@/modules/crm/lib/format";
 // ─── Sub-navigation ──────────────────────────────────────────────────────────
 
 const CRM_TABS = [
-  { href: "/sales/crm",           label: "Dashboard" },
+  { href: "/sales",               label: "Dashboard" },
   { href: "/sales/agenda",        label: "Agenda" },
   { href: "/sales/accounts",      label: "Accounts" },
   { href: "/sales/opportunities", label: "Opportunities" },
@@ -27,7 +27,8 @@ export function CrmSubNav() {
   return (
     <nav className="flex gap-1 overflow-x-auto rounded-lg border bg-muted/30 p-1 w-fit max-w-full">
       {CRM_TABS.map((t) => {
-        const active = pathname === t.href || pathname.startsWith(t.href + "/");
+        // "/sales" is the dashboard; every other tab also owns its sub-pages.
+        const active = t.href === "/sales" ? pathname === "/sales" : pathname === t.href || pathname.startsWith(t.href + "/");
         return (
           <Link
             key={t.href}

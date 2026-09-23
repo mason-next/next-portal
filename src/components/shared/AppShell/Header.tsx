@@ -55,8 +55,7 @@ const MOBILE_NAV_SECTIONS: MobileNavSection[] = [
     icon: TrendingUp,
     feature: "sales",
     items: [
-      { href: "/sales",                                  label: "Overview" },
-      { href: "/sales/crm",                              label: "CRM Dashboard" },
+      { href: "/sales",                                  label: "Dashboard" },
       { href: "/sales/agenda",                           label: "Agenda" },
       { href: "/sales/accounts",                         label: "Accounts" },
       { href: "/sales/opportunities",                    label: "Opportunities" },

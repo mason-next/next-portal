@@ -87,7 +87,7 @@ export function TaskForm({
 }
 
 export function TaskList({
-  tasks, showCompany, canEdit, onToggle, onDelete, emptyText = "No open tasks.",
+  tasks, showCompany, canEdit, onToggle, onDelete, emptyText = "No open tasks.", highlightId,
 }: {
   tasks: SalesTask[];
   showCompany?: boolean;
@@ -95,6 +95,8 @@ export function TaskList({
   onToggle: (id: string, done: boolean) => Promise<unknown>;
   onDelete?: (id: string) => Promise<unknown>;
   emptyText?: string;
+  /** Task to call out (e.g. the one clicked on the agenda). */
+  highlightId?: string | null;
 }) {
   if (tasks.length === 0) return <Empty>{emptyText}</Empty>;
   return (
@@ -102,7 +104,14 @@ export function TaskList({
       {tasks.map((t) => {
         const done = t.status === "Done";
         return (
-          <li key={t.id} className="group flex items-start gap-3 px-4 py-2.5 sm:gap-2.5 sm:py-2">
+          <li
+            key={t.id}
+            data-focus={`task-${t.id}`}
+            className={cn(
+              "group flex items-start gap-3 px-4 py-2.5 sm:gap-2.5 sm:py-2",
+              highlightId === t.id && "bg-amber-50 ring-2 ring-inset ring-amber-400 dark:bg-amber-950/30",
+            )}
+          >
             <input
               type="checkbox"
               checked={done}

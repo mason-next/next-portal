@@ -2,12 +2,12 @@
 
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { useSession } from "@/lib/auth/client";
-import { useViewAs } from "@/lib/view-as/ViewAsContext";
 import { usePermissions } from "@/lib/PermissionsContext";
-import { getSalesCompanies, getSalesActivities } from "@/lib/data/sales-activity";
-import { getWeekStart } from "@/types/sales";
-import type { SalesActivity, SalesCompany } from "@/types/sales";
+import { getSalesActivities } from "@/lib/data/sales-activity";
+import type { SalesActivity } from "@/types/sales";
+import { useCrmAccess } from "@/modules/crm/hooks/useCrmAccess";
+import { CrmDashboard } from "@/modules/crm/components/CrmDashboard";
+import { Panel, Empty } from "@/modules/crm/components/ui";
 
 interface NewsItem { title: string; link: string; pub: string }
 
@@ -16,178 +16,96 @@ const TYPE_ICONS: Record<string, string> = {
   Demo: "💻", Proposal: "📄", Other: "📝",
 };
 
+// Sales dashboard: the CRM dashboard plus what the old Sales Overview had that the CRM
+// doesn't — links to the other sales tools, the weekly activity feed and tech news.
 export default function SalesDashboardPage() {
-  const session = useSession();
-  const { viewAsUser, isViewAsMode } = useViewAs();
+  const access = useCrmAccess();
   const { getLevel } = usePermissions();
-
-  const salesLevel = getLevel("salesActivity");
-  const isAdmin = salesLevel === "administrator";
-  const effectiveName = isViewAsMode ? (viewAsUser?.name ?? session.name) : session.name;
-  // Admins see all data unless View As is active; members/viewers see only their own.
-  const scopeToUser = useMemo(
-    () => (isAdmin && !isViewAsMode ? undefined : effectiveName),
-    [isAdmin, isViewAsMode, effectiveName]
-  );
-
-  const [companies, setCompanies] = useState<SalesCompany[]>([]);
-  const [weekActivities, setWeekActivities] = useState<SalesActivity[]>([]);
-  const [recentActivities, setRecentActivities] = useState<SalesActivity[]>([]);
+  const [recent, setRecent] = useState<SalesActivity[] | null>(null);
   const [news, setNews] = useState<NewsItem[]>([]);
-  const [loading, setLoading] = useState(true);
+
+  // Admins see everyone's activity unless View As is active; others only their own
+  // (the server enforces this either way).
+  const scopeToUser = useMemo(() => (access.isManager ? undefined : access.userName), [access.isManager, access.userName]);
 
   useEffect(() => {
-    Promise.all([
-      getSalesCompanies(scopeToUser),
-      getSalesActivities({ weekStart: getWeekStart(), userName: scopeToUser }),
-      getSalesActivities({ userName: scopeToUser }),
-    ]).then(([cos, week, all]) => {
-      setCompanies(cos);
-      setWeekActivities(week);
-      setRecentActivities(
-        [...all].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()).slice(0, 8)
-      );
-      setLoading(false);
-    });
-
-    fetch("/api/sales/news")
-      .then((r) => r.json())
-      .then((data) => setNews(data))
-      .catch(() => {});
+    getSalesActivities({ userName: scopeToUser })
+      .then((all) => setRecent([...all].sort((a, b) => b.createdAt.localeCompare(a.createdAt)).slice(0, 8)))
+      .catch(() => setRecent([]));
+    fetch("/api/sales/news").then((r) => r.json()).then(setNews).catch(() => {});
   }, [scopeToUser]);
 
-  const allOpps = companies.flatMap((c) => c.opportunities ?? []);
-  const activeOpps = allOpps.filter((o) => !["Closed Won", "Closed Lost"].includes(o.stage));
-  const wonOpps = allOpps.filter((o) => o.stage === "Closed Won");
-  const pipelineValue = activeOpps.reduce((s, o) => s + (o.value ?? 0), 0);
-  const wonValue = wonOpps.reduce((s, o) => s + (o.value ?? 0), 0);
-
-  function fmtDollars(cents: number) {
-    const v = cents / 100;
-    if (v >= 1_000_000) return "$" + (v / 1_000_000).toFixed(1).replace(/\.0$/, "") + "M";
-    if (v >= 1_000) return "$" + Math.round(v / 1_000) + "K";
-    return "$" + Math.round(v).toLocaleString();
-  }
+  const tools = [
+    { href: "/sales/activity", label: "Activity Log", desc: "Weekly calls, emails, meetings and the pipeline board", module: "salesActivity" as const },
+    { href: "/sales/deal-desk", label: "Deal Desk", desc: "Quotes, commissions and payout milestones", module: "salesDealDesk" as const },
+    { href: "/sales/quotes", label: "Quote Portal", desc: "Customer-facing quote presentations", module: "salesQuotes" as const },
+  ].filter((t) => getLevel(t.module) !== "none");
 
   return (
-    <div className="mx-auto max-w-7xl p-8 space-y-8">
-      <div>
-        <h1 className="text-xl font-semibold tracking-tight">Sales Dashboard</h1>
-        <p className="text-sm text-muted-foreground mt-0.5">Overview of pipeline, activity, and recent deals</p>
-      </div>
-
-      {/* Module Nav Cards */}
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        {[
-          { href: "/sales/crm", label: "CRM", desc: "Accounts, opportunities, dated notes, tasks, forecast and your agenda", icon: "🗂️" },
-          { href: "/sales/activity", label: "Sales Activity", desc: "Track prospects and log weekly calls, emails, meetings, and demos", icon: "📊" },
-          { href: "/sales/deal-desk", label: "Deal Desk", desc: "Import quotes, review commissions, and manage payout milestones", icon: "💼" },
-          { href: "/sales/quotes", label: "Interactive Quote Portal", desc: "Share customer-facing HTML presentations with email-gated access", icon: "🔗" },
-        ].map(({ href, label, desc, icon }) => (
-          <Link key={href} href={href} className="group rounded-xl border bg-card p-6 hover:border-primary hover:shadow-sm transition-all">
-            <div className="text-2xl mb-3">{icon}</div>
-            <div className="font-semibold text-base group-hover:text-primary transition-colors">{label}</div>
-            <div className="text-sm text-muted-foreground mt-1 leading-snug">{desc}</div>
-            <div className="text-xs text-primary mt-3 font-medium">Open →</div>
-          </Link>
-        ))}
-      </div>
-
-      {/* KPI Cards */}
-      <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
-        {[
-          { label: "Active Pipeline",   value: loading ? "—" : fmtDollars(pipelineValue), sub: `${activeOpps.length} opp${activeOpps.length !== 1 ? "s" : ""} · ${companies.length} companies` },
-          { label: "Closed Won",        value: loading ? "—" : fmtDollars(wonValue),       sub: `${wonOpps.length} deal${wonOpps.length !== 1 ? "s" : ""} won` },
-          { label: "Activities Logged", value: loading ? "—" : weekActivities.length.toString(), sub: "this week" },
-          { label: "Companies Tracked", value: loading ? "—" : companies.length.toString(), sub: "in pipeline" },
-        ].map(({ label, value, sub }) => (
-          <div key={label} className="rounded-xl border bg-card p-5">
-            <div className="text-xs text-muted-foreground">{label}</div>
-            <div className="text-2xl font-bold mt-1">{value}</div>
-            <div className="text-xs text-muted-foreground mt-1">{sub}</div>
-          </div>
-        ))}
-      </div>
-
-      <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
-        {/* Recent Activity */}
-        <div className="lg:col-span-2 space-y-3">
-          <div className="flex items-center justify-between">
-            <h2 className="text-sm font-semibold">Recent Activity</h2>
-            <Link href="/sales/activity" className="text-xs text-primary hover:underline">View all →</Link>
-          </div>
-          <div className="rounded-xl border bg-card shadow-sm overflow-hidden">
-            {loading ? (
-              <div className="px-4 py-8 text-center text-sm text-muted-foreground">Loading…</div>
-            ) : recentActivities.length === 0 ? (
-              <div className="px-4 py-8 text-center text-sm text-muted-foreground">No activities logged yet.</div>
-            ) : (
-              <ul className="divide-y">
-                {recentActivities.map((a) => {
-                  const co = a.company ?? a.opportunity?.company ?? null;
-                  return (
-                    <li key={a.id} className="flex items-start gap-3 px-4 py-2.5">
-                      <span className="text-sm shrink-0 mt-0.5">{TYPE_ICONS[a.type] ?? "📝"}</span>
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-1.5 flex-wrap text-xs">
-                          <span className="font-medium">{a.type}</span>
-                          {co && <span className="text-muted-foreground">· {co.name}</span>}
-                          {a.userName && <span className="text-muted-foreground">· {a.userName}</span>}
-                          <span className="text-muted-foreground/50 ml-auto">
-                            {new Date(a.weekStart).toLocaleDateString("en-US", { month: "short", day: "numeric", timeZone: "UTC" })}
-                          </span>
-                        </div>
-                        {a.description && (
-                          <p className="text-[11px] text-muted-foreground mt-0.5 line-clamp-1">{a.description.split("\n\n")[0]}</p>
-                        )}
+    <CrmDashboard>
+      <div className="grid gap-5 lg:grid-cols-3">
+        <Panel
+          className="lg:col-span-2"
+          title="Recent activity log"
+          actions={<Link href="/sales/activity" className="text-xs text-primary hover:underline">View all →</Link>}
+        >
+          {recent === null ? <Empty>Loading…</Empty> : recent.length === 0 ? <Empty>No activities logged yet.</Empty> : (
+            <ul className="divide-y">
+              {recent.map((a) => {
+                const co = a.company ?? a.opportunity?.company ?? null;
+                return (
+                  <li key={a.id} className="flex items-start gap-3 px-4 py-2.5">
+                    <span className="mt-0.5 shrink-0 text-sm">{TYPE_ICONS[a.type] ?? "📝"}</span>
+                    <div className="min-w-0 flex-1">
+                      <div className="flex flex-wrap items-center gap-1.5 text-xs">
+                        <span className="font-medium">{a.type}</span>
+                        {co && <Link href={`/sales/accounts/${co.id}`} className="text-muted-foreground hover:text-foreground hover:underline">· {co.name}</Link>}
+                        {a.userName && <span className="text-muted-foreground">· {a.userName}</span>}
+                        <span className="ml-auto text-muted-foreground/60">
+                          {new Date(a.weekStart).toLocaleDateString("en-US", { month: "short", day: "numeric", timeZone: "UTC" })}
+                        </span>
                       </div>
-                    </li>
-                  );
-                })}
+                      {a.description && <p className="mt-0.5 line-clamp-1 text-[11px] text-muted-foreground">{a.description.split("\n\n")[0]}</p>}
+                    </div>
+                  </li>
+                );
+              })}
+            </ul>
+          )}
+        </Panel>
+
+        <div className="space-y-5">
+          {tools.length > 0 && (
+            <Panel title="More sales tools">
+              <ul className="divide-y">
+                {tools.map((t) => (
+                  <li key={t.href}>
+                    <Link href={t.href} className="block px-4 py-2.5 hover:bg-muted/30">
+                      <div className="text-sm font-medium">{t.label} <span className="text-primary">→</span></div>
+                      <div className="text-xs text-muted-foreground">{t.desc}</div>
+                    </Link>
+                  </li>
+                ))}
+              </ul>
+            </Panel>
+          )}
+
+          <Panel title="Tech news">
+            {news.length === 0 ? <Empty>Loading news…</Empty> : (
+              <ul className="divide-y">
+                {news.slice(0, 5).map((item, i) => (
+                  <li key={i}>
+                    <a href={item.link} target="_blank" rel="noopener noreferrer" className="block px-4 py-2.5 hover:bg-muted/30">
+                      <p className="line-clamp-2 text-sm font-medium leading-snug">{item.title}</p>
+                      {item.pub && <p className="mt-0.5 text-xs text-muted-foreground">{new Date(item.pub).toLocaleDateString()}</p>}
+                    </a>
+                  </li>
+                ))}
               </ul>
             )}
-          </div>
-        </div>
-
-        {/* Tech News Feed */}
-        <div className="space-y-3">
-          <h2 className="text-sm font-semibold">Tech News</h2>
-          <div className="rounded-xl border bg-card divide-y overflow-hidden">
-            {news.length === 0 ? (
-              <div className="p-5 text-sm text-muted-foreground">Loading news…</div>
-            ) : news.map((item, i) => (
-              <a key={i} href={item.link} target="_blank" rel="noopener noreferrer" className="block p-4 hover:bg-muted/20 transition-colors">
-                <p className="text-sm font-medium line-clamp-2 leading-snug">{item.title}</p>
-                {item.pub && <p className="text-xs text-muted-foreground mt-1">{new Date(item.pub).toLocaleDateString()}</p>}
-              </a>
-            ))}
-          </div>
-          <p className="text-xs text-muted-foreground">Updated hourly · TechCrunch</p>
+          </Panel>
         </div>
       </div>
-
-      {/* Pipeline Stage Summary */}
-      {allOpps.length > 0 && (
-        <div className="space-y-3">
-          <div className="flex items-center justify-between">
-            <h2 className="text-sm font-semibold">Pipeline by Stage</h2>
-            <Link href="/sales/activity" className="text-xs text-primary hover:underline">Manage →</Link>
-          </div>
-          <div className="grid grid-cols-3 gap-3 sm:grid-cols-5">
-            {["Prospecting","Qualifying","Proposal","Closed Won","Closed Lost"].map((stage) => {
-              const stageOpps = allOpps.filter((o) => o.stage === stage);
-              const stageValue = stageOpps.reduce((s, o) => s + (o.value ?? 0), 0);
-              return (
-                <div key={stage} className="rounded-lg border bg-card p-3 text-center">
-                  <div className="text-xs text-muted-foreground">{stage}</div>
-                  <div className="text-xl font-bold mt-1">{stageOpps.length}</div>
-                  {stageValue > 0 && <div className="text-xs text-muted-foreground mt-0.5">{fmtDollars(stageValue)}</div>}
-                </div>
-              );
-            })}
-          </div>
-        </div>
-      )}
-    </div>
+    </CrmDashboard>
   );
 }

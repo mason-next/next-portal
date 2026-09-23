@@ -2,11 +2,13 @@
 
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { CalendarClock, CheckSquare } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { CalendarClock, CheckSquare, ChevronRight } from "lucide-react";
+import { cn } from "@/lib/utils";
 import { getAgenda, getNotes, setTaskDone } from "@/lib/data/crm";
 import type { AgendaItem, SalesNote } from "@/types/sales";
 import { useCrmAccess } from "@/modules/crm/hooks/useCrmAccess";
-import { daysFromToday, fmtDate, fmtMoneyShort } from "@/modules/crm/lib/format";
+import { daysFromToday, fmtDate, fmtMoneyShort, agendaItemHref } from "@/modules/crm/lib/format";
 import { PageHeader, FilterSelect, Panel, Empty, DueChip, PriorityDot } from "@/modules/crm/components/ui";
 import { SummaryPanel } from "@/modules/crm/components/SummaryPanel";
 import { usePersistentFilter } from "@/lib/storage/use-persistent-filter";
@@ -25,6 +27,7 @@ const KIND_META = {
 
 export default function AgendaPage() {
   const access = useCrmAccess();
+  const router = useRouter();
   const [days, setDays] = usePersistentFilter("crm.agenda.days", "30");
   const [who, setWho] = usePersistentFilter("crm.agenda.who", "me");
   const [kinds, setKinds] = useState<Record<AgendaItem["kind"], boolean>>({ task: true, closeDate: true });
@@ -101,8 +104,16 @@ export default function AgendaPage() {
               <ul className="divide-y">
                 {b.items.map((i) => {
                   const Icon = KIND_META[i.kind].icon;
+                  const href = agendaItemHref(i);
                   return (
-                    <li key={i.id} className="flex items-start gap-3 px-4 py-2.5">
+                    <li
+                      key={i.id}
+                      onClick={href ? (e) => {
+                        if ((e.target as HTMLElement).closest("input, a, button")) return;
+                        router.push(href);
+                      } : undefined}
+                      className={cn("flex items-start gap-3 px-4 py-2.5", href && "cursor-pointer hover:bg-muted/30 active:bg-muted/50")}
+                    >
                       {i.kind === "task" ? (
                         <input
                           type="checkbox"
@@ -120,7 +131,7 @@ export default function AgendaPage() {
                         </div>
                         <div className="mt-0.5 flex flex-wrap gap-x-2 text-xs text-muted-foreground">
                           <span>{KIND_META[i.kind].label}</span>
-                          {i.companyId && <Link href={`/sales/accounts/${i.companyId}${i.opportunityId ? `?opp=${i.opportunityId}` : ""}`} className="hover:text-foreground hover:underline">{i.companyName}</Link>}
+                          {i.companyName && <span>{i.companyName}</span>}
                           {i.opportunityName && <span>· {i.opportunityName}</span>}
                           <span>· {i.ownerName || "Unassigned"}</span>
                         </div>
@@ -129,6 +140,7 @@ export default function AgendaPage() {
                         <DueChip iso={i.date} />
                         <div className="text-[11px] text-muted-foreground">{fmtDate(i.date, { year: false })}</div>
                       </div>
+                      {href && <ChevronRight className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground/60" aria-hidden />}
                     </li>
                   );
                 })}

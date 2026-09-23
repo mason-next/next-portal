@@ -71,3 +71,13 @@ export function quarterKey(iso: string): string {
   const q = Math.floor((+iso.slice(5, 7) - 1) / 3) + 1;
   return `${y}-Q${q}`;
 }
+
+/** Where an agenda item lives: its account page, scrolled to and highlighting the task or deal. */
+export function agendaItemHref(i: { kind: "task" | "closeDate"; id: string; companyId: string | null; opportunityId: string | null }): string | null {
+  if (!i.companyId) return null;
+  const q = new URLSearchParams();
+  if (i.opportunityId) q.set("opp", i.opportunityId);
+  if (i.kind === "task") q.set("task", i.id);
+  const qs = q.toString();
+  return `/sales/accounts/${i.companyId}${qs ? `?${qs}` : ""}`;
+}
