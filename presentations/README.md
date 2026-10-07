@@ -8,6 +8,13 @@ Each folder is one presentation; the matching `.zip` is the package uploaded thr
 | --- | --- | --- |
 | `quote-068876-v1/` | Miami Dade College — Wolfson Building 1 Outdoor Paging | #068876 v1 |
 
+Interactive pieces (paging simulator, equipment filters, mobile menu) are driven by
+form controls + CSS, so they work even where scripts are blocked; JavaScript only
+adds extras (Pole/All-call buttons, clicking the diagram, scroll effects).
+
+Client logos in `edu-logos/` are name tiles in each school's colors; replace them
+with the official logo files (white or light versions for the dark cards) when available.
+
 To rebuild a ZIP after editing (files at the archive root, like the reference packages):
 
 ```sh

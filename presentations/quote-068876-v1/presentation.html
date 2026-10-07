@@ -161,10 +161,8 @@
   .config-strip span { display: block; font-size: 12px; line-height: 1.45; color: var(--text-light); }
 
   /* ── SCHEMATIC ─────────────────────────────────────── */
-  .sim {
-    background: var(--card); border: 1px solid var(--line); border-radius: var(--radius); padding: 20px 22px; margin-bottom: 18px;
-    display: grid; grid-template-columns: auto 1fr; gap: 14px 22px; align-items: center;
-  }
+
+  .sim { background: var(--card); border: 1px solid var(--line); border-radius: var(--radius); padding: 22px 22px 18px; margin-bottom: 8px; }
   .sim-label { font-size: 11px; color: var(--text-light); text-transform: uppercase; letter-spacing: 1px; font-weight: 600; }
   .chips { display: flex; flex-wrap: wrap; gap: 8px; }
   .chip {
@@ -174,16 +172,16 @@
   }
   .chip .icon { width: 15px; height: 15px; }
   .chip:hover { border-color: var(--gold); color: var(--white); }
-  .chip[aria-pressed="true"] { background: var(--gold); border-color: var(--gold); color: var(--navy); font-weight: 600; }
+
   .chip.group { border-style: dashed; }
-  .chip.zone-a[aria-pressed="false"] { box-shadow: inset 3px 0 0 var(--accent); }
-  .chip.zone-b[aria-pressed="false"] { box-shadow: inset 3px 0 0 var(--violet); }
+  .chip.zone-a { box-shadow: inset 3px 0 0 var(--accent); }
+  .chip.zone-b { box-shadow: inset 3px 0 0 var(--violet); }
   .readout {
     grid-column: 1 / -1; display: flex; align-items: center; gap: 12px; flex-wrap: wrap;
     background: rgba(5,14,24,0.6); border: 1px solid rgba(200,168,75,0.25); border-radius: 10px; padding: 12px 16px; font-size: 14px;
   }
   .live-dot { width: 10px; height: 10px; border-radius: 50%; background: var(--gold); box-shadow: 0 0 0 0 rgba(200,168,75,.6); animation: pulse 1.6s infinite; flex-shrink: 0; }
-  .live-dot.off { background: #50606f; animation: none; }
+
   @keyframes pulse { 0% { box-shadow: 0 0 0 0 rgba(200,168,75,.55); } 70% { box-shadow: 0 0 0 10px rgba(200,168,75,0); } 100% { box-shadow: 0 0 0 0 rgba(200,168,75,0); } }
   .readout .msg { flex: 1; min-width: 220px; color: var(--white); }
   .readout .msg em { font-style: normal; color: var(--gold); }
@@ -239,6 +237,92 @@
   .node-info p { font-size: 13.5px; color: var(--text-light); }
   .legend { display: flex; gap: 18px; flex-wrap: wrap; font-size: 12px; color: var(--text-light); margin-top: 12px; }
   .legend i { display: inline-block; width: 12px; height: 12px; border-radius: 3px; margin-right: 6px; vertical-align: -1px; }
+
+
+  /* visually hidden form controls that drive the CSS-only interactions */
+  .sr { position: absolute; width: 1px; height: 1px; opacity: 0; overflow: hidden; clip: rect(0 0 0 0); margin: 0; pointer-events: none; }
+  .js-only { display: none !important; }
+  .js .js-only { display: flex !important; }
+  label.chip { user-select: none; }
+  .sim { display: block; }
+  .sim-step { display: grid; grid-template-columns: 34px 1fr; gap: 14px; margin-bottom: 18px; }
+  .step-n { width: 30px; height: 30px; border-radius: 50%; background: var(--gold); color: var(--navy); font-weight: 800; display: flex; align-items: center; justify-content: center; font-size: 15px; }
+  .sim-step .sim-label { margin: 5px 0 10px; font-size: 12px; color: var(--white); }
+  .sim-sub { text-transform: none; letter-spacing: 0; font-weight: 400; color: var(--text-dim); margin-left: 8px; }
+  #group-chips { margin-top: 10px; }
+  .sim-root { counter-reset: zones load; }
+  .zc:checked { counter-increment: zones 1 load 240; }
+  .readout .m, .readout .to, .readout .chl, .node-info { display: none; }
+  .readout .hint { color: var(--gold-light); }
+  .st-zones::before { content: counter(zones) " of 6 zones"; }
+  .st-load::before { content: counter(load) " W of 4,000 W"; }
+  .chl { margin-left: 4px; color: var(--gold); }
+  .live-dot { background: #50606f; animation: none; }
+  .view-title { font-size: 15px; font-weight: 700; margin: 26px 0 10px; }
+  .view-title span { font-weight: 400; color: var(--text-light); font-size: 13.5px; }
+  .node-infos { margin-top: 14px; }
+
+  #s-page:checked ~ .sim .m-page, #s-page:checked ~ .sim-views .ni-page { display: inline; }
+  #s-page:checked ~ .sim-views .ni-page { display: grid; }
+  #s-page:checked ~ .zc:checked ~ .sim-views #n-page rect.box { fill: rgba(200,168,75,0.16); stroke: var(--gold); stroke-width: 2; }
+  #s-page:checked ~ .zc:checked ~ .sim-views #n-page .t1 { fill: var(--gold-light); }
+  #s-page:checked ~ .zc:checked ~ .sim-views #w-page { stroke: var(--gold); stroke-width: 3; stroke-dasharray: 8 6; animation: flow .8s linear infinite; marker-end: url(#arrOn); }
+  #s-voip:checked ~ .sim .m-voip, #s-voip:checked ~ .sim-views .ni-voip { display: inline; }
+  #s-voip:checked ~ .sim-views .ni-voip { display: grid; }
+  #s-voip:checked ~ .zc:checked ~ .sim-views #n-voip rect.box { fill: rgba(200,168,75,0.16); stroke: var(--gold); stroke-width: 2; }
+  #s-voip:checked ~ .zc:checked ~ .sim-views #n-voip .t1 { fill: var(--gold-light); }
+  #s-voip:checked ~ .zc:checked ~ .sim-views #w-voip { stroke: var(--gold); stroke-width: 3; stroke-dasharray: 8 6; animation: flow .8s linear infinite; marker-end: url(#arrOn); }
+  #s-msg:checked ~ .sim .m-msg, #s-msg:checked ~ .sim-views .ni-msg { display: inline; }
+  #s-msg:checked ~ .sim-views .ni-msg { display: grid; }
+  #s-msg:checked ~ .zc:checked ~ .sim-views #n-msg rect.box { fill: rgba(200,168,75,0.16); stroke: var(--gold); stroke-width: 2; }
+  #s-msg:checked ~ .zc:checked ~ .sim-views #n-msg .t1 { fill: var(--gold-light); }
+  #s-msg:checked ~ .zc:checked ~ .sim-views #w-msg { stroke: var(--gold); stroke-width: 3; stroke-dasharray: 8 6; animation: flow .8s linear infinite; marker-end: url(#arrOn); }
+  #s-bgm:checked ~ .sim .m-bgm, #s-bgm:checked ~ .sim-views .ni-bgm { display: inline; }
+  #s-bgm:checked ~ .sim-views .ni-bgm { display: grid; }
+  #s-bgm:checked ~ .zc:checked ~ .sim-views #n-bgm rect.box { fill: rgba(200,168,75,0.16); stroke: var(--gold); stroke-width: 2; }
+  #s-bgm:checked ~ .zc:checked ~ .sim-views #n-bgm .t1 { fill: var(--gold-light); }
+  #s-bgm:checked ~ .zc:checked ~ .sim-views #w-bgm { stroke: var(--gold); stroke-width: 3; stroke-dasharray: 8 6; animation: flow .8s linear infinite; marker-end: url(#arrOn); }
+  #c-1A:checked ~ .sim-views #z-1A rect.box { fill: rgba(200,168,75,0.16); stroke: var(--gold); stroke-width: 2; }
+  #c-1A:checked ~ .sim-views #z-1A .t1 { fill: var(--gold-light); }
+  #c-1A:checked ~ .sim-views #w-p1 { stroke: var(--gold); stroke-width: 3; stroke-dasharray: 8 6; animation: flow .8s linear infinite; marker-end: url(#arrOn); }
+  #c-1A:checked ~ .sim-views .wedge[data-zone="1A"] { fill: var(--gold); fill-opacity: .42; }
+  #c-1A:checked ~ .sim .chl-1A { display: inline; }
+  #c-1B:checked ~ .sim-views #z-1B rect.box { fill: rgba(200,168,75,0.16); stroke: var(--gold); stroke-width: 2; }
+  #c-1B:checked ~ .sim-views #z-1B .t1 { fill: var(--gold-light); }
+  #c-1B:checked ~ .sim-views #w-p1 { stroke: var(--gold); stroke-width: 3; stroke-dasharray: 8 6; animation: flow .8s linear infinite; marker-end: url(#arrOn); }
+  #c-1B:checked ~ .sim-views .wedge[data-zone="1B"] { fill: var(--gold); fill-opacity: .42; }
+  #c-1B:checked ~ .sim .chl-1B { display: inline; }
+  #c-2A:checked ~ .sim-views #z-2A rect.box { fill: rgba(200,168,75,0.16); stroke: var(--gold); stroke-width: 2; }
+  #c-2A:checked ~ .sim-views #z-2A .t1 { fill: var(--gold-light); }
+  #c-2A:checked ~ .sim-views #w-p2 { stroke: var(--gold); stroke-width: 3; stroke-dasharray: 8 6; animation: flow .8s linear infinite; marker-end: url(#arrOn); }
+  #c-2A:checked ~ .sim-views .wedge[data-zone="2A"] { fill: var(--gold); fill-opacity: .42; }
+  #c-2A:checked ~ .sim .chl-2A { display: inline; }
+  #c-2B:checked ~ .sim-views #z-2B rect.box { fill: rgba(200,168,75,0.16); stroke: var(--gold); stroke-width: 2; }
+  #c-2B:checked ~ .sim-views #z-2B .t1 { fill: var(--gold-light); }
+  #c-2B:checked ~ .sim-views #w-p2 { stroke: var(--gold); stroke-width: 3; stroke-dasharray: 8 6; animation: flow .8s linear infinite; marker-end: url(#arrOn); }
+  #c-2B:checked ~ .sim-views .wedge[data-zone="2B"] { fill: var(--gold); fill-opacity: .42; }
+  #c-2B:checked ~ .sim .chl-2B { display: inline; }
+  #c-3A:checked ~ .sim-views #z-3A rect.box { fill: rgba(200,168,75,0.16); stroke: var(--gold); stroke-width: 2; }
+  #c-3A:checked ~ .sim-views #z-3A .t1 { fill: var(--gold-light); }
+  #c-3A:checked ~ .sim-views #w-p3 { stroke: var(--gold); stroke-width: 3; stroke-dasharray: 8 6; animation: flow .8s linear infinite; marker-end: url(#arrOn); }
+  #c-3A:checked ~ .sim-views .wedge[data-zone="3A"] { fill: var(--gold); fill-opacity: .42; }
+  #c-3A:checked ~ .sim .chl-3A { display: inline; }
+  #c-3B:checked ~ .sim-views #z-3B rect.box { fill: rgba(200,168,75,0.16); stroke: var(--gold); stroke-width: 2; }
+  #c-3B:checked ~ .sim-views #z-3B .t1 { fill: var(--gold-light); }
+  #c-3B:checked ~ .sim-views #w-p3 { stroke: var(--gold); stroke-width: 3; stroke-dasharray: 8 6; animation: flow .8s linear infinite; marker-end: url(#arrOn); }
+  #c-3B:checked ~ .sim-views .wedge[data-zone="3B"] { fill: var(--gold); fill-opacity: .42; }
+  #c-3B:checked ~ .sim .chl-3B { display: inline; }
+  #s-page:checked ~ .sim label[for="s-page"], #s-voip:checked ~ .sim label[for="s-voip"], #s-msg:checked ~ .sim label[for="s-msg"], #s-bgm:checked ~ .sim label[for="s-bgm"], #c-1A:checked ~ .sim label[for="c-1A"], #c-1B:checked ~ .sim label[for="c-1B"], #c-2A:checked ~ .sim label[for="c-2A"], #c-2B:checked ~ .sim label[for="c-2B"], #c-3A:checked ~ .sim label[for="c-3A"], #c-3B:checked ~ .sim label[for="c-3B"], #f-all:checked ~ .filter-bar label[for="f-all"], #f-pole:checked ~ .filter-bar label[for="f-pole"], #f-headend:checked ~ .filter-bar label[for="f-headend"], #f-paging:checked ~ .filter-bar label[for="f-paging"], #f-cable:checked ~ .filter-bar label[for="f-cable"] { background: var(--gold); border-color: var(--gold); color: var(--navy); font-weight: 600; box-shadow: none; }
+  #s-page:focus-visible ~ .sim label[for="s-page"], #s-voip:focus-visible ~ .sim label[for="s-voip"], #s-msg:focus-visible ~ .sim label[for="s-msg"], #s-bgm:focus-visible ~ .sim label[for="s-bgm"], #c-1A:focus-visible ~ .sim label[for="c-1A"], #c-1B:focus-visible ~ .sim label[for="c-1B"], #c-2A:focus-visible ~ .sim label[for="c-2A"], #c-2B:focus-visible ~ .sim label[for="c-2B"], #c-3A:focus-visible ~ .sim label[for="c-3A"], #c-3B:focus-visible ~ .sim label[for="c-3B"], #f-all:focus-visible ~ .filter-bar label[for="f-all"], #f-pole:focus-visible ~ .filter-bar label[for="f-pole"], #f-headend:focus-visible ~ .filter-bar label[for="f-headend"], #f-paging:focus-visible ~ .filter-bar label[for="f-paging"], #f-cable:focus-visible ~ .filter-bar label[for="f-cable"] { outline: 2px solid var(--gold-light); outline-offset: 2px; }
+  .zc:checked ~ .sim-views #n-core rect.box, .zc:checked ~ .sim-views #n-amp rect.box, .zc:checked ~ .sim-views #n-net rect.box { fill: rgba(200,168,75,0.16); stroke: var(--gold); stroke-width: 2; }
+  .zc:checked ~ .sim-views #n-core .t1, .zc:checked ~ .sim-views #n-amp .t1, .zc:checked ~ .sim-views #n-net .t1 { fill: var(--gold-light); }
+  .zc:checked ~ .sim-views #w-amp, .zc:checked ~ .sim-views #w-net { stroke: var(--gold); stroke-width: 3; stroke-dasharray: 8 6; animation: flow .8s linear infinite; marker-end: url(#arrOn); }
+  .zc:checked ~ .sim .to { display: inline; }  .zc:checked ~ .sim .hint, .zc:checked ~ .sim .none { display: none; }
+  .zc:checked ~ .sim .live-dot { background: var(--gold); animation: pulse 1.6s infinite; }
+  #f-pole:checked ~ .product-grid .product:not([data-cat="pole"]) { display: none; }
+  #f-headend:checked ~ .product-grid .product:not([data-cat="headend"]) { display: none; }
+  #f-paging:checked ~ .product-grid .product:not([data-cat="paging"]) { display: none; }
+  #f-cable:checked ~ .product-grid .product:not([data-cat="cable"]) { display: none; }
 
   /* ── HOW PAGING WORKS ──────────────────────────────── */
   .two-col { display: grid; grid-template-columns: 1.1fr 1fr; gap: 36px; align-items: start; }
@@ -402,8 +486,8 @@
   .why-card h3 { font-size: 16px; margin-bottom: 6px; }
   .why-card p { font-size: 13.5px; color: var(--text-light); }
   .logo-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 12px; }
-  .gov-logo-card { background: #2a3547; border: 1px solid rgba(255,255,255,0.08); border-radius: 10px; height: 84px; display: flex; align-items: center; justify-content: center; padding: 12px; }
-  .gov-logo-card img { max-height: 44px; max-width: 140px; object-fit: contain; display: block; }
+  .edu-logo-card { background: #2a3547; border: 1px solid rgba(255,255,255,0.08); border-radius: 10px; height: 84px; display: flex; align-items: center; justify-content: center; padding: 12px; }
+  .edu-logo-card img { max-height: 44px; max-width: 140px; object-fit: contain; display: block; }
 
   /* ── CONTACT / FOOTER ──────────────────────────────── */
   .cta-box { background: var(--navy-light); border: 1px solid rgba(200,168,75,0.2); border-radius: 16px; padding: 44px 36px; text-align: center; }
@@ -440,7 +524,7 @@
       display: none; position: absolute; top: 64px; left: 0; right: 0; flex-direction: column; gap: 0;
       background: rgba(13,27,42,0.98); border-bottom: 1px solid rgba(200,168,75,0.2); padding: 8px 0;
     }
-    .nav-links.open { display: flex; }
+    #nav-open:checked ~ .nav-links { display: flex; }
     .nav-links a { padding: 12px 24px; font-size: 15px; }
     .nav-links a.active::after { display: none; }
     .hero-grid, .two-col, .invest-grid, .feature-product { grid-template-columns: 1fr; }
@@ -470,7 +554,8 @@
     .config-strip div { border-right: 1px solid var(--line) !important; border-top: 1px solid var(--line); }
     .config-strip div:nth-child(2n) { border-right: 0 !important; }
     .config-strip div:nth-child(-n+2) { border-top: 0; }
-    .sim { grid-template-columns: 1fr; padding: 16px; }
+    .sim { padding: 16px; }
+    .sim-step { grid-template-columns: 1fr; gap: 6px; }
     .invest-total { font-size: 36px; }
     .fp-body { padding: 22px 18px; }
     .why-card { grid-template-columns: 1fr; }
@@ -482,15 +567,14 @@
   }
   @media (prefers-reduced-motion: reduce) {
     html { scroll-behavior: auto; }
-    .sx .wire.on, .live-dot { animation: none; }
+    .sx .wire, .live-dot { animation: none !important; }
     .js .reveal { opacity: 1; transform: none; transition: none; }
   }
   @media print {
-    nav.site-nav, .progress, .sim, .schem-tabs, .filter-bar, .hero-cta { display: none !important; }
+    nav.site-nav, .progress, .sim, .filter-bar, .hero-cta { display: none !important; }
     body { background: #0d1b2a; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
     section { padding: 40px 0; break-inside: avoid-page; }
     .js .reveal { opacity: 1; transform: none; }
-    .schem-panel[hidden] { display: block; }
   }
 </style>
 </head>
@@ -536,7 +620,8 @@
     <div class="nav-divider sub-divider"></div>
     <div class="nav-subtitle"><strong>Miami Dade College · Wolfson Campus</strong>Quote #068876 · Building 1 Outdoor Paging</div>
   </div>
-  <button class="nav-toggle" aria-label="Open menu" aria-expanded="false" aria-controls="nav-links"><svg class="icon"><use href="#i-menu"/></svg></button>
+  <input type="checkbox" id="nav-open" class="sr" aria-label="Open menu">
+  <label for="nav-open" class="nav-toggle" aria-hidden="true"><svg class="icon"><use href="#i-menu"/></svg></label>
   <div class="nav-links" id="nav-links">
     <a href="#hero">Overview</a>
     <a href="#system">System</a>
@@ -667,53 +752,32 @@
   </div>
 </section>
 
-<!-- 3. SYSTEM SCHEMATIC (interactive) -->
+<!-- 3. SYSTEM SCHEMATIC (interactive; works without JavaScript via form controls + CSS) -->
 <section id="schematic">
   <div class="container">
     <div class="reveal">
-      <div class="section-eyebrow">02 · System Schematic</div>
+      <div class="section-eyebrow">02 · System Schematic &amp; Paging Simulator</div>
       <h2 class="section-title">Three ways to page. One Core. Six zones.</h2>
-      <p class="section-lead">Three paging sources and a music player feed one Q-SYS Core, which drives six zones on three poles. Pick a source and the zones it should reach. The schematic and site layout show the signal path.</p>
+      <p class="section-lead">Try it the way an officer would: choose who is making the announcement, then choose where it should play. The signal path and the speakers that would play it light up in <span style="color:var(--gold)">gold</span> below.</p>
     </div>
 
-    <div class="sim reveal" role="group" aria-label="Paging simulator">
-      <div class="sim-label">Source</div>
-      <div class="chips" id="src-chips">
-        <button class="chip" data-src="page" aria-pressed="true"><svg class="icon"><use href="#i-mic"/></svg>Paging station</button>
-        <button class="chip" data-src="voip" aria-pressed="false"><svg class="icon"><use href="#i-phone"/></svg>VoIP phone page</button>
-        <button class="chip" data-src="msg" aria-pressed="false"><svg class="icon"><use href="#i-message"/></svg>Recorded message</button>
-        <button class="chip" data-src="bgm" aria-pressed="false"><svg class="icon"><use href="#i-music"/></svg>Background music</button>
+    <div class="sim-root">
+      <input type="radio" name="sim-src" id="s-page" class="sr" checked><input type="radio" name="sim-src" id="s-voip" class="sr"><input type="radio" name="sim-src" id="s-msg" class="sr"><input type="radio" name="sim-src" id="s-bgm" class="sr"><input type="checkbox" id="c-1A" class="sr zc" checked><input type="checkbox" id="c-1B" class="sr zc" checked><input type="checkbox" id="c-2A" class="sr zc"><input type="checkbox" id="c-2B" class="sr zc"><input type="checkbox" id="c-3A" class="sr zc"><input type="checkbox" id="c-3B" class="sr zc">
+      <div class="sim reveal" role="group" aria-label="Paging simulator">
+        <div class="sim-step"><span class="step-n">1</span><div><div class="sim-label">Who is paging?</div><div class="chips"><label class="chip" for="s-page"><svg class="icon"><use href="#i-mic"/></svg>Paging station</label><label class="chip" for="s-voip"><svg class="icon"><use href="#i-phone"/></svg>VoIP phone page</label><label class="chip" for="s-msg"><svg class="icon"><use href="#i-message"/></svg>Recorded message</label><label class="chip" for="s-bgm"><svg class="icon"><use href="#i-music"/></svg>Background music</label></div></div></div>
+        <div class="sim-step"><span class="step-n">2</span><div><div class="sim-label">Where should it play? <span class="sim-sub">Tap zones to turn them on or off</span></div><div class="chips"><label class="chip zone-a" for="c-1A">Zone 1A</label><label class="chip zone-b" for="c-1B">Zone 1B</label><label class="chip zone-a" for="c-2A">Zone 2A</label><label class="chip zone-b" for="c-2B">Zone 2B</label><label class="chip zone-a" for="c-3A">Zone 3A</label><label class="chip zone-b" for="c-3B">Zone 3B</label></div>
+          <div class="chips js-only" id="group-chips"><button type="button" class="chip group" data-group="1A,1B">Pole 1</button><button type="button" class="chip group" data-group="2A,2B">Pole 2</button><button type="button" class="chip group" data-group="3A,3B">Pole 3</button><button type="button" class="chip group" data-group="1A,1B,2A,2B,3A,3B">All call</button><button type="button" class="chip group" data-group="">Clear</button></div></div></div>
+        <div class="readout">
+          <span class="live-dot"></span>
+          <span class="msg"><span class="m m-page">Live page from the <em>security office touchscreen</em></span><span class="m m-voip">Phone page from a <em>campus VoIP extension</em></span><span class="m m-msg"><em>Pre-recorded announcement</em> stored on the Core</span><span class="m m-bgm"><em>Background music</em> from the Bluesound player</span><span class="to"> → plays in the gold zones below.</span><span class="hint"> → now pick at least one zone in step 2.</span></span>
+          <span class="stat st-zones"></span><span class="stat st-load"></span><span class="stat st-ch">Amp ch.<b class="chl chl-1A">A</b><b class="chl chl-1B">B</b><b class="chl chl-2A">C</b><b class="chl chl-2B">D</b><b class="chl chl-3A">E</b><b class="chl chl-3B">F</b><i class="none"> none</i></span>
+        </div>
       </div>
-      <div class="sim-label">Zones</div>
-      <div class="chips" id="zone-chips">
-        <button class="chip zone-a" data-zone="1A" aria-pressed="false">1A</button>
-        <button class="chip zone-b" data-zone="1B" aria-pressed="false">1B</button>
-        <button class="chip zone-a" data-zone="2A" aria-pressed="false">2A</button>
-        <button class="chip zone-b" data-zone="2B" aria-pressed="false">2B</button>
-        <button class="chip zone-a" data-zone="3A" aria-pressed="false">3A</button>
-        <button class="chip zone-b" data-zone="3B" aria-pressed="false">3B</button>
-        <button class="chip group" data-group="1A,1B">Pole 1</button>
-        <button class="chip group" data-group="2A,2B">Pole 2</button>
-        <button class="chip group" data-group="3A,3B">Pole 3</button>
-        <button class="chip group" data-group="1A,1B,2A,2B,3A,3B">All call</button>
-        <button class="chip group" data-group="">Clear</button>
-      </div>
-      <div class="readout" aria-live="polite">
-        <span class="live-dot" id="live-dot"></span>
-        <span class="msg" id="sim-msg">Choose one or more zones.</span>
-        <span class="stat" id="sim-load">0 W</span>
-        <span class="stat" id="sim-ch">No channels</span>
-      </div>
-    </div>
 
-    <div class="schem-tabs reveal" role="tablist">
-      <button class="tab" role="tab" aria-selected="true" aria-controls="panel-schem" id="tab-schem">Signal flow</button>
-      <button class="tab" role="tab" aria-selected="false" aria-controls="panel-site" id="tab-site">Site layout</button>
-    </div>
-
-    <div class="schem-panel reveal" id="panel-schem" role="tabpanel" aria-labelledby="tab-schem">
-      <div class="schem-wrap">
-        <svg class="sx" id="schem" viewBox="0 0 1000 680" role="img" aria-label="System schematic: paging sources to Q-SYS Core, amplifier and six zones on three poles">
+      <div class="sim-views">
+        <div class="view-title reveal">Signal flow <span>— from the source, through the Core and amplifier, out to the poles</span></div>
+        <div class="schem-wrap reveal">
+          <svg class="sx" id="schem" viewBox="0 0 1000 680" role="img" aria-label="System schematic: paging sources to Q-SYS Core, amplifier and six zones on three poles">
           <defs>
             <marker id="arr" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="#4c6580"/></marker>
             <marker id="arrOn" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="#c8a84b"/></marker>
@@ -803,19 +867,19 @@
           <text class="foot" x="698" y="600">4 × AD-S162T-BK on 120 W taps</text><text class="foot" x="698" y="620">Hoffman splice enclosure at pole</text>
           <text class="panel-lbl" x="20" y="668" style="letter-spacing:1.5px">ONE BELDEN 1312A 12/4 HOME RUN PER POLE · 1,440 W LOAD ON A 4,000 W AMPLIFIER</text>
         </svg>
-      </div>
-      <div class="legend">
-        <span><i style="background:#c8a84b"></i>Active signal path</span>
-        <span><i style="background:#2eaadc"></i>“A” zones</span>
-        <span><i style="background:#9b8cd9"></i>“B” zones</span>
-        <span>Click any box for details · click a zone to add or remove it</span>
-      </div>
-      <p class="scroll-hint">Swipe sideways to see the full schematic.</p>
-    </div>
+        </div>
+        <div class="legend">
+          <span><i style="background:#c8a84b"></i>Active signal path</span>
+          <span><i style="background:#2eaadc"></i>“A” zones (building side)</span>
+          <span><i style="background:#9b8cd9"></i>“B” zones (plaza side)</span>
+          <span>Background music always yields to pages and messages</span>
+        </div>
+        <p class="scroll-hint">Swipe sideways to see the full schematic.</p>
+        <div class="node-infos"><div class="node-info ni-page"><div class="ic"><img src="assets/qsc-ps-tscg3-h.svg" alt=""></div><div><h4>Paging station — Q-SYS PS-TSCG3-H</h4><p>Wall-mount touchscreen in the security office. The officer taps the zones, holds push-to-talk on the handheld mic and speaks. Needs one PoE network connection.</p></div></div><div class="node-info ni-voip"><div class="ic"><img src="assets/qsc-core-8-flex.svg" alt=""></div><div><h4>VoIP phone page — Q-SYS softphone</h4><p>Authorized staff dial a designated SIP extension from a campus phone and speak. Mason configures the softphone on the Core; MDC IT provides the extension, credentials, VLAN and firewall access.</p></div></div><div class="node-info ni-msg"><div class="ic"><img src="assets/qsc-core-8-flex.svg" alt=""></div><div><h4>Recorded messages — Q-SYS Core 8 Flex</h4><p>Announcements stored on the Core, started from the touchscreen, a schedule or another agreed trigger. MDC supplies the message list and recordings.</p></div></div><div class="node-info ni-bgm"><div class="ic"><img src="assets/bluesound-b100s.svg" alt=""></div><div><h4>Background music — Bluesound B100S</h4><p>Network music player feeding the Core. Music plays in the zones you choose, and any page or message automatically takes priority over it.</p></div></div></div>
 
-    <div class="schem-panel" id="panel-site" role="tabpanel" aria-labelledby="tab-site" hidden>
-      <div class="schem-wrap">
-        <svg class="sx" id="site" viewBox="0 0 1000 500" role="img" aria-label="Illustrative site layout: three poles near Building 1, each with four loudspeakers in two zones">
+        <div class="view-title reveal" style="margin-top:40px">Site layout <span>— which speakers would play it (illustrative)</span></div>
+        <div class="schem-wrap reveal">
+          <svg class="sx" id="site" viewBox="0 0 1000 500" role="img" aria-label="Illustrative site layout: three poles near Building 1, each with four loudspeakers in two zones">
           <rect x="0" y="0" width="1000" height="500" fill="#07121d"/>
           <g stroke="#13283c" stroke-width="1">
             <path d="M0 140H1000M0 200H1000M0 260H1000M0 320H1000M0 380H1000"/>
@@ -823,24 +887,17 @@
           </g>
           <rect x="60" y="16" width="880" height="64" rx="4" fill="#1b3048" stroke="#2f4a66"/>
           <text x="500" y="54" fill="#a8b8cc" font-size="15" font-weight="700" letter-spacing="4" text-anchor="middle">BUILDING 1</text>
-          <g id="site-wedges"></g>
-          <g id="site-poles" font-size="13" font-weight="700"></g>
+          <g id="site-wedges"><path class="wedge a" data-zone="1A" d="M220 250 L95.9 234.8 A125 125 0 0 1 204.8 125.9 Z"><title>Zone 1A</title></path><path class="wedge a" data-zone="1A" d="M220 250 L235.2 125.9 A125 125 0 0 1 344.1 234.8 Z"><title>Zone 1A</title></path><path class="wedge b" data-zone="1B" d="M220 250 L344.1 265.2 A125 125 0 0 1 235.2 374.1 Z"><title>Zone 1B</title></path><path class="wedge b" data-zone="1B" d="M220 250 L204.8 374.1 A125 125 0 0 1 95.9 265.2 Z"><title>Zone 1B</title></path><path class="wedge a" data-zone="2A" d="M500 250 L375.9 234.8 A125 125 0 0 1 484.8 125.9 Z"><title>Zone 2A</title></path><path class="wedge a" data-zone="2A" d="M500 250 L515.2 125.9 A125 125 0 0 1 624.1 234.8 Z"><title>Zone 2A</title></path><path class="wedge b" data-zone="2B" d="M500 250 L624.1 265.2 A125 125 0 0 1 515.2 374.1 Z"><title>Zone 2B</title></path><path class="wedge b" data-zone="2B" d="M500 250 L484.8 374.1 A125 125 0 0 1 375.9 265.2 Z"><title>Zone 2B</title></path><path class="wedge a" data-zone="3A" d="M780 250 L655.9 234.8 A125 125 0 0 1 764.8 125.9 Z"><title>Zone 3A</title></path><path class="wedge a" data-zone="3A" d="M780 250 L795.2 125.9 A125 125 0 0 1 904.1 234.8 Z"><title>Zone 3A</title></path><path class="wedge b" data-zone="3B" d="M780 250 L904.1 265.2 A125 125 0 0 1 795.2 374.1 Z"><title>Zone 3B</title></path><path class="wedge b" data-zone="3B" d="M780 250 L764.8 374.1 A125 125 0 0 1 655.9 265.2 Z"><title>Zone 3B</title></path></g>
+          <g id="site-poles" font-size="13" font-weight="700"><rect class="spk" x="-4" y="-9" width="8" height="18" rx="2" transform="translate(208.7 238.7) rotate(-45)"/><rect class="spk" x="-4" y="-9" width="8" height="18" rx="2" transform="translate(231.3 238.7) rotate(45)"/><rect class="spk" x="-4" y="-9" width="8" height="18" rx="2" transform="translate(231.3 261.3) rotate(135)"/><rect class="spk" x="-4" y="-9" width="8" height="18" rx="2" transform="translate(208.7 261.3) rotate(225)"/><circle class="pole-dot" cx="220" cy="250" r="6"/><text x="220" y="402" text-anchor="middle" fill="#fff">POLE 1</text><text x="220" y="185" text-anchor="middle" fill="#2eaadc" font-size="14">1A</text><text x="220" y="325" text-anchor="middle" fill="#9b8cd9" font-size="14">1B</text><rect class="spk" x="-4" y="-9" width="8" height="18" rx="2" transform="translate(488.7 238.7) rotate(-45)"/><rect class="spk" x="-4" y="-9" width="8" height="18" rx="2" transform="translate(511.3 238.7) rotate(45)"/><rect class="spk" x="-4" y="-9" width="8" height="18" rx="2" transform="translate(511.3 261.3) rotate(135)"/><rect class="spk" x="-4" y="-9" width="8" height="18" rx="2" transform="translate(488.7 261.3) rotate(225)"/><circle class="pole-dot" cx="500" cy="250" r="6"/><text x="500" y="402" text-anchor="middle" fill="#fff">POLE 2</text><text x="500" y="185" text-anchor="middle" fill="#2eaadc" font-size="14">2A</text><text x="500" y="325" text-anchor="middle" fill="#9b8cd9" font-size="14">2B</text><rect class="spk" x="-4" y="-9" width="8" height="18" rx="2" transform="translate(768.7 238.7) rotate(-45)"/><rect class="spk" x="-4" y="-9" width="8" height="18" rx="2" transform="translate(791.3 238.7) rotate(45)"/><rect class="spk" x="-4" y="-9" width="8" height="18" rx="2" transform="translate(791.3 261.3) rotate(135)"/><rect class="spk" x="-4" y="-9" width="8" height="18" rx="2" transform="translate(768.7 261.3) rotate(225)"/><circle class="pole-dot" cx="780" cy="250" r="6"/><text x="780" y="402" text-anchor="middle" fill="#fff">POLE 3</text><text x="780" y="185" text-anchor="middle" fill="#2eaadc" font-size="14">3A</text><text x="780" y="325" text-anchor="middle" fill="#9b8cd9" font-size="14">3B</text></g>
           <g transform="translate(60 432)" font-size="12.5">
             <rect x="0" y="0" width="12" height="12" rx="2" fill="#2eaadc" fill-opacity=".6"/><text x="20" y="11" fill="#cfd8e2">A · building side (2 columns)</text>
             <rect x="230" y="0" width="12" height="12" rx="2" fill="#9b8cd9" fill-opacity=".6"/><text x="250" y="11" fill="#cfd8e2">B · plaza side (2 columns)</text>
           </g>
           <text x="500" y="484" fill="#7d8fa5" font-size="11.5" letter-spacing="2" text-anchor="middle">PLAZA · ILLUSTRATIVE — POLE POSITIONS, AIMING AND ZONE SPLIT CONFIRMED ON SITE</text>
         </svg>
+        </div>
+        <div class="legend"><span><i style="background:#c8a84b"></i>Speakers that would play the announcement</span><span>Each column covers ~160° horizontally; wedges are simplified for clarity</span></div>
       </div>
-      <div class="legend">
-        <span><i style="background:#c8a84b"></i>Zone receiving the selected source</span>
-        <span>Each column covers ~160° horizontal; wedges are simplified for clarity · click a wedge to toggle its zone</span>
-      </div>
-    </div>
-
-    <div class="node-info" id="node-info">
-      <div class="ic"><img id="ni-img" src="assets/qsc-core-8-flex.svg" alt=""></div>
-      <div><h4 id="ni-title">Q-SYS Core 8 Flex</h4><p id="ni-text">The primary DSP, control processor, paging controller and audio router. Every source, priority rule and zone assignment lives here.</p></div>
     </div>
   </div>
 </section>
@@ -935,14 +992,9 @@
       </div>
     </div>
 
-    <div class="filter-bar reveal" role="group" aria-label="Filter components">
-      <button class="chip" data-filter="all" aria-pressed="true">All components</button>
-      <button class="chip" data-filter="pole" aria-pressed="false">At the poles</button>
-      <button class="chip" data-filter="headend" aria-pressed="false">Audio headend</button>
-      <button class="chip" data-filter="paging" aria-pressed="false">Paging station</button>
-      <button class="chip" data-filter="cable" aria-pressed="false">Cable</button>
-    </div>
-
+    <div class="filter-root">
+    <input type="radio" name="bom-filter" id="f-all" class="sr" checked><input type="radio" name="bom-filter" id="f-pole" class="sr"><input type="radio" name="bom-filter" id="f-headend" class="sr"><input type="radio" name="bom-filter" id="f-paging" class="sr"><input type="radio" name="bom-filter" id="f-cable" class="sr">
+    <div class="filter-bar reveal" role="group" aria-label="Filter components"><label class="chip" for="f-all">All components</label><label class="chip" for="f-pole">At the poles</label><label class="chip" for="f-headend">Audio headend</label><label class="chip" for="f-paging">Paging station</label><label class="chip" for="f-cable">Cable</label></div>
     <div class="product-grid reveal" id="product-grid">
       <article class="product" data-cat="headend">
         <div class="p-img light"><img src="assets/qsc-core-8-flex.svg" alt="Q-SYS Core 8 Flex processor"><span class="qty-pill">× 1</span></div>
@@ -1010,6 +1062,7 @@
           <p>Plenum-rated CAT6 for the headend and the paging station network connection.</p>
           <div class="role"><svg class="icon"><use href="#i-rack"/></svg>Connects the Q-LAN devices and PoE page station.</div></div>
       </article>
+    </div>
     </div>
     <p class="img-note">Product images are representative illustrations. Final equipment matches the models and quantities listed in Quote #068876.</p>
   </div>
@@ -1085,11 +1138,11 @@
   </div>
 </section>
 
-<!-- SLA (quote includes MTI SLA line item) -->
+<!-- SLA (quote includes an SLA line item) -->
 <section id="support">
   <div class="container">
     <div class="reveal">
-      <div class="section-eyebrow">06 · MTI Connect · Silver SLA</div>
+      <div class="section-eyebrow">06 · Mason Command · Silver SLA</div>
       <h2 class="section-title">The install is the start. Support is the relationship.</h2>
       <p class="section-lead">Tier 1 Silver coverage is included in this proposal: a remote help desk, coordinated on-site dispatch, proactive monitoring and warranty handling.</p>
     </div>
@@ -1120,7 +1173,7 @@
       <div class="invest-main reveal">
         <div class="invest-label">Total investment</div>
         <div class="invest-total">$74,246.84</div>
-        <div class="invest-desc">Building 1 Outdoor Paging System plus MTI Silver SLA</div>
+        <div class="invest-desc">Building 1 Outdoor Paging System plus Mason Command Silver SLA</div>
         <div class="splitbar" aria-hidden="true">
           <i style="width:33.04%;background:#c8a84b"></i>
           <i style="width:7.41%;background:#2eaadc"></i>
@@ -1137,7 +1190,7 @@
           <div class="li"><span class="sw" style="background:#27ae60"></span><span class="lbl">Silver SLA</span><span class="amt">$1,896.80</span></div>
         </div>
         <div class="annual">
-          <div><div class="lbl">Annual expenses</div><div class="what">MTI Service Level Agreement — Silver Tier</div></div>
+          <div><div class="lbl">Annual expenses</div><div class="what">Mason Command Service Level Agreement — Silver Tier</div></div>
           <div class="amt">$1,563.00 / yr</div>
         </div>
         <details class="lines">
@@ -1220,7 +1273,7 @@
     <div class="reveal">
       <div class="section-eyebrow">08 · Why Mason Technologies</div>
       <h2 class="section-title">More than a provider — your ally, 24/7.</h2>
-      <p class="section-lead">Founded in 2002, Mason Technologies is a nationally recognized low-voltage integrator with a dedicated Southeast team serving Florida, Georgia, the Carolinas and Virginia.</p>
+      <p class="section-lead">Founded in 2002, Mason Technologies is a nationally recognized low-voltage integrator with a dedicated Southeast team, supporting higher-education partners alongside healthcare, government, technology and financial clients.</p>
     </div>
     <div class="stat-row reveal">
       <div class="stat"><div class="big">2002</div><div class="cap">Founded</div><p>Over two decades of low-voltage and AV integration.</p></div>
@@ -1232,23 +1285,16 @@
       <div class="why-card"><div class="ic"><svg class="icon"><use href="#i-users"/></svg></div><div><h3>One-stop, full-service integrator</h3><p>We assess, design, install and support every solution we provide: structured cabling, audio visual, data centers and unified security.</p></div></div>
       <div class="why-card"><div class="ic"><svg class="icon"><use href="#i-pin"/></svg></div><div><h3>Regional team, national depth</h3><p>Dedicated Southeast operations backed by national resources, ready to mobilize quickly and support you day or night.</p></div></div>
       <div class="why-card"><div class="ic"><svg class="icon"><use href="#i-award"/></svg></div><div><h3>Relationships first</h3><p>Technology isn't one-size-fits-all. We get to know our clients first and tailor every solution to their goals.</p></div></div>
-      <div class="why-card"><div class="ic"><svg class="icon"><use href="#i-life"/></svg></div><div><h3>MTI Connect support</h3><p>The day we hand over the system, help desk, monitoring and escalation are live under your Silver SLA.</p></div></div>
+      <div class="why-card"><div class="ic"><svg class="icon"><use href="#i-life"/></svg></div><div><h3>Mason Command support</h3><p>The day we hand over the system, help desk, monitoring and escalation are live under your Silver SLA.</p></div></div>
     </div>
 
-    <div class="sub-title reveal">Trusted by government &amp; public-sector agencies</div>
+    <div class="sub-title reveal">Trusted by colleges, universities &amp; school systems</div>
     <div class="logo-grid reveal">
-      <div class="gov-logo-card"><img src="gov-logos/city-of-miramar.png" alt="City of Miramar, FL"></div>
-      <div class="gov-logo-card"><img src="gov-logos/city-of-coral-gables.png" alt="City of Coral Gables, FL"></div>
-      <div class="gov-logo-card"><img src="gov-logos/united-nations.png" alt="United Nations"></div>
-      <div class="gov-logo-card"><img src="gov-logos/nypd.png" alt="NYPD"></div>
-      <div class="gov-logo-card"><img src="gov-logos/us-dept-of-state.png" alt="U.S. Department of State"></div>
-      <div class="gov-logo-card"><img src="gov-logos/us-dept-of-war.png" alt="U.S. Department of War"></div>
-      <div class="gov-logo-card"><img src="gov-logos/us-navy.png" alt="United States Navy"></div>
-      <div class="gov-logo-card"><img src="gov-logos/us-marine-corps.png" alt="United States Marine Corps"></div>
-      <div class="gov-logo-card"><img src="gov-logos/us-army.png" alt="U.S. Army"></div>
-      <div class="gov-logo-card"><img src="gov-logos/defense-logistics-agency.png" alt="Defense Logistics Agency"></div>
-      <div class="gov-logo-card"><img src="gov-logos/us-dept-of-justice.png" alt="U.S. Department of Justice"></div>
-      <div class="gov-logo-card"><img src="gov-logos/us-dept-veterans-affairs.png" alt="U.S. Department of Veterans Affairs"></div>
+      <div class="edu-logo-card"><img src="edu-logos/csu.svg" alt="The California State University"></div>
+      <div class="edu-logo-card"><img src="edu-logos/cuny.svg" alt="The City University of New York"></div>
+      <div class="edu-logo-card"><img src="edu-logos/nyc-doe.svg" alt="NYC Department of Education"></div>
+      <div class="edu-logo-card"><img src="edu-logos/nyu.svg" alt="New York University"></div>
+      <div class="edu-logo-card"><img src="edu-logos/palm-beach-state.svg" alt="Palm Beach State College"></div>
     </div>
   </div>
 </section>
@@ -1292,14 +1338,8 @@
 
   /* ── nav: mobile toggle, scroll-spy, progress ── */
   var nav = document.getElementById('nav-links');
-  var toggle = document.querySelector('.nav-toggle');
-  toggle.addEventListener('click', function () {
-    var open = nav.classList.toggle('open');
-    toggle.setAttribute('aria-expanded', open);
-  });
-  nav.querySelectorAll('a').forEach(function (a) {
-    a.addEventListener('click', function () { nav.classList.remove('open'); toggle.setAttribute('aria-expanded', 'false'); });
-  });
+  var navOpen = document.getElementById('nav-open');
+  nav.querySelectorAll('a').forEach(function (a) { a.addEventListener('click', function () { navOpen.checked = false; }); });
   var links = Array.prototype.slice.call(nav.querySelectorAll('a'));
   var spyMap = { paging: 'schematic' };
   var progress = document.querySelector('.progress');
@@ -1325,179 +1365,26 @@
     reveals.forEach(function (el) { el.classList.add('in'); });
   }
 
-  /* ── paging simulator ── */
-  var ZONES = {
-    '1A': { pole: 1, ch: 'A', side: 'a' }, '1B': { pole: 1, ch: 'B', side: 'b' },
-    '2A': { pole: 2, ch: 'C', side: 'a' }, '2B': { pole: 2, ch: 'D', side: 'b' },
-    '3A': { pole: 3, ch: 'E', side: 'a' }, '3B': { pole: 3, ch: 'F', side: 'b' }
-  };
-  var SOURCES = {
-    page: { node: 'n-page', wire: 'w-page', verb: 'Live page from the <em>security office touchscreen</em>' },
-    voip: { node: 'n-voip', wire: 'w-voip', verb: 'Phone page from a <em>campus VoIP extension</em>' },
-    msg:  { node: 'n-msg',  wire: 'w-msg',  verb: '<em>Pre-recorded announcement</em> from the Core' },
-    bgm:  { node: 'n-bgm',  wire: 'w-bgm',  verb: '<em>Background music</em> from the Bluesound player' }
-  };
-  var INFO = {
-    page: ['assets/qsc-ps-tscg3-h.svg', 'Paging station — Q-SYS PS-TSCG3-H', 'Wall-mount touchscreen page station with a handheld push-to-talk mic, installed in the security office. Pick a zone, a pole or all-call, press and speak. Needs one PoE network connection.'],
-    voip: ['assets/qsc-core-8-flex.svg', 'VoIP phone page', 'Authorized staff dial a designated SIP extension from a campus phone and speak. Mason configures the Q-SYS softphone; MDC IT provides the extension, credentials, VLAN and firewall access.'],
-    msg:  ['assets/qsc-core-8-flex.svg', 'Recorded messages', 'Pre-recorded announcements stored on the Core and started from the touchscreen, a schedule or another agreed trigger. Message content is finalized with MDC during programming.'],
-    bgm:  ['assets/bluesound-b100s.svg', 'Bluesound Professional B100S', 'Network music player feeding the Core as the background music source. Music can play in any programmed zone, and pages always take priority over it.'],
-    core: ['assets/qsc-core-8-flex.svg', 'Q-SYS Core 8 Flex', 'The primary DSP, control processor, paging controller and audio router. Every source, priority rule and zone assignment lives here.'],
-    net:  ['assets/netgear-m4250-10g2f.svg', 'NETGEAR M4250-10G2F-PoE+', 'Managed AV switch for the Q-LAN audio and control network, with PoE+ for the paging station. It can run standalone or join MDC\'s network.'],
-    amp:  ['assets/qsc-cx-q-4k8.svg', 'Q-SYS CX-Q 4K8 network amplifier', 'Eight 500 W channels with 70V direct drive. Channels A–F each drive one 240 W zone; channels G and H remain spare for future Building 1 zones.']
-  };
-
-  var state = { src: 'page', zones: new Set(['1A', '1B', '2A', '2B', '3A', '3B']) };
+  /* ── simulator enhancements (core behaviour is CSS-driven) ── */
+  function setZones(list) {
+    document.querySelectorAll('.zc').forEach(function (c) { c.checked = list.indexOf(c.id.slice(2)) !== -1; });
+  }
+  function toggleZone(z) { var c = document.getElementById('c-' + z); if (c) c.checked = !c.checked; }
+  document.querySelectorAll('#group-chips .chip').forEach(function (b) {
+    b.addEventListener('click', function () { setZones(b.dataset.group ? b.dataset.group.split(',') : []); });
+  });
   var schem = document.getElementById('schem');
-  var site = document.getElementById('site');
-
-  function setWire(el, on) {
-    if (!el) return;
-    el.classList.toggle('on', on);
-    if (el.hasAttribute('marker-end')) el.setAttribute('marker-end', on ? 'url(#arrOn)' : 'url(#arr)');
-  }
-
-  /* build the site layout wedges + poles */
-  var POLES = [{ n: 1, x: 220, y: 250 }, { n: 2, x: 500, y: 250 }, { n: 3, x: 780, y: 250 }];
-  var DIRS = [{ a: -135, side: 'a' }, { a: -45, side: 'a' }, { a: 45, side: 'b' }, { a: 135, side: 'b' }];
-  var NS = 'http://www.w3.org/2000/svg';
-  var wedgesG = document.getElementById('site-wedges');
-  var polesG = document.getElementById('site-poles');
-  function pt(cx, cy, r, deg) { var t = deg * Math.PI / 180; return [cx + r * Math.cos(t), cy + r * Math.sin(t)]; }
-  POLES.forEach(function (p) {
-    DIRS.forEach(function (d) {
-      var r = 125, p1 = pt(p.x, p.y, r, d.a - 38), p2 = pt(p.x, p.y, r, d.a + 38);
-      var w = document.createElementNS(NS, 'path');
-      w.setAttribute('d', 'M' + p.x + ' ' + p.y + ' L' + p1[0].toFixed(1) + ' ' + p1[1].toFixed(1) + ' A' + r + ' ' + r + ' 0 0 1 ' + p2[0].toFixed(1) + ' ' + p2[1].toFixed(1) + ' Z');
-      var zone = p.n + d.side.toUpperCase();
-      w.setAttribute('class', 'wedge ' + d.side);
-      w.setAttribute('data-zone', zone);
-      var title = document.createElementNS(NS, 'title'); title.textContent = 'Zone ' + zone; w.appendChild(title);
-      wedgesG.appendChild(w);
-      var s = pt(p.x, p.y, 16, d.a);
-      var spk = document.createElementNS(NS, 'rect');
-      spk.setAttribute('x', -4); spk.setAttribute('y', -9); spk.setAttribute('width', 8); spk.setAttribute('height', 18); spk.setAttribute('rx', 2);
-      spk.setAttribute('class', 'spk');
-      spk.setAttribute('transform', 'translate(' + s[0].toFixed(1) + ' ' + s[1].toFixed(1) + ') rotate(' + (d.a + 90) + ')');
-      polesG.appendChild(spk);
-    });
-    var c = document.createElementNS(NS, 'circle');
-    c.setAttribute('cx', p.x); c.setAttribute('cy', p.y); c.setAttribute('r', 6); c.setAttribute('class', 'pole-dot');
-    polesG.appendChild(c);
-    var lbl = document.createElementNS(NS, 'text');
-    lbl.setAttribute('x', p.x); lbl.setAttribute('y', p.y + 152); lbl.setAttribute('text-anchor', 'middle'); lbl.setAttribute('fill', '#fff');
-    lbl.textContent = 'POLE ' + p.n;
-    polesG.appendChild(lbl);
-    [['A', -1], ['B', 1]].forEach(function (z) {
-      var t = document.createElementNS(NS, 'text');
-      t.setAttribute('x', p.x); t.setAttribute('y', p.y + z[1] * 70 + 5); t.setAttribute('text-anchor', 'middle');
-      t.setAttribute('fill', z[0] === 'A' ? '#2eaadc' : '#9b8cd9'); t.setAttribute('font-size', '14');
-      t.textContent = p.n + z[0];
-      polesG.appendChild(t);
-    });
-  });
-
-  function render() {
-    var sel = Array.from(state.zones).sort();
-    var src = SOURCES[state.src];
-    var any = sel.length > 0;
-
-    document.querySelectorAll('#src-chips .chip').forEach(function (c) { c.setAttribute('aria-pressed', c.dataset.src === state.src); });
-    document.querySelectorAll('#zone-chips .chip[data-zone]').forEach(function (c) { c.setAttribute('aria-pressed', state.zones.has(c.dataset.zone)); });
-
-    schem.querySelectorAll('.node').forEach(function (n) { n.classList.remove('on'); });
-    schem.querySelectorAll('.wire').forEach(function (w) { setWire(w, false); });
-
-    if (any) {
-      document.getElementById(src.node).classList.add('on');
-      setWire(document.getElementById(src.wire), true);
-      ['n-core', 'n-amp'].forEach(function (id) { document.getElementById(id).classList.add('on'); });
-      setWire(document.getElementById('w-amp'), true);
-      setWire(document.getElementById('w-net'), true);
-      document.getElementById('n-net').classList.add('on');
-    }
-    var poles = {};
-    sel.forEach(function (z) {
-      document.getElementById('z-' + z).classList.add('on');
-      poles[ZONES[z].pole] = true;
-    });
-    Object.keys(poles).forEach(function (p) { setWire(document.getElementById('w-p' + p), true); });
-    site.querySelectorAll('.wedge').forEach(function (w) { w.classList.toggle('on', state.zones.has(w.dataset.zone)); });
-
-    var msg = document.getElementById('sim-msg');
-    var dot = document.getElementById('live-dot');
-    dot.classList.toggle('off', !any);
-    if (!any) {
-      msg.innerHTML = 'Choose one or more zones to route ' + src.verb.replace(/<[^>]+>/g, '').toLowerCase() + '.';
-    } else {
-      var where = sel.length === 6 ? 'all six zones (all call)' : (sel.length === 1 ? 'Zone ' + sel[0] : 'Zones ' + sel.join(', '));
-      var tail = state.src === 'bgm'
-        ? ' Any page takes priority over the music.'
-        : ' The page takes priority over background music in ' + (sel.length === 1 ? 'that zone.' : 'those zones.');
-      msg.innerHTML = src.verb + ' → ' + where + '.' + tail;
-    }
-    document.getElementById('sim-load').textContent = (sel.length * 240).toLocaleString() + ' W of 4,000 W';
-    document.getElementById('sim-ch').textContent = any ? 'Amp ch. ' + sel.map(function (z) { return ZONES[z].ch; }).join(' ') : 'No channels';
-  }
-
-  function toggleZone(z) { if (state.zones.has(z)) state.zones.delete(z); else state.zones.add(z); render(); }
-
-  document.querySelectorAll('#src-chips .chip').forEach(function (c) {
-    c.addEventListener('click', function () { state.src = c.dataset.src; showInfo(c.dataset.src); render(); });
-  });
-  document.querySelectorAll('#zone-chips .chip').forEach(function (c) {
-    c.addEventListener('click', function () {
-      if (c.dataset.zone) return toggleZone(c.dataset.zone);
-      state.zones = new Set(c.dataset.group ? c.dataset.group.split(',') : []);
-      render();
-    });
-  });
-  site.addEventListener('click', function (e) { var w = e.target.closest('.wedge'); if (w) toggleZone(w.dataset.zone); });
-
-  var ni = { img: document.getElementById('ni-img'), title: document.getElementById('ni-title'), text: document.getElementById('ni-text') };
-  function showInfo(key) {
-    var d = INFO[key]; if (!d) return;
-    ni.img.src = d[0]; ni.title.textContent = d[1]; ni.text.textContent = d[2];
-    schem.querySelectorAll('.node').forEach(function (n) { n.classList.toggle('sel', n.dataset.info === key); });
-  }
-  function activateNode(n) {
-    if (n.dataset.zone) return toggleZone(n.dataset.zone);
-    var key = n.dataset.info;
-    if (SOURCES[key]) { state.src = key; render(); }
-    showInfo(key);
-  }
   schem.querySelectorAll('.node').forEach(function (n) {
-    n.addEventListener('click', function () { activateNode(n); });
-    n.addEventListener('keydown', function (e) { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); activateNode(n); } });
+    function act() {
+      if (n.dataset.zone) return toggleZone(n.dataset.zone);
+      var r = document.getElementById('s-' + n.dataset.info); if (r) r.checked = true;
+    }
+    n.addEventListener('click', act);
+    n.addEventListener('keydown', function (e) { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); act(); } });
   });
-
-  /* schematic / site tabs */
-  var tabs = document.querySelectorAll('.schem-tabs .tab');
-  tabs.forEach(function (t) {
-    t.addEventListener('click', function () {
-      tabs.forEach(function (o) {
-        var on = o === t;
-        o.setAttribute('aria-selected', on);
-        var panel = document.getElementById(o.getAttribute('aria-controls'));
-        panel.hidden = !on;
-        if (on) panel.classList.add('in');
-      });
-    });
+  document.getElementById('site').addEventListener('click', function (e) {
+    var w = e.target.closest('.wedge'); if (w) toggleZone(w.dataset.zone);
   });
-
-  /* component filter */
-  var filterChips = document.querySelectorAll('.filter-bar .chip');
-  filterChips.forEach(function (c) {
-    c.addEventListener('click', function () {
-      filterChips.forEach(function (o) { o.setAttribute('aria-pressed', o === c); });
-      document.querySelectorAll('#product-grid .product').forEach(function (p) {
-        p.classList.toggle('hide', c.dataset.filter !== 'all' && p.dataset.cat !== c.dataset.filter);
-      });
-    });
-  });
-
-  showInfo('core');
-  render();
 })();
 </script>
 
