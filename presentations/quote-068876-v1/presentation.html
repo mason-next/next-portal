@@ -1354,6 +1354,17 @@
   window.addEventListener('scroll', onScroll, { passive: true });
   onScroll();
 
+  /* ── in-page links: scroll directly. The portal injects a <base href>, which would
+        otherwise resolve "#section" against the asset folder and navigate away. ── */
+  document.addEventListener('click', function (e) {
+    var a = e.target.closest && e.target.closest('a[href^="#"]');
+    if (!a) return;
+    var target = document.getElementById(a.getAttribute('href').slice(1));
+    if (!target) return;
+    e.preventDefault();
+    target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  });
+
   /* ── reveal on scroll ── */
   var reveals = document.querySelectorAll('.reveal');
   if ('IntersectionObserver' in window) {
