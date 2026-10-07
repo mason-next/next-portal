@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 400">
+  <defs>
+    <linearGradient id="pole" x1="0" x2="1"><stop offset="0" stop-color="#14161a"/><stop offset=".4" stop-color="#3d434b"/><stop offset="1" stop-color="#101215"/></linearGradient>
+    <linearGradient id="spk" x1="0" x2="1"><stop offset="0" stop-color="#1c1f23"/><stop offset=".5" stop-color="#3a3f46"/><stop offset="1" stop-color="#16181b"/></linearGradient>
+    <radialGradient id="sh"><stop offset="0" stop-color="#000" stop-opacity=".35"/><stop offset="1" stop-color="#000" stop-opacity="0"/></radialGradient>
+  </defs>
+  <ellipse cx="200" cy="388" rx="90" ry="7" fill="url(#sh)"/>
+  <rect x="190" y="20" width="20" height="368" fill="url(#pole)"/>
+  <rect x="180" y="378" width="40" height="10" rx="2" fill="#1a1c20"/>
+  <!-- four columns: left, right (profile), front, back -->
+  <g transform="rotate(-6 150 120)"><rect x="140" y="40" width="22" height="150" rx="5" fill="url(#spk)" stroke="#4a5058"/></g>
+  <g transform="rotate(6 250 120)"><rect x="238" y="40" width="22" height="150" rx="5" fill="url(#spk)" stroke="#4a5058"/></g>
+  <rect x="186" y="34" width="28" height="154" rx="6" fill="url(#spk)" stroke="#55606b"/>
+  <g fill="#9aa2ab"><rect x="162" y="70" width="28" height="6"/><rect x="162" y="160" width="28" height="6"/><rect x="210" y="70" width="28" height="6"/><rect x="210" y="160" width="28" height="6"/></g>
+  <!-- enclosure -->
+  <rect x="210" y="250" width="34" height="42" rx="4" fill="#c4c9cf" stroke="#8b9199"/>
+</svg>

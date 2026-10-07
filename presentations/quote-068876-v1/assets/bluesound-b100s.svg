@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 400">
+  <defs>
+    <linearGradient id="top" x1="0" x2="0" y1="0" y2="1"><stop offset="0" stop-color="#3e434a"/><stop offset="1" stop-color="#22252a"/></linearGradient>
+    <linearGradient id="front" x1="0" x2="0" y1="0" y2="1"><stop offset="0" stop-color="#25282d"/><stop offset="1" stop-color="#0f1113"/></linearGradient>
+    <radialGradient id="sh"><stop offset="0" stop-color="#000" stop-opacity=".35"/><stop offset="1" stop-color="#000" stop-opacity="0"/></radialGradient>
+  </defs>
+  <ellipse cx="200" cy="262" rx="150" ry="10" fill="url(#sh)"/>
+  <path d="M70 168 L110 132 L346 132 L306 168 Z" fill="url(#top)"/>
+  <path d="M306 168 L346 132 L346 214 L306 252 Z" fill="#181a1e"/>
+  <rect x="70" y="168" width="236" height="84" rx="8" fill="url(#front)" stroke="#40454c"/>
+  <text x="96" y="216" font-family="Segoe UI, Arial, sans-serif" font-size="17" font-weight="600" fill="#e9edf1" letter-spacing=".5">BLUESOUND</text>
+  <text x="96" y="232" font-family="Segoe UI, Arial, sans-serif" font-size="9" fill="#9aa2ab" letter-spacing="2">PROFESSIONAL · B100S</text>
+  <circle cx="276" cy="210" r="10" fill="#0b0c0e" stroke="#3a3f46"/><circle cx="276" cy="210" r="3.5" fill="#4fc3ff"/>
+</svg>

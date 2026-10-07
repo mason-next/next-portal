@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 400">
+  <defs>
+    <linearGradient id="clear" x1="0" x2="1" y1="0" y2="1"><stop offset="0" stop-color="#ffffff" stop-opacity=".85"/><stop offset="1" stop-color="#cfd8e2" stop-opacity=".6"/></linearGradient>
+    <linearGradient id="jacket" x1="0" x2="0" y1="0" y2="1"><stop offset="0" stop-color="#ffffff"/><stop offset="1" stop-color="#cdd5de"/></linearGradient>
+  </defs>
+  <!-- cable -->
+  <path d="M30 330 C 110 330, 150 250, 190 222" fill="none" stroke="#9fb0c2" stroke-width="30" stroke-linecap="round"/>
+  <path d="M30 330 C 110 330, 150 250, 190 222" fill="none" stroke="url(#jacket)" stroke-width="26" stroke-linecap="round"/>
+  <!-- boot -->
+  <path d="M176 206 L222 170 L246 200 L200 236 Z" fill="#e9eef3" stroke="#9fb0c2"/>
+  <!-- connector body -->
+  <g transform="rotate(-38 280 150)">
+    <rect x="230" y="118" width="110" height="64" rx="6" fill="url(#clear)" stroke="#9fb0c2" stroke-width="2"/>
+    <g fill="#d4a63a"><rect x="312" y="124" width="4" height="20"/><rect x="304" y="124" width="4" height="20"/><rect x="296" y="124" width="4" height="20"/><rect x="288" y="124" width="4" height="20"/><rect x="280" y="124" width="4" height="20"/><rect x="272" y="124" width="4" height="20"/><rect x="264" y="124" width="4" height="20"/><rect x="256" y="124" width="4" height="20"/></g>
+    <g stroke-width="3"><path d="M240 160 H330" stroke="#f39c12"/><path d="M240 166 H330" stroke="#27ae60"/><path d="M240 172 H330" stroke="#2980b9"/><path d="M240 154 H330" stroke="#8e5a2b"/></g>
+    <path d="M250 182 L250 200 L320 200 L330 182" fill="url(#clear)" stroke="#9fb0c2" stroke-width="2"/>
+  </g>
+  <text x="200" y="384" font-family="Segoe UI, Arial, sans-serif" font-size="13" fill="#c8d2dc" text-anchor="middle" letter-spacing="1.5">CAT6 · PLENUM (CMP)</text>
+</svg>

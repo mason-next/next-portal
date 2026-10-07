@@ -1,0 +1,34 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 400">
+  <defs>
+    <linearGradient id="pole" x1="0" x2="1">
+      <stop offset="0" stop-color="#1b1e22"/><stop offset=".35" stop-color="#4a5058"/><stop offset=".6" stop-color="#2a2e33"/><stop offset="1" stop-color="#121417"/>
+    </linearGradient>
+    <linearGradient id="ss" x1="0" x2="0" y1="0" y2="1">
+      <stop offset="0" stop-color="#f4f6f8"/><stop offset=".45" stop-color="#b7bec6"/><stop offset=".55" stop-color="#d9dee3"/><stop offset="1" stop-color="#8e969f"/>
+    </linearGradient>
+    <linearGradient id="ssv" x1="0" x2="1">
+      <stop offset="0" stop-color="#9aa2ab"/><stop offset=".4" stop-color="#eef1f4"/><stop offset="1" stop-color="#a7afb8"/>
+    </linearGradient>
+  </defs>
+  <!-- pole section -->
+  <rect x="88" y="10" width="78" height="380" fill="url(#pole)"/>
+  <!-- band clamps -->
+  <g>
+    <path d="M80 92 h94 a6 6 0 0 1 6 6 v22 a6 6 0 0 1 -6 6 h-94 a6 6 0 0 1 -6 -6 v-22 a6 6 0 0 1 6 -6z" fill="url(#ss)" stroke="#7d858e"/>
+    <path d="M80 270 h94 a6 6 0 0 1 6 6 v22 a6 6 0 0 1 -6 6 h-94 a6 6 0 0 1 -6 -6 v-22 a6 6 0 0 1 6 -6z" fill="url(#ss)" stroke="#7d858e"/>
+  </g>
+  <!-- vertical back plate -->
+  <rect x="178" y="74" width="26" height="248" rx="4" fill="url(#ssv)" stroke="#7d858e"/>
+  <g fill="#6f7780" stroke="#4e555d">
+    <circle cx="191" cy="109" r="6"/><circle cx="191" cy="287" r="6"/>
+  </g>
+  <g stroke="#3f454c" stroke-width="2"><path d="M187 109h8M187 287h8"/></g>
+  <!-- standoff arms -->
+  <path d="M204 120 L296 140 L296 164 L204 150 Z" fill="url(#ss)" stroke="#7d858e"/>
+  <path d="M204 246 L296 232 L296 256 L204 276 Z" fill="url(#ss)" stroke="#7d858e"/>
+  <!-- speaker mounting plate -->
+  <rect x="292" y="122" width="22" height="152" rx="4" fill="url(#ssv)" stroke="#7d858e"/>
+  <g fill="#2a2f35"><rect x="298" y="140" width="10" height="22" rx="5"/><rect x="298" y="234" width="10" height="22" rx="5"/></g>
+  <g fill="#c9cfd5" stroke="#6f7780"><circle cx="303" cy="198" r="7"/></g>
+  <text x="200" y="356" font-family="Segoe UI, Arial, sans-serif" font-size="13" fill="#c8d2dc" text-anchor="middle" letter-spacing="1.5">CORROSION-RESISTANT · WIND-LOAD RATED</text>
+</svg>
