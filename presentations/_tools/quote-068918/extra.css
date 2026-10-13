@@ -183,3 +183,6 @@
   .sd-read li::before { content: counter(s); width: 20px; height: 20px; border-radius: 50%; background: rgba(200,168,75,0.15); color: var(--gold); font-size: 11px; font-weight: 700; display: inline-flex; align-items: center; justify-content: center; }
   .sd-read li b { color: #fff; font-size: 11.5px; text-transform: uppercase; letter-spacing: .6px; }
   .cp-c-tp .screen { min-height: 0; }
+
+  .cta-contacts { grid-template-columns: repeat(3, minmax(0, 260px)); }
+  @media (max-width: 960px) { .cta-contacts { grid-template-columns: 1fr; max-width: 360px; margin: 0 auto; } }

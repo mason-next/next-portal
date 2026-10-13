@@ -28,12 +28,16 @@ def hero_svg():
         s.append(f'<rect x="{x}" y="191" width="20" height="8" rx="1" fill="#1b1e22" stroke="#8a939d" stroke-width=".8"/>')
     for x in (118, 178, 232, 286, 340, 392):
         s.append(f'<rect x="{x-3}" y="182" width="7" height="6" rx="1" fill="#0b1520" stroke="#cfd6de" stroke-width=".8"/>')
-    # arrays
+    # arrays: front elevation, four cabinets hung from a frame, lower boxes foreshortened by their down-tilt
     for cx, sgn in ((80, 1), (400, -1)):
-        s.append(f'<line x1="{cx}" y1="8" x2="{cx}" y2="22" stroke="#8a939d" stroke-width="1.4"/>')
-        for i, rot in enumerate((0, 2, 5, 9)):
-            s.append(f'<rect x="{cx-12}" y="{22+i*9}" width="24" height="8" rx="1.5" fill="#0b1520" stroke="#cfd6de" stroke-width="1" transform="rotate({rot*sgn} {cx} {22+i*9})"/>')
-        s.append(f'<g fill="none" stroke="#c8a84b" stroke-linecap="round"><path d="M{cx+16*sgn} 40 q{18*sgn} 16 0 32" stroke-width="2"/><path d="M{cx+24*sgn} 34 q{28*sgn} 22 0 46" stroke-width="1.5" opacity=".55"/></g>')
+        s.append(f'<line x1="{cx-8}" y1="4" x2="{cx-8}" y2="15" stroke="#8a939d" stroke-width="1"/><line x1="{cx+8}" y1="4" x2="{cx+8}" y2="15" stroke="#8a939d" stroke-width="1"/>')
+        s.append(f'<rect x="{cx-16}" y="15" width="32" height="3" rx="1" fill="#59616b"/>')
+        y = 19
+        for hgt in (9, 8.6, 7.8, 6.6):
+            s.append(f'<rect x="{cx-15}" y="{y}" width="30" height="{hgt}" rx="1" fill="#15181c" stroke="#59616b" stroke-width=".7"/>')
+            s.append(f'<ellipse cx="{cx-8}" cy="{y+hgt/2}" rx="4.6" ry="{hgt*0.36:.1f}" fill="#000" opacity=".55"/><ellipse cx="{cx+8}" cy="{y+hgt/2}" rx="4.6" ry="{hgt*0.36:.1f}" fill="#000" opacity=".55"/>')
+            y += hgt + 0.8
+        s.append(f'<g fill="none" stroke="#c8a84b" stroke-linecap="round"><path d="M{cx+20*sgn} 30 q{16*sgn} 14 0 28" stroke-width="2"/><path d="M{cx+27*sgn} 24 q{26*sgn} 20 0 40" stroke-width="1.5" opacity=".55"/></g>')
     # center cluster
     s.append('<line x1="240" y1="2" x2="240" y2="12" stroke="#8a939d" stroke-width="1.4"/><path d="M230 12 h20 l-3 16 h-14 z" fill="#0b1520" stroke="#cfd6de"/>')
     # side displays

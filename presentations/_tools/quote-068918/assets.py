@@ -60,10 +60,9 @@ def array_box(x, y, w, h, rot, cx):
             f'<rect x="{x+4}" y="{y+3}" width="{w-8}" height="{h-6}" rx="1.5" fill="url(#g)"/>'
             f'<text x="{x+w-22}" y="{y+h-4}" {F} font-size="4.5" fill="#6b737c">YME</text></g>')
 
-body = '<rect x="60" y="14" width="120" height="6" rx="1.5" fill="#3a414a" stroke="#5a636d"/><path d="M80 14 L120 4 L160 14" fill="none" stroke="#8a939d" stroke-width="1.4"/>'
-for i, (y, rot) in enumerate([(22, 0), (49, 2), (76, 5), (103, 9)]):
-    body += array_box(64, y, 112, 26, rot, 120)
-A["yme-ia211x"] = svg(shadow(120, 152, 70) + body)
+from linearray import line_array
+_d, _b, _bot = line_array(x0=40, y0=24, uid="ia")
+A["yme-ia211x"] = svg('<defs>' + _d + '</defs>' + f'<ellipse cx="122" cy="{_bot+16:.0f}" rx="86" ry="5" fill="#000" opacity=".16"/>' + _b, "10 -2 220 196")
 
 A["yme-ia218b"] = svg(shadow(120, 140, 92) + '<rect x="32" y="40" width="176" height="92" rx="4" fill="#1b1e22" stroke="#4a525c"/>'
     '<rect x="32" y="40" width="176" height="20" rx="4" fill="url(#sh)"/>'

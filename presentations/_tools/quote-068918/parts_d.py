@@ -319,6 +319,7 @@ def why():
       <p>Questions about the PA, the cameras, the control room or the renovation schedule? Your Mason team is one call away.</p>
       <div class="cta-contacts">
         <div class="cta-card"><div class="cta-role">Enterprise Director</div><div class="cta-name">Edward Puerta</div><div class="cta-detail gold"><a href="tel:+13054326620">(305) 432-6620</a></div><div class="cta-detail"><a href="mailto:epuerta@mason247.com">epuerta@mason247.com</a></div></div>
+        <div class="cta-card"><div class="cta-role">Managing Director</div><div class="cta-name">Juan Lazo</div><div class="cta-detail gold"><a href="tel:+13052997957">(305) 299-7957</a></div><div class="cta-detail"><a href="mailto:jlazo@mason247.com">jlazo@mason247.com</a></div></div>
         <div class="cta-card"><div class="cta-role">Mason Technologies</div><div class="cta-name"><a href="tel:+18779473786">877-947-3786</a></div><div class="cta-detail"><a href="https://mason247.com">mason247.com</a></div></div>
       </div>
     </div>
