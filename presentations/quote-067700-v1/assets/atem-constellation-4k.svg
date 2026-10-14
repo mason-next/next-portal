@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 120"><defs><linearGradient id="b" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#3a3f47"/><stop offset="1" stop-color="#1c1f24"/></linearGradient></defs>
+<rect x="4" y="30" width="18" height="60" rx="2" fill="#2a2e34"/><rect x="298" y="30" width="18" height="60" rx="2" fill="#2a2e34"/>
+<circle cx="13" cy="42" r="3" fill="#888"/><circle cx="13" cy="78" r="3" fill="#888"/><circle cx="307" cy="42" r="3" fill="#888"/><circle cx="307" cy="78" r="3" fill="#888"/>
+<rect x="20" y="28" width="280" height="64" rx="4" fill="url(#b)"/>
+<rect x="34" y="40" width="70" height="40" rx="3" fill="#0b1626"/><rect x="38" y="44" width="30" height="15" fill="#3d6fa8"/><rect x="70" y="44" width="30" height="15" fill="#a83d3d"/>
+<g fill="#1d5f9c"><rect x="38" y="62" width="14" height="7"/><rect x="54" y="62" width="14" height="7"/><rect x="70" y="62" width="14" height="7"/><rect x="86" y="62" width="14" height="7"/></g>
+<g fill="#5b6270"><rect x="118" y="44" width="12" height="8" rx="1"/><rect x="134" y="44" width="12" height="8" rx="1"/><rect x="150" y="44" width="12" height="8" rx="1"/><rect x="166" y="44" width="12" height="8" rx="1"/><rect x="182" y="44" width="12" height="8" rx="1"/><rect x="198" y="44" width="12" height="8" rx="1"/><rect x="118" y="58" width="12" height="8" rx="1"/><rect x="134" y="58" width="12" height="8" rx="1"/><rect x="150" y="58" width="12" height="8" rx="1"/><rect x="166" y="58" width="12" height="8" rx="1"/><rect x="182" y="58" width="12" height="8" rx="1"/><rect x="198" y="58" width="12" height="8" rx="1"/></g>
+<rect x="118" y="72" width="12" height="8" rx="1" fill="#d9483b"/><rect x="134" y="72" width="12" height="8" rx="1" fill="#3fae5a"/>
+<circle cx="240" cy="60" r="14" fill="#2b2f36" stroke="#5b6270" stroke-width="2"/><circle cx="240" cy="60" r="4" fill="#5b6270"/>
+<rect x="266" y="44" width="22" height="32" rx="3" fill="#2b2f36"/><rect x="270" y="50" width="14" height="4" fill="#c8a84b"/>
+<text x="160" y="104" font-family="Segoe UI,Arial" font-size="8" fill="#777" text-anchor="middle">ATEM 4 M/E CONSTELLATION 4K</text></svg>
