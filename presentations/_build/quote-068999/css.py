@@ -9,7 +9,7 @@ html{scroll-behavior:smooth;scroll-padding-top:128px}
 body{margin:0;background:var(--bg);color:var(--text);font-family:"Segoe UI",system-ui,-apple-system,sans-serif;line-height:1.55;-webkit-font-smoothing:antialiased;overflow-x:hidden}
 img{max-width:100%}
 a{color:var(--gold2)}
-.sr{position:absolute;opacity:0;width:1px;height:1px;pointer-events:none}
+.sr{position:fixed;top:0;left:0;opacity:0;width:1px;height:1px;pointer-events:none;margin:0}
 .wrap{max-width:1180px;margin:0 auto;padding:0 24px}
 section{padding:84px 0;border-top:1px solid var(--line)}
 .eyebrow{color:var(--gold);font-size:12px;font-weight:700;letter-spacing:.18em;text-transform:uppercase;margin:0 0 10px}
