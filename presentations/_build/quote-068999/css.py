@@ -223,6 +223,7 @@ table.cmp{width:100%;border-collapse:collapse;min-width:760px;font-size:14px}
 .stat .n{font-size:40px;font-weight:800;color:var(--gold);line-height:1}
 .stat .l{margin-top:8px;color:var(--muted);font-size:14px}
 .logo-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:12px;margin-top:20px}
+.logo-tile img{display:block;max-height:44px;max-width:140px;width:auto;height:auto;object-fit:contain}
 .logo-tile{background:#2a3547;border:1px solid rgba(255,255,255,.08);border-radius:12px;height:84px;display:grid;place-items:center;font-weight:800;font-size:18px;letter-spacing:.02em;color:#fff;text-align:center;padding:0 10px}
 .contact{display:flex;flex-direction:column;gap:4px}
 .contact .r{font-size:12px;letter-spacing:.14em;text-transform:uppercase;color:var(--gold);font-weight:700}
