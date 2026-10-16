@@ -38,7 +38,8 @@ h4{font-size:15px;margin-bottom:6px}
 .nav-logos{display:flex;align-items:center;gap:14px;line-height:0}
 .nav-logos img{display:block}
 .nav-logos .mason{height:34px;width:auto}
-.nav-logos .cust{height:30px;width:auto}
+.nav-logos .cust{height:42px;width:auto}
+.nav-logos .cdw{height:20px;width:auto}
 .nav-logos .vr{width:1px;height:30px;background:rgba(255,255,255,.25)}
 .nav-links{display:flex;gap:22px;align-items:center}
 .nav-links a{color:var(--text);text-decoration:none;font-size:14px;opacity:.85}
@@ -85,8 +86,11 @@ h4{font-size:15px;margin-bottom:6px}
 
 /* ---------- hero ---------- */
 .hero{padding:70px 0 60px;border-top:0;background:radial-gradient(1200px 500px at 85% -10%,rgba(200,168,75,.16),transparent 60%),radial-gradient(900px 500px at -10% 110%,rgba(77,163,255,.10),transparent 60%)}
-.lockup{display:flex;align-items:center;gap:18px;margin-bottom:34px;line-height:0}
+.lockup{display:flex;align-items:center;flex-wrap:wrap;gap:18px;margin-bottom:34px;line-height:0}
 .lockup img{display:block;height:48px;width:auto}
+.lockup .via{color:var(--muted);font-size:13px;line-height:1;letter-spacing:.08em;text-transform:uppercase;padding-left:18px;border-left:1px solid rgba(255,255,255,.25);height:48px;display:flex;align-items:center}
+.lockup img.ftai{height:66px}
+.lockup img.cdw{height:32px}
 .lockup .x{color:var(--gold);font-size:22px;line-height:1;font-weight:300}
 .hero h1 span{color:var(--gold)}
 .hero .lede{margin-top:20px}
@@ -237,10 +241,12 @@ footer{padding:46px 0 60px;border-top:1px solid var(--line);background:var(--bg2
 .foot{display:flex;justify-content:space-between;gap:20px;flex-wrap:wrap;align-items:center}
 .foot .logos{display:flex;align-items:center;gap:14px;line-height:0}
 .foot .logos img{display:block;height:26px;width:auto;opacity:.85}
+.foot .logos img.ftai{height:36px}
 @media (max-width:600px){
   .wrap{padding:0 16px}
   section{padding:60px 0}
-  .nav-logos .mason{height:28px}.nav-logos .cust{height:24px}
+  .nav-logos .mason{height:28px}.nav-logos .cust{height:34px}.nav-logos .cdw,.nav-logos .cdwv{display:none}
+  .lockup .via{border-left:0;padding-left:0;height:auto;width:100%}.lockup img.cdw{height:26px}.lockup img.ftai{height:48px}
   .lockup img{height:36px}
   .optbar .lab{display:none}
   .pill{padding:6px 12px;font-size:13px}.pill small{display:none}
@@ -261,7 +267,7 @@ footer{padding:46px 0 60px;border-top:1px solid var(--line);background:var(--bg2
 <div class="page">
 
 <nav class="site-nav"><div class="wrap">
-  <div class="nav-logos"><img class="mason" src="mason-logo-white.png" alt="Mason Technologies"><span class="vr"></span><img class="cust" src="ftai-logo-white.svg" alt="FTAI Aviation"></div>
+  <div class="nav-logos"><img class="mason" src="mason-logo-white.png" alt="Mason Technologies"><span class="vr"></span><img class="cust" src="ftai-logo-white.png" alt="FTAI Aviation"><span class="vr cdwv"></span><img class="cdw" src="cdw-logo-white.svg" alt="CDW"></div>
   <label class="burger" for="nav-t" aria-label="Menu"><span></span><span></span><span></span></label>
   <div class="nav-links"><a href="#hero">Overview</a><a href="#options">Options</a><a href="#how">How it works</a><a href="#control">Control</a><a href="#flow">Signal flow</a><a href="#compare">Compare</a><a href="#why">Contact</a></div>
 </div></nav>
@@ -273,13 +279,13 @@ footer{padding:46px 0 60px;border-top:1px solid var(--line);background:var(--bg2
   <span class="tiny" style="margin-left:auto">Pick an option. The whole page follows it.</span></div></div>
 
 <header class="hero" id="hero"><div class="wrap">
-  <div class="lockup"><img src="mason-logo-white.png" alt="Mason Technologies"><span class="x">×</span><img src="ftai-logo-white.svg" alt="FTAI Aviation"></div>
+  <div class="lockup"><img src="mason-logo-white.png" alt="Mason Technologies"><span class="x">×</span><img class="ftai" src="ftai-logo-white.png" alt="FTAI Aviation"><span class="via">in partnership with</span><img class="cdw" src="cdw-logo-white.svg" alt="CDW"></div>
   <p class="eyebrow">Main conference room · Miami Airport</p>
   <h1>A conference room where <span>every seat is heard</span> and every screen works together.</h1>
-  <p class="lede">Three ways to upgrade FTAI Aviation's main conference room. This page skips the parts list and shows how each option works: what people do in each kind of meeting, what each of the four screens shows, how the signals move, and what controls the room.</p>
+  <p class="lede">Three ways to upgrade FTAI Aviation's main conference room, delivered by Mason Technologies with CDW. This page skips the parts list and shows how each option works: what people do in each kind of meeting, what each of the four screens shows, how the signals move, and what controls the room.</p>
   <div class="howto"><span>1. Pick Good, Better or Best</span><span>2. Choose what you're doing in the room</span><span>3. See the screens, the steps and the signal path</span></div>
   <div class="meta">
-    <div class="card"><div class="k">Prepared for</div><div class="v">CDW</div><div class="s">Erick Villalobos</div></div>
+    <div class="card"><div class="k">Prepared for</div><div class="v"><img src="cdw-logo-white.svg" alt="CDW" style="display:block;height:22px;width:auto;margin:4px 0 6px"></div><div class="s">Erick Villalobos</div></div>
     <div class="card"><div class="k">End user</div><div class="v">FTAI Aviation</div><div class="s">Miami Airport · main conference room</div></div>
     <div class="card"><div class="k">The room</div><div class="v">About 30 × 15 ft</div><div class="s">15 ft table · 4 existing displays</div></div>
     <div class="card"><div class="k">Proposal</div><div class="v">Quote #068999</div><div class="s">Version 1 · valid through November 13, 2026</div></div>
@@ -542,13 +548,13 @@ footer{padding:46px 0 60px;border-top:1px solid var(--line);background:var(--bg2
   </div>
   <div class="grid g3" style="margin-top:44px">
     <div class="card contact"><span class="r">Mason Technologies</span><span class="nm">Edward Puerta</span><a href="mailto:epuerta@mason247.com">epuerta@mason247.com</a><a href="tel:+13054326620">305-432-6620</a></div>
-    <div class="card contact"><span class="r">CDW</span><span class="nm">Erick Villalobos</span><a href="mailto:erick.villalobos@cdw.com">erick.villalobos@cdw.com</a><span class="muted small">Pricing and procurement</span></div>
+    <div class="card contact"><span class="r">CDW · Technology partner</span><span class="nm">Erick Villalobos</span><a href="mailto:erick.villalobos@cdw.com">erick.villalobos@cdw.com</a><span class="muted small">Pricing and procurement</span></div>
     <div class="card contact"><span class="r">24/7 support line</span><span class="nm">877-947-3786</span><a href="https://mason247.com">mason247.com</a></div>
   </div>
 </div></section>
 
 <footer><div class="wrap foot">
-  <div class="logos"><img src="mason-logo-white.png" alt="Mason Technologies"><img src="ftai-logo-white.svg" alt="FTAI Aviation"></div>
+  <div class="logos"><img src="mason-logo-white.png" alt="Mason Technologies"><img class="ftai" src="ftai-logo-white.png" alt="FTAI Aviation"><img src="cdw-logo-white.svg" alt="CDW"></div>
   <div class="tiny">CDW – FTAI Miami Airport Conference Room Upgrades · Quote #068999 v1 · Valid through November 13, 2026<br>Pricing is provided separately by CDW. Final details are confirmed on site and in the approved scope of work.</div>
 </div></footer>
 </div>
