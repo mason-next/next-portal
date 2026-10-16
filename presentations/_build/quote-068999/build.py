@@ -267,7 +267,7 @@ def page():
 <div class="page">
 
 <nav class="site-nav"><div class="wrap">
-  <div class="nav-logos"><img class="mason" src="mason-logo-white.png" alt="Mason Technologies"><span class="vr"></span><img class="cust" src="ftai-logo-white.png" alt="FTAI Aviation"><span class="vr cdwv"></span><img class="cdw" src="cdw-logo-white.svg" alt="CDW"></div>
+  <div class="nav-logos"><img class="mason" src="mason-logo-white.png" alt="Mason Technologies"><span class="vr"></span><img class="cust" src="ftai-logo-white.png" alt="FTAI Aviation"><span class="vr cdwv"></span><img class="cdw" src="cdw-logo.png" alt="CDW"></div>
   <label class="burger" for="nav-t" aria-label="Menu"><span></span><span></span><span></span></label>
   <div class="nav-links"><a href="#hero">Overview</a><a href="#options">Options</a><a href="#how">How it works</a><a href="#control">Control</a><a href="#flow">Signal flow</a><a href="#compare">Compare</a><a href="#why">Contact</a></div>
 </div></nav>
@@ -279,13 +279,13 @@ def page():
   <span class="tiny" style="margin-left:auto">Pick an option. The whole page follows it.</span></div></div>
 
 <header class="hero" id="hero"><div class="wrap">
-  <div class="lockup"><img src="mason-logo-white.png" alt="Mason Technologies"><span class="x">×</span><img class="ftai" src="ftai-logo-white.png" alt="FTAI Aviation"><span class="via">in partnership with</span><img class="cdw" src="cdw-logo-white.svg" alt="CDW"></div>
+  <div class="lockup"><img src="mason-logo-white.png" alt="Mason Technologies"><span class="x">×</span><img class="ftai" src="ftai-logo-white.png" alt="FTAI Aviation"><span class="via">in partnership with</span><img class="cdw" src="cdw-logo.png" alt="CDW"></div>
   <p class="eyebrow">Main conference room · Miami Airport</p>
   <h1>A conference room where <span>every seat is heard</span> and every screen works together.</h1>
   <p class="lede">Three ways to upgrade FTAI Aviation's main conference room, delivered by Mason Technologies with CDW. This page skips the parts list and shows how each option works: what people do in each kind of meeting, what each of the four screens shows, how the signals move, and what controls the room.</p>
   <div class="howto"><span>1. Pick Good, Better or Best</span><span>2. Choose what you're doing in the room</span><span>3. See the screens, the steps and the signal path</span></div>
   <div class="meta">
-    <div class="card"><div class="k">Prepared for</div><div class="v"><img src="cdw-logo-white.svg" alt="CDW" style="display:block;height:22px;width:auto;margin:4px 0 6px"></div><div class="s">Erick Villalobos</div></div>
+    <div class="card"><div class="k">Prepared for</div><div class="v"><img src="cdw-logo.png" alt="CDW" style="display:block;height:34px;width:auto;margin:4px 0 6px"></div><div class="s">Erick Villalobos</div></div>
     <div class="card"><div class="k">End user</div><div class="v">FTAI Aviation</div><div class="s">Miami Airport · main conference room</div></div>
     <div class="card"><div class="k">The room</div><div class="v">About 30 × 15 ft</div><div class="s">15 ft table · 4 existing displays</div></div>
     <div class="card"><div class="k">Proposal</div><div class="v">Quote #068999</div><div class="s">Version 1 · valid through November 13, 2026</div></div>
@@ -509,7 +509,7 @@ def page():
 </div></section>
 
 <footer><div class="wrap foot">
-  <div class="logos"><img src="mason-logo-white.png" alt="Mason Technologies"><img class="ftai" src="ftai-logo-white.png" alt="FTAI Aviation"><img src="cdw-logo-white.svg" alt="CDW"></div>
+  <div class="logos"><img src="mason-logo-white.png" alt="Mason Technologies"><img class="ftai" src="ftai-logo-white.png" alt="FTAI Aviation"><img class="cdw" src="cdw-logo.png" alt="CDW"></div>
   <div class="tiny">CDW – FTAI Miami Airport Conference Room Upgrades · Quote #068999 v1 · Valid through November 13, 2026<br>Pricing is provided separately by CDW. Final details are confirmed on site and in the approved scope of work.</div>
 </div></footer>
 </div>
