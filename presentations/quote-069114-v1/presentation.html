@@ -1,0 +1,725 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Multipurpose Room Video Processing System – Quote #069114</title>
+<meta name="description" content="Mason Technologies proposal for the Eastern Band of Cherokee Indians Multipurpose Room: Cyviz video wall processing, AVPro Edge switching, Q-SYS audio and one-touch room control.">
+<style>
+  :root {
+    --navy: #0d1b2a;
+    --navy-deep: #070e18;
+    --navy-mid: #1a2a3a;
+    --navy-light: #243850;
+    --gold: #c8a84b;
+    --gold-light: #e2c46e;
+    --white: #ffffff;
+    --text-light: #a8b8cc;
+    --muted: #7d8ea3;
+    --accent: #2eaadc;
+    --green: #3fae5a;
+    --red: #d9483b;
+    --teams: #6c74d6;
+    --radius: 12px;
+    --shadow: 0 6px 28px rgba(0,0,0,0.28);
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html { scroll-behavior: smooth; }
+  body {
+    font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+    background: var(--navy); color: var(--white); line-height: 1.6;
+    overflow-x: hidden;
+  }
+  img { max-width: 100%; }
+  .sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+
+  /* NAV */
+  nav.site-nav {
+    position: fixed; top: 0; left: 0; right: 0; z-index: 1000;
+    background: rgba(13,27,42,0.96); backdrop-filter: blur(12px);
+    border-bottom: 1px solid rgba(200,168,75,0.2);
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 0 40px; height: 64px;
+  }
+  .nav-logos { display: flex; align-items: center; gap: 14px; line-height: 0; min-width: 0; }
+  .nav-mason-logo { height: 34px; width: auto; display: block; }
+  .nav-customer-logo { height: 44px; width: auto; display: block; }
+  .nav-divider { width: 1px; height: 28px; background: rgba(255,255,255,0.15); }
+  .nav-subtitle { font-size: 12px; color: var(--text-light); line-height: 1.4; white-space: nowrap; }
+  .nav-subtitle strong { color: var(--white); font-weight: 600; }
+  .nav-links { display: flex; gap: 22px; align-items: center; }
+  .nav-links a { color: var(--text-light); text-decoration: none; font-size: 12.5px; letter-spacing: 0.3px; white-space: nowrap; transition: color 0.2s; }
+  .nav-links a:hover { color: var(--gold); }
+  .nav-links a.nav-cta { color: var(--navy); background: var(--gold); padding: 7px 14px; border-radius: 18px; font-weight: 700; }
+  .nav-links a.nav-cta:hover { background: var(--gold-light); color: var(--navy); }
+  #menu-toggle { position: absolute; opacity: 0; pointer-events: none; }
+  .menu-btn { display: none; cursor: pointer; width: 40px; height: 40px; align-items: center; justify-content: center; border-radius: 8px; border: 1px solid rgba(255,255,255,0.15); }
+  .menu-btn span, .menu-btn span::before, .menu-btn span::after { display: block; width: 18px; height: 2px; background: var(--white); position: relative; content: ''; }
+  .menu-btn span::before { position: absolute; top: -6px; }
+  .menu-btn span::after { position: absolute; top: 6px; }
+
+  /* LAYOUT */
+  section { padding: 104px 0 84px; scroll-margin-top: 20px; }
+  .container { max-width: 1160px; margin: 0 auto; padding: 0 40px; }
+  .section-eyebrow { font-size: 11px; color: var(--gold); text-transform: uppercase; letter-spacing: 2px; margin-bottom: 12px; font-weight: 700; }
+  .section-title { font-size: 36px; font-weight: 700; margin-bottom: 14px; line-height: 1.18; }
+  .section-title em { font-style: normal; color: var(--gold); }
+  .section-desc { font-size: 16px; color: var(--text-light); max-width: 700px; }
+  .section-desc strong { color: var(--white); }
+  .howto { display: flex; gap: 22px; flex-wrap: wrap; margin: 30px 0 18px; font-size: 13.5px; color: var(--text-light); }
+  .howto b { color: var(--gold); margin-right: 4px; }
+
+  /* shared pill controls (radio + label, CSS only) */
+  .app > input { position: absolute; opacity: 0; pointer-events: none; }
+  .pills { display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 18px; }
+  .pills label {
+    cursor: pointer; user-select: none; display: inline-flex; align-items: center; gap: 8px;
+    background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.12); color: var(--text-light);
+    padding: 9px 16px; border-radius: 24px; font-size: 13px; font-weight: 600; transition: all 0.2s;
+  }
+  .pills label:hover { border-color: rgba(200,168,75,0.5); color: var(--white); }
+  .pills label::before { content: ''; width: 8px; height: 8px; border-radius: 50%; background: rgba(255,255,255,0.25); flex-shrink: 0; }
+  .pills label .ct { font-size: 11px; color: var(--muted); font-weight: 700; }
+  .pills.small label { padding: 6px 13px; font-size: 12px; }
+  .app > input:focus-visible ~ .pills { outline: 2px dashed rgba(200,168,75,0.5); outline-offset: 6px; border-radius: 24px; }
+
+  /* HERO */
+  #hero {
+    min-height: 100vh; display: flex; align-items: center; position: relative; overflow: hidden;
+    background: linear-gradient(135deg, var(--navy) 0%, #13263a 55%, var(--navy-deep) 100%);
+    padding-top: 110px;
+  }
+  #hero::before {
+    content: ''; position: absolute; inset: 0;
+    background:
+      radial-gradient(ellipse 60% 70% at 78% 45%, rgba(200,168,75,0.09) 0%, transparent 70%),
+      radial-gradient(ellipse 40% 50% at 10% 90%, rgba(46,170,220,0.06) 0%, transparent 70%);
+  }
+  .hero-grid { display: grid; grid-template-columns: 1.02fr 0.98fr; gap: 56px; align-items: center; position: relative; z-index: 1; }
+  .hero-cobranding { display: flex; align-items: center; gap: 18px; margin-bottom: 26px; line-height: 0; }
+  .hero-cobranding img { height: 48px; width: auto; display: block; }
+  .hero-x { color: var(--text-light); font-size: 20px; line-height: 1; }
+  .badge-row { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 18px; }
+  .badge {
+    display: inline-flex; align-items: center; gap: 7px; background: rgba(200,168,75,0.12); border: 1px solid rgba(200,168,75,0.35);
+    color: var(--gold); font-size: 11px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase; padding: 5px 12px; border-radius: 20px;
+  }
+  .badge.blue { background: rgba(46,170,220,0.1); border-color: rgba(46,170,220,0.4); color: #7cc9ec; }
+  .hero-title { font-size: 50px; font-weight: 800; line-height: 1.08; margin-bottom: 18px; letter-spacing: -0.5px; }
+  .hero-title span { color: var(--gold); }
+  .hero-subtitle { font-size: 17px; color: var(--text-light); margin-bottom: 30px; line-height: 1.7; max-width: 570px; }
+  .hero-subtitle strong { color: var(--white); }
+  .hero-meta { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+  .meta-card { background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.08); border-top: 3px solid var(--gold); border-radius: var(--radius); padding: 14px 18px; }
+  .meta-label { font-size: 11px; color: var(--text-light); text-transform: uppercase; letter-spacing: 0.8px; margin-bottom: 3px; }
+  .meta-value { font-size: 15px; font-weight: 600; }
+  .meta-value.big { color: var(--gold); font-size: 22px; font-weight: 800; }
+  .hero-stats { display: grid; grid-template-columns: repeat(4,1fr); gap: 10px; margin-top: 14px; }
+  .hero-stat { background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.08); border-radius: 10px; padding: 12px 6px; text-align: center; }
+  .hero-stat .n { font-size: 22px; font-weight: 800; color: var(--gold); line-height: 1.1; }
+  .hero-stat .l { font-size: 10.5px; color: var(--text-light); margin-top: 3px; }
+
+  /* Room front-wall picture (hero + mode explorer) */
+  .room { background: linear-gradient(180deg, #13202f 0%, #0b1520 72%, #1a2633 72%, #121b26 100%); border: 1px solid rgba(200,168,75,0.22); border-radius: 14px; padding: 22px 22px 18px; box-shadow: 0 30px 80px rgba(0,0,0,0.45); position: relative; }
+  .room-row { display: grid; grid-template-columns: 54px 1fr; gap: 14px; align-items: end; }
+  .rack-mini { height: 100%; min-height: 150px; background: #0a0f15; border: 1px solid #3a4553; border-radius: 4px; padding: 6px 5px; display: flex; flex-direction: column; gap: 3px; position: relative; }
+  .rack-mini::before { content: ''; position: absolute; top: -13px; left: 8px; width: 30px; height: 12px; border-radius: 2px; background: #1e2a38; border: 1px solid #4a5868; box-shadow: inset 0 0 0 2px #0d1b2a, inset 0 -3px 0 #c8a84b; }
+  .rack-mini i { display: block; height: 7px; border-radius: 1px; background: #1b232d; border: 1px solid #2b3643; }
+  .rack-mini i.g { background: linear-gradient(90deg, #1b232d 70%, #3fd17a 70%, #3fd17a 76%, #1b232d 76%); }
+  .rack-mini i.b { background: linear-gradient(90deg, #1b232d 60%, #2eaadc 60%, #2eaadc 70%, #1b232d 70%); }
+  .rack-mini small { position: absolute; bottom: -18px; left: 0; right: 0; text-align: center; font-size: 9px; color: var(--muted); letter-spacing: 0.5px; }
+  .ledwall { aspect-ratio: 16 / 9; background: #020509; border: 3px solid #26303c; border-bottom-width: 9px; border-radius: 4px; padding: 5px; position: relative; overflow: hidden; }
+  .ledwall::after { content: ''; position: absolute; inset: 0; background-image: radial-gradient(rgba(0,0,0,0.35) 0.6px, transparent 0.8px); background-size: 4px 4px; pointer-events: none; }
+  .wall-cap { display: flex; justify-content: space-between; font-size: 10.5px; color: var(--text-light); margin-top: 24px; letter-spacing: 0.3px; gap: 10px; }
+  .wall-cap b { color: var(--gold); }
+
+  /* layouts */
+  .lay { position: absolute; inset: 5px; display: grid; gap: 4px; }
+  .lay.full { grid-template-columns: 1fr; }
+  .lay.conf { grid-template-columns: 3fr 2fr; }
+  .lay.train { grid-template-columns: 1fr; }
+  .lay.prim { grid-template-columns: 3fr 1fr; grid-template-rows: repeat(3,1fr); }
+  .lay.prim .w:first-child { grid-row: span 3; }
+  .lay.quad { grid-template-columns: 1fr 1fr; grid-template-rows: 1fr 1fr; }
+  .w { position: relative; border-radius: 2px; overflow: hidden; min-height: 0; }
+  .w .tag { position: absolute; left: 0; bottom: 0; font-size: 9px; font-weight: 700; letter-spacing: 0.4px; padding: 1px 6px; background: rgba(0,0,0,0.7); color: #e8edf3; border-top-right-radius: 4px; white-space: nowrap; max-width: 100%; overflow: hidden; text-overflow: ellipsis; }
+  .w.pip { position: absolute; right: 10px; bottom: 10px; width: 28%; aspect-ratio: 16/9; box-shadow: 0 0 0 2px #020509, 0 0 0 3px rgba(108,116,214,0.7); z-index: 2; }
+  /* scenes */
+  .sc-teams { background: radial-gradient(circle at 30% 38%, #c9b59c 0 9%, transparent 9.5%), radial-gradient(ellipse at 30% 78%, #4d5b8a 0 22%, transparent 22.5%), radial-gradient(circle at 70% 38%, #b89a80 0 9%, transparent 9.5%), radial-gradient(ellipse at 70% 78%, #5a4d7a 0 22%, transparent 22.5%), linear-gradient(160deg, #2c3166, #1a1d3d); }
+  .sc-share { background: linear-gradient(#f2f4f7 0 0) 10% 18% / 50% 7% no-repeat, linear-gradient(#cdd5df 0 0) 10% 34% / 70% 4% no-repeat, linear-gradient(#cdd5df 0 0) 10% 44% / 62% 4% no-repeat, linear-gradient(#6c74d6 0 0) 10% 72% / 22% 26% no-repeat, linear-gradient(#c8a84b 0 0) 38% 72% / 22% 40% no-repeat, linear-gradient(#2eaadc 0 0) 66% 72% / 22% 55% no-repeat, linear-gradient(160deg, #24304a, #18202f); }
+  .sc-slides { background: linear-gradient(#ffffff 0 0) 8% 16% / 46% 8% no-repeat, linear-gradient(#c8a84b 0 0) 8% 30% / 16% 3% no-repeat, linear-gradient(#d5dbe3 0 0) 8% 44% / 40% 4% no-repeat, linear-gradient(#d5dbe3 0 0) 8% 54% / 36% 4% no-repeat, linear-gradient(#d5dbe3 0 0) 8% 64% / 38% 4% no-repeat, radial-gradient(circle at 76% 52%, #2eaadc 0 17%, #1f5f8f 17.5% 26%, transparent 26.5%), linear-gradient(150deg, #1d3550, #0f1c2c); }
+  .sc-cams { background: linear-gradient(90deg, transparent 49.4%, #020509 49.4% 50.6%, transparent 50.6%), linear-gradient(transparent 49%, #020509 49% 51%, transparent 51%), radial-gradient(ellipse at 25% 80%, #3c4a3a 0 30%, transparent 31%), radial-gradient(ellipse at 75% 30%, #4a4f57 0 28%, transparent 29%), linear-gradient(0deg, #2a3138 0 50%, #39424c 50% 100%) 0 0 / 50% 100% no-repeat, linear-gradient(0deg, #23302a 0 50%, #2f3a44 50% 100%) 100% 0 / 50% 100% no-repeat, #262d34; }
+  .sc-gis { background: repeating-radial-gradient(circle at 62% 46%, transparent 0 7px, rgba(200,168,75,0.35) 7px 8px), radial-gradient(circle at 30% 70%, #2f6b4f 0 18%, transparent 19%), linear-gradient(120deg, #1d4a3b, #24543f 40%, #2f5f6f); }
+  .sc-eoc { background: linear-gradient(#d9483b 0 0) 6% 10% / 30% 9% no-repeat, repeating-linear-gradient(180deg, #1b2938 0 9%, #22344a 9% 18%) 0 30% / 100% 70% no-repeat, #182433; }
+  .sc-news { background: linear-gradient(#c62f2f 0 0) 0 78% / 100% 13% no-repeat, linear-gradient(#ffffff 0 0) 4% 82% / 40% 4% no-repeat, radial-gradient(circle at 50% 40%, #c0a184 0 12%, transparent 12.5%), radial-gradient(ellipse at 50% 80%, #2b3c5a 0 28%, transparent 28.5%), linear-gradient(160deg, #31507a, #182a45); }
+  .sc-off { background: #020509; display: flex; align-items: center; justify-content: center; }
+  .sc-off span { font-size: 11px; color: #3e4a58; letter-spacing: 2px; font-weight: 700; }
+
+  /* MODE EXPLORER */
+  #modes { background: linear-gradient(180deg, var(--navy) 0%, var(--navy-deep) 100%); }
+  .modes-grid { display: grid; grid-template-columns: 1.45fr 1fr; gap: 22px; align-items: stretch; }
+  .side-col { display: flex; flex-direction: column; gap: 12px; }
+  .info-card { background: var(--navy-mid); border: 1px solid rgba(255,255,255,0.07); border-radius: var(--radius); padding: 14px 16px; }
+  .info-card h4 { font-size: 11px; color: var(--gold); text-transform: uppercase; letter-spacing: 1px; margin-bottom: 8px; display: flex; justify-content: space-between; gap: 8px; }
+  .info-card h4 small { color: var(--muted); text-transform: none; letter-spacing: 0; font-weight: 500; }
+  .info-card p { font-size: 13px; color: var(--text-light); line-height: 1.5; }
+  .info-card p strong { color: var(--white); }
+  .side-disp { display: grid; grid-template-columns: 120px 1fr; gap: 14px; align-items: center; }
+  .tv { aspect-ratio: 16/9; background: #020509; border: 3px solid #2b3643; border-radius: 3px; position: relative; overflow: hidden; }
+  .tv > .w { position: absolute; inset: 0; }
+  .meter-row { display: flex; align-items: center; gap: 10px; margin-top: 4px; }
+  .vu { flex: 1; height: 8px; border-radius: 4px; background: rgba(255,255,255,0.07); overflow: hidden; position: relative; }
+  .vu i { position: absolute; inset: 0 auto 0 0; border-radius: 4px; background: linear-gradient(90deg, #2c8f4c, var(--green)); }
+  .vu.duck i { background: linear-gradient(90deg, #6b5a2a, var(--gold)); }
+  .vu-l { font-size: 11px; color: var(--muted); width: 92px; flex-shrink: 0; }
+  .mv { display: none; }
+  .eoc-only { display: none; }
+  .mcap { display: none; grid-template-columns: 0.85fr 1.15fr; gap: 28px; margin-top: 20px; background: var(--navy-mid); border: 1px solid rgba(200,168,75,0.22); border-left: 4px solid var(--gold); border-radius: var(--radius); padding: 22px 26px; }
+  .mcap h4, .cap h4 { font-size: 17px; margin-bottom: 6px; }
+  .mcap p, .cap p { font-size: 13.5px; color: var(--text-light); line-height: 1.6; }
+  .mcap ol, .cap ol { list-style: none; counter-reset: s; display: flex; flex-direction: column; gap: 8px; }
+  .mcap li, .cap li { counter-increment: s; font-size: 13.5px; color: var(--text-light); display: flex; gap: 10px; align-items: flex-start; }
+  .mcap li::before, .cap li::before { content: counter(s); flex-shrink: 0; width: 22px; height: 22px; border-radius: 50%; background: rgba(200,168,75,0.15); border: 1px solid rgba(200,168,75,0.45); color: var(--gold); font-size: 11px; font-weight: 800; display: flex; align-items: center; justify-content: center; margin-top: 1px; }
+  .mcap li strong, .cap li strong { color: var(--white); }
+  .pin { display: inline-flex; align-items: center; gap: 6px; font-size: 10.5px; font-weight: 800; letter-spacing: 0.6px; color: #f08a7f; background: rgba(217,72,59,0.12); border: 1px solid rgba(217,72,59,0.45); padding: 2px 9px; border-radius: 12px; text-transform: uppercase; vertical-align: middle; margin-left: 8px; }
+  .fine { font-size: 12px; color: var(--muted); margin-top: 14px; }
+
+  /* SCHEMATIC */
+  #system { background: var(--navy); }
+  .schem-wrap { background: #050e18; border: 1px solid rgba(200,168,75,0.18); border-radius: 14px; padding: 18px; overflow-x: auto; }
+  .schem { display: block; width: 100%; min-width: 780px; height: auto; font-family: 'Segoe UI', system-ui, sans-serif; }
+  .schem .colh { fill: var(--gold); font-size: 10px; font-weight: 700; letter-spacing: 2px; }
+  .schem .w { fill: none; stroke: rgba(255,255,255,0.15); stroke-width: 2; transition: stroke 0.25s; }
+  .schem .w.ctl { stroke: rgba(46,170,220,0.45); stroke-dasharray: 4 4; stroke-width: 1.5; }
+  .schem .wl { fill: #6f8197; font-size: 9.5px; }
+  .schem .nd rect { fill: #142233; stroke: rgba(255,255,255,0.14); stroke-width: 1; transition: all 0.25s; }
+  .schem .nd.ofe rect { fill: #1d2531; stroke-dasharray: 3 3; }
+  .schem .nd .nt { fill: #dfe6ef; font-size: 12px; font-weight: 700; }
+  .schem .nd .ns { fill: #8496ab; font-size: 10px; }
+  .schem .nd.big rect { fill: #0f1d2e; stroke: rgba(200,168,75,0.6); stroke-width: 1.5; }
+  .schem .nd.big .nt { fill: var(--gold); font-size: 14px; }
+  .schem .port { fill: #8496ab; font-size: 9.5px; }
+  .schem .lg { fill: #8496ab; font-size: 10.5px; }
+  @keyframes flow { to { stroke-dashoffset: -28; } }
+  .caps .cap { display: none; }
+  .cap { grid-template-columns: 0.85fr 1.15fr; gap: 28px; margin-top: 20px; background: var(--navy-mid); border: 1px solid rgba(200,168,75,0.22); border-left: 4px solid var(--gold); border-radius: var(--radius); padding: 22px 26px; }
+  .schem-note { font-size: 12px; color: var(--text-light); margin-top: 14px; }
+
+  /* EQUIPMENT */
+  #components { background: linear-gradient(180deg, var(--navy) 0%, var(--navy-deep) 100%); }
+  .eq-group { margin-top: 30px; }
+  .eq-group > h3 { font-size: 12px; color: var(--gold); text-transform: uppercase; letter-spacing: 2px; margin-bottom: 16px; display: flex; align-items: center; gap: 10px; }
+  .eq-group > h3::after { content: ''; flex: 1; height: 1px; background: rgba(200,168,75,0.2); }
+  .brand-grid { display: grid; grid-template-columns: repeat(3,1fr); gap: 20px; }
+  .component-card { background: var(--navy-mid); border: 1px solid rgba(255,255,255,0.07); border-radius: var(--radius); overflow: hidden; transition: border-color 0.25s, transform 0.25s, box-shadow 0.25s; display: flex; flex-direction: column; }
+  .component-card:hover { border-color: rgba(200,168,75,0.35); transform: translateY(-3px); box-shadow: var(--shadow); }
+  .component-img { height: 170px; background: radial-gradient(ellipse, #e8eef5, #d0dae6); display: flex; align-items: center; justify-content: center; padding: 14px; position: relative; }
+  .component-img img { max-width: 92%; max-height: 100%; object-fit: contain; display: block; }
+  .qty { position: absolute; top: 12px; left: 12px; background: var(--navy); color: var(--gold); font-size: 12px; font-weight: 800; padding: 3px 10px; border-radius: 12px; }
+  .component-info { padding: 18px 20px 20px; flex: 1; display: flex; flex-direction: column; }
+  .component-mfr { font-size: 10.5px; color: var(--gold); text-transform: uppercase; letter-spacing: 0.8px; margin-bottom: 3px; }
+  .component-name { font-size: 16px; font-weight: 700; margin-bottom: 8px; line-height: 1.3; }
+  .component-desc { font-size: 12.5px; color: var(--text-light); line-height: 1.55; margin-bottom: 12px; }
+  .spec-row { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 12px; }
+  .spec-row span { font-size: 11px; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); border-radius: 6px; padding: 2px 8px; color: #cfd8e3; }
+  .component-benefit { margin-top: auto; padding-top: 10px; border-top: 1px solid rgba(255,255,255,0.06); font-size: 12px; color: var(--accent); display: flex; gap: 6px; }
+  .component-benefit::before { content: '★'; flex-shrink: 0; }
+  .mini-grid { display: grid; grid-template-columns: repeat(3,1fr); gap: 14px; }
+  .mini-card { background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.08); border-radius: var(--radius); padding: 16px 18px; display: flex; gap: 14px; align-items: flex-start; }
+  .mini-card .ic { width: 40px; height: 40px; border-radius: 10px; flex-shrink: 0; display: flex; align-items: center; justify-content: center; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); }
+  .mini-card .ic svg { width: 22px; height: 22px; fill: none; stroke: #cfd8e3; stroke-width: 1.7; stroke-linecap: round; stroke-linejoin: round; }
+  .mini-card h5 { font-size: 14px; font-weight: 700; line-height: 1.3; margin-bottom: 3px; }
+  .mini-card p { font-size: 12px; color: var(--text-light); line-height: 1.5; }
+  .chip { display: inline-block; font-size: 10px; font-weight: 800; letter-spacing: 0.6px; text-transform: uppercase; padding: 2px 8px; border-radius: 10px; margin-bottom: 6px; }
+  .chip.new { background: rgba(200,168,75,0.14); color: var(--gold); border: 1px solid rgba(200,168,75,0.45); }
+  .chip.keep { background: rgba(63,174,90,0.13); color: #6fd38a; border: 1px solid rgba(63,174,90,0.4); }
+  .chip.owner { background: rgba(46,170,220,0.12); color: #7cc9ec; border: 1px solid rgba(46,170,220,0.4); }
+  .chip.out { background: rgba(255,255,255,0.05); color: var(--muted); border: 1px solid rgba(255,255,255,0.15); }
+  .k-out .ic svg { stroke: var(--muted); }
+  .k-out h5 { color: #c3ccd7; text-decoration: line-through; text-decoration-color: rgba(217,72,59,0.7); }
+  .illus-note { margin-top: 18px; font-size: 12px; color: var(--text-light); font-style: italic; }
+
+  /* DELIVERY */
+  #delivery { background: var(--navy); }
+  .timeline-flow { display: grid; grid-template-columns: repeat(6,1fr); gap: 0; margin-top: 52px; position: relative; }
+  .timeline-flow::before { content: ''; position: absolute; top: 22px; left: 8%; right: 8%; height: 2px; background: linear-gradient(90deg, rgba(200,168,75,0.5), rgba(200,168,75,0.15)); }
+  .t-step { position: relative; text-align: center; padding: 0 8px; }
+  .t-circle { width: 46px; height: 46px; border-radius: 50%; margin: 0 auto 14px; background: var(--navy); border: 2px solid rgba(200,168,75,0.6); color: var(--gold); display: flex; align-items: center; justify-content: center; font-weight: 800; font-size: 15px; position: relative; z-index: 1; }
+  .t-step.key .t-circle { background: var(--gold); color: var(--navy); border-color: var(--gold); box-shadow: 0 0 0 6px rgba(200,168,75,0.15); }
+  .t-label { font-size: 13px; font-weight: 700; margin-bottom: 6px; }
+  .t-desc { font-size: 12px; color: var(--text-light); line-height: 1.5; }
+  .callout-row { display: grid; grid-template-columns: repeat(3,1fr); gap: 20px; margin-top: 56px; }
+  .callout { background: var(--navy-mid); border: 1px solid rgba(255,255,255,0.07); border-radius: var(--radius); padding: 22px; display: flex; gap: 14px; align-items: flex-start; }
+  .callout-icon { width: 42px; height: 42px; border-radius: 10px; flex-shrink: 0; background: rgba(200,168,75,0.1); border: 1px solid rgba(200,168,75,0.25); display: flex; align-items: center; justify-content: center; }
+  .callout-icon svg { width: 22px; height: 22px; stroke: var(--gold); fill: none; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+  .callout h4 { font-size: 14px; font-weight: 700; margin-bottom: 5px; }
+  .callout p { font-size: 13px; color: var(--text-light); line-height: 1.55; }
+
+  /* SCOPE TABS */
+  #scope { background: linear-gradient(180deg, var(--navy) 0%, var(--navy-deep) 100%); }
+  .tab-bar { display: flex; gap: 6px; margin: 36px 0 0; border-bottom: 1px solid rgba(255,255,255,0.1); flex-wrap: wrap; }
+  .tab-bar label { cursor: pointer; padding: 12px 18px; font-size: 14px; font-weight: 700; color: var(--text-light); border-bottom: 3px solid transparent; margin-bottom: -1px; transition: color 0.2s; }
+  .tab-bar label:hover { color: var(--white); }
+  .app > input:focus-visible ~ .tab-bar { outline: 2px dashed rgba(200,168,75,0.6); outline-offset: 4px; }
+  .tab-panel { display: none; padding-top: 28px; }
+  .scope-grid { display: grid; grid-template-columns: repeat(2,1fr); gap: 12px 36px; list-style: none; }
+  .scope-grid li { font-size: 14px; color: var(--text-light); padding-left: 26px; position: relative; line-height: 1.55; }
+  .scope-grid li strong { color: var(--white); }
+  .p-mason li::before { content: '✓'; position: absolute; left: 0; color: var(--green); font-weight: 800; }
+  .p-ebci li::before { content: '◆'; position: absolute; left: 2px; color: var(--accent); font-size: 11px; top: 3px; }
+  .p-out li::before { content: '—'; position: absolute; left: 0; color: var(--muted); }
+  .tab-note { margin-top: 22px; font-size: 13px; color: var(--text-light); }
+
+  /* INVESTMENT */
+  #investment { background: var(--navy); }
+  .investment-layout { display: grid; grid-template-columns: 1.1fr 0.9fr; gap: 36px; margin-top: 44px; align-items: start; }
+  .price-card { background: linear-gradient(135deg, rgba(200,168,75,0.12) 0%, rgba(200,168,75,0.04) 100%); border: 2px solid rgba(200,168,75,0.45); border-radius: var(--radius); padding: 32px; }
+  .price-label { font-size: 12px; color: var(--text-light); text-transform: uppercase; letter-spacing: 1px; margin-bottom: 8px; }
+  .price-main { font-size: 52px; font-weight: 800; color: var(--gold); line-height: 1; letter-spacing: -1px; }
+  .price-desc { font-size: 14px; color: var(--text-light); margin-top: 10px; }
+  .price-desc strong { color: var(--white); }
+  .split-bar { display: flex; height: 12px; border-radius: 6px; overflow: hidden; margin: 24px 0 10px; }
+  .split-bar i { display: block; height: 100%; }
+  .split-legend { display: flex; flex-wrap: wrap; gap: 14px; font-size: 12px; color: var(--text-light); }
+  .split-legend span::before { content: ''; display: inline-block; width: 9px; height: 9px; border-radius: 2px; margin-right: 6px; background: var(--c); }
+  .price-breakdown { margin-top: 22px; border-top: 1px solid rgba(200,168,75,0.2); }
+  details.pl { border-bottom: 1px solid rgba(255,255,255,0.06); }
+  details.pl > summary { list-style: none; cursor: pointer; display: flex; justify-content: space-between; align-items: center; padding: 13px 0; font-size: 14.5px; gap: 12px; }
+  details.pl > summary::-webkit-details-marker { display: none; }
+  details.pl > summary .cat { display: flex; align-items: center; gap: 10px; }
+  details.pl > summary .cat::before { content: '+'; width: 20px; height: 20px; border-radius: 50%; border: 1px solid rgba(200,168,75,0.5); color: var(--gold); font-size: 13px; font-weight: 700; display: inline-flex; align-items: center; justify-content: center; flex-shrink: 0; }
+  details.pl[open] > summary .cat::before { content: '–'; }
+  details.pl > summary .val { font-weight: 700; white-space: nowrap; }
+  .line-items { width: 100%; border-collapse: collapse; margin: 0 0 14px; font-size: 12.5px; }
+  .line-items th { text-align: left; color: var(--gold); font-weight: 700; font-size: 10.5px; text-transform: uppercase; letter-spacing: 0.6px; padding: 6px 6px; border-bottom: 1px solid rgba(255,255,255,0.08); }
+  .line-items td { padding: 8px 6px; color: var(--text-light); border-bottom: 1px solid rgba(255,255,255,0.04); vertical-align: top; }
+  .line-items td.n { text-align: right; white-space: nowrap; color: var(--white); }
+  .line-items th.n { text-align: right; }
+  .line-items tr.ofe td { color: var(--muted); }
+  .line-items tr.ofe td.n { color: var(--muted); }
+  .line-items td .sku { display: block; font-size: 10.5px; color: var(--muted); font-family: Consolas, monospace; }
+  .total-line { display: flex; justify-content: space-between; padding: 16px 0 0; font-size: 16px; font-weight: 800; }
+  .total-line .val { color: var(--gold); }
+  .annual-line { display: flex; justify-content: space-between; margin-top: 14px; padding: 12px 14px; border-radius: 10px; background: rgba(46,170,220,0.08); border: 1px dashed rgba(46,170,220,0.4); font-size: 13.5px; gap: 12px; }
+  .annual-line .val { color: #7cc9ec; font-weight: 800; white-space: nowrap; }
+  .table-scroll { overflow-x: auto; }
+  .quote-details { display: flex; flex-direction: column; gap: 16px; }
+  .detail-card { background: var(--navy-mid); border: 1px solid rgba(255,255,255,0.07); border-radius: var(--radius); padding: 20px 22px; }
+  .detail-card h4 { font-size: 12px; color: var(--gold); margin-bottom: 12px; text-transform: uppercase; letter-spacing: 0.8px; }
+  .detail-row { display: flex; justify-content: space-between; font-size: 13px; gap: 12px; padding: 4px 0; }
+  .detail-row .dk { color: var(--text-light); }
+  .detail-row .dv { font-weight: 600; text-align: right; }
+  .terms-list { list-style: none; }
+  .terms-list li { font-size: 13px; color: var(--text-light); padding: 5px 0 5px 18px; position: relative; line-height: 1.5; }
+  .terms-list li::before { content: '→'; position: absolute; left: 0; color: var(--gold); font-size: 12px; }
+  .terms-list li strong { color: var(--white); }
+
+  /* SUPPORT */
+  #support { background: linear-gradient(180deg, var(--navy) 0%, var(--navy-deep) 100%); }
+  .sla-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 20px; margin-top: 44px; }
+  .sla-card { background: var(--navy-mid); border: 1px solid rgba(255,255,255,0.07); border-radius: var(--radius); padding: 24px; }
+  .sla-card.lead { border-color: rgba(200,168,75,0.45); background: linear-gradient(135deg, rgba(200,168,75,0.1), rgba(200,168,75,0.02)); }
+  .sla-card .k { font-size: 11px; color: var(--gold); text-transform: uppercase; letter-spacing: 1px; font-weight: 700; margin-bottom: 8px; }
+  .sla-card .big { font-size: 30px; font-weight: 800; line-height: 1.1; margin-bottom: 4px; }
+  .sla-card .big small { font-size: 14px; color: var(--text-light); font-weight: 600; }
+  .sla-card p { font-size: 13px; color: var(--text-light); line-height: 1.55; }
+  .sla-card ul { list-style: none; margin-top: 10px; }
+  .sla-card li { font-size: 13px; color: var(--text-light); padding: 4px 0 4px 18px; position: relative; line-height: 1.5; }
+  .sla-card li::before { content: '✓'; position: absolute; left: 0; color: var(--green); font-weight: 800; font-size: 12px; }
+  .sla-card li strong { color: var(--white); }
+
+  /* WHY MASON */
+  #why { background: var(--navy); }
+  .stat-grid { display: grid; grid-template-columns: repeat(4,1fr); gap: 20px; margin-top: 44px; }
+  .stat-card { background: var(--navy-mid); border: 1px solid rgba(255,255,255,0.07); border-radius: var(--radius); padding: 24px; }
+  .stat-card .number { font-size: 40px; font-weight: 800; color: var(--gold); line-height: 1; }
+  .stat-card .heading { font-size: 12.5px; font-weight: 700; margin: 12px 0 6px; text-transform: uppercase; letter-spacing: 0.6px; }
+  .stat-card p { font-size: 13px; color: var(--text-light); line-height: 1.55; }
+  .gov-logo-heading { font-size: 11px; color: var(--gold); text-transform: uppercase; letter-spacing: 2px; margin: 56px 0 20px; display: flex; align-items: center; gap: 10px; font-weight: 700; }
+  .gov-logo-heading::after { content: ''; flex: 1; height: 1px; background: rgba(200,168,75,0.2); }
+  .gov-logo-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 14px; }
+  .gov-logo-card { position: relative; background: #2a3547; border: 1px solid rgba(255,255,255,0.08); border-radius: 10px; padding: 18px 14px; display: flex; align-items: center; justify-content: center; min-height: 82px; transition: box-shadow 0.2s, transform 0.2s, border-color 0.2s; }
+  .gov-logo-card:hover { box-shadow: var(--shadow); transform: translateY(-2px); border-color: rgba(200,168,75,0.4); }
+  .gov-logo-card img { max-height: 44px; max-width: 140px; object-fit: contain; display: block; }
+  .gov-logo-card::after { content: attr(data-name); position: absolute; bottom: calc(100% + 8px); left: 50%; transform: translateX(-50%) translateY(4px); background: var(--navy); border: 1px solid rgba(200,168,75,0.4); color: var(--white); font-size: 11px; font-weight: 600; white-space: nowrap; padding: 6px 10px; border-radius: 6px; box-shadow: var(--shadow); opacity: 0; visibility: hidden; pointer-events: none; transition: opacity 0.15s, transform 0.15s; z-index: 5; }
+  .gov-logo-card:hover::after { opacity: 1; visibility: visible; transform: translateX(-50%) translateY(0); }
+
+  .cta-box { margin-top: 56px; background: linear-gradient(135deg, rgba(200,168,75,0.12), rgba(200,168,75,0.03)); border: 1px solid rgba(200,168,75,0.35); border-radius: var(--radius); padding: 38px; text-align: center; }
+  .cta-title { font-size: 24px; font-weight: 800; margin-bottom: 10px; }
+  .cta-desc { font-size: 15px; color: var(--text-light); margin: 0 auto 26px; max-width: 640px; }
+  .cta-cards { display: flex; gap: 16px; justify-content: center; flex-wrap: wrap; }
+  .cta-card { background: rgba(13,27,42,0.6); border: 1px solid rgba(200,168,75,0.3); border-radius: 10px; padding: 16px 22px; text-align: left; min-width: 220px; }
+  .cta-card .cta-label { font-size: 11px; color: var(--text-light); text-transform: uppercase; letter-spacing: 0.8px; margin-bottom: 4px; }
+  .cta-card .cta-name { font-weight: 700; }
+  .cta-card a { font-size: 13.5px; color: var(--gold); text-decoration: none; display: block; overflow-wrap: anywhere; }
+  .cta-card a:hover { text-decoration: underline; }
+  .cta-card .cta-sub { font-size: 13px; color: var(--text-light); }
+
+  /* FOOTER */
+  footer { background: var(--navy-deep); border-top: 1px solid rgba(200,168,75,0.15); padding: 36px 40px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 20px; }
+  .footer-logos { display: flex; align-items: center; gap: 16px; line-height: 0; margin-bottom: 10px; }
+  .footer-logos img { height: 30px; width: auto; display: block; }
+  .footer-sub { font-size: 12px; color: var(--text-light); }
+  .footer-contact { text-align: right; font-size: 13px; color: var(--text-light); line-height: 1.7; }
+  .footer-contact a { color: var(--gold); text-decoration: none; }
+
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after { animation: none !important; transition: none !important; }
+    html { scroll-behavior: auto; }
+  }
+  @media (max-width: 1180px) {
+    .nav-subtitle { display: none; }
+  }
+  @media (max-width: 960px) {
+    .hero-grid, .investment-layout, .cap, .mcap, .modes-grid { grid-template-columns: 1fr; }
+    .brand-grid, .stat-grid, .callout-row, .mini-grid, .sla-grid { grid-template-columns: 1fr 1fr; }
+    .timeline-flow { grid-template-columns: repeat(3,1fr); row-gap: 32px; }
+    .timeline-flow::before { display: none; }
+    nav.site-nav { padding: 0 20px; }
+    .menu-btn { display: flex; }
+    .nav-links { display: none; position: absolute; top: 64px; left: 0; right: 0; flex-direction: column; align-items: stretch; gap: 0; background: rgba(13,27,42,0.98); border-bottom: 1px solid rgba(200,168,75,0.2); padding: 8px 20px 16px; }
+    .nav-links a { padding: 12px 4px; font-size: 15px; border-bottom: 1px solid rgba(255,255,255,0.06); }
+    .nav-links a.nav-cta { margin-top: 10px; text-align: center; border-bottom: none; }
+    #menu-toggle:checked ~ .nav-links { display: flex; }
+  }
+  @media (max-width: 640px) {
+    section { padding: 88px 0 64px; }
+    .container { padding: 0 16px; }
+    nav.site-nav { padding: 0 16px; }
+    .hero-title { font-size: 34px; }
+    .section-title { font-size: 27px; }
+    .hero-cobranding img { height: 40px; }
+    .nav-customer-logo { height: 38px; }
+    .hero-meta, .brand-grid, .stat-grid, .callout-row, .scope-grid, .mini-grid, .sla-grid { grid-template-columns: 1fr; }
+    .hero-stats { grid-template-columns: repeat(2,1fr); }
+    .timeline-flow { grid-template-columns: 1fr 1fr; }
+    .price-main { font-size: 38px; }
+    .price-card { padding: 22px 18px; }
+    .side-disp { grid-template-columns: 96px 1fr; }
+    .room { padding: 16px 12px 14px; }
+    .room-row { grid-template-columns: 38px 1fr; gap: 10px; }
+    .cta-box { padding: 26px 16px; }
+    .cta-card { min-width: 0; width: 100%; }
+    footer { padding: 28px 16px; }
+    .footer-contact { text-align: left; }
+    .gov-logo-card::after { display: none; }
+  }
+
+  #m-conf:checked ~ .mode-pills label[for="m-conf"] { background: rgba(200,168,75,0.16); border-color: var(--gold); color: var(--white); }
+  #m-conf:checked ~ .mode-pills label[for="m-conf"]::before { background: var(--gold); box-shadow: 0 0 0 4px rgba(200,168,75,0.25); }
+  #m-conf:checked ~ .modes-grid .v-conf { display: block; }
+  #m-conf:checked ~ .mcaps .c-conf { display: grid; }
+  #m-train:checked ~ .mode-pills label[for="m-train"] { background: rgba(200,168,75,0.16); border-color: var(--gold); color: var(--white); }
+  #m-train:checked ~ .mode-pills label[for="m-train"]::before { background: var(--gold); box-shadow: 0 0 0 4px rgba(200,168,75,0.25); }
+  #m-train:checked ~ .modes-grid .v-train { display: block; }
+  #m-train:checked ~ .mcaps .c-train { display: grid; }
+  #m-eoc:checked ~ .mode-pills label[for="m-eoc"] { background: rgba(200,168,75,0.16); border-color: var(--gold); color: var(--white); }
+  #m-eoc:checked ~ .mode-pills label[for="m-eoc"]::before { background: var(--gold); box-shadow: 0 0 0 4px rgba(200,168,75,0.25); }
+  #m-eoc:checked ~ .modes-grid .v-eoc { display: block; }
+  #m-eoc:checked ~ .mcaps .c-eoc { display: grid; }
+  #m-off:checked ~ .mode-pills label[for="m-off"] { background: rgba(200,168,75,0.16); border-color: var(--gold); color: var(--white); }
+  #m-off:checked ~ .mode-pills label[for="m-off"]::before { background: var(--gold); box-shadow: 0 0 0 4px rgba(200,168,75,0.25); }
+  #m-off:checked ~ .modes-grid .v-off { display: block; }
+  #m-off:checked ~ .mcaps .c-off { display: grid; }
+  #m-eoc:checked ~ .eoc-only { display: flex; }
+  #m-eoc:checked ~ #e-prim:checked ~ .modes-grid .v-eoc-prim { display: block; }
+  #e-prim:checked ~ .eoc-only label[for="e-prim"] { background: rgba(46,170,220,0.14); border-color: var(--accent); color: var(--white); }
+  #e-prim:checked ~ .eoc-only label[for="e-prim"]::before { background: var(--accent); }
+  #m-eoc:checked ~ #e-quad:checked ~ .modes-grid .v-eoc-quad { display: block; }
+  #e-quad:checked ~ .eoc-only label[for="e-quad"] { background: rgba(46,170,220,0.14); border-color: var(--accent); color: var(--white); }
+  #e-quad:checked ~ .eoc-only label[for="e-quad"]::before { background: var(--accent); }
+  .ledwall > .mv { position: absolute; inset: 0; }
+  #tr-teams:checked ~ .schem-wrap .w.t-teams { stroke: var(--gold); stroke-width: 3; stroke-dasharray: 8 6; animation: flow 0.9s linear infinite; }
+  #tr-teams:checked ~ .schem-wrap .nd.t-teams rect { stroke: var(--gold); stroke-width: 1.8; fill: rgba(200,168,75,0.16); stroke-dasharray: none; }
+  #tr-teams:checked ~ .schem-wrap .nd.t-teams .nt { fill: var(--gold-light); }
+  #tr-teams:checked ~ .trace-pills label[for="tr-teams"] { background: rgba(200,168,75,0.16); border-color: var(--gold); color: var(--white); }
+  #tr-teams:checked ~ .trace-pills label[for="tr-teams"]::before { background: var(--gold); box-shadow: 0 0 0 4px rgba(200,168,75,0.25); }
+  #tr-teams:checked ~ .caps .c-teams { display: grid; }
+  #tr-pcs:checked ~ .schem-wrap .w.t-pcs { stroke: var(--gold); stroke-width: 3; stroke-dasharray: 8 6; animation: flow 0.9s linear infinite; }
+  #tr-pcs:checked ~ .schem-wrap .nd.t-pcs rect { stroke: var(--gold); stroke-width: 1.8; fill: rgba(200,168,75,0.16); stroke-dasharray: none; }
+  #tr-pcs:checked ~ .schem-wrap .nd.t-pcs .nt { fill: var(--gold-light); }
+  #tr-pcs:checked ~ .trace-pills label[for="tr-pcs"] { background: rgba(200,168,75,0.16); border-color: var(--gold); color: var(--white); }
+  #tr-pcs:checked ~ .trace-pills label[for="tr-pcs"]::before { background: var(--gold); box-shadow: 0 0 0 4px rgba(200,168,75,0.25); }
+  #tr-pcs:checked ~ .caps .c-pcs { display: grid; }
+  #tr-news:checked ~ .schem-wrap .w.t-news { stroke: var(--gold); stroke-width: 3; stroke-dasharray: 8 6; animation: flow 0.9s linear infinite; }
+  #tr-news:checked ~ .schem-wrap .nd.t-news rect { stroke: var(--gold); stroke-width: 1.8; fill: rgba(200,168,75,0.16); stroke-dasharray: none; }
+  #tr-news:checked ~ .schem-wrap .nd.t-news .nt { fill: var(--gold-light); }
+  #tr-news:checked ~ .trace-pills label[for="tr-news"] { background: rgba(200,168,75,0.16); border-color: var(--gold); color: var(--white); }
+  #tr-news:checked ~ .trace-pills label[for="tr-news"]::before { background: var(--gold); box-shadow: 0 0 0 4px rgba(200,168,75,0.25); }
+  #tr-news:checked ~ .caps .c-news { display: grid; }
+  #tr-lap:checked ~ .schem-wrap .w.t-lap { stroke: var(--gold); stroke-width: 3; stroke-dasharray: 8 6; animation: flow 0.9s linear infinite; }
+  #tr-lap:checked ~ .schem-wrap .nd.t-lap rect { stroke: var(--gold); stroke-width: 1.8; fill: rgba(200,168,75,0.16); stroke-dasharray: none; }
+  #tr-lap:checked ~ .schem-wrap .nd.t-lap .nt { fill: var(--gold-light); }
+  #tr-lap:checked ~ .trace-pills label[for="tr-lap"] { background: rgba(200,168,75,0.16); border-color: var(--gold); color: var(--white); }
+  #tr-lap:checked ~ .trace-pills label[for="tr-lap"]::before { background: var(--gold); box-shadow: 0 0 0 4px rgba(200,168,75,0.25); }
+  #tr-lap:checked ~ .caps .c-lap { display: grid; }
+  #tr-share:checked ~ .schem-wrap .w.t-share { stroke: var(--gold); stroke-width: 3; stroke-dasharray: 8 6; animation: flow 0.9s linear infinite; }
+  #tr-share:checked ~ .schem-wrap .nd.t-share rect { stroke: var(--gold); stroke-width: 1.8; fill: rgba(200,168,75,0.16); stroke-dasharray: none; }
+  #tr-share:checked ~ .schem-wrap .nd.t-share .nt { fill: var(--gold-light); }
+  #tr-share:checked ~ .trace-pills label[for="tr-share"] { background: rgba(200,168,75,0.16); border-color: var(--gold); color: var(--white); }
+  #tr-share:checked ~ .trace-pills label[for="tr-share"]::before { background: var(--gold); box-shadow: 0 0 0 4px rgba(200,168,75,0.25); }
+  #tr-share:checked ~ .caps .c-share { display: grid; }
+  #tr-ctl:checked ~ .schem-wrap .w.t-ctl { stroke: var(--gold); stroke-width: 3; stroke-dasharray: 8 6; animation: flow 0.9s linear infinite; }
+  #tr-ctl:checked ~ .schem-wrap .nd.t-ctl rect { stroke: var(--gold); stroke-width: 1.8; fill: rgba(200,168,75,0.16); stroke-dasharray: none; }
+  #tr-ctl:checked ~ .schem-wrap .nd.t-ctl .nt { fill: var(--gold-light); }
+  #tr-ctl:checked ~ .trace-pills label[for="tr-ctl"] { background: rgba(200,168,75,0.16); border-color: var(--gold); color: var(--white); }
+  #tr-ctl:checked ~ .trace-pills label[for="tr-ctl"]::before { background: var(--gold); box-shadow: 0 0 0 4px rgba(200,168,75,0.25); }
+  #tr-ctl:checked ~ .caps .c-ctl { display: grid; }
+  #f-all:checked ~ .filter-pills label[for="f-all"] { background: rgba(200,168,75,0.16); border-color: var(--gold); color: var(--white); }
+  #f-all:checked ~ .filter-pills label[for="f-all"]::before { background: var(--gold); box-shadow: 0 0 0 4px rgba(200,168,75,0.25); }
+  #f-new:checked ~ .filter-pills label[for="f-new"] { background: rgba(200,168,75,0.16); border-color: var(--gold); color: var(--white); }
+  #f-new:checked ~ .filter-pills label[for="f-new"]::before { background: var(--gold); box-shadow: 0 0 0 4px rgba(200,168,75,0.25); }
+  #f-new:checked ~ .eq-group:not(.g-new) { display: none; }
+  #f-keep:checked ~ .filter-pills label[for="f-keep"] { background: rgba(200,168,75,0.16); border-color: var(--gold); color: var(--white); }
+  #f-keep:checked ~ .filter-pills label[for="f-keep"]::before { background: var(--gold); box-shadow: 0 0 0 4px rgba(200,168,75,0.25); }
+  #f-keep:checked ~ .eq-group:not(.g-keep) { display: none; }
+  #f-owner:checked ~ .filter-pills label[for="f-owner"] { background: rgba(200,168,75,0.16); border-color: var(--gold); color: var(--white); }
+  #f-owner:checked ~ .filter-pills label[for="f-owner"]::before { background: var(--gold); box-shadow: 0 0 0 4px rgba(200,168,75,0.25); }
+  #f-owner:checked ~ .eq-group:not(.g-owner) { display: none; }
+  #f-out:checked ~ .filter-pills label[for="f-out"] { background: rgba(200,168,75,0.16); border-color: var(--gold); color: var(--white); }
+  #f-out:checked ~ .filter-pills label[for="f-out"]::before { background: var(--gold); box-shadow: 0 0 0 4px rgba(200,168,75,0.25); }
+  #f-out:checked ~ .eq-group:not(.g-out) { display: none; }
+  .filter-app .eq-group:first-of-type { margin-top: 8px; }
+  #tab-mason:checked ~ .tab-bar label[for="tab-mason"] { color: var(--gold); border-bottom-color: var(--gold); }
+  #tab-mason:checked ~ .p-mason { display: block; }
+  #tab-ebci:checked ~ .tab-bar label[for="tab-ebci"] { color: var(--gold); border-bottom-color: var(--gold); }
+  #tab-ebci:checked ~ .p-ebci { display: block; }
+  #tab-out:checked ~ .tab-bar label[for="tab-out"] { color: var(--gold); border-bottom-color: var(--gold); }
+  #tab-out:checked ~ .p-out { display: block; }
+</style>
+</head>
+<body>
+
+<nav class="site-nav">
+  <div class="nav-logos">
+    <img class="nav-mason-logo" src="mason-logo-white.png" alt="Mason Technologies">
+    <div class="nav-divider"></div>
+    <img class="nav-customer-logo" src="ebci-seal.png" alt="Seal of the Eastern Band of Cherokee Indians">
+    <div class="nav-subtitle"><strong>Multipurpose Room Video Processing System</strong><br>Quote #069114 · Version 1</div>
+  </div>
+  <input type="checkbox" id="menu-toggle" aria-label="Open menu">
+  <label for="menu-toggle" class="menu-btn" aria-hidden="true"><span></span></label>
+  <div class="nav-links">
+    <a href="#hero">Overview</a><a href="#modes">Modes</a><a href="#system">System</a><a href="#components">Components</a>
+    <a href="#scope">Scope</a><a href="#investment">Investment</a><a href="#why" class="nav-cta">Contact</a>
+  </div>
+</nav>
+
+<section id="hero">
+  <div class="container">
+    <div class="hero-grid">
+      <div>
+        <div class="hero-cobranding"><img src="mason-logo-white.png" alt="Mason Technologies"><span class="hero-x">×</span><img src="ebci-seal.png" alt="Eastern Band of Cherokee Indians"></div>
+        <div class="badge-row"><span class="badge">Quote #069114 · V1</span><span class="badge blue">EOC · Training · Teams</span></div>
+        <h1 class="hero-title">One room, ready for <span>every mission.</span></h1>
+        <p class="hero-subtitle">The Multipurpose Room runs emergency operations, training and Microsoft Teams meetings. We bring the new <strong>220-inch LED wall</strong> to life with a <strong>Cyviz xpo5</strong> video wall processor, an <strong>AVPro Edge 16×16</strong> matrix and a <strong>Q-SYS</strong> audio core, all run from <strong>one touch panel</strong>. Your Teams Room, mics, speakers and rack stay.</p>
+        <div class="hero-meta">
+          <div class="meta-card"><div class="meta-label">Customer</div><div class="meta-value">Eastern Band of Cherokee Indians</div></div>
+          <div class="meta-card"><div class="meta-label">Site</div><div class="meta-value">88 Council House Lp, Cherokee, NC</div></div>
+          <div class="meta-card"><div class="meta-label">Prepared for</div><div class="meta-value">Jeremy Brown</div></div>
+          <div class="meta-card"><div class="meta-label">Total investment</div><div class="meta-value big">$115,916.41</div></div>
+        </div>
+      </div>
+      <div>
+        <div class="room" aria-label="Illustration: the front wall in EOC mode, primary source plus three windows">
+          <div class="room-row">
+            <div class="rack-mini" aria-hidden="true"><i class="b"></i><i></i><i class="g"></i><i></i><i class="b"></i><i></i><i class="g"></i><i></i><i></i><i class="g"></i><small>RACK</small></div>
+            <div class="ledwall"><div class="lay prim"><div class="w sc-cams"><span class="tag">PC 1 · surveillance</span></div><div class="w sc-gis"><span class="tag">PC 2 · GIS</span></div><div class="w sc-eoc"><span class="tag">PC 3 · WebEOC</span></div><div class="w sc-news"><span class="tag">IPTV · news</span></div></div></div>
+          </div>
+          <div class="wall-cap"><span>EOC mode · <b>primary + 3</b></span><span>220″ LED · 1920 × 1080</span></div>
+        </div>
+        <div class="hero-stats">
+          <div class="hero-stat"><div class="n">220″</div><div class="l">LED video wall</div></div>
+          <div class="hero-stat"><div class="n">7</div><div class="l">Live windows</div></div>
+          <div class="hero-stat"><div class="n">16×16</div><div class="l">Matrix, room to grow</div></div>
+          <div class="hero-stat"><div class="n">1</div><div class="l">Touch panel</div></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section id="modes">
+  <div class="container">
+    <div class="section-eyebrow">Room modes</div>
+    <h2 class="section-title">Four missions. <em>One button each.</em></h2>
+    <p class="section-desc">The room is set up for four ways of working. Each one is a single preset that sets the wall layout, the side display, the speakers and what goes to Teams. Try them here.</p>
+    <div class="howto"><span><b>1.</b>Pick a room mode.</span><span><b>2.</b>Watch the wall, the side display and the speakers change.</span><span><b>3.</b>Read the steps underneath.</span></div>
+    <div class="app modes-app">
+      <input type="radio" name="mode" id="m-conf" checked><input type="radio" name="mode" id="m-train"><input type="radio" name="mode" id="m-eoc"><input type="radio" name="mode" id="m-off"><input type="radio" name="eocl" id="e-prim" checked><input type="radio" name="eocl" id="e-quad">
+      <div class="pills mode-pills" role="radiogroup" aria-label="Room mode"><label for="m-conf">Conference</label><label for="m-train">Training</label><label for="m-eoc">EOC</label><label for="m-off">Room Off</label></div>
+      <div class="pills small eoc-only" role="radiogroup" aria-label="EOC layout"><label for="e-prim">Primary + 3</label><label for="e-quad">Quad view</label></div>
+      <div class="modes-grid">
+        <div class="room">
+          <div class="room-row">
+            <div class="rack-mini" aria-hidden="true"><i class="b"></i><i></i><i class="g"></i><i></i><i class="b"></i><i></i><i class="g"></i><i></i><i></i><i class="g"></i><small>RACK</small></div>
+            <div class="ledwall"><div class="mv v-conf"><div class="lay conf"><div class="w sc-teams"><span class="tag">Teams · far end</span></div><div class="w sc-share"><span class="tag">Teams · shared content</span></div></div></div><div class="mv v-train"><div class="lay train"><div class="w sc-slides"><span class="tag">Presenter laptop · back-wall plate</span></div><div class="w sc-teams pip"><span class="tag">Teams</span></div></div></div><div class="mv v-off"><div class="lay full"><div class="w sc-off"><span>WALL POWERED DOWN</span></div></div></div><div class="mv v-eoc-prim"><div class="lay prim"><div class="w sc-cams"><span class="tag">PC 1 · surveillance</span></div><div class="w sc-gis"><span class="tag">PC 2 · GIS</span></div><div class="w sc-eoc"><span class="tag">PC 3 · WebEOC</span></div><div class="w sc-news"><span class="tag">IPTV · news</span></div></div></div><div class="mv v-eoc-quad"><div class="lay quad"><div class="w sc-cams"><span class="tag">PC 1 · surveillance</span></div><div class="w sc-gis"><span class="tag">PC 2 · GIS</span></div><div class="w sc-eoc"><span class="tag">PC 3 · WebEOC</span></div><div class="w sc-teams"><span class="tag">Teams · far end</span></div></div></div></div>
+          </div>
+          <div class="wall-cap"><span>Front wall · <b>220″ LED wall</b> · 1920 × 1080</span><span>Touch panel on the rack top</span></div>
+        </div>
+        <div class="side-col">
+          <div class="info-card"><h4>Side display <small>existing LG</small></h4><div class="mv v-conf"><div class="side-disp"><div class="tv"><div class="w sc-share"><span class="tag">Shared content</span></div></div><p>Its own source, picked separately from the wall.</p></div></div><div class="mv v-train"><div class="side-disp"><div class="tv"><div class="w sc-slides"><span class="tag">Same slides, side wall</span></div></div><p>Its own source, picked separately from the wall.</p></div></div><div class="mv v-eoc"><div class="side-disp"><div class="tv"><div class="w sc-news"><span class="tag">IPTV · live news</span></div></div><p>Its own source, picked separately from the wall.</p></div></div><div class="mv v-off"><div class="side-disp"><div class="tv"><div class="w sc-off"></div></div><p><strong>Off.</strong></p></div></div></div>
+          <div class="info-card"><h4>Room speakers <small>2 zones · 4 pendants</small></h4><div class="mv v-conf"><p><strong>Far-end voices play through all four pendants.</strong> Program audio ducks under speech so the Yealink mics don't send it back.</p><div class="meter-row"><span class="vu-l">Far-end voices</span><span class="vu"><i style="width:78%"></i></span></div><div class="meter-row"><span class="vu-l">Program audio</span><span class="vu duck"><i style="width:30%"></i></span></div></div><div class="mv v-train"><p><strong>Presentation audio plays in both speaker zones</strong> at the volume set on the touch panel.</p><div class="meter-row"><span class="vu-l">Program audio</span><span class="vu"><i style="width:72%"></i></span></div><div class="meter-row"><span class="vu-l">Far-end voices</span><span class="vu"><i style="width:40%"></i></span></div></div><div class="mv v-eoc"><p><strong>Pick one source to hear</strong>, such as the news feed, while every window stays on screen.</p><div class="meter-row"><span class="vu-l">News audio</span><span class="vu"><i style="width:56%"></i></span></div><div class="meter-row"><span class="vu-l">Far-end voices</span><span class="vu"><i style="width:0%"></i></span></div></div><div class="mv v-off"><p><strong>Room audio is muted.</strong></p><div class="meter-row"><span class="vu-l">Program audio</span><span class="vu"><i style="width:0%"></i></span></div><div class="meter-row"><span class="vu-l">Far-end voices</span><span class="vu"><i style="width:0%"></i></span></div></div></div>
+          <div class="info-card"><h4>Sent to Teams</h4><div class="mv v-conf"><p><strong>Any source, or the whole wall,</strong> can be shared into the meeting.</p></div><div class="mv v-train"><p><strong>Optional:</strong> remote trainees join over Teams and see the same presentation.</p></div><div class="mv v-eoc"><p><strong>Share the whole wall</strong> (every window at once) into a Teams call with partner agencies.</p></div><div class="mv v-off"><p><strong>Nothing is shared.</strong> The Teams Room stays ready on its own controller.</p></div></div>
+        </div>
+      </div>
+      <div class="mcaps"><div class="mcap c-conf"><div><h4>Conference</h4><p>A Microsoft Teams meeting on the 220-inch wall. People in the room join, mute and move cameras on the Yealink controller they already know.</p></div><ol><li><span>Pick <strong>Conference</strong> on the Cyviz touch panel at the rack.</span></li><li><span>Join the meeting on the <strong>Yealink controller</strong>, as today.</span></li><li><span>Far-end video and shared content fill the wall; the <strong>side display</strong> shows whatever you pick for it.</span></li><li><span>Share a PC, a laptop or the whole wall into Teams; content is held at a steady 1080p so remote sites don't flicker.</span></li></ol></div><div class="mcap c-train"><div><h4>Training</h4><p>Instructors plug into a wall plate or share wirelessly with an AirMedia puck. Remote trainees can join over Teams.</p></div><ol><li><span>Pick <strong>Training</strong>.</span></li><li><span>Plug into the <strong>back-wall or side-wall HDMI plate</strong>, or press the <strong>AirMedia puck</strong> on your laptop.</span></li><li><span>Pick that input on the touch panel. It takes over the wall; Teams can stay up in a corner window.</span></li><li><span>Send the same slides to the <strong>side display</strong> for people seated along the side wall.</span></li></ol></div><div class="mcap c-eoc"><div><h4>EOC<span class="pin">PIN</span></h4><p>Emergency operations: the three operations PCs, live TV and Teams on the wall at once, in a primary-source layout or a quad view.</p></div><ol><li><span>Pick <strong>EOC</strong> and enter the PIN. Only authorised staff can change the wall.</span></li><li><span>Choose a layout: <strong>Primary + 3</strong> puts one source large, or <strong>Quad</strong> gives four equal windows.</span></li><li><span>Drop any source into any window: surveillance, WebEOC, GIS, IPTV news, Teams or a laptop.</span></li><li><span>Put a different source on the <strong>side display</strong>, such as live news, without touching the wall.</span></li></ol></div><div class="mcap c-off"><div><h4>Room Off</h4><p>One button clears the room at the end of the day.</p></div><ol><li><span>Pick <strong>Room Off</strong>.</span></li><li><span>Routing is cleared and room audio mutes.</span></li><li><span>The LED wall powers down, where the wall's controller supports it.</span></li><li><span>Next morning, pick any mode and the room comes back in one step.</span></li></ol></div></div>
+    </div>
+    <p class="fine">Window contents are examples. Every layout and source assignment is set during commissioning with your team and can be changed on the touch panel.</p>
+  </div>
+</section>
+
+<section id="system">
+  <div class="container">
+    <div class="section-eyebrow">System schematic</div>
+    <h2 class="section-title">Follow every signal <em>from source to screen.</em></h2>
+    <p class="section-desc">Ten sources enter one AVPro Edge matrix. The Cyviz xpo5 turns seven of them into windows on the LED wall, the side display gets its own feed, and the Q-SYS Core mixes what you hear.</p>
+    <div class="howto"><span><b>1.</b>Pick a signal below.</span><span><b>2.</b>Follow the gold line through the rack.</span><span><b>3.</b>Read the steps underneath.</span></div>
+    <div class="app trace-app">
+      <input type="radio" name="trace" id="tr-teams" checked><input type="radio" name="trace" id="tr-pcs"><input type="radio" name="trace" id="tr-news"><input type="radio" name="trace" id="tr-lap"><input type="radio" name="trace" id="tr-share"><input type="radio" name="trace" id="tr-ctl">
+      <div class="pills trace-pills" role="radiogroup" aria-label="Signal to trace"><label for="tr-teams">Teams meeting</label><label for="tr-pcs">Operations PCs</label><label for="tr-news">IPTV / news</label><label for="tr-lap">Laptops</label><label for="tr-share">Share to Teams</label><label for="tr-ctl">Control</label></div>
+      <div class="schem-wrap"><svg class="schem" viewBox="0 0 1100 590" role="img" aria-label="Signal flow: sources into the AVPro matrix, Cyviz xpo5 to the LED wall, scaler to Teams, extender to the side display, Q-SYS audio to the room speakers"><text class="colh" x="20" y="26">SOURCES</text><text class="colh" x="300" y="26">SWITCH</text><text class="colh" x="560" y="26">PROCESS</text><text class="colh" x="830" y="26">DESTINATIONS</text><text class="colh" x="20" y="418">ROOM AUDIO</text><text class="colh" x="20" y="516">CONTROL</text><path class="w t-teams" d="M210 61 H300"/><path class="w t-pcs" d="M210 115 H300"/><path class="w t-news" d="M210 169 H300"/><path class="w t-lap" d="M210 223 H300"/><path class="w t-lap" d="M210 277 H300"/><path class="w t-teams t-pcs t-news t-lap" d="M470 88 H560"/><path class="w t-teams t-pcs t-news t-lap t-ctl" d="M730 88 H830"/><path class="w t-share" d="M560 120 H522 V318 H470"/><path class="w t-share" d="M470 215 H560"/><path class="w t-share" d="M730 215 H830"/><path class="w t-news t-lap" d="M470 281 H560"/><path class="w t-news t-lap" d="M730 281 H830"/><path class="w t-pcs t-news t-lap" d="M385 330 V444 H430"/><path class="w t-teams" d="M210 462 H430"/><path class="w t-teams t-pcs t-news t-lap" d="M600 452 H660"/><path class="w t-teams t-pcs t-news t-lap" d="M800 452 H860"/><path class="w ctl t-ctl" d="M210 540 H412 V330"/><path class="w ctl t-ctl" d="M210 552 H515 V478"/><path class="w ctl t-ctl" d="M210 564 H815 V64 H730 M815 64 H830"/><text class="wl" x="752" y="82">HDBaseT</text><text class="wl" x="528" y="312">Canvas</text><text class="wl" x="392" y="400">Program audio</text><text class="wl" x="236" y="456">Far-end audio</text><g class="nd ofe t-teams t-share"><rect x="20" y="40" width="190" height="42" rx="8"/><text class="nt" x="32" y="59">Teams Room (MTR-1)</text><text class="ns" x="32" y="74">Yealink · far end + content · existing</text></g><g class="nd ofe t-pcs"><rect x="20" y="94" width="190" height="42" rx="8"/><text class="nt" x="32" y="113">Operations PCs ×3</text><text class="ns" x="32" y="128">Surveillance · WebEOC · GIS · owner</text></g><g class="nd ofe t-news"><rect x="20" y="148" width="190" height="42" rx="8"/><text class="nt" x="32" y="167">IPTV box</text><text class="ns" x="32" y="182">Live TV / news · owner</text></g><g class="nd  t-lap"><rect x="20" y="202" width="190" height="42" rx="8"/><text class="nt" x="32" y="221">AirMedia receiver</text><text class="ns" x="32" y="236">Wireless laptop sharing · new</text></g><g class="nd  t-lap"><rect x="20" y="256" width="190" height="42" rx="8"/><text class="nt" x="32" y="275">HDMI wall plates ×2</text><text class="ns" x="32" y="290">Back wall · side wall · new</text></g><g class="nd big t-teams t-pcs t-news t-lap t-share t-ctl"><rect x="300" y="40" width="170" height="290" rx="8"/><text class="nt" x="385" y="138" text-anchor="middle">AVPro Edge 16×16</text><text class="ns" x="385" y="153" text-anchor="middle">SW-1 · 6 in / 7 out spare</text></g><g class="nd big t-teams t-pcs t-news t-lap t-share t-ctl"><rect x="560" y="46" width="170" height="84" rx="8"/><text class="nt" x="572" y="86">Cyviz xpo5</text><text class="ns" x="572" y="101">Video wall processor · 7 lanes</text></g><g class="nd  t-share"><rect x="560" y="192" width="170" height="46" rx="8"/><text class="nt" x="572" y="213">Extron DSC 401</text><text class="ns" x="572" y="228">Holds Teams share at 1080p</text></g><g class="nd  t-news t-lap"><rect x="560" y="258" width="170" height="46" rx="8"/><text class="nt" x="572" y="279">HDBaseT extender</text><text class="ns" x="572" y="294">Rack → side wall</text></g><g class="nd ofe t-teams t-pcs t-news t-lap t-ctl"><rect x="830" y="46" width="250" height="84" rx="8"/><text class="nt" x="842" y="86">220″ LED wall</text><text class="ns" x="842" y="101">Via HDBaseT to the bezel input · by others</text></g><g class="nd ofe t-share"><rect x="830" y="192" width="250" height="46" rx="8"/><text class="nt" x="842" y="213">Teams content input</text><text class="ns" x="842" y="228">MTR-1 HDMI in → remote sites</text></g><g class="nd ofe t-news t-lap"><rect x="830" y="258" width="250" height="46" rx="8"/><text class="nt" x="842" y="279">Side display (LG)</text><text class="ns" x="842" y="294">Its own source · existing</text></g><g class="nd ofe t-teams"><rect x="20" y="430" width="190" height="44" rx="8"/><text class="nt" x="32" y="450">Yealink AVHub</text><text class="ns" x="32" y="465">Far-end audio · 4 ceiling mics stay</text></g><g class="nd big t-teams t-pcs t-news t-lap t-ctl"><rect x="430" y="426" width="170" height="52" rx="8"/><text class="nt" x="442" y="450">Q-SYS Core 8 Flex</text><text class="ns" x="442" y="465">Mix · duck · EQ · zone levels</text></g><g class="nd ofe t-teams t-pcs t-news t-lap"><rect x="660" y="430" width="140" height="44" rx="8"/><text class="nt" x="672" y="450">Crown amplifier</text><text class="ns" x="672" y="465">70 V · 2 channels · existing</text></g><g class="nd ofe t-teams t-pcs t-news t-lap"><rect x="860" y="430" width="220" height="44" rx="8"/><text class="nt" x="872" y="450">Atlas pendants ×4</text><text class="ns" x="872" y="465">Zone 1 + zone 2 · existing</text></g><g class="nd  t-ctl"><rect x="20" y="528" width="190" height="48" rx="8"/><text class="nt" x="32" y="550">Touch panel + controller</text><text class="ns" x="32" y="565">Cyviz 10.1″ + Easy Controller X</text></g><text class="port" x="310" y="65">IN 1–2 Teams</text><text class="port" x="310" y="119">IN 3–5 PCs</text><text class="port" x="310" y="173">IN 6 IPTV</text><text class="port" x="310" y="227">IN 7 AirMedia</text><text class="port" x="310" y="281">IN 8–9 plates</text><text class="port" x="460" y="92" text-anchor="end">OUT 1–7 → xpo5</text><text class="port" x="460" y="219" text-anchor="end">OUT 8 → Teams</text><text class="port" x="460" y="285" text-anchor="end">OUT 9 → side</text><text class="port" x="460" y="322" text-anchor="end">IN 10 ← wall canvas</text><g transform="translate(845 526)"><rect x="0" y="0" width="22" height="12" rx="3" fill="#142233" stroke="rgba(255,255,255,0.14)"/><text class="lg" x="30" y="10">New from Mason</text><rect x="125" y="0" width="22" height="12" rx="3" fill="#1d2531" stroke="rgba(255,255,255,0.14)" stroke-dasharray="3 3"/><text class="lg" x="153" y="10">Existing / owner</text><path d="M0 34 H22" stroke="#c8a84b" stroke-width="3" stroke-dasharray="8 6"/><text class="lg" x="30" y="38">Traced signal</text><path d="M125 34 H147" stroke="rgba(46,170,220,0.6)" stroke-width="1.5" stroke-dasharray="4 4"/><text class="lg" x="153" y="38">Control</text></g></svg></div>
+      <div class="caps"><div class="cap c-teams"><div><h4>Teams meeting</h4><p>Far-end video and shared content come out of the existing Yealink Teams Room and land on the wall. Far-end voices come out of the AVHub into the new Q-SYS Core.</p></div><ol><li><span>The Teams Room sends far-end video and shared content into <strong>matrix inputs 1 and 2</strong>.</span></li><li><span>The matrix feeds them to <strong>xpo5 lanes</strong>; the xpo5 draws them as windows on the <strong>LED wall</strong>.</span></li><li><span>Far-end voices leave the <strong>AVHub</strong> and enter the <strong>Q-SYS Core</strong>, which ducks program audio under speech.</span></li><li><span>The Core feeds the existing <strong>Crown amplifier</strong> and the four <strong>Atlas pendants</strong>, zone by zone.</span></li></ol></div><div class="cap c-pcs"><div><h4>Operations PCs</h4><p>Three owner micro PCs live on a shelf in the rack, one per matrix input, each with its own keyboard and mouse in the room.</p></div><ol><li><span>Each PC feeds its own <strong>matrix input (3, 4, 5)</strong> over a short HDMI patch.</span></li><li><span>The matrix passes them to <strong>xpo5 lanes</strong>, so each can be its own window on the wall.</span></li><li><span>Program audio is de-embedded at the matrix and mixed in the <strong>Q-SYS Core</strong>.</span></li><li><span>Remote support is available for these PCs through the Cyviz desktop agent licence.</span></li></ol></div><div class="cap c-news"><div><h4>IPTV and live news</h4><p>The IPTV box sits in the rack. It can be a window on the wall, on the side display, or both.</p></div><ol><li><span>The IPTV box feeds <strong>matrix input 6</strong>.</span></li><li><span>Route it to an <strong>xpo5 lane</strong> for the wall, and/or to <strong>output 9</strong> for the side display.</span></li><li><span>Output 9 reaches the <strong>LG side display</strong> over an HDBaseT extender.</span></li><li><span>Channel changes go over IP, or through the <strong>iTach IR</strong> adapter if the box needs IR.</span></li></ol></div><div class="cap c-lap"><div><h4>Guest laptops</h4><p>Two HDMI wall plates and an AirMedia receiver give visitors three ways in. There is no auto-switch: you pick the input on the touch panel.</p></div><ol><li><span>Plug into the <strong>back-wall</strong> or <strong>side-wall plate</strong> (inputs 8 and 9), or share with the <strong>AirMedia puck</strong> (input 7).</span></li><li><span>Pick that input on the touch panel; it goes to an <strong>xpo5 lane</strong> on the wall.</span></li><li><span>Send it to the <strong>side display</strong> as well for people seated along the side wall.</span></li><li><span>Laptop audio plays through the room speakers via the <strong>Q-SYS Core</strong>.</span></li></ol></div><div class="cap c-share"><div><h4>Share the wall into Teams</h4><p>Remote partners can see exactly what the room sees: one source, or the whole combined wall.</p></div><ol><li><span>The xpo5 sends its <strong>whole canvas</strong> back into <strong>matrix input 10</strong>.</span></li><li><span>Matrix <strong>output 8</strong> carries any source, or the canvas, to the <strong>Extron scaler</strong>.</span></li><li><span>The scaler holds a steady <strong>1080p</strong> so Teams doesn't re-sync each time a route changes.</span></li><li><span>It enters the Teams Room's <strong>content input</strong> and goes out to remote sites.</span></li></ol></div><div class="cap c-ctl"><div><h4>One touch panel runs the room</h4><p>The Cyviz controller talks to every device over a dedicated AV network that is kept apart from EBCI's production network.</p></div><ol><li><span>The <strong>10.1″ touch panel</strong> sits on the rack top beside the Yealink controller.</span></li><li><span>The <strong>Easy Controller X</strong> drives the matrix, the xpo5 and the <strong>Q-SYS Core</strong>.</span></li><li><span>It also handles <strong>LED wall power</strong> where the wall supports it, the IPTV box and the WattBox outlets.</span></li><li><span>Everything talks over the <strong>Netgear AV switch</strong>, isolated from the EBCI network.</span></li></ol></div></div>
+    </div>
+    <p class="schem-note">Simplified. Port assignments follow the Rev 2 drawings and are confirmed during installation. On a phone, scroll the diagram sideways.</p>
+  </div>
+</section>
+
+<section id="components">
+  <div class="container">
+    <div class="section-eyebrow">Bill of materials</div>
+    <h2 class="section-title">New where it matters. <em>Reused where it works.</em></h2>
+    <p class="section-desc">The Teams Room, microphones, amplifier, speakers, side display and rack all stay. Mason adds the processing, switching, audio and control around them, and takes out the discontinued Crestron gear.</p>
+    <div class="howto"><span><b>1.</b>Pick who provides it.</span><span><b>2.</b>The list narrows to just those items.</span></div>
+    <div class="app filter-app">
+      <input type="radio" name="flt" id="f-all" checked><input type="radio" name="flt" id="f-new"><input type="radio" name="flt" id="f-keep"><input type="radio" name="flt" id="f-owner"><input type="radio" name="flt" id="f-out">
+      <div class="pills filter-pills" role="radiogroup" aria-label="Who provides it"><label for="f-all">All <span class="ct">31</span></label><label for="f-new">New from Mason <span class="ct">15</span></label><label for="f-keep">Existing, reused <span class="ct">6</span></label><label for="f-owner">Owner-furnished <span class="ct">5</span></label><label for="f-out">Removed <span class="ct">5</span></label></div>
+      <div class="eq-group g-new"><h3>New from Mason</h3><div class="brand-grid"><div class="component-card k-new"><div class="component-img"><span class="qty">×1</span><img src="assets/cyviz-xpo5.svg" alt="xpo5 v4 video wall processor (illustration)"></div><div class="component-info"><div class="component-mfr">Cyviz · 1005010 + LI1005010 ×7 + LO1005010 ×2</div><div class="component-name">xpo5 v4 video wall processor</div><p class="component-desc">Turns up to seven live sources into windows on the 220-inch wall, in any layout. Set for the wall's native 1920 × 1080.</p><div class="spec-row"><span>7 licensed inputs</span><span>2 licensed outputs</span><span>HDMI→DP adapters ×7</span><span>DP→HDMI cables ×2</span></div><div class="component-benefit">Primary-source, quad and full-screen layouts from one processor.</div></div></div><div class="component-card k-new"><div class="component-img"><span class="qty">×1</span><img src="assets/cyviz-controller.svg" alt="Easy Controller X (illustration)"></div><div class="component-info"><div class="component-mfr">Cyviz · XL1005050</div><div class="component-name">Easy Controller X</div><p class="component-desc">The room's control processor. Runs every mode preset and talks to the matrix, xpo5, Q-SYS Core and LED wall.</p><div class="spec-row"><span>Half-width 1RU</span><span>4 LAN ports</span><span>Both networks</span></div><div class="component-benefit">Replaces the Crestron control processor.</div></div></div><div class="component-card k-new"><div class="component-img"><span class="qty">×1</span><img src="assets/cyviz-touch.svg" alt="10.1″ touch control monitor (illustration)"></div><div class="component-info"><div class="component-mfr">Cyviz · 1005055</div><div class="component-name">10.1″ touch control monitor</div><p class="component-desc">The single touch panel for the room. Sits on the rack top next to the Yealink Teams controller.</p><div class="spec-row"><span>10.1″ multi-touch</span><span>Integrated CATx extender</span></div><div class="component-benefit">One panel for modes, layouts, sources and volume.</div></div></div><div class="component-card k-new"><div class="component-img"><span class="qty">×4</span><img src="assets/cyviz-software.svg" alt="Easy Server licences &amp; Essential Support (illustration)"></div><div class="component-info"><div class="component-mfr">Cyviz · 1008285 · 1008270 · DL9000 · EM9000</div><div class="component-name">Easy Server licences & Essential Support</div><p class="component-desc">Controller connector, Teams Rooms agent and desktop agent licences for 12 months, plus a year of Cyviz Essential Support & Maintenance.</p><div class="spec-row"><span>12-month licences</span><span>Teams Rooms integration</span><span>Remote diagnostics</span></div><div class="component-benefit">Cyviz support behind the platform from day one.</div></div></div><div class="component-card k-new"><div class="component-img"><span class="qty">×1</span><img src="assets/avpro-matrix.svg" alt="16×16 HDMI matrix switcher (illustration)"></div><div class="component-info"><div class="component-mfr">AVPro Edge · AC-MX-1616</div><div class="component-name">16×16 HDMI matrix switcher</div><p class="component-desc">The hub every source passes through. Ten inputs and nine outputs are used on day one, leaving six inputs and seven outputs free.</p><div class="spec-row"><span>18 Gbps · 4K60 4:4:4</span><span>Audio de-embedding</span><span>1RU</span></div><div class="component-benefit">Room to add sources later without replacing the switcher.</div></div></div><div class="component-card k-new"><div class="component-img"><span class="qty">×2</span><img src="assets/avpro-wallplate.svg" alt="HDMI wall plate kits (illustration)"></div><div class="component-info"><div class="component-mfr">AVPro Edge · AC-CXWP-HDMO-BKT</div><div class="component-name">HDMI wall plate kits</div><p class="component-desc">Guest laptop inputs on the back wall and on the side wall under the display, each with a receiver back in the rack.</p><div class="spec-row"><span>Single gang</span><span>HDBaseT to rack</span><span>4K60 HDR · HDCP 2.2</span></div><div class="component-benefit">Plug in where you sit; pick it on the touch panel.</div></div></div><div class="component-card k-new"><div class="component-img"><span class="qty">×2</span><img src="assets/avpro-ex70-kit.svg" alt="HDBaseT extender kits (illustration)"></div><div class="component-info"><div class="component-mfr">AVPro Edge · AC-EX70-UHD-KIT</div><div class="component-name">HDBaseT extender kits</div><p class="component-desc">Carry video from the rack to the LED wall's bezel input and to the side display over one Cat cable each.</p><div class="spec-row"><span>4K60 HDR</span><span>Up to 230 ft</span></div><div class="component-benefit">Clean signal on the longer runs; field-verified on site.</div></div></div><div class="component-card k-new"><div class="component-img"><span class="qty">×1</span><img src="assets/extron-dsc401.svg" alt="DSC 401 HDMI scaler (illustration)"></div><div class="component-info"><div class="component-mfr">Extron · 60-1878-01</div><div class="component-name">DSC 401 HDMI scaler</div><p class="component-desc">Sits in front of the Teams Room's content input and holds it at a steady 1080p, whatever is routed to it.</p><div class="spec-row"><span>4K/60 in</span><span>4:4:4</span><span>HDCP 2.3</span></div><div class="component-benefit">Remote sites don't see a re-sync every time a route changes.</div></div></div><div class="component-card k-new"><div class="component-img"><span class="qty">×1</span><img src="assets/airmedia.svg" alt="AirMedia Series 3 wireless presentation (illustration)"></div><div class="component-info"><div class="component-mfr">Crestron · AM3-111-KIT</div><div class="component-name">AirMedia Series 3 wireless presentation</div><p class="component-desc">A receiver in the rack and a USB-C puck for the table. Share a laptop without a cable.</p><div class="spec-row"><span>AM-3100-WF receiver</span><span>AM-TX3-100 USB-C puck</span></div><div class="component-benefit">Wireless sharing for visitors and trainers.</div></div></div><div class="component-card k-new"><div class="component-img"><span class="qty">×1</span><img src="assets/qsc-core-8-flex.svg" alt="Q-SYS Core 8 Flex audio processor (illustration)"></div><div class="component-info"><div class="component-mfr">QSC · CORE 8 FLEX</div><div class="component-name">Q-SYS Core 8 Flex audio processor</div><p class="component-desc">Replaces the discontinued Crestron room audio. Mixes program audio with Teams, ducks under speech, EQs the pendants and sets both zone levels.</p><div class="spec-row"><span>8 Flex analog I/O</span><span>8×8 Dante</span><span>Native Cyviz control</span></div><div class="component-benefit">Clear far-end voices and one master volume.</div></div></div><div class="component-card k-new"><div class="component-img"><span class="qty">×1</span><img src="assets/wattbox-vertical.svg" alt="IP power conditioner, 12 outlets (illustration)"></div><div class="component-info"><div class="component-mfr">WattBox · WB-800VPS-IPVM-12</div><div class="component-name">IP power conditioner, 12 outlets</div><p class="component-desc">Vertical power for the rebuilt rack, with each outlet switched and metered over the network.</p><div class="spec-row"><span>12 outlets</span><span>Per-outlet control</span><span>2160 J surge</span></div><div class="component-benefit">Restart a single device remotely instead of a site visit.</div></div></div><div class="component-card k-new"><div class="component-img"><span class="qty">×1</span><img src="assets/netgear-m4250-10g2f.svg" alt="M4250 AV Line network switch (illustration)"></div><div class="component-info"><div class="component-mfr">Netgear · GSM4212P-100NAS</div><div class="component-name">M4250 AV Line network switch</div><p class="component-desc">A dedicated network for the AV gear, kept physically and logically apart from EBCI's production network.</p><div class="spec-row"><span>12 ports · 8 PoE+</span><span>IGMP Plus</span><span>Managed</span></div><div class="component-benefit">AV traffic never touches the EBCI network.</div></div></div><div class="component-card k-new"><div class="component-img"><span class="qty">×1</span><img src="assets/itach.svg" alt="iTach IP to IR adapter (illustration)"></div><div class="component-info"><div class="component-mfr">Global Caché · CL-IP2IR-P</div><div class="component-name">iTach IP to IR adapter</div><p class="component-desc">Lets the touch panel change channels on the IPTV box if the chosen box needs infrared.</p><div class="spec-row"><span>PoE powered</span><span>IR emitter</span></div><div class="component-benefit">Channel control from the same touch panel.</div></div></div><div class="component-card k-new"><div class="component-img"><span class="qty">×1</span><img src="assets/rack-kit.svg" alt="Rack retrofit kit (illustration)"></div><div class="component-info"><div class="component-mfr">Middle Atlantic · PTRK-ERS</div><div class="component-name">Rack retrofit kit</div><p class="component-desc">Three shelves, rear rails, blanking panels and lacing to rebuild the existing PTRK rack on site.</p><div class="spec-row"><span>3 shelves</span><span>Rear rails</span><span>Blanks + lacing</span></div><div class="component-benefit">Your existing rack, rebuilt neat and labelled.</div></div></div><div class="component-card k-new"><div class="component-img"><span class="qty">LOT</span><img src="assets/reel-cat6a.svg" alt="Cabling &amp; patch cords (illustration)"></div><div class="component-info"><div class="component-mfr">Liberty · Legrand</div><div class="component-name">Cabling & patch cords</div><p class="component-desc">1,000 ft of shielded CAT6 F/UTP plenum cable, plus HDMI and CAT6 patch cords for the rack.</p><div class="spec-row"><span>CAT6 F/UTP CMP</span><span>25 HDMI patches</span><span>23 CAT6 patches</span></div><div class="component-benefit">Terminated, labelled and tested at both ends.</div></div></div></div>
+        <p class="illus-note">Product images are representative illustrations.</p></div>
+      <div class="eq-group g-keep"><h3>Existing, reused</h3><div class="mini-grid"><div class="mini-card k-keep"><div class="ic"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="7" width="13" height="10" rx="2"/><path d="M16 11l5-3v8l-5-3"/></svg></div><div><span class="chip keep">Existing</span><h5>Yealink Microsoft Teams Room</h5><p>MCore, MTouch Plus, AVHub and two PTZ cameras stay in place. Mason connects them to the new matrix and audio.</p></div></div><div class="mini-card k-keep"><div class="ic"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="3"/></svg></div><div><span class="chip keep">Existing</span><h5>Four Yealink ceiling microphones</h5><p>Already mounted. Yealink keeps handling pickup and echo cancelling.</p></div></div><div class="mini-card k-keep"><div class="ic"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="2" y="7" width="20" height="10" rx="1.5"/><circle cx="7" cy="12" r="2"/><path d="M12 10h7M12 14h7"/></svg></div><div><span class="chip keep">Existing</span><h5>Crown power amplifier</h5><p>Reused on its own circuit; now fed by the Q-SYS Core, one channel per zone.</p></div></div><div class="mini-card k-keep"><div class="ic"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v4"/><path d="M7 7h10l-2 12H9z"/><circle cx="12" cy="13" r="2"/></svg></div><div><span class="chip keep">Existing</span><h5>Four Atlas 70 V pendants</h5><p>Two zones of two. Wiring and positions stay as they are.</p></div></div><div class="mini-card k-keep"><div class="ic"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="2" y="4" width="20" height="13" rx="1.5"/><path d="M8 21h8M12 17v4"/></svg></div><div><span class="chip keep">Existing</span><h5>LG side-wall display</h5><p>Gets its own matrix output, so it can show something different from the wall.</p></div></div><div class="mini-card k-keep"><div class="ic"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="5" y="2" width="14" height="20" rx="1.5"/><path d="M8 6h8M8 10h8M8 14h8"/><circle cx="8" cy="22" r="0.5"/></svg></div><div><span class="chip keep">Existing</span><h5>Middle Atlantic PTRK rack</h5><p>Reused, reconfigured and rebuilt on site beside the LED wall.</p></div></div></div></div>
+      <div class="eq-group g-owner"><h3>Owner-furnished</h3><div class="mini-grid"><div class="mini-card k-owner"><div class="ic"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="2" y="4" width="20" height="12" rx="1"/><path d="M2 8h20M2 12h20M7 4v12M12 4v12M17 4v12"/><path d="M9 20h6"/></svg></div><div><span class="chip owner">By EBCI</span><h5>220″ direct-view LED wall</h5><p>Furnished and installed by others. Mason connects the xpo5 to its bezel input and sets resolution and power control.</p></div></div><div class="mini-card k-owner"><div class="ic"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="5" y="5" width="14" height="14" rx="2"/><path d="M9 15h6"/></svg></div><div><span class="chip owner">By EBCI</span><h5>Three micro / tiny form factor PCs</h5><p>Operations sources (surveillance, WebEOC, GIS). Must be micro or tiny form factor to fit the rack shelf.</p></div></div><div class="mini-card k-owner"><div class="ic"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="2" y="7" width="15" height="9" rx="1.5"/><path d="M5 10h1M8 10h1M11 10h1M14 10h0M5 13h9"/><rect x="18" y="9" width="4" height="7" rx="2"/></svg></div><div><span class="chip owner">By EBCI</span><h5>Three wireless keyboard + mouse sets</h5><p>One per PC, used from the room.</p></div></div><div class="mini-card k-owner"><div class="ic"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="9" width="16" height="7" rx="1.5"/><path d="M8 4l4 4 4-4"/></svg></div><div><span class="chip owner">By EBCI</span><h5>IPTV streaming box</h5><p>Live TV and news source, kept in the rack.</p></div></div><div class="mini-card k-owner"><div class="ic"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="3" width="16" height="18" rx="2"/><path d="M8 8h8M8 12h8M8 16h5"/></svg></div><div><span class="chip owner">By EBCI</span><h5>Teams Rooms Pro licence</h5><p>Stays with EBCI's Microsoft 365 tenant.</p></div></div></div></div>
+      <div class="eq-group g-out"><h3>Removed</h3><div class="mini-grid"><div class="mini-card k-out"><div class="ic"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="8" width="18" height="9" rx="1.5"/><path d="M7 12h4"/><circle cx="17" cy="12.5" r="1"/></svg></div><div><span class="chip out">Removed</span><h5>Crestron presentation & control processor</h5><p>Replaced by the AVPro matrix, Q-SYS Core and Cyviz controller. Labelled and left in an EBCI storage location.</p></div></div><div class="mini-card k-out"><div class="ic"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="2" y="4" width="20" height="13" rx="1.5"/><path d="M8 21h8M12 17v4"/></svg></div><div><span class="chip out">Removed</span><h5>Crestron room touch controller</h5><p>Replaced by the Cyviz 10.1″ touch panel.</p></div></div><div class="mini-card k-out"><div class="ic"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 2v6M15 2v6M6 8h12v4a6 6 0 0 1-12 0zM12 18v4"/></svg></div><div><span class="chip out">Removed</span><h5>Rack PDU designated for replacement</h5><p>Replaced by the WattBox and turned over to EBCI.</p></div></div><div class="mini-card k-out"><div class="ic"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="5" y="2" width="14" height="20" rx="1.5"/><path d="M8 6h8M8 10h8M8 14h8"/><circle cx="8" cy="22" r="0.5"/></svg></div><div><span class="chip out">Removed</span><h5>Obsolete rack accessories & ID panel</h5><p>Removed during the rack rebuild, along with cabling no longer needed.</p></div></div><div class="mini-card k-out"><div class="ic"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="2" y="8" width="20" height="9" rx="2"/><circle cx="16" cy="12.5" r="2.5"/><path d="M5 12h5"/></svg></div><div><span class="chip out">Removed</span><h5>Projector, screen & screen controller</h5><p>Not part of Mason's removal scope. Removed by EBCI or others unless added.</p></div></div></div></div>
+    </div>
+  </div>
+</section>
+
+<section id="delivery">
+  <div class="container">
+    <div class="section-eyebrow">Delivery</div>
+    <h2 class="section-title">From approval to <em>first briefing.</em></h2>
+    <p class="section-desc">The rack is rebuilt on site from drop-shipped equipment, and the cutover is planned around your Teams downtime and the LED wall installation.</p>
+    <div class="timeline-flow"><div class="t-step key"><div class="t-circle">1</div><div class="t-label">Approve & order</div><div class="t-desc">Material and 10% of labor invoiced; equipment ordered on payment.</div></div><div class="t-step"><div class="t-circle">2</div><div class="t-label">Field verify</div><div class="t-desc">Rack units and depth, cable runs and the LED wall input confirmed on site.</div></div><div class="t-step"><div class="t-circle">3</div><div class="t-label">Drop-ship</div><div class="t-desc">Equipment ships to EBCI receiving for the on-site rack rebuild.</div></div><div class="t-step"><div class="t-circle">4</div><div class="t-label">Rack rebuild</div><div class="t-desc">Crestron gear out, new gear in, during agreed Teams downtime.</div></div><div class="t-step"><div class="t-circle">5</div><div class="t-label">Wall integration</div><div class="t-desc">xpo5 connected to the LED wall once its installer has it running.</div></div><div class="t-step key"><div class="t-circle">6</div><div class="t-label">Commission & train</div><div class="t-desc">Acceptance testing with EBCI, then an operator walkthrough.</div></div></div>
+    <div class="callout-row">
+      <div class="callout"><div class="callout-icon"><svg viewBox="0 0 24 24"><path d="M12 2l8 4v6c0 5-3.5 8.5-8 10-4.5-1.5-8-5-8-10V6z"/><path d="M9 12l2 2 4-4"/></svg></div><div><h4>Isolated AV network</h4><p>A dedicated switch keeps AV traffic off EBCI's production network. Only the controller and designated devices touch both, with routing between them disabled.</p></div></div>
+      <div class="callout"><div class="callout-icon"><svg viewBox="0 0 24 24"><rect x="3" y="11" width="18" height="10" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg></div><div><h4>PIN-protected EOC</h4><p>EOC mode sits behind a PIN, so only authorised staff can change the operations layout.</p></div></div>
+      <div class="callout"><div class="callout-icon"><svg viewBox="0 0 24 24"><path d="M3 12h4l3-8 4 16 3-8h4"/></svg></div><div><h4>Tested end to end</h4><p>Every source, layout, mode, speaker zone and Teams path is verified, then accepted with an authorised EBCI representative.</p></div></div>
+    </div>
+  </div>
+</section>
+
+<section id="scope">
+  <div class="container">
+    <div class="section-eyebrow">Scope of work</div>
+    <h2 class="section-title">Clear lines, <em>start to finish.</em></h2>
+    <p class="section-desc">What Mason delivers, what EBCI provides, and what sits outside this quote. The full scope of work is in the quote document.</p>
+    <div class="app tabs">
+      <input type="radio" name="tab" id="tab-mason" checked><input type="radio" name="tab" id="tab-ebci"><input type="radio" name="tab" id="tab-out">
+      <div class="tab-bar" role="tablist"><label for="tab-mason">Mason delivers</label><label for="tab-ebci">EBCI provides</label><label for="tab-out">Not included</label></div>
+      <div class="tab-panel p-mason"><ul class="scope-grid"><li><strong>Furnish, install, configure and commission</strong> the Cyviz xpo5, Easy Controller X and touch panel</li><li><strong>AVPro Edge 16×16 matrix</strong> routing to the xpo5, Teams content input and side display</li><li><strong>LED wall integration</strong>: signal connection, extension where needed, resolution and power control</li><li><strong>Two HDMI wall plates</strong> (back wall, side wall) and <strong>Crestron AirMedia</strong> wireless sharing</li><li><strong>Teams integration</strong>: matrix connections, 1080p content scaling, Cyviz Teams Rooms agent</li><li><strong>Q-SYS Core 8 Flex</strong> design: mixing, ducking, EQ and two speaker zones</li><li><strong>Four room modes</strong>: Conference, Training, EOC (PIN-protected) and Room Off</li><li><strong>Rack rebuild</strong>: remove legacy gear, add shelves, rails, blanks, WattBox, cable dressing and labels</li><li><strong>Dedicated AV network</strong>: switch configuration, addressing and documentation</li><li><strong>Removal</strong> of the Crestron processor, touch controller, designated PDU and obsolete accessories</li><li><strong>Testing and acceptance</strong> with an authorised EBCI representative</li><li><strong>Training and documentation</strong>: touch panel, modes, layouts, sharing, startup and shutdown</li></ul></div><div class="tab-panel p-ebci"><ul class="scope-grid"><li><strong>LED wall</strong>: complete installation, power, configuration and readiness through its contractor</li><li><strong>Owner equipment</strong>: Yealink system, Crown amp, Atlas speakers, LG display, three micro PCs, keyboards and mice, IPTV box</li><li><strong>Compatible equipment</strong>: PCs must be micro or tiny form factor to fit the rack</li><li><strong>Network services</strong>: customer-network drops, IP addressing, firewall permissions, internet and Teams connectivity</li><li><strong>Electrical</strong>: suitable power, grounding, receptacles and circuits for the AV equipment</li><li><strong>Pathways and access</strong>: accessible cable paths, conduit, wall and ceiling access</li><li><strong>Scheduling</strong>: room access and approved Teams downtime during the rack rebuild and cutover</li><li><strong>Storage</strong>: an on-site location for removed equipment</li><li><strong>Operations</strong>: source computers, applications, logins and staff for configuration and acceptance</li><li><strong>Rack</strong>: make the existing rack available and authorise equipment removal</li></ul></div><div class="tab-panel p-out"><ul class="scope-grid"><li>LED wall supply, mounting, structure, power, module configuration and manufacturer commissioning</li><li>A new UPS, new circuits, receptacle changes and electrical permitting</li><li>Projector, projection screen and screen controller removal (by EBCI or others unless added)</li><li>Off-site transport, recycling or disposal of removed equipment</li><li>Replacing Yealink equipment, Teams licensing or changes to Microsoft 365</li><li>Application software, PC configuration and user accounts on the owner PCs</li><li>Application-level integration with surveillance, emergency management, GIS or IPTV services</li><li>EBCI production switches, routers and firewalls</li><li>New conduit, core drilling, structural work, drywall, painting or ceiling reconstruction</li><li>Auto-switching on laptop connection (inputs are picked on the touch panel)</li><li>Repair or replacement of defective existing equipment</li><li>Renewal of licences, maintenance and service beyond their contracted terms</li></ul></div>
+    </div>
+    <p class="tab-note">Changes to quantities, functions, layout or responsibilities after scope approval may need a written change order.</p>
+  </div>
+</section>
+
+<section id="investment">
+  <div class="container">
+    <div class="section-eyebrow">Investment</div>
+    <h2 class="section-title">One fixed price <em>for the whole room.</em></h2>
+    <p class="section-desc">Every figure below matches Quote #069114, Version 1. Open any line to see the items behind it.</p>
+    <div class="investment-layout">
+      <div class="price-card">
+        <div class="price-label">Total investment</div>
+        <div class="price-main">$115,916.41</div>
+        <p class="price-desc">Equipment, cabling, installation, engineering, commissioning, training and the Mason Command Silver SLA, <strong>as quoted</strong>.</p>
+        <div class="split-bar" aria-hidden="true"><i style="width:70.73%;background:#c8a84b" title="Equipment: $81,991.12"></i><i style="width:0.93%;background:#8f7a3c" title="Cabling: $1,077.15"></i><i style="width:23.66%;background:#2eaadc" title="Labor & engineering: $27,430.00"></i><i style="width:3.64%;background:#5a7894" title="Hardware & direct costs: $4,218.14"></i><i style="width:1.04%;background:#3fae5a" title="Mason Command Silver: $1,200.00"></i></div>
+        <div class="split-legend"><span style="--c:#c8a84b">Equipment · $81,991.12</span><span style="--c:#8f7a3c">Cabling · $1,077.15</span><span style="--c:#2eaadc">Labor & engineering · $27,430.00</span><span style="--c:#5a7894">Hardware & direct costs · $4,218.14</span><span style="--c:#3fae5a">Mason Command Silver · $1,200.00</span></div>
+        <div class="price-breakdown"><details class="pl"><summary><span class="cat">Conferencing Equipment</span><span class="val">$1,942.65</span></summary><div class="table-scroll"><table class="line-items"><thead><tr><th class="n">Qty</th><th>Item</th><th class="n">Unit</th><th class="n">Ext.</th></tr></thead><tbody><tr class="ofe"><td class="n">1</td><td>Microsoft Teams Rooms system with MCore PC, MTouch Plus, AVHub, dual 4K PTZ cameras, content sharing and room sensor<span class="sku">Owner-furnished</span></td><td class="n">$0.00</td><td class="n">$0.00</td></tr><tr class="ofe"><td class="n">4</td><td>Ceiling array microphone with 360° voice pickup and AVHub integration<span class="sku">Owner-furnished</span></td><td class="n">$0.00</td><td class="n">$0.00</td></tr><tr class="ofe"><td class="n">1</td><td>Teams Rooms Pro license<span class="sku">Owner-furnished</span></td><td class="n">$0.00</td><td class="n">$0.00</td></tr><tr class=""><td class="n">1</td><td>Easy Server MTR Agent, 12 months<span class="sku">Cyviz · 1008285</span></td><td class="n">$280.00</td><td class="n">$280.00</td></tr><tr class=""><td class="n">1</td><td>AirMedia Series 3 kit with AM-3100-WF receiver and AM-TX3-100 adaptor<span class="sku">Crestron · AM3-111-KIT</span></td><td class="n">$1,662.65</td><td class="n">$1,662.65</td></tr></tbody></table></div></details><details class="pl"><summary><span class="cat">Video Equipment</span><span class="val">$50,085.39</span></summary><div class="table-scroll"><table class="line-items"><thead><tr><th class="n">Qty</th><th>Item</th><th class="n">Unit</th><th class="n">Ext.</th></tr></thead><tbody><tr class="ofe"><td class="n">1</td><td>220&quot; direct-view LED video wall with integrated display controller and HDMI input module in bottom bezel<span class="sku">Owner-furnished</span></td><td class="n">$0.00</td><td class="n">$0.00</td></tr><tr class="ofe"><td class="n">1</td><td>LG existing side-wall flat panel display for auxiliary video content<span class="sku">Owner-furnished</span></td><td class="n">$0.00</td><td class="n">$0.00</td></tr><tr class="ofe"><td class="n">3</td><td>Micro form factor PC with HDMI output for dedicated video source<span class="sku">Owner-furnished</span></td><td class="n">$0.00</td><td class="n">$0.00</td></tr><tr class="ofe"><td class="n">3</td><td>Wireless keyboard and mouse set, one per PC<span class="sku">Owner-furnished</span></td><td class="n">$0.00</td><td class="n">$0.00</td></tr><tr class="ofe"><td class="n">1</td><td>IPTV streaming media player with HDMI output<span class="sku">Owner-furnished</span></td><td class="n">$0.00</td><td class="n">$0.00</td></tr><tr class=""><td class="n">1</td><td>XPO5v4 1U rack-mount video wall processor<span class="sku">Cyviz · 1005010</span></td><td class="n">$20,116.03</td><td class="n">$20,116.03</td></tr><tr class=""><td class="n">7</td><td>XPO5v4 video processing input port<span class="sku">Cyviz · LI1005010</span></td><td class="n">$2,315.38</td><td class="n">$16,207.66</td></tr><tr class=""><td class="n">2</td><td>XPO5v4 video processing output port<span class="sku">Cyviz · LO1005010</span></td><td class="n">$1,521.15</td><td class="n">$3,042.30</td></tr><tr class=""><td class="n">7</td><td>HDMI20-DP adapter 4K60 0.5 m<span class="sku">Cyviz · 1005466</span></td><td class="n">$125.64</td><td class="n">$879.48</td></tr><tr class=""><td class="n">2</td><td>Active DP-male to HDMI-male cable 0.3 m<span class="sku">Cyviz · 1004653</span></td><td class="n">$44.87</td><td class="n">$89.74</td></tr><tr class=""><td class="n">1</td><td>18 Gbps HDMI 16x16 matrix with audio de-embedding (4K60 4:4:4)<span class="sku">AVPro Edge · AC-MX-1616</span></td><td class="n">$6,968.17</td><td class="n">$6,968.17</td></tr><tr class=""><td class="n">2</td><td>Single-gang HDMI 2.0 wall plate transmitter and HDBaseT receiver kit<span class="sku">AVPro Edge · AC-CXWP-HDMO-BKT</span></td><td class="n">$505.61</td><td class="n">$1,011.22</td></tr><tr class=""><td class="n">2</td><td>4K HDMI HDBaseT extender kit, transmitter and receiver, 230 ft<span class="sku">AVPro Edge · AC-EX70-UHD-KIT</span></td><td class="n">$391.57</td><td class="n">$783.14</td></tr><tr class=""><td class="n">1</td><td>4K/60 HDMI video scaler, 4:4:4, HDCP 2.3<span class="sku">Extron · 60-1878-01</span></td><td class="n">$987.65</td><td class="n">$987.65</td></tr></tbody></table></div></details><details class="pl"><summary><span class="cat">Audio Equipment</span><span class="val">$3,135.00</span></summary><div class="table-scroll"><table class="line-items"><thead><tr><th class="n">Qty</th><th>Item</th><th class="n">Unit</th><th class="n">Ext.</th></tr></thead><tbody><tr class="ofe"><td class="n">1</td><td>2-channel 70 V power amplifier, 500 W per channel (existing Crown)<span class="sku">Owner-furnished</span></td><td class="n">$0.00</td><td class="n">$0.00</td></tr><tr class="ofe"><td class="n">1</td><td>70 V pendant loudspeaker system: four speakers, two zones (existing Atlas)<span class="sku">Owner-furnished</span></td><td class="n">$0.00</td><td class="n">$0.00</td></tr><tr class=""><td class="n">1</td><td>Q-SYS Core processor with 8 Flex audio I/O, 8x8 Dante, USB AV bridging<span class="sku">QSC · CORE 8 FLEX</span></td><td class="n">$3,135.00</td><td class="n">$3,135.00</td></tr></tbody></table></div></details><details class="pl"><summary><span class="cat">Control Equipment</span><span class="val">$24,841.46</span></summary><div class="table-scroll"><table class="line-items"><thead><tr><th class="n">Qty</th><th>Item</th><th class="n">Unit</th><th class="n">Ext.</th></tr></thead><tbody><tr class=""><td class="n">1</td><td>X-Series control processor (Easy Controller X), four LAN ports, half-width 1RU<span class="sku">Cyviz · XL1005050</span></td><td class="n">$17,948.72</td><td class="n">$17,948.72</td></tr><tr class=""><td class="n">1</td><td>Essential Support &amp; Maintenance Agreement, yearly<span class="sku">Cyviz · EM9000</span></td><td class="n">$3,811.07</td><td class="n">$3,811.07</td></tr><tr class=""><td class="n">1</td><td>10.1&quot; multi-touch control monitor with integrated CATx extender<span class="sku">Cyviz · 1005055</span></td><td class="n">$2,387.18</td><td class="n">$2,387.18</td></tr><tr class=""><td class="n">1</td><td>Easy Server Controller Connector, 12-month license<span class="sku">Cyviz · 1008270</span></td><td class="n">$280.00</td><td class="n">$280.00</td></tr><tr class=""><td class="n">1</td><td>Easy Server Desktop Agent, 12-month license<span class="sku">Cyviz · DL9000</span></td><td class="n">$280.00</td><td class="n">$280.00</td></tr><tr class=""><td class="n">1</td><td>iTach wired TCP/IP to IR with PoE<span class="sku">Global Caché · CL-IP2IR-P</span></td><td class="n">$134.49</td><td class="n">$134.49</td></tr></tbody></table></div></details><details class="pl"><summary><span class="cat">Rack Equipment</span><span class="val">$1,986.62</span></summary><div class="table-scroll"><table class="line-items"><thead><tr><th class="n">Qty</th><th>Item</th><th class="n">Unit</th><th class="n">Ext.</th></tr></thead><tbody><tr class="ofe"><td class="n">1</td><td>PTRK series rolling equipment rack, reused and rebuilt on site<span class="sku">Owner-furnished</span></td><td class="n">$0.00</td><td class="n">$0.00</td></tr><tr class="ofe"><td class="n">1</td><td>9-outlet 15 A 1RU rack-mount power distribution unit<span class="sku">Owner-furnished</span></td><td class="n">$0.00</td><td class="n">$0.00</td></tr><tr class=""><td class="n">1</td><td>800 Series 12-outlet vertical IP power conditioner, outlet control and metering<span class="sku">WattBox · WB-800VPS-IPVM-12</span></td><td class="n">$966.95</td><td class="n">$966.95</td></tr><tr class=""><td class="n">1</td><td>M4250 AV Line 12-port managed gigabit switch, 8 PoE+ ports<span class="sku">Netgear · GSM4212P-100NAS</span></td><td class="n">$738.42</td><td class="n">$738.42</td></tr><tr class=""><td class="n">1</td><td>Equipment rack retrofit kit: 3 shelves, rear rails, blanking panels, lacing<span class="sku">Middle Atlantic · PTRK-ERS</span></td><td class="n">$281.25</td><td class="n">$281.25</td></tr></tbody></table></div></details><details class="pl"><summary><span class="cat">Bulk Wire & Interconnects</span><span class="val">$1,077.15</span></summary><div class="table-scroll"><table class="line-items"><thead><tr><th class="n">Qty</th><th>Item</th><th class="n">Unit</th><th class="n">Ext.</th></tr></thead><tbody><tr class=""><td class="n">1,000</td><td>CAT6 23/4P F/UTP CMP white (feet)<span class="sku">Liberty · 24-4P-P-L6SH-WHT</span></td><td class="n">$0.78</td><td class="n">$780.00</td></tr><tr class=""><td class="n">20</td><td>3 ft C2G Core Series high speed HDMI cable, 4K60<span class="sku">Legrand · 56782</span></td><td class="n">$6.99</td><td class="n">$139.80</td></tr><tr class=""><td class="n">5</td><td>6 ft C2G Core Series high speed HDMI cable, 4K60<span class="sku">Legrand · 56783</span></td><td class="n">$7.32</td><td class="n">$36.60</td></tr><tr class=""><td class="n">16</td><td>3 ft CAT6 snagless STP cable<span class="sku">Legrand · 00810</span></td><td class="n">$4.84</td><td class="n">$77.44</td></tr><tr class=""><td class="n">6</td><td>6 ft CAT6 snagless STP cable<span class="sku">Legrand · 00813</span></td><td class="n">$6.01</td><td class="n">$36.06</td></tr><tr class=""><td class="n">1</td><td>10 ft CAT6 snagless STP cable<span class="sku">Legrand · 00817</span></td><td class="n">$7.25</td><td class="n">$7.25</td></tr></tbody></table></div></details><details class="pl"><summary><span class="cat">Installation & Engineering</span><span class="val">$27,430.00</span></summary><div class="table-scroll"><table class="line-items"><thead><tr><th class="n">Qty</th><th>Item</th><th class="n">Unit</th><th class="n">Ext.</th></tr></thead><tbody><tr class=""><td class="n">1</td><td>Labor: installation &amp; engineering<span class="sku">Mason · MTI Labor</span></td><td class="n">$27,430.00</td><td class="n">$27,430.00</td></tr></tbody></table></div></details><details class="pl"><summary><span class="cat">Miscellaneous Hardware & Direct Costs</span><span class="val">$4,218.14</span></summary><div class="table-scroll"><table class="line-items"><thead><tr><th class="n">Qty</th><th>Item</th><th class="n">Unit</th><th class="n">Ext.</th></tr></thead><tbody><tr class=""><td class="n">1</td><td>Miscellaneous hardware &amp; direct costs (shipping, G&amp;A, etc.)<span class="sku">Mason · MTI Misc. &amp; Direct Costs</span></td><td class="n">$4,218.14</td><td class="n">$4,218.14</td></tr></tbody></table></div></details><details class="pl"><summary><span class="cat">Mason Command Silver SLA</span><span class="val">$1,200.00</span></summary><div class="table-scroll"><table class="line-items"><thead><tr><th class="n">Qty</th><th>Item</th><th class="n">Unit</th><th class="n">Ext.</th></tr></thead><tbody><tr class=""><td class="n">1</td><td>Service Level Agreement, Silver tier<span class="sku">Mason · MTI-SLA-SILVER</span></td><td class="n">$1,200.00</td><td class="n">$1,200.00</td></tr></tbody></table></div></details></div>
+        <div class="total-line"><span>Total</span><span class="val">$115,916.41</span></div>
+        <div class="annual-line"><span>Annual: Mason Command Silver SLA <span class="sku" style="color:var(--muted);font-family:Consolas,monospace;font-size:11px">MTI-SLA-SILVER</span></span><span class="val">$4,688.00 / yr</span></div>
+      </div>
+      <div class="quote-details">
+        <div class="detail-card"><h4>Quote</h4>
+          <div class="detail-row"><span class="dk">Quote</span><span class="dv">#069114 · Version 1</span></div>
+          <div class="detail-row"><span class="dk">Issued</span><span class="dv">October 28, 2026</span></div>
+          <div class="detail-row"><span class="dk">Valid through</span><span class="dv">November 24, 2026</span></div>
+          <div class="detail-row"><span class="dk">Site</span><span class="dv">88 Council House Lp, Cherokee, NC 28719</span></div>
+          <div class="detail-row"><span class="dk">Prepared by</span><span class="dv">Edward Puerta</span></div>
+        </div>
+        <div class="detail-card"><h4>Payment terms</h4><ul class="terms-list">
+          <li>On acceptance, <strong>all material and 10% of labor</strong> (mobilization) are invoiced. Equipment is ordered once that payment is received.</li>
+          <li>The rest of the labor is billed by <strong>percent complete, monthly</strong>, net 30 from invoice date.</li>
+          <li>Pricing is <strong>firm fixed</strong>; work outside the agreed scope needs an approved change order.</li></ul></div>
+        <div class="detail-card"><h4>Warranty</h4><ul class="terms-list">
+          <li><strong>Equipment:</strong> 1 year from installation, unless the manufacturer specifies otherwise.</li>
+          <li><strong>Labor:</strong> 90 days on installation workmanship.</li>
+          <li>Owner-furnished and relocated equipment, including displays, is not warranted by Mason.</li></ul></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section id="support">
+  <div class="container">
+    <div class="section-eyebrow">Mason Command</div>
+    <h2 class="section-title">Support that <em>answers the call.</em></h2>
+    <p class="section-desc">This quote includes the Mason Command Silver service level agreement, alongside a year of Cyviz Essential Support & Maintenance on the video platform.</p>
+    <div class="sla-grid">
+      <div class="sla-card lead"><div class="k">Mason Command · Silver</div><div class="big">4 hrs <small>response</small></div>
+        <p>Remote help desk, Monday–Friday, 9:00 a.m.–5:00 p.m. EST. Unlimited remote support.</p>
+        <ul><li>Live phone and email access to support specialists</li><li>Remote troubleshooting, diagnostics and configuration help</li><li>Escalation to senior engineers when needed</li></ul></div>
+      <div class="sla-card"><div class="k">On site & monitoring</div><div class="big">3–4 <small>business days</small></div>
+        <p>On-site dispatch after remote triage and your approval, at $200–$240 per hour (4-hour minimum, net 30).</p>
+        <ul><li>Proactive monitoring with automated health checks and alerts</li><li>Warranty repairs coordinated directly with manufacturers</li><li>Root-cause analysis for recurring issues</li></ul></div>
+      <div class="sla-card"><div class="k">Cyviz platform</div><div class="big">12 <small>months included</small></div>
+        <p>Cyviz Essential Support & Maintenance plus the Easy Server licences for the controller, Teams Rooms agent and desktop agent.</p>
+        <ul><li>Remote monitoring of Cyviz devices, subject to your network policies</li><li>Renewal after the initial term is purchased separately</li></ul></div>
+    </div>
+    <p class="fine">Preventative maintenance visits are not included in Silver and can be scheduled separately. Coverage excludes Mason-recognised holidays. Re-programming, network design and extra training may be billed separately.</p>
+  </div>
+</section>
+
+<section id="why">
+  <div class="container">
+    <div class="section-eyebrow">Why Mason</div>
+    <h2 class="section-title">An ally you can call, <em>24/7.</em></h2>
+    <p class="section-desc">Mason Technologies is a nationally recognised low-voltage and AV integrator, with dedicated Southeast teams serving Virginia, North Carolina, South Carolina, Georgia and Florida.</p>
+    <div class="stat-grid">
+      <div class="stat-card"><div class="number">2002</div><div class="heading">Founded</div><p>More than two decades of trusted expertise and responsiveness.</p></div>
+      <div class="stat-card"><div class="number">150+</div><div class="heading">W-2 CWA technicians</div><p>Backed by a team of industry experts on every deployment.</p></div>
+      <div class="stat-card"><div class="number">40K</div><div class="heading">Sq. ft. warehouse</div><p>Logistics strength to mobilise quickly, day or night.</p></div>
+      <div class="stat-card"><div class="number">WBE</div><div class="heading">NYC & nationally certified</div><p>A family business that leads with relationships.</p></div>
+    </div>
+    <div class="gov-logo-heading">Trusted by government & public-sector agencies</div>
+    <div class="gov-logo-grid"><div class="gov-logo-card" data-name="City of Coral Gables"><img src="gov-logos/city-of-coral-gables.png" alt="City of Coral Gables"></div><div class="gov-logo-card" data-name="City of Miramar"><img src="gov-logos/city-of-miramar.png" alt="City of Miramar"></div><div class="gov-logo-card" data-name="United Nations"><img src="gov-logos/united-nations.png" alt="United Nations"></div><div class="gov-logo-card" data-name="NYPD"><img src="gov-logos/nypd.png" alt="NYPD"></div><div class="gov-logo-card" data-name="U.S. Department of State"><img src="gov-logos/us-dept-of-state.png" alt="U.S. Department of State"></div><div class="gov-logo-card" data-name="U.S. Department of War"><img src="gov-logos/us-dept-of-war.png" alt="U.S. Department of War"></div><div class="gov-logo-card" data-name="U.S. Navy"><img src="gov-logos/us-navy.png" alt="U.S. Navy"></div><div class="gov-logo-card" data-name="U.S. Marine Corps"><img src="gov-logos/us-marine-corps.png" alt="U.S. Marine Corps"></div><div class="gov-logo-card" data-name="U.S. Army"><img src="gov-logos/us-army.png" alt="U.S. Army"></div><div class="gov-logo-card" data-name="Defense Logistics Agency"><img src="gov-logos/defense-logistics-agency.png" alt="Defense Logistics Agency"></div><div class="gov-logo-card" data-name="U.S. Department of Justice"><img src="gov-logos/us-dept-of-justice.png" alt="U.S. Department of Justice"></div><div class="gov-logo-card" data-name="U.S. Department of Veterans Affairs"><img src="gov-logos/us-dept-veterans-affairs.png" alt="U.S. Department of Veterans Affairs"></div></div>
+    <div class="cta-box">
+      <div class="cta-title">Ready to bring the room together?</div>
+      <p class="cta-desc">Approve Quote #069114 by November 24, 2026 and we'll order equipment and plan the rack rebuild around your Teams downtime and the LED wall installation.</p>
+      <div class="cta-cards">
+        <div class="cta-card"><div class="cta-label">Your Mason contact</div><div class="cta-name">Edward Puerta</div><a href="mailto:epuerta@mason247.com">epuerta@mason247.com</a></div>
+        <div class="cta-card"><div class="cta-label">Mason Technologies · 24/7</div><div class="cta-name">877-947-3786</div><a href="https://mason247.com">mason247.com</a></div>
+        <div class="cta-card"><div class="cta-label">Prepared for</div><div class="cta-name">Jeremy Brown</div><span class="cta-sub">Eastern Band of Cherokee Indians</span></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<footer>
+  <div>
+    <div class="footer-logos"><img src="mason-logo-white.png" alt="Mason Technologies"><img src="ebci-seal.png" alt="Eastern Band of Cherokee Indians"></div>
+    <div class="footer-sub">517 Commack Rd, Deer Park, NY 11729 · mason247.com · 877-947-3786<br>Multipurpose Room Video Processing System · Quote #069114 v1</div>
+  </div>
+  <div class="footer-contact">Questions about this proposal?<br><a href="mailto:epuerta@mason247.com">epuerta@mason247.com</a> · 877-947-3786</div>
+</footer>
+
+</body>
+</html>

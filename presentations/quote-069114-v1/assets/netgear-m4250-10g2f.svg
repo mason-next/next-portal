@@ -1,0 +1,30 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 400">
+  <defs>
+    <linearGradient id="top" x1="0" x2="0" y1="0" y2="1"><stop offset="0" stop-color="#3f4a57"/><stop offset="1" stop-color="#26303b"/></linearGradient>
+    <linearGradient id="front" x1="0" x2="0" y1="0" y2="1"><stop offset="0" stop-color="#2a3440"/><stop offset="1" stop-color="#151b22"/></linearGradient>
+    <radialGradient id="sh"><stop offset="0" stop-color="#000" stop-opacity=".35"/><stop offset="1" stop-color="#000" stop-opacity="0"/></radialGradient>
+  </defs>
+  <ellipse cx="200" cy="262" rx="185" ry="10" fill="url(#sh)"/>
+  <path d="M20 176 L54 146 L394 146 L360 176 Z" fill="url(#top)"/>
+  <path d="M360 176 L394 146 L394 222 L360 254 Z" fill="#141a20"/>
+  <rect x="20" y="176" width="340" height="78" rx="5" fill="url(#front)" stroke="#45505c"/>
+  <text x="34" y="200" font-family="Segoe UI, Arial, sans-serif" font-size="11" font-weight="700" fill="#e9edf1" letter-spacing="1">NETGEAR</text>
+  <text x="34" y="213" font-family="Segoe UI, Arial, sans-serif" font-size="7.5" fill="#8fd16a" letter-spacing="1">AV LINE · M4250</text>
+  <!-- 8 RJ45 PoE+ ports in 2 rows of 4 -->
+  <g id="ports">
+    <g transform="translate(112 192)">
+      <g fill="#0a0d10" stroke="#5d6b79">
+        <rect x="0" y="0" width="24" height="20" rx="2"/><rect x="30" y="0" width="24" height="20" rx="2"/><rect x="60" y="0" width="24" height="20" rx="2"/><rect x="90" y="0" width="24" height="20" rx="2"/>
+        <rect x="0" y="26" width="24" height="20" rx="2"/><rect x="30" y="26" width="24" height="20" rx="2"/><rect x="60" y="26" width="24" height="20" rx="2"/><rect x="90" y="26" width="24" height="20" rx="2"/>
+      </g>
+      <g fill="#c69a2d"><rect x="6" y="3" width="12" height="3"/><rect x="36" y="3" width="12" height="3"/><rect x="66" y="3" width="12" height="3"/><rect x="96" y="3" width="12" height="3"/>
+      <rect x="6" y="29" width="12" height="3"/><rect x="36" y="29" width="12" height="3"/><rect x="66" y="29" width="12" height="3"/><rect x="96" y="29" width="12" height="3"/></g>
+      <g fill="#3ae374"><circle cx="4" cy="16" r="1.6"/><circle cx="34" cy="16" r="1.6"/><circle cx="64" cy="16" r="1.6"/><circle cx="4" cy="42" r="1.6"/><circle cx="34" cy="42" r="1.6"/></g>
+    </g>
+  </g>
+  <!-- 2 SFP cages -->
+  <g fill="#0a0d10" stroke="#8a97a5"><rect x="250" y="196" width="34" height="14" rx="1.5"/><rect x="250" y="220" width="34" height="14" rx="1.5"/></g>
+  <text x="267" y="246" font-family="Segoe UI, Arial, sans-serif" font-size="6.5" fill="#8a97a5" text-anchor="middle">SFP</text>
+  <g fill="#3ae374"><circle cx="312" cy="200" r="2.6"/><circle cx="312" cy="212" r="2.6"/></g>
+  <g font-family="Segoe UI, Arial, sans-serif" font-size="6" fill="#8a97a5"><text x="318" y="202">PWR</text><text x="318" y="214">PoE</text></g>
+</svg>
