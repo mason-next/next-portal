@@ -21,6 +21,11 @@ def esc(s):
 
 
 # ── Room mode explorer ─────────────────────────────────────────────────────
+# Floor zone under the LED wall, to scale (see .floor in style.css): the 21 RU rack with the Cyviz
+# touch panel and the Yealink MTouch on top.
+FLOOR = ('<div class="floor" aria-hidden="true"><div class="panel cyviz"></div><div class="panel mtouch"></div>'
+         '<div class="rack"></div><small>Rack · 21 RU, to scale<br>touch panels on top</small></div>')
+
 def win(scene, tag, extra=""):
     return f'<div class="w {scene}{extra}"><span class="tag">{tag}</span></div>'
 
@@ -118,14 +123,11 @@ def modes_section():
     <div class="app modes-app">
       {radios}
       <div class="pills mode-pills" role="radiogroup" aria-label="Room mode">{pills}</div>
-      <div class="pills small eoc-only" role="radiogroup" aria-label="EOC layout">{eoc_pills}</div>
       <div class="modes-grid">
         <div class="room">
-          <div class="room-row">
-            <div class="rack-mini" aria-hidden="true"><i class="b"></i><i></i><i class="g"></i><i></i><i class="b"></i><i></i><i class="g"></i><i></i><i></i><i class="g"></i><small>RACK</small></div>
-            <div class="ledwall">{wall}</div>
-          </div>
-          <div class="wall-cap"><span>Front wall · <b>220″ LED wall</b> · 1920 × 1080</span><span>Touch panel on the rack top</span></div>
+          <div class="ledwall">{wall}</div>
+          {FLOOR}
+          <div class="wall-cap"><span>Front wall · <b>220″ LED wall</b> · 1920 × 1080</span><div class="pills small eoc-only" role="radiogroup" aria-label="EOC layout">{eoc_pills}</div></div>
         </div>
         <div class="side-col">
           <div class="info-card"><h4>Side display <small>existing LG</small></h4>{side}</div>
@@ -146,15 +148,16 @@ def modes_css():
         i = m[0]
         r.append(f'#m-{i}:checked ~ .mode-pills label[for="m-{i}"] {{ background: rgba(200,168,75,0.16); border-color: var(--gold); color: var(--white); }}')
         r.append(f'#m-{i}:checked ~ .mode-pills label[for="m-{i}"]::before {{ background: var(--gold); box-shadow: 0 0 0 4px rgba(200,168,75,0.25); }}')
-        r.append(f'#m-{i}:checked ~ .modes-grid .v-{i} {{ display: block; }}')
-        r.append(f'#m-{i}:checked ~ .mcaps .c-{i} {{ display: grid; }}')
-    r.append('#m-eoc:checked ~ .eoc-only { display: flex; }')
+        r.append(f'#m-{i}:checked ~ .modes-grid .v-{i} {{ display: block; visibility: visible; }}')
+        r.append(f'#m-{i}:checked ~ .mcaps .c-{i} {{ visibility: visible; }}')
+    r.append('#m-eoc:checked ~ .modes-grid .eoc-only { visibility: visible; }')
     for l in EOC_LAYOUTS:
         i = l[0]
         r.append(f'#m-eoc:checked ~ #e-{i}:checked ~ .modes-grid .v-eoc-{i} {{ display: block; }}')
-        r.append(f'#e-{i}:checked ~ .eoc-only label[for="e-{i}"] {{ background: rgba(46,170,220,0.14); border-color: var(--accent); color: var(--white); }}')
-        r.append(f'#e-{i}:checked ~ .eoc-only label[for="e-{i}"]::before {{ background: var(--accent); }}')
+        r.append(f'#e-{i}:checked ~ .modes-grid .eoc-only label[for="e-{i}"] {{ background: rgba(46,170,220,0.14); border-color: var(--accent); color: var(--white); }}')
+        r.append(f'#e-{i}:checked ~ .modes-grid .eoc-only label[for="e-{i}"]::before {{ background: var(--accent); }}')
     r.append('.ledwall > .mv { position: absolute; inset: 0; }')
+    r.append('.ledwall > .mv { visibility: visible; }')
     return "\n  ".join(r)
 
 
@@ -323,7 +326,7 @@ def schematic_css():
         r.append(f'#tr-{i}:checked ~ .schem-wrap .nd.t-{i} .nt {{ fill: var(--gold-light); }}')
         r.append(f'#tr-{i}:checked ~ .trace-pills label[for="tr-{i}"] {{ background: rgba(200,168,75,0.16); border-color: var(--gold); color: var(--white); }}')
         r.append(f'#tr-{i}:checked ~ .trace-pills label[for="tr-{i}"]::before {{ background: var(--gold); box-shadow: 0 0 0 4px rgba(200,168,75,0.25); }}')
-        r.append(f'#tr-{i}:checked ~ .caps .c-{i} {{ display: grid; }}')
+        r.append(f'#tr-{i}:checked ~ .caps .c-{i} {{ visibility: visible; }}')
     return "\n  ".join(r)
 
 
@@ -683,10 +686,8 @@ def page():
       </div>
       <div>
         <div class="room" aria-label="Illustration: the front wall in EOC mode, primary source plus three windows">
-          <div class="room-row">
-            <div class="rack-mini" aria-hidden="true"><i class="b"></i><i></i><i class="g"></i><i></i><i class="b"></i><i></i><i class="g"></i><i></i><i></i><i class="g"></i><small>RACK</small></div>
-            <div class="ledwall">{hero_wall}</div>
-          </div>
+          <div class="ledwall">{hero_wall}</div>
+          {FLOOR}
           <div class="wall-cap"><span>EOC mode · <b>primary + 3</b></span><span>220″ LED · 1920 × 1080</span></div>
         </div>
         <div class="hero-stats">

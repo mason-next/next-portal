@@ -112,17 +112,24 @@
   .hero-stat .l { font-size: 10.5px; color: var(--text-light); margin-top: 3px; }
 
   /* Room front-wall picture (hero + mode explorer) */
-  .room { background: linear-gradient(180deg, #13202f 0%, #0b1520 72%, #1a2633 72%, #121b26 100%); border: 1px solid rgba(200,168,75,0.22); border-radius: 14px; padding: 22px 22px 18px; box-shadow: 0 30px 80px rgba(0,0,0,0.45); position: relative; }
-  .room-row { display: grid; grid-template-columns: 54px 1fr; gap: 14px; align-items: end; }
-  .rack-mini { height: 100%; min-height: 150px; background: #0a0f15; border: 1px solid #3a4553; border-radius: 4px; padding: 6px 5px; display: flex; flex-direction: column; gap: 3px; position: relative; }
-  .rack-mini::before { content: ''; position: absolute; top: -13px; left: 8px; width: 30px; height: 12px; border-radius: 2px; background: #1e2a38; border: 1px solid #4a5868; box-shadow: inset 0 0 0 2px #0d1b2a, inset 0 -3px 0 #c8a84b; }
-  .rack-mini i { display: block; height: 7px; border-radius: 1px; background: #1b232d; border: 1px solid #2b3643; }
-  .rack-mini i.g { background: linear-gradient(90deg, #1b232d 70%, #3fd17a 70%, #3fd17a 76%, #1b232d 76%); }
-  .rack-mini i.b { background: linear-gradient(90deg, #1b232d 60%, #2eaadc 60%, #2eaadc 70%, #1b232d 70%); }
-  .rack-mini small { position: absolute; bottom: -18px; left: 0; right: 0; text-align: center; font-size: 9px; color: var(--muted); letter-spacing: 0.5px; }
+  .room { background: linear-gradient(180deg, #13202f 0%, #0d1823 100%); border: 1px solid rgba(200,168,75,0.22); border-radius: 14px; padding: 22px 22px 14px; box-shadow: 0 30px 80px rgba(0,0,0,0.45); position: relative; }
+  /* Drawn to scale: the 220" wall is about 192" x 108"; the floor zone under it is about 54" tall.
+     The 21 RU PTRK rack (about 22" x 41") stands under the wall with the Cyviz panel and MTouch on top. */
+  .floor { position: relative; aspect-ratio: 192 / 54; border-bottom: 2px solid #2b3643; background: linear-gradient(180deg, transparent 60%, rgba(255,255,255,0.025)); }
+  .rack { position: absolute; bottom: 0; left: 44.27%; width: 11.46%; height: 75.9%; border: 1px solid #4a5868; border-bottom: 0; border-radius: 2px 2px 0 0;
+    background:
+      radial-gradient(circle, #3fd17a 0 1.2px, transparent 1.6px) 78% 22% / 6px 6px no-repeat,
+      radial-gradient(circle, #2eaadc 0 1.2px, transparent 1.6px) 78% 46% / 6px 6px no-repeat,
+      radial-gradient(circle, #3fd17a 0 1.2px, transparent 1.6px) 78% 70% / 6px 6px no-repeat,
+      repeating-linear-gradient(180deg, #1b232d 0 3.6px, #0a0f15 3.6px 4.76%), #1b232d; }
+  .panel { position: absolute; bottom: 75.9%; height: 15%; width: 5.2%; background: #0d1b2a; border: 1.5px solid #4a5868; border-radius: 2px; }
+  .panel.cyviz { left: 45.1%; box-shadow: inset 0 -3px 0 #c8a84b; }
+  .panel.mtouch { left: 50.6%; box-shadow: inset 0 -3px 0 #6c74d6; }
+  .floor small { position: absolute; left: 57.5%; bottom: 6%; font-size: 10px; color: var(--muted); letter-spacing: 0.4px; white-space: nowrap; line-height: 1.3; }
   .ledwall { aspect-ratio: 16 / 9; background: #020509; border: 3px solid #26303c; border-bottom-width: 9px; border-radius: 4px; padding: 5px; position: relative; overflow: hidden; }
   .ledwall::after { content: ''; position: absolute; inset: 0; background-image: radial-gradient(rgba(0,0,0,0.35) 0.6px, transparent 0.8px); background-size: 4px 4px; pointer-events: none; }
-  .wall-cap { display: flex; justify-content: space-between; font-size: 10.5px; color: var(--text-light); margin-top: 24px; letter-spacing: 0.3px; gap: 10px; }
+  .wall-cap { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; min-height: 34px; font-size: 10.5px; color: var(--text-light); margin-top: 10px; letter-spacing: 0.3px; gap: 6px 10px; }
+  .wall-cap .pills { margin: 0; gap: 6px; }
   .wall-cap b { color: var(--gold); }
 
   /* layouts */
@@ -164,9 +171,15 @@
   .vu i { position: absolute; inset: 0 auto 0 0; border-radius: 4px; background: linear-gradient(90deg, #2c8f4c, var(--green)); }
   .vu.duck i { background: linear-gradient(90deg, #6b5a2a, var(--gold)); }
   .vu-l { font-size: 11px; color: var(--muted); width: 92px; flex-shrink: 0; }
-  .mv { display: none; }
-  .eoc-only { display: none; }
-  .mcap { display: none; grid-template-columns: 0.85fr 1.15fr; gap: 28px; margin-top: 20px; background: var(--navy-mid); border: 1px solid rgba(200,168,75,0.22); border-left: 4px solid var(--gold); border-radius: var(--radius); padding: 22px 26px; }
+  /* Every mode's content sits in the same grid cell; only visibility changes, so switching modes never moves the page. */
+  .ledwall > .mv { display: none; }
+  .info-card { display: grid; }
+  .info-card > h4 { grid-area: 1 / 1; }
+  .info-card > .mv { grid-area: 2 / 1; visibility: hidden; }
+  .eoc-only { visibility: hidden; }
+  .mcaps, .caps { display: grid; }
+  .mcap, .caps .cap { grid-area: 1 / 1; display: grid; visibility: hidden; }
+  .mcap { grid-template-columns: 0.85fr 1.15fr; gap: 28px; margin-top: 20px; background: var(--navy-mid); border: 1px solid rgba(200,168,75,0.22); border-left: 4px solid var(--gold); border-radius: var(--radius); padding: 22px 26px; }
   .mcap h4, .cap h4 { font-size: 17px; margin-bottom: 6px; }
   .mcap p, .cap p { font-size: 13.5px; color: var(--text-light); line-height: 1.6; }
   .mcap ol, .cap ol { list-style: none; counter-reset: s; display: flex; flex-direction: column; gap: 8px; }
@@ -193,7 +206,6 @@
   .schem .port { fill: #8496ab; font-size: 9.5px; }
   .schem .lg { fill: #8496ab; font-size: 10.5px; }
   @keyframes flow { to { stroke-dashoffset: -28; } }
-  .caps .cap { display: none; }
   .cap { grid-template-columns: 0.85fr 1.15fr; gap: 28px; margin-top: 20px; background: var(--navy-mid); border: 1px solid rgba(200,168,75,0.22); border-left: 4px solid var(--gold); border-radius: var(--radius); padding: 22px 26px; }
   .schem-note { font-size: 12px; color: var(--text-light); margin-top: 14px; }
 
@@ -388,8 +400,8 @@
     .price-main { font-size: 38px; }
     .price-card { padding: 22px 18px; }
     .side-disp { grid-template-columns: 96px 1fr; }
-    .room { padding: 16px 12px 14px; }
-    .room-row { grid-template-columns: 38px 1fr; gap: 10px; }
+    .room { padding: 16px 12px 12px; }
+    .floor small { font-size: 8.5px; }
     .cta-box { padding: 26px 16px; }
     .cta-card { min-width: 0; width: 100%; }
     footer { padding: 28px 16px; }

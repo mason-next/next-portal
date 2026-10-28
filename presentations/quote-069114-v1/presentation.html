@@ -120,17 +120,24 @@
   .hero-stat .l { font-size: 10.5px; color: var(--text-light); margin-top: 3px; }
 
   /* Room front-wall picture (hero + mode explorer) */
-  .room { background: linear-gradient(180deg, #13202f 0%, #0b1520 72%, #1a2633 72%, #121b26 100%); border: 1px solid rgba(200,168,75,0.22); border-radius: 14px; padding: 22px 22px 18px; box-shadow: 0 30px 80px rgba(0,0,0,0.45); position: relative; }
-  .room-row { display: grid; grid-template-columns: 54px 1fr; gap: 14px; align-items: end; }
-  .rack-mini { height: 100%; min-height: 150px; background: #0a0f15; border: 1px solid #3a4553; border-radius: 4px; padding: 6px 5px; display: flex; flex-direction: column; gap: 3px; position: relative; }
-  .rack-mini::before { content: ''; position: absolute; top: -13px; left: 8px; width: 30px; height: 12px; border-radius: 2px; background: #1e2a38; border: 1px solid #4a5868; box-shadow: inset 0 0 0 2px #0d1b2a, inset 0 -3px 0 #c8a84b; }
-  .rack-mini i { display: block; height: 7px; border-radius: 1px; background: #1b232d; border: 1px solid #2b3643; }
-  .rack-mini i.g { background: linear-gradient(90deg, #1b232d 70%, #3fd17a 70%, #3fd17a 76%, #1b232d 76%); }
-  .rack-mini i.b { background: linear-gradient(90deg, #1b232d 60%, #2eaadc 60%, #2eaadc 70%, #1b232d 70%); }
-  .rack-mini small { position: absolute; bottom: -18px; left: 0; right: 0; text-align: center; font-size: 9px; color: var(--muted); letter-spacing: 0.5px; }
+  .room { background: linear-gradient(180deg, #13202f 0%, #0d1823 100%); border: 1px solid rgba(200,168,75,0.22); border-radius: 14px; padding: 22px 22px 14px; box-shadow: 0 30px 80px rgba(0,0,0,0.45); position: relative; }
+  /* Drawn to scale: the 220" wall is about 192" x 108"; the floor zone under it is about 54" tall.
+     The 21 RU PTRK rack (about 22" x 41") stands under the wall with the Cyviz panel and MTouch on top. */
+  .floor { position: relative; aspect-ratio: 192 / 54; border-bottom: 2px solid #2b3643; background: linear-gradient(180deg, transparent 60%, rgba(255,255,255,0.025)); }
+  .rack { position: absolute; bottom: 0; left: 44.27%; width: 11.46%; height: 75.9%; border: 1px solid #4a5868; border-bottom: 0; border-radius: 2px 2px 0 0;
+    background:
+      radial-gradient(circle, #3fd17a 0 1.2px, transparent 1.6px) 78% 22% / 6px 6px no-repeat,
+      radial-gradient(circle, #2eaadc 0 1.2px, transparent 1.6px) 78% 46% / 6px 6px no-repeat,
+      radial-gradient(circle, #3fd17a 0 1.2px, transparent 1.6px) 78% 70% / 6px 6px no-repeat,
+      repeating-linear-gradient(180deg, #1b232d 0 3.6px, #0a0f15 3.6px 4.76%), #1b232d; }
+  .panel { position: absolute; bottom: 75.9%; height: 15%; width: 5.2%; background: #0d1b2a; border: 1.5px solid #4a5868; border-radius: 2px; }
+  .panel.cyviz { left: 45.1%; box-shadow: inset 0 -3px 0 #c8a84b; }
+  .panel.mtouch { left: 50.6%; box-shadow: inset 0 -3px 0 #6c74d6; }
+  .floor small { position: absolute; left: 57.5%; bottom: 6%; font-size: 10px; color: var(--muted); letter-spacing: 0.4px; white-space: nowrap; line-height: 1.3; }
   .ledwall { aspect-ratio: 16 / 9; background: #020509; border: 3px solid #26303c; border-bottom-width: 9px; border-radius: 4px; padding: 5px; position: relative; overflow: hidden; }
   .ledwall::after { content: ''; position: absolute; inset: 0; background-image: radial-gradient(rgba(0,0,0,0.35) 0.6px, transparent 0.8px); background-size: 4px 4px; pointer-events: none; }
-  .wall-cap { display: flex; justify-content: space-between; font-size: 10.5px; color: var(--text-light); margin-top: 24px; letter-spacing: 0.3px; gap: 10px; }
+  .wall-cap { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; min-height: 34px; font-size: 10.5px; color: var(--text-light); margin-top: 10px; letter-spacing: 0.3px; gap: 6px 10px; }
+  .wall-cap .pills { margin: 0; gap: 6px; }
   .wall-cap b { color: var(--gold); }
 
   /* layouts */
@@ -172,9 +179,15 @@
   .vu i { position: absolute; inset: 0 auto 0 0; border-radius: 4px; background: linear-gradient(90deg, #2c8f4c, var(--green)); }
   .vu.duck i { background: linear-gradient(90deg, #6b5a2a, var(--gold)); }
   .vu-l { font-size: 11px; color: var(--muted); width: 92px; flex-shrink: 0; }
-  .mv { display: none; }
-  .eoc-only { display: none; }
-  .mcap { display: none; grid-template-columns: 0.85fr 1.15fr; gap: 28px; margin-top: 20px; background: var(--navy-mid); border: 1px solid rgba(200,168,75,0.22); border-left: 4px solid var(--gold); border-radius: var(--radius); padding: 22px 26px; }
+  /* Every mode's content sits in the same grid cell; only visibility changes, so switching modes never moves the page. */
+  .ledwall > .mv { display: none; }
+  .info-card { display: grid; }
+  .info-card > h4 { grid-area: 1 / 1; }
+  .info-card > .mv { grid-area: 2 / 1; visibility: hidden; }
+  .eoc-only { visibility: hidden; }
+  .mcaps, .caps { display: grid; }
+  .mcap, .caps .cap { grid-area: 1 / 1; display: grid; visibility: hidden; }
+  .mcap { grid-template-columns: 0.85fr 1.15fr; gap: 28px; margin-top: 20px; background: var(--navy-mid); border: 1px solid rgba(200,168,75,0.22); border-left: 4px solid var(--gold); border-radius: var(--radius); padding: 22px 26px; }
   .mcap h4, .cap h4 { font-size: 17px; margin-bottom: 6px; }
   .mcap p, .cap p { font-size: 13.5px; color: var(--text-light); line-height: 1.6; }
   .mcap ol, .cap ol { list-style: none; counter-reset: s; display: flex; flex-direction: column; gap: 8px; }
@@ -201,7 +214,6 @@
   .schem .port { fill: #8496ab; font-size: 9.5px; }
   .schem .lg { fill: #8496ab; font-size: 10.5px; }
   @keyframes flow { to { stroke-dashoffset: -28; } }
-  .caps .cap { display: none; }
   .cap { grid-template-columns: 0.85fr 1.15fr; gap: 28px; margin-top: 20px; background: var(--navy-mid); border: 1px solid rgba(200,168,75,0.22); border-left: 4px solid var(--gold); border-radius: var(--radius); padding: 22px 26px; }
   .schem-note { font-size: 12px; color: var(--text-light); margin-top: 14px; }
 
@@ -396,8 +408,8 @@
     .price-main { font-size: 38px; }
     .price-card { padding: 22px 18px; }
     .side-disp { grid-template-columns: 96px 1fr; }
-    .room { padding: 16px 12px 14px; }
-    .room-row { grid-template-columns: 38px 1fr; gap: 10px; }
+    .room { padding: 16px 12px 12px; }
+    .floor small { font-size: 8.5px; }
     .cta-box { padding: 26px 16px; }
     .cta-card { min-width: 0; width: 100%; }
     footer { padding: 28px 16px; }
@@ -407,64 +419,65 @@
 
   #m-conf:checked ~ .mode-pills label[for="m-conf"] { background: rgba(200,168,75,0.16); border-color: var(--gold); color: var(--white); }
   #m-conf:checked ~ .mode-pills label[for="m-conf"]::before { background: var(--gold); box-shadow: 0 0 0 4px rgba(200,168,75,0.25); }
-  #m-conf:checked ~ .modes-grid .v-conf { display: block; }
-  #m-conf:checked ~ .mcaps .c-conf { display: grid; }
+  #m-conf:checked ~ .modes-grid .v-conf { display: block; visibility: visible; }
+  #m-conf:checked ~ .mcaps .c-conf { visibility: visible; }
   #m-train:checked ~ .mode-pills label[for="m-train"] { background: rgba(200,168,75,0.16); border-color: var(--gold); color: var(--white); }
   #m-train:checked ~ .mode-pills label[for="m-train"]::before { background: var(--gold); box-shadow: 0 0 0 4px rgba(200,168,75,0.25); }
-  #m-train:checked ~ .modes-grid .v-train { display: block; }
-  #m-train:checked ~ .mcaps .c-train { display: grid; }
+  #m-train:checked ~ .modes-grid .v-train { display: block; visibility: visible; }
+  #m-train:checked ~ .mcaps .c-train { visibility: visible; }
   #m-eoc:checked ~ .mode-pills label[for="m-eoc"] { background: rgba(200,168,75,0.16); border-color: var(--gold); color: var(--white); }
   #m-eoc:checked ~ .mode-pills label[for="m-eoc"]::before { background: var(--gold); box-shadow: 0 0 0 4px rgba(200,168,75,0.25); }
-  #m-eoc:checked ~ .modes-grid .v-eoc { display: block; }
-  #m-eoc:checked ~ .mcaps .c-eoc { display: grid; }
+  #m-eoc:checked ~ .modes-grid .v-eoc { display: block; visibility: visible; }
+  #m-eoc:checked ~ .mcaps .c-eoc { visibility: visible; }
   #m-off:checked ~ .mode-pills label[for="m-off"] { background: rgba(200,168,75,0.16); border-color: var(--gold); color: var(--white); }
   #m-off:checked ~ .mode-pills label[for="m-off"]::before { background: var(--gold); box-shadow: 0 0 0 4px rgba(200,168,75,0.25); }
-  #m-off:checked ~ .modes-grid .v-off { display: block; }
-  #m-off:checked ~ .mcaps .c-off { display: grid; }
-  #m-eoc:checked ~ .eoc-only { display: flex; }
+  #m-off:checked ~ .modes-grid .v-off { display: block; visibility: visible; }
+  #m-off:checked ~ .mcaps .c-off { visibility: visible; }
+  #m-eoc:checked ~ .modes-grid .eoc-only { visibility: visible; }
   #m-eoc:checked ~ #e-prim:checked ~ .modes-grid .v-eoc-prim { display: block; }
-  #e-prim:checked ~ .eoc-only label[for="e-prim"] { background: rgba(46,170,220,0.14); border-color: var(--accent); color: var(--white); }
-  #e-prim:checked ~ .eoc-only label[for="e-prim"]::before { background: var(--accent); }
+  #e-prim:checked ~ .modes-grid .eoc-only label[for="e-prim"] { background: rgba(46,170,220,0.14); border-color: var(--accent); color: var(--white); }
+  #e-prim:checked ~ .modes-grid .eoc-only label[for="e-prim"]::before { background: var(--accent); }
   #m-eoc:checked ~ #e-quad:checked ~ .modes-grid .v-eoc-quad { display: block; }
-  #e-quad:checked ~ .eoc-only label[for="e-quad"] { background: rgba(46,170,220,0.14); border-color: var(--accent); color: var(--white); }
-  #e-quad:checked ~ .eoc-only label[for="e-quad"]::before { background: var(--accent); }
+  #e-quad:checked ~ .modes-grid .eoc-only label[for="e-quad"] { background: rgba(46,170,220,0.14); border-color: var(--accent); color: var(--white); }
+  #e-quad:checked ~ .modes-grid .eoc-only label[for="e-quad"]::before { background: var(--accent); }
   .ledwall > .mv { position: absolute; inset: 0; }
+  .ledwall > .mv { visibility: visible; }
   #tr-teams:checked ~ .schem-wrap .w.t-teams { stroke: var(--gold); stroke-width: 3; stroke-dasharray: 8 6; animation: flow 0.9s linear infinite; }
   #tr-teams:checked ~ .schem-wrap .nd.t-teams rect { stroke: var(--gold); stroke-width: 1.8; fill: rgba(200,168,75,0.16); stroke-dasharray: none; }
   #tr-teams:checked ~ .schem-wrap .nd.t-teams .nt { fill: var(--gold-light); }
   #tr-teams:checked ~ .trace-pills label[for="tr-teams"] { background: rgba(200,168,75,0.16); border-color: var(--gold); color: var(--white); }
   #tr-teams:checked ~ .trace-pills label[for="tr-teams"]::before { background: var(--gold); box-shadow: 0 0 0 4px rgba(200,168,75,0.25); }
-  #tr-teams:checked ~ .caps .c-teams { display: grid; }
+  #tr-teams:checked ~ .caps .c-teams { visibility: visible; }
   #tr-pcs:checked ~ .schem-wrap .w.t-pcs { stroke: var(--gold); stroke-width: 3; stroke-dasharray: 8 6; animation: flow 0.9s linear infinite; }
   #tr-pcs:checked ~ .schem-wrap .nd.t-pcs rect { stroke: var(--gold); stroke-width: 1.8; fill: rgba(200,168,75,0.16); stroke-dasharray: none; }
   #tr-pcs:checked ~ .schem-wrap .nd.t-pcs .nt { fill: var(--gold-light); }
   #tr-pcs:checked ~ .trace-pills label[for="tr-pcs"] { background: rgba(200,168,75,0.16); border-color: var(--gold); color: var(--white); }
   #tr-pcs:checked ~ .trace-pills label[for="tr-pcs"]::before { background: var(--gold); box-shadow: 0 0 0 4px rgba(200,168,75,0.25); }
-  #tr-pcs:checked ~ .caps .c-pcs { display: grid; }
+  #tr-pcs:checked ~ .caps .c-pcs { visibility: visible; }
   #tr-news:checked ~ .schem-wrap .w.t-news { stroke: var(--gold); stroke-width: 3; stroke-dasharray: 8 6; animation: flow 0.9s linear infinite; }
   #tr-news:checked ~ .schem-wrap .nd.t-news rect { stroke: var(--gold); stroke-width: 1.8; fill: rgba(200,168,75,0.16); stroke-dasharray: none; }
   #tr-news:checked ~ .schem-wrap .nd.t-news .nt { fill: var(--gold-light); }
   #tr-news:checked ~ .trace-pills label[for="tr-news"] { background: rgba(200,168,75,0.16); border-color: var(--gold); color: var(--white); }
   #tr-news:checked ~ .trace-pills label[for="tr-news"]::before { background: var(--gold); box-shadow: 0 0 0 4px rgba(200,168,75,0.25); }
-  #tr-news:checked ~ .caps .c-news { display: grid; }
+  #tr-news:checked ~ .caps .c-news { visibility: visible; }
   #tr-lap:checked ~ .schem-wrap .w.t-lap { stroke: var(--gold); stroke-width: 3; stroke-dasharray: 8 6; animation: flow 0.9s linear infinite; }
   #tr-lap:checked ~ .schem-wrap .nd.t-lap rect { stroke: var(--gold); stroke-width: 1.8; fill: rgba(200,168,75,0.16); stroke-dasharray: none; }
   #tr-lap:checked ~ .schem-wrap .nd.t-lap .nt { fill: var(--gold-light); }
   #tr-lap:checked ~ .trace-pills label[for="tr-lap"] { background: rgba(200,168,75,0.16); border-color: var(--gold); color: var(--white); }
   #tr-lap:checked ~ .trace-pills label[for="tr-lap"]::before { background: var(--gold); box-shadow: 0 0 0 4px rgba(200,168,75,0.25); }
-  #tr-lap:checked ~ .caps .c-lap { display: grid; }
+  #tr-lap:checked ~ .caps .c-lap { visibility: visible; }
   #tr-share:checked ~ .schem-wrap .w.t-share { stroke: var(--gold); stroke-width: 3; stroke-dasharray: 8 6; animation: flow 0.9s linear infinite; }
   #tr-share:checked ~ .schem-wrap .nd.t-share rect { stroke: var(--gold); stroke-width: 1.8; fill: rgba(200,168,75,0.16); stroke-dasharray: none; }
   #tr-share:checked ~ .schem-wrap .nd.t-share .nt { fill: var(--gold-light); }
   #tr-share:checked ~ .trace-pills label[for="tr-share"] { background: rgba(200,168,75,0.16); border-color: var(--gold); color: var(--white); }
   #tr-share:checked ~ .trace-pills label[for="tr-share"]::before { background: var(--gold); box-shadow: 0 0 0 4px rgba(200,168,75,0.25); }
-  #tr-share:checked ~ .caps .c-share { display: grid; }
+  #tr-share:checked ~ .caps .c-share { visibility: visible; }
   #tr-ctl:checked ~ .schem-wrap .w.t-ctl { stroke: var(--gold); stroke-width: 3; stroke-dasharray: 8 6; animation: flow 0.9s linear infinite; }
   #tr-ctl:checked ~ .schem-wrap .nd.t-ctl rect { stroke: var(--gold); stroke-width: 1.8; fill: rgba(200,168,75,0.16); stroke-dasharray: none; }
   #tr-ctl:checked ~ .schem-wrap .nd.t-ctl .nt { fill: var(--gold-light); }
   #tr-ctl:checked ~ .trace-pills label[for="tr-ctl"] { background: rgba(200,168,75,0.16); border-color: var(--gold); color: var(--white); }
   #tr-ctl:checked ~ .trace-pills label[for="tr-ctl"]::before { background: var(--gold); box-shadow: 0 0 0 4px rgba(200,168,75,0.25); }
-  #tr-ctl:checked ~ .caps .c-ctl { display: grid; }
+  #tr-ctl:checked ~ .caps .c-ctl { visibility: visible; }
   #f-all:checked ~ .filter-pills label[for="f-all"] { background: rgba(200,168,75,0.16); border-color: var(--gold); color: var(--white); }
   #f-all:checked ~ .filter-pills label[for="f-all"]::before { background: var(--gold); box-shadow: 0 0 0 4px rgba(200,168,75,0.25); }
   #f-new:checked ~ .filter-pills label[for="f-new"] { background: rgba(200,168,75,0.16); border-color: var(--gold); color: var(--white); }
@@ -522,10 +535,8 @@
       </div>
       <div>
         <div class="room" aria-label="Illustration: the front wall in EOC mode, primary source plus three windows">
-          <div class="room-row">
-            <div class="rack-mini" aria-hidden="true"><i class="b"></i><i></i><i class="g"></i><i></i><i class="b"></i><i></i><i class="g"></i><i></i><i></i><i class="g"></i><small>RACK</small></div>
-            <div class="ledwall"><div class="lay prim"><div class="w sc-cams"><span class="tag">PC 1 · surveillance</span></div><div class="w sc-gis"><span class="tag">PC 2 · GIS</span></div><div class="w sc-eoc"><span class="tag">PC 3 · WebEOC</span></div><div class="w sc-news"><span class="tag">IPTV · news</span></div></div></div>
-          </div>
+          <div class="ledwall"><div class="lay prim"><div class="w sc-cams"><span class="tag">PC 1 · surveillance</span></div><div class="w sc-gis"><span class="tag">PC 2 · GIS</span></div><div class="w sc-eoc"><span class="tag">PC 3 · WebEOC</span></div><div class="w sc-news"><span class="tag">IPTV · news</span></div></div></div>
+          <div class="floor" aria-hidden="true"><div class="panel cyviz"></div><div class="panel mtouch"></div><div class="rack"></div><small>Rack · 21 RU, to scale<br>touch panels on top</small></div>
           <div class="wall-cap"><span>EOC mode · <b>primary + 3</b></span><span>220″ LED · 1920 × 1080</span></div>
         </div>
         <div class="hero-stats">
@@ -548,14 +559,11 @@
     <div class="app modes-app">
       <input type="radio" name="mode" id="m-conf" checked><input type="radio" name="mode" id="m-train"><input type="radio" name="mode" id="m-eoc"><input type="radio" name="mode" id="m-off"><input type="radio" name="eocl" id="e-prim" checked><input type="radio" name="eocl" id="e-quad">
       <div class="pills mode-pills" role="radiogroup" aria-label="Room mode"><label for="m-conf">Conference</label><label for="m-train">Training</label><label for="m-eoc">EOC</label><label for="m-off">Room Off</label></div>
-      <div class="pills small eoc-only" role="radiogroup" aria-label="EOC layout"><label for="e-prim">Primary + 3</label><label for="e-quad">Quad view</label></div>
       <div class="modes-grid">
         <div class="room">
-          <div class="room-row">
-            <div class="rack-mini" aria-hidden="true"><i class="b"></i><i></i><i class="g"></i><i></i><i class="b"></i><i></i><i class="g"></i><i></i><i></i><i class="g"></i><small>RACK</small></div>
-            <div class="ledwall"><div class="mv v-conf"><div class="lay conf"><div class="w sc-teams"><span class="tag">Teams · far end</span></div><div class="w sc-share"><span class="tag">Teams · shared content</span></div></div></div><div class="mv v-train"><div class="lay train"><div class="w sc-slides"><span class="tag">Presenter laptop · back-wall plate</span></div><div class="w sc-teams pip"><span class="tag">Teams</span></div></div></div><div class="mv v-off"><div class="lay full"><div class="w sc-off"><span>WALL POWERED DOWN</span></div></div></div><div class="mv v-eoc-prim"><div class="lay prim"><div class="w sc-cams"><span class="tag">PC 1 · surveillance</span></div><div class="w sc-gis"><span class="tag">PC 2 · GIS</span></div><div class="w sc-eoc"><span class="tag">PC 3 · WebEOC</span></div><div class="w sc-news"><span class="tag">IPTV · news</span></div></div></div><div class="mv v-eoc-quad"><div class="lay quad"><div class="w sc-cams"><span class="tag">PC 1 · surveillance</span></div><div class="w sc-gis"><span class="tag">PC 2 · GIS</span></div><div class="w sc-eoc"><span class="tag">PC 3 · WebEOC</span></div><div class="w sc-teams"><span class="tag">Teams · far end</span></div></div></div></div>
-          </div>
-          <div class="wall-cap"><span>Front wall · <b>220″ LED wall</b> · 1920 × 1080</span><span>Touch panel on the rack top</span></div>
+          <div class="ledwall"><div class="mv v-conf"><div class="lay conf"><div class="w sc-teams"><span class="tag">Teams · far end</span></div><div class="w sc-share"><span class="tag">Teams · shared content</span></div></div></div><div class="mv v-train"><div class="lay train"><div class="w sc-slides"><span class="tag">Presenter laptop · back-wall plate</span></div><div class="w sc-teams pip"><span class="tag">Teams</span></div></div></div><div class="mv v-off"><div class="lay full"><div class="w sc-off"><span>WALL POWERED DOWN</span></div></div></div><div class="mv v-eoc-prim"><div class="lay prim"><div class="w sc-cams"><span class="tag">PC 1 · surveillance</span></div><div class="w sc-gis"><span class="tag">PC 2 · GIS</span></div><div class="w sc-eoc"><span class="tag">PC 3 · WebEOC</span></div><div class="w sc-news"><span class="tag">IPTV · news</span></div></div></div><div class="mv v-eoc-quad"><div class="lay quad"><div class="w sc-cams"><span class="tag">PC 1 · surveillance</span></div><div class="w sc-gis"><span class="tag">PC 2 · GIS</span></div><div class="w sc-eoc"><span class="tag">PC 3 · WebEOC</span></div><div class="w sc-teams"><span class="tag">Teams · far end</span></div></div></div></div>
+          <div class="floor" aria-hidden="true"><div class="panel cyviz"></div><div class="panel mtouch"></div><div class="rack"></div><small>Rack · 21 RU, to scale<br>touch panels on top</small></div>
+          <div class="wall-cap"><span>Front wall · <b>220″ LED wall</b> · 1920 × 1080</span><div class="pills small eoc-only" role="radiogroup" aria-label="EOC layout"><label for="e-prim">Primary + 3</label><label for="e-quad">Quad view</label></div></div>
         </div>
         <div class="side-col">
           <div class="info-card"><h4>Side display <small>existing LG</small></h4><div class="mv v-conf"><div class="side-disp"><div class="tv"><div class="w sc-share"><span class="tag">Shared content</span></div></div><p>Its own source, picked separately from the wall.</p></div></div><div class="mv v-train"><div class="side-disp"><div class="tv"><div class="w sc-slides"><span class="tag">Same slides, side wall</span></div></div><p>Its own source, picked separately from the wall.</p></div></div><div class="mv v-eoc"><div class="side-disp"><div class="tv"><div class="w sc-news"><span class="tag">IPTV · live news</span></div></div><p>Its own source, picked separately from the wall.</p></div></div><div class="mv v-off"><div class="side-disp"><div class="tv"><div class="w sc-off"></div></div><p><strong>Off.</strong></p></div></div></div>
