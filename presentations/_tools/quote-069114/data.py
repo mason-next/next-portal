@@ -17,7 +17,7 @@ QUOTE = {
     "rep": "Edward Puerta",
     "rep_email": "epuerta@mason247.com",
     "phone": "877-947-3786",
-    "date": "October 28, 2026",
+    "date": "October 29, 2026",
     "expires": "November 24, 2026",
 }
 
@@ -52,9 +52,10 @@ GROUPS = [
         (1, OFE, "OFE", "70 V pendant loudspeaker system: four speakers, two zones (existing Atlas)", "0"),
         (1, "QSC", "CORE 8 FLEX", "Q-SYS Core processor with 8 Flex audio I/O, 8x8 Dante, USB AV bridging", "3135.00"),
     ]),
-    ("Control Equipment", D("24841.46"), [
+    ("Control Equipment", D("24004.75"), [
         (1, "Cyviz", "XL1005050", "X-Series control processor (Easy Controller X), four LAN ports, half-width 1RU", "17948.72"),
-        (1, "Cyviz", "EM9000", "Essential Support & Maintenance Agreement, yearly", "3811.07"),
+        (1, "Cyviz", "1005050", "Controller rackmount kit", "280.00"),
+        (1, "Cyviz", "EM9000", "Essential Support & Maintenance Agreement, yearly", "2694.36"),
         (1, "Cyviz", "1005055", "10.1\" multi-touch control monitor with integrated CATx extender", "2387.18"),
         (1, "Cyviz", "1008270", "Easy Server Controller Connector, 12-month license", "280.00"),
         (1, "Cyviz", "DL9000", "Easy Server Desktop Agent, 12-month license", "280.00"),
@@ -75,20 +76,20 @@ GROUPS = [
         (6, "Legrand", "00813", "6 ft CAT6 snagless STP cable", "6.01"),
         (1, "Legrand", "00817", "10 ft CAT6 snagless STP cable", "7.25"),
     ]),
-    ("Installation & Engineering", D("27430.00"), [
-        (1, "Mason", "MTI Labor", "Labor: installation & engineering", "27430.00"),
+    ("Installation & Engineering", D("25613.57"), [
+        (1, "Mason", "MTI Labor", "Labor: installation & engineering", "25613.57"),
     ]),
-    ("Miscellaneous Hardware & Direct Costs", D("4218.14"), [
-        (1, "Mason", "MTI Misc. & Direct Costs", "Miscellaneous hardware & direct costs (shipping, G&A, etc.)", "4218.14"),
+    ("Miscellaneous Hardware & Direct Costs", D("3718.14"), [
+        (1, "Mason", "MTI Misc. & Direct Costs", "Miscellaneous hardware & direct costs (shipping, G&A, etc.)", "3718.14"),
     ]),
     ("Mason Command Silver SLA", D("1200.00"), [
         (1, "Mason", "MTI-SLA-SILVER", "Service Level Agreement, Silver tier", "1200.00"),
     ]),
 ]
 
-EQUIPMENT_SUBTOTAL = D("81991.12")
-ROOM_SUBTOTAL = D("114716.41")
-TOTAL = D("115916.41")
+EQUIPMENT_SUBTOTAL = D("81154.41")
+ROOM_SUBTOTAL = D("111563.27")
+TOTAL = D("112763.27")
 ANNUAL = D("4688.00")
 
 
