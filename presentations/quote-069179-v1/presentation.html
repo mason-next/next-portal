@@ -96,6 +96,7 @@ section{padding:88px 0;border-top:1px solid var(--line)}
 .btn.ghost{border:1px solid var(--line-2);color:var(--text)}
 .btn-row{display:flex;gap:10px;flex-wrap:wrap;margin-top:22px}
 @media (max-width:980px){.hero-grid{grid-template-columns:1fr}.meta-grid{grid-template-columns:repeat(2,1fr)}}
+@media (max-width:420px){.nav-logos{gap:10px}.nav-logos .mason{height:22px}.nav-logos .cust{height:28px}}
 @media (max-width:520px){.meta-grid{grid-template-columns:1fr}.lockup{gap:14px}.lockup img{height:36px}.invest-card .big{font-size:38px}}
 
 /* ───────── EXPERIENCE + SCHEMATIC (CSS-only interactivity) ───────── */
@@ -401,7 +402,7 @@ footer{background:#08141f;border-top:1px solid var(--line);padding:72px 0 34px}
   <div class="nav-logos">
     <img class="mason" src="mason-logo-white.png" alt="Mason Technologies">
     <span class="nav-divider" aria-hidden="true"></span>
-    <img class="cust" src="fort-lauderdale-logo-white.svg" alt="City of Fort Lauderdale">
+    <img class="cust" src="fort-lauderdale-logo-white.png" alt="City of Fort Lauderdale">
   </div>
   <input type="checkbox" id="nav-toggle" class="sr" aria-label="Toggle menu">
   <label for="nav-toggle" class="nav-burger" aria-hidden="true"><span></span><span></span><span></span></label>
@@ -421,7 +422,7 @@ footer{background:#08141f;border-top:1px solid var(--line);padding:72px 0 34px}
     <div class="lockup">
       <img src="mason-logo-white.png" alt="Mason Technologies">
       <span class="x" aria-hidden="true">×</span>
-      <img src="fort-lauderdale-logo-white.svg" alt="City of Fort Lauderdale">
+      <img src="fort-lauderdale-logo-white.png" alt="City of Fort Lauderdale">
     </div>
     <div class="hero-grid">
       <div>
@@ -439,14 +440,15 @@ footer{background:#08141f;border-top:1px solid var(--line);padding:72px 0 34px}
         </div>
       </div>
       <aside class="invest-card" aria-label="Investment summary">
-        <div class="k">Project investment</div>
-        <div class="big">$17,425.74</div>
-        <div class="big-sub">Equipment, labor and direct costs at TIPS #260105 pricing</div>
+        <div class="k">Total investment</div>
+        <div class="big">$18,625.74</div>
+        <div class="big-sub">Project plus Mason Command Silver SLA at TIPS #260105 pricing</div>
         <div class="mini-rows">
           <div><span>Equipment</span><span>$9,352.87</span></div>
           <div><span>Labor · 67 hours at TIPS rates</span><span>$7,150.00</span></div>
           <div><span>Misc. hardware &amp; direct costs</span><span>$922.87</span></div>
-          <div class="opt"><span>Optional: Mason Command Silver SLA</span><span><a href="#investment">See options</a></span></div>
+          <div><span>Mason Command Silver SLA</span><span>$1,200.00</span></div>
+          <div class="opt"><span>Project only, without SLA</span><span>$17,425.74</span></div>
         </div>
         <div class="change-strip">
           <div><b>4</b><span>new line items</span></div>
@@ -1001,7 +1003,7 @@ footer{background:#08141f;border-top:1px solid var(--line);padding:72px 0 34px}
       </table>
     </div>
 
-    <input type="checkbox" id="sla" class="sr">
+    <input type="checkbox" id="sla" class="sr" checked>
     <div class="invest-grid">
       <div class="card labor">
         <h3>Labor at TIPS #260105 rates</h3>
@@ -1019,7 +1021,7 @@ footer{background:#08141f;border-top:1px solid var(--line);padding:72px 0 34px}
         <div class="trow"><span>Chief's Conference Room</span><span>$17,425.74</span></div>
         <div class="trow sla-line"><span>Mason Command Silver SLA</span><span>$1,200.00</span></div>
         <label class="sla-toggle" for="sla">
-          <span><b>Add Mason Command Silver SLA</b><small>Optional; not required to accept the installation</small></span>
+          <span><b>Mason Command Silver SLA</b><small>Included by default. Switch off to remove; it is not required to accept the installation.</small></span>
           <span class="switch" aria-hidden="true"></span>
         </label>
         <div class="grand no-sla"><span class="k">Project total</span><span class="v">$17,425.74</span></div>
@@ -1079,9 +1081,9 @@ footer{background:#08141f;border-top:1px solid var(--line);padding:72px 0 34px}
 <!-- ═════════ MASON COMMAND SLA (quote includes MTI-SLA-SILVER) ═════════ -->
 <section id="sla-section">
   <div class="wrap">
-    <div class="eyebrow">Optional support · Mason Command</div>
+    <div class="eyebrow">Support · Mason Command</div>
     <h2 class="section-title">Mason Command Silver SLA</h2>
-    <p class="lead">Tier 1 coverage after the 90-day labor warranty: a named team to call, remote help desk and coordinated warranty service. Separate from the Cyviz monitoring included in the project.</p>
+    <p class="lead">Included in the proposed total and removable in the pricing section. Tier 1 coverage after the 90-day labor warranty: a named team to call, remote help desk and coordinated warranty service. Separate from the Cyviz monitoring included in the project.</p>
     <div class="sla-grid">
       <div class="card sla-c"><div class="k">Help desk hours</div><div class="v">Mon–Fri 9–5</div><p>Eastern time, excluding Mason holidays</p></div>
       <div class="card sla-c"><div class="k">Response time</div><div class="v">4 business hrs</div><p>Live phone and email access to specialists</p></div>
@@ -1198,7 +1200,7 @@ footer{background:#08141f;border-top:1px solid var(--line);padding:72px 0 34px}
       <div class="foot-logos">
         <img src="mason-logo-white.png" alt="Mason Technologies">
         <span class="nav-divider" aria-hidden="true"></span>
-        <img class="cust" src="fort-lauderdale-logo-white.svg" alt="City of Fort Lauderdale">
+        <img class="cust" src="fort-lauderdale-logo-white.png" alt="City of Fort Lauderdale">
       </div>
       <div>Quote #069179 · Version 1 · Pricing is based on TIPS Contract #260105 · © 2026 Mason Technologies, Inc.</div>
     </div>
