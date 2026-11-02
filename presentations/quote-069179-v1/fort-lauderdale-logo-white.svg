@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 300 80" role="img" aria-label="City of Fort Lauderdale — Police Department">
+  <!-- PLACEHOLDER text lockup. Replace with the City's official white/reversed logo file (same filename). -->
+  <text x="0" y="22" fill="#ffffff" font-family="Segoe UI, system-ui, -apple-system, sans-serif" font-size="15" font-weight="600" letter-spacing="3">CITY OF</text>
+  <text x="0" y="52" fill="#ffffff" font-family="Segoe UI, system-ui, -apple-system, sans-serif" font-size="29" font-weight="700" letter-spacing="0.5">FORT LAUDERDALE</text>
+  <text x="0" y="73" fill="#c9d3de" font-family="Segoe UI, system-ui, -apple-system, sans-serif" font-size="12.5" font-weight="500" letter-spacing="4.2">POLICE DEPARTMENT</text>
+</svg>

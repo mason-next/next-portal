@@ -1,0 +1,1213 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Chief's Conference Room – Quote #069179</title>
+<meta name="description" content="Mason Technologies proposal for the City of Fort Lauderdale Police HQ Chief's Conference Room 3111 — Microsoft Teams Rooms modernization on the existing Q-SYS system. TIPS Contract #260105.">
+<style>
+:root{
+  --bg:#0D1B2A; --bg-deep:#050e18; --card:#1A2A3A; --card-2:#15253a; --tile:#2a3547;
+  --line:rgba(255,255,255,0.08); --line-2:rgba(255,255,255,0.14);
+  --gold:#C8A84B; --gold-soft:rgba(200,168,75,0.14); --gold-line:rgba(200,168,75,0.45);
+  --text:#E8EDF3; --muted:#9FB0C3; --dim:#6F8296;
+  --ofe:#3A4D63; --ok:#6FCF97;
+  --radius:14px;
+  --font:"Segoe UI", system-ui, -apple-system, sans-serif;
+}
+*{box-sizing:border-box}
+html{scroll-behavior:smooth;scroll-padding-top:84px}
+body{margin:0;background:var(--bg);color:var(--text);font-family:var(--font);font-size:16px;line-height:1.6;-webkit-font-smoothing:antialiased;overflow-x:hidden}
+img{max-width:100%}
+a{color:var(--gold)}
+h1,h2,h3,h4{line-height:1.2;margin:0}
+p{margin:0 0 1em}
+.sr{position:absolute;opacity:0;pointer-events:none;width:1px;height:1px}
+.wrap{max-width:1200px;margin:0 auto;padding:0 24px}
+section{padding:88px 0;border-top:1px solid var(--line)}
+.eyebrow{color:var(--gold);font-size:12.5px;font-weight:700;letter-spacing:.18em;text-transform:uppercase;margin-bottom:14px;display:flex;align-items:center;gap:12px}
+.eyebrow::before{content:"";width:28px;height:2px;background:var(--gold)}
+.section-title{font-size:clamp(28px,4vw,40px);font-weight:700;letter-spacing:-.01em;margin-bottom:14px}
+.lead{color:var(--muted);font-size:18px;max-width:760px;margin-bottom:40px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:var(--radius)}
+.tag{display:inline-block;font-size:11px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;padding:3px 9px;border-radius:999px;white-space:nowrap}
+.tag.new{background:var(--gold-soft);color:var(--gold);border:1px solid var(--gold-line)}
+.tag.ofe{background:rgba(255,255,255,.05);color:var(--muted);border:1px solid var(--line-2)}
+.tag.rm{color:var(--dim);border:1px dashed var(--dim)}
+.note{font-size:13.5px;color:var(--dim)}
+
+/* ───────── NAV ───────── */
+.site-nav{position:sticky;top:0;z-index:50;background:rgba(13,27,42,.94);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);border-bottom:1px solid var(--line);display:flex;align-items:center;justify-content:space-between;gap:16px;padding:12px 24px;flex-wrap:wrap}
+.nav-logos{display:flex;align-items:center;gap:16px;line-height:0}
+.nav-logos img{display:block}
+.nav-logos .mason{height:34px;width:auto}
+.nav-logos .cust{height:44px;width:auto}
+.nav-divider{width:1px;height:32px;background:var(--line-2)}
+.nav-links{display:flex;align-items:center;gap:6px}
+.nav-links a{color:var(--text);text-decoration:none;font-size:14.5px;font-weight:500;padding:8px 12px;border-radius:8px}
+.nav-links a:hover{background:rgba(255,255,255,.06);color:var(--gold)}
+.nav-links a.cta{background:var(--gold);color:#0D1B2A;font-weight:700;margin-left:6px}
+.nav-links a.cta:hover{background:#d8b95a;color:#0D1B2A}
+.nav-burger{display:none;cursor:pointer;padding:10px;border-radius:8px;border:1px solid var(--line-2)}
+.nav-burger span{display:block;width:20px;height:2px;background:var(--text);margin:4px 0;transition:transform .2s}
+#nav-toggle:focus-visible ~ .nav-burger{outline:2px solid var(--gold)}
+@media (max-width:900px){
+  .nav-burger{display:block}
+  .nav-links{display:none;width:100%;flex-direction:column;align-items:stretch;padding:8px 0 4px}
+  .nav-links a{padding:12px;border-top:1px solid var(--line)}
+  .nav-links a.cta{margin:8px 0 0;text-align:center}
+  #nav-toggle:checked ~ .nav-links{display:flex}
+  .nav-logos .mason{height:26px}
+  .nav-logos .cust{height:34px}
+}
+
+/* ───────── HERO ───────── */
+#hero{border-top:0;padding:72px 0 80px;background:
+  radial-gradient(900px 480px at 85% -10%,rgba(200,168,75,.10),transparent 60%),
+  radial-gradient(700px 500px at -10% 110%,rgba(56,110,170,.16),transparent 60%),var(--bg)}
+.lockup{display:flex;align-items:center;gap:22px;line-height:0;margin-bottom:40px}
+.lockup img{display:block;height:48px;width:auto}
+.lockup .x{color:var(--dim);font-size:22px;line-height:1}
+.hero-grid{display:grid;grid-template-columns:1.35fr 1fr;gap:48px;align-items:start}
+.hero h1{font-size:clamp(32px,5vw,54px);font-weight:700;letter-spacing:-.02em;margin-bottom:18px}
+.hero h1 em{font-style:normal;color:var(--gold)}
+.hero .sub{font-size:19px;color:var(--muted);margin-bottom:28px;max-width:640px}
+.hero-quote{border-left:3px solid var(--gold);padding:4px 0 4px 18px;color:var(--text);font-size:17px;margin:0 0 32px;max-width:620px}
+.meta-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}
+.meta{padding:14px 16px}
+.meta .k{font-size:11.5px;letter-spacing:.12em;text-transform:uppercase;color:var(--dim);font-weight:700}
+.meta .v{font-size:15px;font-weight:600;margin-top:4px;word-break:break-word}
+.meta .v small{display:block;font-weight:400;color:var(--muted);font-size:13px}
+.invest-card{padding:28px;background:linear-gradient(160deg,#1f3247,#15253a);border:1px solid var(--gold-line);border-radius:18px;position:relative;overflow:hidden}
+.invest-card::after{content:"";position:absolute;right:-60px;top:-60px;width:180px;height:180px;border-radius:50%;background:radial-gradient(circle,rgba(200,168,75,.18),transparent 70%)}
+.invest-card .k{font-size:12px;letter-spacing:.16em;text-transform:uppercase;color:var(--gold);font-weight:700}
+.invest-card .big{font-size:46px;font-weight:700;letter-spacing:-.02em;margin:6px 0 2px}
+.invest-card .big-sub{color:var(--muted);font-size:14px;margin-bottom:22px}
+.mini-rows{border-top:1px solid var(--line-2)}
+.mini-rows div{display:flex;justify-content:space-between;gap:12px;padding:10px 0;border-bottom:1px solid var(--line);font-size:14.5px}
+.mini-rows div span:last-child{font-variant-numeric:tabular-nums;font-weight:600}
+.mini-rows .opt span{color:var(--muted)}
+.change-strip{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-top:22px}
+.change-strip div{background:rgba(255,255,255,.04);border:1px solid var(--line);border-radius:10px;padding:12px;text-align:center}
+.change-strip b{display:block;font-size:24px;color:var(--gold);line-height:1.1}
+.change-strip span{font-size:12px;color:var(--muted)}
+.btn{display:inline-flex;align-items:center;gap:8px;padding:12px 20px;border-radius:10px;font-weight:700;text-decoration:none;font-size:15px}
+.btn.gold{background:var(--gold);color:#0D1B2A}
+.btn.ghost{border:1px solid var(--line-2);color:var(--text)}
+.btn-row{display:flex;gap:10px;flex-wrap:wrap;margin-top:22px}
+@media (max-width:980px){.hero-grid{grid-template-columns:1fr}.meta-grid{grid-template-columns:repeat(2,1fr)}}
+@media (max-width:520px){.meta-grid{grid-template-columns:1fr}.lockup{gap:14px}.lockup img{height:36px}.invest-card .big{font-size:38px}}
+
+/* ───────── EXPERIENCE + SCHEMATIC (CSS-only interactivity) ───────── */
+#schematic{background:var(--bg-deep)}
+.how{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px;margin-bottom:26px}
+.how .stepbox{padding:18px 20px}
+.how .stepbox h3{font-size:14px;letter-spacing:.1em;text-transform:uppercase;color:var(--gold);margin-bottom:12px}
+.chips{display:flex;flex-wrap:wrap;gap:8px}
+.chip{cursor:pointer;user-select:none;padding:9px 14px;border-radius:999px;border:1px solid var(--line-2);background:rgba(255,255,255,.03);font-size:14px;font-weight:600;color:var(--text);transition:all .15s}
+.chip:hover{border-color:var(--gold-line)}
+.flow-stage{display:grid;grid-template-columns:320px minmax(0,1fr);gap:16px;align-items:start}
+.steps-panel{padding:22px;position:sticky;top:96px}
+.steps-panel h4{font-size:19px;margin-bottom:6px}
+.steps-panel .what{color:var(--muted);font-size:14px;margin-bottom:14px}
+.steps-panel ol{margin:0;padding:0;list-style:none;counter-reset:s}
+.steps-panel li{counter-increment:s;position:relative;padding:0 0 14px 38px;font-size:14.5px}
+.steps-panel li::before{content:counter(s);position:absolute;left:0;top:0;width:26px;height:26px;border-radius:50%;background:var(--gold-soft);border:1px solid var(--gold-line);color:var(--gold);font-size:13px;font-weight:700;display:grid;place-items:center}
+.steps-panel .fine{font-size:12.5px;color:var(--dim);border-top:1px solid var(--line);padding-top:12px;margin-top:4px}
+.st{display:none}
+.diagram{padding:18px 18px 12px;overflow:hidden}
+.diagram-scroll{overflow-x:auto;-webkit-overflow-scrolling:touch}
+.diagram svg{display:block;width:100%;height:auto;min-width:720px}
+.legend{display:flex;flex-wrap:wrap;gap:16px;font-size:13px;color:var(--muted);margin:10px 4px 2px}
+.legend i{display:inline-block;width:16px;height:12px;border-radius:3px;vertical-align:-1px;margin-right:6px}
+.legend .l-new{background:var(--gold-soft);border:1.5px solid var(--gold)}
+.legend .l-ofe{background:var(--card);border:1.5px solid var(--ofe)}
+.legend .l-rm{border:1.5px dashed var(--dim)}
+.legend .l-path{height:3px;border-radius:2px;background:var(--gold);width:22px;vertical-align:3px}
+.swipe{display:none;font-size:12.5px;color:var(--dim);margin:0 4px 8px}
+.view{display:none}
+
+/* SVG base */
+.dg text{font-family:var(--font);fill:var(--text);text-anchor:middle}
+.dg .t{font-size:15px;font-weight:700}
+.dg .s{font-size:12px;fill:var(--muted);font-weight:500}
+.dg .lab{font-size:11px;letter-spacing:.14em;fill:var(--dim);font-weight:700;text-anchor:start}
+.dg .n rect{fill:var(--card);stroke:var(--ofe);stroke-width:1.5}
+.dg .n.new rect{fill:rgba(200,168,75,.10);stroke:var(--gold)}
+.dg .n.new .t{fill:#f1dc9c}
+.dg .n.src rect{fill:#13212f;stroke:#4d6178;stroke-dasharray:0}
+.dg .n.rm rect{fill:none;stroke:var(--dim);stroke-dasharray:6 5}
+.dg .n.rm .t{fill:var(--dim)}
+.dg .w{fill:none;stroke:#3d4f64;stroke-width:2.2}
+.dg .w.usb{stroke-dasharray:5 4}
+.dg .panel{fill:none;stroke:#2c3d52;stroke-dasharray:6 6;stroke-width:1.5}
+.dg .hl{transition:opacity .25s}
+.flow-ui .dg .hl{opacity:.26}
+@keyframes flow{to{stroke-dashoffset:-24}}
+/* active state per scenario */
+#fl-join:checked ~ .flow-ui .hl.j,
+#fl-share:checked ~ .flow-ui .hl.s,
+#fl-cam:checked ~ .flow-ui .hl.c,
+#fl-guest:checked ~ .flow-ui .hl.g,
+#fl-legacy:checked ~ .flow-ui .hl.l{opacity:1}
+#fl-join:checked ~ .flow-ui .w.hl.j,
+#fl-share:checked ~ .flow-ui .w.hl.s,
+#fl-cam:checked ~ .flow-ui .w.hl.c,
+#fl-guest:checked ~ .flow-ui .w.hl.g,
+#fl-legacy:checked ~ .flow-ui .w.hl.l{stroke:var(--gold);stroke-width:3;stroke-dasharray:8 4;animation:flow 1s linear infinite}
+#fl-join:checked ~ .flow-ui .n.hl.j rect,
+#fl-share:checked ~ .flow-ui .n.hl.s rect,
+#fl-cam:checked ~ .flow-ui .n.hl.c rect,
+#fl-guest:checked ~ .flow-ui .n.hl.g rect,
+#fl-legacy:checked ~ .flow-ui .n.hl.l rect{stroke-width:2.5}
+/* chip + steps state */
+#fl-join:checked ~ .flow-ui label[for=fl-join],
+#fl-share:checked ~ .flow-ui label[for=fl-share],
+#fl-cam:checked ~ .flow-ui label[for=fl-cam],
+#fl-guest:checked ~ .flow-ui label[for=fl-guest],
+#fl-legacy:checked ~ .flow-ui label[for=fl-legacy],
+#vw-flow:checked ~ .flow-ui label[for=vw-flow],
+#vw-room:checked ~ .flow-ui label[for=vw-room]{background:var(--gold);color:#0D1B2A;border-color:var(--gold)}
+#fl-join:checked ~ .flow-ui .st-join,
+#fl-share:checked ~ .flow-ui .st-share,
+#fl-cam:checked ~ .flow-ui .st-cam,
+#fl-guest:checked ~ .flow-ui .st-guest,
+#fl-legacy:checked ~ .flow-ui .st-legacy{display:block}
+#vw-flow:checked ~ .flow-ui .v-flow,
+#vw-room:checked ~ .flow-ui .v-room{display:block}
+.fl-radio:focus-visible ~ .flow-ui .chips{outline:1px dashed var(--gold-line);outline-offset:6px;border-radius:12px}
+/* room plan */
+.dg .wall{fill:#0f1e2e;stroke:#5a6f87;stroke-width:3}
+.dg .table{fill:#1f3043;stroke:#4d6178;stroke-width:1.5}
+.dg .chair{fill:#2a3b50;stroke:#3e5268}
+.dg .disp{fill:#3A4D63}
+.dg .disp.hl rect,.dg rect.disp{fill:#4f6680}
+.dg .win{stroke:#6aa9d8;stroke-width:4;stroke-dasharray:14 8}
+.dg .spk{fill:none;stroke:#7d93ab;stroke-width:2}
+.dg .mic{fill:#7d93ab}
+.dg .cam{fill:#9fb0c3}
+.dg .newfill{fill:var(--gold)}
+.dg .rl{font-size:12.5px;fill:var(--muted);font-weight:600}
+.dg .rl.g{fill:#f1dc9c}
+.dg .rl.start{text-anchor:start}.dg .rl.end{text-anchor:end}
+@media (max-width:980px){.flow-stage{grid-template-columns:1fr}.steps-panel{position:static}.how{grid-template-columns:1fr}}
+@media (max-width:760px){.swipe{display:block}}
+
+/* ───────── COMPONENTS ───────── */
+.comp-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:16px}
+.comp{overflow:hidden;display:flex;flex-direction:column}
+.comp .img{aspect-ratio:4/3;display:grid;place-items:center;padding:18px}
+.comp .img.light{background:radial-gradient(ellipse at center,#e8eef5,#d0dae6)}
+.comp .img.dark{background:radial-gradient(ellipse at center,#1a2e4a,#0d1b2a)}
+.comp .img svg{width:100%;height:100%;max-height:180px}
+.comp .body{padding:18px 18px 20px;flex:1;display:flex;flex-direction:column}
+.comp .qty{font-size:12px;color:var(--gold);font-weight:700;letter-spacing:.1em;text-transform:uppercase}
+.comp h3{font-size:18px;margin:6px 0 4px}
+.comp .pn{font-size:13px;color:var(--dim);font-family:ui-monospace,Consolas,monospace;margin-bottom:10px}
+.comp p{font-size:14.5px;color:var(--muted);margin-bottom:12px}
+.comp ul{margin:auto 0 0;padding:12px 0 0;border-top:1px solid var(--line);list-style:none;font-size:13.5px}
+.comp li{padding:3px 0 3px 18px;position:relative;color:var(--text)}
+.comp li::before{content:"";position:absolute;left:2px;top:11px;width:7px;height:7px;border-radius:50%;background:var(--gold)}
+.illus-note{margin-top:14px}
+@media (max-width:1050px){.comp-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media (max-width:560px){.comp-grid{grid-template-columns:1fr}}
+
+.reuse{margin-top:56px}
+.reuse-head{display:flex;justify-content:space-between;align-items:end;gap:20px;flex-wrap:wrap;margin-bottom:18px}
+.reuse-head h3{font-size:24px}
+.reuse-head p{color:var(--muted);margin:6px 0 0;max-width:620px}
+.reuse-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:12px}
+.ri{padding:14px 16px;display:flex;gap:14px;align-items:flex-start}
+.ri .q{min-width:38px;height:38px;border-radius:10px;background:rgba(255,255,255,.05);border:1px solid var(--line-2);display:grid;place-items:center;font-weight:700;font-size:14px;color:var(--muted)}
+.ri b{display:block;font-size:14.5px}
+.ri span{font-size:13px;color:var(--muted)}
+.ri.rm{border-style:dashed;background:transparent}
+#rf-video:checked ~ .reuse-grid .ri:not(.k-video),
+#rf-audio:checked ~ .reuse-grid .ri:not(.k-audio),
+#rf-cam:checked ~ .reuse-grid .ri:not(.k-cam),
+#rf-ctl:checked ~ .reuse-grid .ri:not(.k-ctl){display:none}
+#rf-all:checked ~ .reuse-head label[for=rf-all],
+#rf-video:checked ~ .reuse-head label[for=rf-video],
+#rf-audio:checked ~ .reuse-head label[for=rf-audio],
+#rf-cam:checked ~ .reuse-head label[for=rf-cam],
+#rf-ctl:checked ~ .reuse-head label[for=rf-ctl]{background:var(--gold);color:#0D1B2A;border-color:var(--gold)}
+
+/* ───────── SCOPE ───────── */
+.scope-grid{display:grid;grid-template-columns:minmax(0,1.5fr) minmax(0,1fr);gap:20px;align-items:start}
+details.acc{background:var(--card);border:1px solid var(--line);border-radius:12px;margin-bottom:10px;overflow:hidden}
+details.acc summary{cursor:pointer;list-style:none;padding:16px 50px 16px 18px;font-weight:700;font-size:16px;position:relative;display:flex;gap:12px;align-items:center}
+details.acc summary::-webkit-details-marker{display:none}
+details.acc summary::after{content:"+";position:absolute;right:18px;top:50%;transform:translateY(-50%);color:var(--gold);font-size:22px;font-weight:400}
+details.acc[open] summary::after{content:"−"}
+details.acc summary .num{color:var(--gold);font-size:13px;font-weight:700;min-width:28px}
+details.acc .in{padding:0 18px 16px 58px;color:var(--muted);font-size:14.5px}
+details.acc .in ul{margin:0;padding-left:18px}
+details.acc .in li{margin:4px 0}
+details.acc .in p{margin:0 0 8px}
+.side-card{padding:22px;margin-bottom:16px}
+.side-card h3{font-size:17px;margin-bottom:12px;display:flex;gap:10px;align-items:center}
+.side-card ul{margin:0;padding-left:18px;color:var(--muted);font-size:14px}
+.side-card li{margin:5px 0}
+.side-card.warn{border-color:rgba(255,255,255,.12);background:var(--card-2)}
+@media (max-width:980px){.scope-grid{grid-template-columns:1fr}}
+
+/* ───────── INVESTMENT ───────── */
+#investment{background:linear-gradient(180deg,var(--bg),#0a1724)}
+.table-wrap{overflow-x:auto;-webkit-overflow-scrolling:touch;border-radius:var(--radius);border:1px solid var(--line);background:var(--card)}
+table.price{width:100%;border-collapse:collapse;font-size:14.5px;min-width:760px}
+table.price th{text-align:left;font-size:11.5px;letter-spacing:.12em;text-transform:uppercase;color:var(--dim);padding:14px 16px;border-bottom:1px solid var(--line-2);font-weight:700;white-space:nowrap}
+table.price td{padding:14px 16px;border-bottom:1px solid var(--line);vertical-align:top}
+table.price td.n,table.price th.n{text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap}
+table.price .grp td{background:rgba(255,255,255,.03);color:var(--gold);font-size:12px;letter-spacing:.14em;text-transform:uppercase;font-weight:700;padding:10px 16px}
+table.price .pn{font-family:ui-monospace,Consolas,monospace;font-size:13px;color:var(--muted);white-space:nowrap}
+table.price .d small{display:block;color:var(--dim);font-size:12.5px;margin-top:2px}
+table.price .sub td{font-weight:700;background:rgba(255,255,255,.02)}
+table.price .tot td{font-weight:700;font-size:17px;border-bottom:0;color:#fff;background:rgba(200,168,75,.08)}
+.tips-chk{color:var(--ok);font-size:12.5px;font-weight:600;white-space:nowrap}
+.invest-grid{display:grid;grid-template-columns:minmax(0,1.25fr) minmax(0,1fr);gap:20px;margin-top:20px;align-items:start}
+.labor{padding:22px}
+.labor h3,.totals h3{font-size:17px;margin-bottom:4px}
+.labor .note{margin-bottom:14px}
+.lab-row{display:grid;grid-template-columns:150px minmax(0,1fr) 110px;gap:12px;align-items:center;font-size:14px;padding:7px 0;border-bottom:1px solid var(--line)}
+.lab-row .bar{height:10px;border-radius:5px;background:rgba(255,255,255,.06);overflow:hidden}
+.lab-row .bar i{display:block;height:100%;background:linear-gradient(90deg,#a98a35,var(--gold));border-radius:5px}
+.lab-row .amt{text-align:right;font-variant-numeric:tabular-nums;color:var(--muted)}
+.lab-row .amt b{color:var(--text)}
+.lab-total{display:flex;justify-content:space-between;font-weight:700;padding-top:12px}
+.totals{padding:24px;border:1px solid var(--gold-line);background:linear-gradient(160deg,#1f3247,#15253a)}
+.trow{display:flex;justify-content:space-between;gap:12px;padding:10px 0;border-bottom:1px solid var(--line);font-size:15px}
+.trow span:last-child{font-variant-numeric:tabular-nums;font-weight:600}
+.sla-toggle{display:flex;align-items:center;justify-content:space-between;gap:14px;cursor:pointer;margin:16px 0 4px;padding:14px;border-radius:12px;border:1px dashed var(--gold-line);background:rgba(200,168,75,.05)}
+.sla-toggle b{display:block;font-size:14.5px}
+.sla-toggle small{color:var(--muted);font-size:12.5px}
+.switch{flex:none;width:46px;height:26px;border-radius:13px;background:#3a4b5f;position:relative;transition:background .2s}
+.switch::after{content:"";position:absolute;left:3px;top:3px;width:20px;height:20px;border-radius:50%;background:#fff;transition:transform .2s}
+#sla:checked ~ .invest-grid .switch{background:var(--gold)}
+#sla:checked ~ .invest-grid .switch::after{transform:translateX(20px)}
+#sla:focus-visible ~ .invest-grid .sla-toggle{outline:2px solid var(--gold)}
+.grand{display:flex;justify-content:space-between;align-items:baseline;gap:12px;padding-top:16px}
+.grand .k{font-size:12px;letter-spacing:.14em;text-transform:uppercase;color:var(--gold);font-weight:700}
+.grand .v{font-size:34px;font-weight:700;letter-spacing:-.01em}
+.with-sla{display:none}
+#sla:checked ~ .invest-grid .with-sla{display:flex}
+#sla:checked ~ .invest-grid p.with-sla{display:block}
+#sla:checked ~ .invest-grid .no-sla{display:none}
+.sla-line{display:none}
+#sla:checked ~ .invest-grid .sla-line{display:flex}
+.recurring{font-size:13px;color:var(--muted);margin-top:6px}
+.pay{margin-top:18px;font-size:13.5px;color:var(--muted);border-top:1px solid var(--line);padding-top:14px}
+.savings{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin:0 0 20px}
+.savings div{padding:16px 18px}
+.savings .k{font-size:11.5px;letter-spacing:.12em;text-transform:uppercase;color:var(--dim);font-weight:700}
+.savings .v{font-size:24px;font-weight:700;margin-top:2px}
+.savings .v.g{color:var(--gold)}
+@media (max-width:980px){.invest-grid{grid-template-columns:1fr}}
+@media (max-width:620px){.savings{grid-template-columns:1fr}.lab-row{grid-template-columns:110px minmax(0,1fr) 92px;font-size:13px}.grand .v{font-size:28px}}
+
+/* TIPS */
+.tips-head{margin-top:72px;padding-top:56px;border-top:1px solid var(--line)}
+.tips-title{font-size:clamp(24px,3.4vw,32px);font-weight:700;margin-bottom:12px}
+.terms-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}
+.term{padding:18px 20px}
+.term .k{font-size:11.5px;letter-spacing:.12em;text-transform:uppercase;color:var(--dim);font-weight:700}
+.term .v{font-size:18px;font-weight:700;color:var(--gold);margin:4px 0 6px}
+.term p{font-size:13.5px;color:var(--muted);margin:0}
+@media (max-width:900px){.terms-grid{grid-template-columns:1fr 1fr}}
+@media (max-width:560px){.terms-grid{grid-template-columns:1fr}}
+.tips{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.2fr);gap:20px;margin-top:20px}
+.tips-badge{padding:26px;background:linear-gradient(150deg,#1d3046,#122234);border:1px solid var(--line-2)}
+.tips-badge .k{font-size:12px;letter-spacing:.16em;color:var(--gold);font-weight:700;text-transform:uppercase}
+.tips-badge h3{font-size:26px;margin:8px 0 6px}
+.tips-badge p{color:var(--muted);font-size:14.5px}
+.po{padding:24px}
+.po h3{font-size:17px;margin-bottom:12px}
+.po ol{margin:0;padding-left:20px;color:var(--muted);font-size:14.5px}
+.po li{margin:6px 0}
+.po li b{color:var(--text)}
+@media (max-width:900px){.tips{grid-template-columns:1fr}}
+
+/* ───────── SLA ───────── */
+.sla-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:14px}
+.sla-c{padding:20px}
+.sla-c .k{font-size:11.5px;letter-spacing:.12em;text-transform:uppercase;color:var(--dim);font-weight:700}
+.sla-c .v{font-size:22px;font-weight:700;margin:4px 0 6px;color:var(--gold)}
+.sla-c p{font-size:13.5px;color:var(--muted);margin:0}
+.sla-split{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px;margin-top:14px}
+.sla-split .card{padding:22px}
+.sla-split h3{font-size:17px;margin-bottom:10px}
+.sla-split ul{margin:0;padding-left:18px;color:var(--muted);font-size:14px}
+.sla-split li{margin:4px 0}
+@media (max-width:980px){.sla-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.sla-split{grid-template-columns:1fr}}
+@media (max-width:480px){.sla-grid{grid-template-columns:1fr}}
+
+/* ───────── SCHEDULE ───────── */
+.timeline{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:12px;position:relative}
+.ph{padding:20px 18px;position:relative}
+.ph .n{width:34px;height:34px;border-radius:50%;background:var(--gold);color:#0D1B2A;font-weight:800;display:grid;place-items:center;margin-bottom:12px}
+.ph h3{font-size:16px;margin-bottom:6px}
+.ph p{font-size:13.5px;color:var(--muted);margin:0}
+.accept{margin-top:20px;padding:22px 24px;display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.6fr);gap:24px;align-items:start}
+.accept h3{font-size:18px}
+.accept ul{margin:0;padding:0;list-style:none;display:grid;grid-template-columns:1fr 1fr;gap:8px 20px;font-size:14px;color:var(--muted)}
+.accept li{padding-left:24px;position:relative}
+.accept li::before{content:"✓";position:absolute;left:0;color:var(--ok);font-weight:700}
+@media (max-width:980px){.timeline{grid-template-columns:repeat(2,minmax(0,1fr))}.accept{grid-template-columns:1fr}}
+@media (max-width:560px){.timeline{grid-template-columns:1fr}.accept ul{grid-template-columns:1fr}}
+
+/* ───────── WHY MASON ───────── */
+.stats{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:14px;margin-bottom:22px}
+.stat{padding:22px;text-align:left}
+.stat b{display:block;font-size:38px;line-height:1.05;color:var(--gold);letter-spacing:-.02em}
+.stat span{color:var(--muted);font-size:14px}
+.proof{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px}
+.pf{padding:22px}
+.pf .ic{width:40px;height:40px;border-radius:10px;background:var(--gold-soft);border:1px solid var(--gold-line);display:grid;place-items:center;margin-bottom:14px}
+.pf .ic svg{width:22px;height:22px;stroke:var(--gold);fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+.pf h3{font-size:16.5px;margin-bottom:6px}
+.pf p{font-size:14px;color:var(--muted);margin:0}
+.logos-h{margin:56px 0 18px;font-size:22px;text-align:center}
+.logo-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:12px}
+.edu-logo-card{background:#2a3547;border:1px solid rgba(255,255,255,0.08);border-radius:12px;height:104px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;padding:12px}
+.edu-logo-card img{max-height:44px;max-width:140px;object-fit:contain;display:block}
+.edu-logo-card .cap{font-size:11px;color:var(--muted);text-align:center;line-height:1.2}
+.name-tile{text-align:center}
+.name-tile .nm{font-size:13px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:#fff;line-height:1.25;border-top:3px solid #2E8BC0;padding-top:8px}
+@media (max-width:980px){.stats{grid-template-columns:repeat(2,minmax(0,1fr))}.proof{grid-template-columns:1fr 1fr}}
+@media (max-width:560px){.proof{grid-template-columns:1fr}.stat b{font-size:32px}}
+
+/* ───────── FOOTER ───────── */
+footer{background:#08141f;border-top:1px solid var(--line);padding:72px 0 34px}
+.contact-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px;margin:30px 0}
+.ct{padding:22px}
+.ct .k{font-size:11.5px;letter-spacing:.12em;text-transform:uppercase;color:var(--gold);font-weight:700}
+.ct h3{font-size:18px;margin:8px 0 2px}
+.ct .r{color:var(--muted);font-size:14px;margin-bottom:10px}
+.ct a{display:block;color:var(--text);text-decoration:none;font-size:14.5px;margin:3px 0;word-break:break-word}
+.ct a:hover{color:var(--gold)}
+.support-line{display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap;padding:20px 24px;border-radius:var(--radius);background:linear-gradient(90deg,rgba(200,168,75,.16),rgba(200,168,75,.04));border:1px solid var(--gold-line)}
+.support-line b{font-size:20px}
+.foot-base{display:flex;justify-content:space-between;align-items:center;gap:20px;flex-wrap:wrap;margin-top:40px;padding-top:24px;border-top:1px solid var(--line);font-size:13px;color:var(--dim)}
+.foot-logos{display:flex;align-items:center;gap:14px;line-height:0}
+.foot-logos img{display:block;height:26px;width:auto;opacity:.9}
+.foot-logos .cust{height:32px}
+@media (max-width:900px){.contact-grid{grid-template-columns:1fr}}
+@media print{.site-nav{position:static}.nav-burger{display:none}section{padding:40px 0}}
+</style>
+</head>
+<body>
+
+<!-- ═════════ 1. NAV ═════════ -->
+<nav class="site-nav" aria-label="Proposal sections">
+  <div class="nav-logos">
+    <img class="mason" src="mason-logo-white.png" alt="Mason Technologies">
+    <span class="nav-divider" aria-hidden="true"></span>
+    <img class="cust" src="fort-lauderdale-logo-white.svg" alt="City of Fort Lauderdale">
+  </div>
+  <input type="checkbox" id="nav-toggle" class="sr" aria-label="Toggle menu">
+  <label for="nav-toggle" class="nav-burger" aria-hidden="true"><span></span><span></span><span></span></label>
+  <div class="nav-links">
+    <a href="#hero">Overview</a>
+    <a href="#schematic">How It Works</a>
+    <a href="#components">Components</a>
+    <a href="#investment">Investment</a>
+    <a href="#why">Why Mason</a>
+    <a href="#contact" class="cta">Contact</a>
+  </div>
+</nav>
+
+<!-- ═════════ 2. HERO ═════════ -->
+<header id="hero" class="hero">
+  <div class="wrap">
+    <div class="lockup">
+      <img src="mason-logo-white.png" alt="Mason Technologies">
+      <span class="x" aria-hidden="true">×</span>
+      <img src="fort-lauderdale-logo-white.svg" alt="City of Fort Lauderdale">
+    </div>
+    <div class="hero-grid">
+      <div>
+        <div class="eyebrow">Proposal · Quote #069179 · Version 1</div>
+        <h1>Chief's Conference Room <em>AV&nbsp;&amp;&nbsp;Microsoft&nbsp;Teams</em> Modernization</h1>
+        <p class="sub">City of Fort Lauderdale – Police HQ · Room 3111. A native Microsoft Teams Room added to the room's existing Q-SYS system, priced under TIPS Contract #260105.</p>
+        <p class="hero-quote">Walk in, see the meeting on the table controller, and join with one touch. The room keeps the Q-SYS audio, cameras, displays and controls the City already owns.</p>
+        <div class="meta-grid">
+          <div class="card meta"><div class="k">Customer</div><div class="v">City of Fort Lauderdale<small>Police Department</small></div></div>
+          <div class="card meta"><div class="k">Site</div><div class="v">Police Headquarters<small>1300 W Broward Blvd, Fort Lauderdale, FL 33312</small></div></div>
+          <div class="card meta"><div class="k">Room</div><div class="v">Chief's Conference Room<small>Room 3111</small></div></div>
+          <div class="card meta"><div class="k">Prepared for</div><div class="v">Andres Hernandez<small>AHernandez@fortlauderdale.gov</small></div></div>
+          <div class="card meta"><div class="k">Purchasing vehicle</div><div class="v">TIPS #260105<small>Technology Solutions, Products &amp; Services</small></div></div>
+          <div class="card meta"><div class="k">Valid through</div><div class="v">November 28, 2026<small>Issued November 2, 2026</small></div></div>
+        </div>
+      </div>
+      <aside class="invest-card" aria-label="Investment summary">
+        <div class="k">Project investment</div>
+        <div class="big">$17,425.74</div>
+        <div class="big-sub">Equipment, labor and direct costs at TIPS #260105 pricing</div>
+        <div class="mini-rows">
+          <div><span>Equipment</span><span>$9,352.87</span></div>
+          <div><span>Labor · 67 hours at TIPS rates</span><span>$7,150.00</span></div>
+          <div><span>Misc. hardware &amp; direct costs</span><span>$922.87</span></div>
+          <div class="opt"><span>Optional: Mason Command Silver SLA</span><span><a href="#investment">See options</a></span></div>
+        </div>
+        <div class="change-strip">
+          <div><b>4</b><span>new line items</span></div>
+          <div><b>20+</b><span>existing devices reused</span></div>
+          <div><b>5 yr</b><span>Cyviz monitoring included</span></div>
+        </div>
+        <div class="btn-row">
+          <a class="btn gold" href="#investment">View pricing</a>
+          <a class="btn ghost" href="#schematic">See how it works</a>
+        </div>
+      </aside>
+    </div>
+  </div>
+</header>
+
+<!-- ═════════ 3. SYSTEM SCHEMATIC (replaces coverage heat map for AV projects) ═════════ -->
+<section id="schematic">
+  <div class="wrap">
+    <div class="eyebrow">How it works · System schematic</div>
+    <h2 class="section-title">Two new Q-SYS endpoints connect the Teams Room to the existing room</h2>
+    <p class="lead">One new encoder carries the Teams Room's video onto the Q-SYS network and gives Teams the room cameras, microphones and speakers over USB. One new decoder feeds any room source into Teams for content sharing. Everything else stays in service.</p>
+
+    <!-- radios first so CSS :checked ~ selectors work without JavaScript -->
+    <input type="radio" name="flow" id="fl-join" class="sr fl-radio" checked>
+    <input type="radio" name="flow" id="fl-share" class="sr fl-radio">
+    <input type="radio" name="flow" id="fl-cam" class="sr fl-radio">
+    <input type="radio" name="flow" id="fl-guest" class="sr fl-radio">
+    <input type="radio" name="flow" id="fl-legacy" class="sr fl-radio">
+    <input type="radio" name="view" id="vw-flow" class="sr" checked>
+    <input type="radio" name="view" id="vw-room" class="sr">
+
+    <div class="flow-ui">
+      <div class="how">
+        <div class="card stepbox">
+          <h3>1 · What do you want to do?</h3>
+          <div class="chips">
+            <label class="chip" for="fl-join">Join a Teams meeting</label>
+            <label class="chip" for="fl-share">Share a laptop</label>
+            <label class="chip" for="fl-cam">Switch cameras</label>
+            <label class="chip" for="fl-guest">Join a Zoom / Webex invite</label>
+            <label class="chip" for="fl-legacy">Use the room as today</label>
+          </div>
+        </div>
+        <div class="card stepbox">
+          <h3>2 · Choose a view</h3>
+          <div class="chips">
+            <label class="chip" for="vw-flow">Signal flow</label>
+            <label class="chip" for="vw-room">Room layout</label>
+          </div>
+          <p class="note" style="margin:12px 0 0">The highlighted path shows which equipment does the work. Gold boxes are new from Mason; gray boxes are the City's existing equipment.</p>
+        </div>
+      </div>
+
+      <div class="flow-stage">
+        <div class="card steps-panel" aria-live="polite">
+          <div class="st st-join">
+            <h4>Join a Teams meeting</h4>
+            <p class="what">One-touch join from the room calendar</p>
+            <ol>
+              <li>Walk in. The table controller already lists today's meetings from the room's Microsoft 365 calendar.</li>
+              <li>Tap <b>Join</b>.</li>
+              <li>Teams appears on all four displays. The ceiling microphones and speakers carry the call, and the front camera is live.</li>
+              <li>Mute, volume and camera are on the same controller.</li>
+            </ol>
+            <p class="fine">The Teams Room's single HDMI output goes out through new encoder ENC-28 to the room's four display decoders.</p>
+          </div>
+          <div class="st st-share">
+            <h4>Share a laptop</h4>
+            <p class="what">Plug in and it shares</p>
+            <ol>
+              <li>Plug the laptop into the table cubby (HDMI or USB-C).</li>
+              <li>Q-SYS detects the laptop and routes it through new decoder DEC-29 into the Teams Room's content input.</li>
+              <li>The laptop appears in the meeting and on the room displays.</li>
+              <li>To share the room PC instead, pick it under <b>Room Controls</b>.</li>
+            </ol>
+            <p class="fine">Content routing depends on the inputs the Teams Room supports. BYOD laptops keep USB access to the room camera and microphones.</p>
+          </div>
+          <div class="st st-cam">
+            <h4>Switch cameras</h4>
+            <p class="what">Front or rear camera</p>
+            <ol>
+              <li>On the table controller, open <b>Room Controls</b>.</li>
+              <li>Choose the <b>front</b> camera (CAM-09) or the <b>rear</b> camera (CAM-10). Existing presets are kept where the current programming supports them.</li>
+              <li>The selected camera goes to Teams through the ENC-28 USB bridge.</li>
+            </ol>
+            <p class="fine">One camera is live in Teams at a time. Multi-camera composition and automatic camera switching are not included.</p>
+          </div>
+          <div class="st st-guest">
+            <h4>Join a Zoom or Webex invite</h4>
+            <p class="what">Microsoft Teams Rooms Direct Guest Join</p>
+            <ol>
+              <li>The meeting organizer invites the room's resource account.</li>
+              <li>The meeting appears on the table controller like a Teams meeting.</li>
+              <li>Tap <b>Join</b>. The room joins as a guest, using the same displays, microphones and camera.</li>
+            </ol>
+            <p class="fine">Depends on Microsoft platform features and City IT policy. Hosting Zoom or Webex from the Teams Room is not included; Zoom on the room PC still works.</p>
+          </div>
+          <div class="st st-legacy">
+            <h4>Use the room as today</h4>
+            <p class="what">The City's familiar Q-SYS controls</p>
+            <ol>
+              <li>On the table controller, open <b>Room Controls</b>. It opens the City's Q-SYS room interface.</li>
+              <li>Choose PC, Laptop 1, Laptop 2, Media Player, TV Tuner or Phone Call (Q-SYS softphone).</li>
+              <li>Displays, volume and mic mute work as they do now. Zoom on the room PC is unchanged.</li>
+            </ol>
+            <p class="fine">Program audio and camera feeds to the Community Room are assumed unchanged.</p>
+          </div>
+        </div>
+
+        <div class="card diagram">
+          <p class="swipe">Swipe sideways to see the full diagram →</p>
+
+          <!-- VIEW A: SIGNAL FLOW -->
+          <div class="view v-flow">
+            <div class="diagram-scroll">
+            <svg class="dg" viewBox="0 0 1192 790" role="img" aria-label="Room 3111 signal flow. New Teams Room compute, encoder ENC-28, decoder DEC-29 and table controller connect to the existing Q-SYS network, displays, cameras, microphones and speakers.">
+              <defs>
+                <marker id="ar" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="#7d93ab"/></marker>
+              </defs>
+              <text class="lab" x="20" y="44">SOURCES</text>
+              <text class="lab" x="20" y="158">ENCODERS</text>
+              <text class="lab" x="20" y="268">NETWORK</text>
+              <text class="lab" x="20" y="366">DECODERS</text>
+              <text class="lab" x="20" y="476">DISPLAYS</text>
+
+              <!-- wires -->
+              <path class="w hl l s" d="M125 122V168" marker-end="url(#ar)"/>
+              <path class="w hl l" d="M355 122V168" marker-end="url(#ar)"/>
+              <path class="w hl s" d="M585 122V168" marker-end="url(#ar)"/>
+              <path class="w hl s" d="M815 122V168" marker-end="url(#ar)"/>
+              <path class="w hl j s g" d="M1020 122V168" marker-end="url(#ar)"/>
+              <path class="w usb hl j c g" d="M1088 126V166" marker-start="url(#ar)" marker-end="url(#ar)"/>
+              <text class="s" x="1124" y="150" style="font-size:11px;fill:#c8a84b">USB</text>
+              <text class="s" x="992" y="150" style="font-size:11px">HDMI</text>
+              <path class="w hl l s" d="M240 232V278" marker-end="url(#ar)"/>
+              <path class="w hl s" d="M585 232V278" marker-end="url(#ar)"/>
+              <path class="w hl s" d="M815 232V278" marker-end="url(#ar)"/>
+              <path class="w hl j s c g" d="M1045 232V278" marker-start="url(#ar)" marker-end="url(#ar)"/>
+              <path class="w hl j s g l" d="M470 326V374" marker-end="url(#ar)"/>
+              <path class="w hl s" d="M1045 326V374" marker-end="url(#ar)"/>
+              <path class="w hl s" d="M1150 407H1176V91H1156" marker-end="url(#ar)"/>
+              <text class="s" x="1172" y="250" transform="rotate(90 1172 250)" style="font-size:11px">CONTENT IN</text>
+              <path class="w hl j s g l" d="M125 438V484" marker-end="url(#ar)"/>
+              <path class="w hl j s g l" d="M355 438V484" marker-end="url(#ar)"/>
+              <path class="w hl j s g l" d="M585 438V484" marker-end="url(#ar)"/>
+              <path class="w hl j s g l" d="M815 438V484" marker-end="url(#ar)"/>
+              <path class="w hl j s c g l" d="M20 303H8V659H38" marker-end="url(#ar)"/>
+
+              <!-- row 1: sources -->
+              <g class="n hl l s"><rect x="20" y="60" width="210" height="62" rx="10"/><text class="t" x="125" y="86">Room PC</text><text class="s" x="125" y="106">PC-06 · existing</text></g>
+              <g class="n hl l"><rect x="250" y="60" width="210" height="62" rx="10"/><text class="t" x="355" y="86">Tuner + media player</text><text class="s" x="355" y="106">existing</text></g>
+              <g class="n src hl s"><rect x="480" y="60" width="210" height="62" rx="10"/><text class="t" x="585" y="86">Laptop 1</text><text class="s" x="585" y="106">table HDMI / USB-C</text></g>
+              <g class="n src hl s"><rect x="710" y="60" width="210" height="62" rx="10"/><text class="t" x="815" y="86">Laptop 2</text><text class="s" x="815" y="106">table HDMI / USB-C</text></g>
+              <g class="n new hl j s c g"><rect x="940" y="60" width="210" height="62" rx="10"/><text class="t" x="1045" y="86">Teams Room compute</text><text class="s" x="1045" y="106">Lenovo ThinkSmart · NEW</text></g>
+
+              <!-- row 2: encoders -->
+              <g class="n hl l s"><rect x="20" y="170" width="440" height="62" rx="10"/><text class="t" x="240" y="196">NV-32-H encoder · ENC-16</text><text class="s" x="240" y="216">room PC, tuner, media player · existing</text></g>
+              <g class="n hl s"><rect x="480" y="170" width="210" height="62" rx="10"/><text class="t" x="585" y="196">NV-21-HU encoder</text><text class="s" x="585" y="216">ENC-14 · existing</text></g>
+              <g class="n hl s"><rect x="710" y="170" width="210" height="62" rx="10"/><text class="t" x="815" y="196">NV-21-HU encoder</text><text class="s" x="815" y="216">ENC-15 · existing</text></g>
+              <g class="n new hl j s c g"><rect x="940" y="170" width="210" height="62" rx="10"/><text class="t" x="1045" y="196">NV-21-HU encoder</text><text class="s" x="1045" y="216">ENC-28 · USB bridge · NEW</text></g>
+
+              <!-- row 3: switch -->
+              <g class="n hl j s c g l"><rect x="20" y="280" width="1130" height="46" rx="10" style="fill:#1d2d3f"/><text class="t" x="585" y="309">AV network switch · City-furnished · PoE for the two new NV-21-HU endpoints</text></g>
+
+              <!-- row 4: decoders -->
+              <g class="n hl j s g l"><rect x="20" y="376" width="900" height="62" rx="10"/><text class="t" x="470" y="402">4 × NV-21-HU decoders · DEC-16 to DEC-19</text><text class="s" x="470" y="422">one behind each display · existing</text></g>
+              <g class="n new hl s"><rect x="940" y="376" width="210" height="62" rx="10"/><text class="t" x="1045" y="402">NV-21-HU decoder</text><text class="s" x="1045" y="422">DEC-29 · content in · NEW</text></g>
+
+              <!-- row 5: displays -->
+              <g class="n hl j s g l"><rect x="20" y="486" width="210" height="62" rx="10"/><text class="t" x="125" y="512">Sony 98″</text><text class="s" x="125" y="532">front wall · existing</text></g>
+              <g class="n hl j s g l"><rect x="250" y="486" width="210" height="62" rx="10"/><text class="t" x="355" y="512">Sony 98″</text><text class="s" x="355" y="532">rear wall · existing</text></g>
+              <g class="n hl j s g l"><rect x="480" y="486" width="210" height="62" rx="10"/><text class="t" x="585" y="512">Sony 85″</text><text class="s" x="585" y="532">side wall · existing</text></g>
+              <g class="n hl j s g l"><rect x="710" y="486" width="210" height="62" rx="10"/><text class="t" x="815" y="512">Sony 85″</text><text class="s" x="815" y="532">side wall · existing</text></g>
+              <g class="n"><rect x="940" y="486" width="210" height="62" rx="10" style="fill:none;stroke-dasharray:4 4"/><text class="t" x="1045" y="512" style="fill:#9FB0C3">Community Room</text><text class="s" x="1045" y="532">camera + audio feeds · unchanged</text></g>
+
+              <!-- processing panel -->
+              <rect class="panel" x="20" y="586" width="1150" height="194" rx="14"/>
+              <text class="lab" x="40" y="614">PROCESSING, AUDIO &amp; CONTROL ON THE Q-SYS NETWORK</text>
+              <g class="n hl j s c g l"><rect x="40" y="630" width="264" height="60" rx="10"/><text class="t" x="172" y="655">Q-SYS Core X20r</text><text class="s" x="172" y="675">shared · routing, AEC, softphone</text></g>
+              <g class="n hl j g l"><rect x="322" y="630" width="264" height="60" rx="10"/><text class="t" x="454" y="655">Ceiling mics × 2</text><text class="s" x="454" y="675">Shure MXA710 · existing</text></g>
+              <g class="n hl j g l"><rect x="604" y="630" width="264" height="60" rx="10"/><text class="t" x="736" y="655">Amp + 8 speakers</text><text class="s" x="736" y="675">QSC SPA-Qf 60x4 · existing</text></g>
+              <g class="n hl j c g"><rect x="886" y="630" width="264" height="60" rx="10"/><text class="t" x="1018" y="655">PTZ cameras × 2</text><text class="s" x="1018" y="675">CAM-09 front · CAM-10 rear</text></g>
+              <g class="n new hl j s c g l"><rect x="40" y="704" width="264" height="60" rx="10"/><text class="t" x="172" y="729">Table controller</text><text class="s" x="172" y="749">Lenovo IP Controller · TP-28 · NEW</text></g>
+              <g class="n new"><rect x="322" y="704" width="264" height="60" rx="10"/><text class="t" x="454" y="729">Cyviz monitoring</text><text class="s" x="454" y="749">Teams Room health agent · NEW</text></g>
+              <g class="n hl j l"><rect x="604" y="704" width="264" height="60" rx="10"/><text class="t" x="736" y="729">Assistive listening</text><text class="s" x="736" y="749">Williams AV T55D · existing</text></g>
+              <g class="n rm"><rect x="886" y="704" width="264" height="60" rx="10"/><text class="t" x="1018" y="729">Removed</text><text class="s" x="1018" y="749">TP-18 table panel · returned to City</text></g>
+            </svg>
+            </div>
+          </div>
+
+          <!-- VIEW B: ROOM LAYOUT -->
+          <div class="view v-room">
+            <div class="diagram-scroll">
+            <svg class="dg" viewBox="0 0 1192 610" role="img" aria-label="Illustrative plan view of Room 3111: long boardroom table, 98-inch displays on front and rear walls with PTZ cameras, two 85-inch displays on the side wall, window wall, ceiling microphones and speakers, new table controller and new equipment behind the front display.">
+              <!-- room -->
+              <rect class="wall" x="240" y="60" width="800" height="460" rx="6"/>
+              <line class="win" x1="262" y1="520" x2="1018" y2="520"/>
+              <text class="rl" x="640" y="548">Window wall · roller shades</text>
+              <text class="rl" x="640" y="40">Side wall</text>
+
+              <!-- side wall 85" displays -->
+              <g class="hl j s g l"><rect class="disp" x="420" y="62" width="150" height="11" rx="2"/><text class="rl" x="495" y="94">85″ display</text></g>
+              <g class="hl j s g l"><rect class="disp" x="710" y="62" width="150" height="11" rx="2"/><text class="rl" x="785" y="94">85″ display</text></g>
+
+              <!-- front wall -->
+              <g class="hl j s g l"><rect class="disp" x="242" y="220" width="11" height="150" rx="2"/></g>
+              <g class="hl j c g"><circle class="cam" cx="266" cy="200" r="8"/><text class="rl start" x="280" y="204">CAM-09</text></g>
+              <!-- rear wall -->
+              <g class="hl j s g l"><rect class="disp" x="1027" y="220" width="11" height="150" rx="2"/></g>
+              <g class="hl c"><circle class="cam" cx="1014" cy="200" r="8"/><text class="rl end" x="1000" y="204">CAM-10</text></g>
+              <text class="rl start" x="1056" y="286">Rear wall</text>
+              <text class="rl start" x="1056" y="304">98″ display</text>
+
+              <!-- new equipment behind front display -->
+              <g class="hl j s c g">
+                <rect x="18" y="214" width="204" height="108" rx="10" style="fill:rgba(200,168,75,.10);stroke:#C8A84B;stroke-width:1.5"/>
+                <text class="rl g" x="120" y="240">Behind front display</text>
+                <text class="rl" x="120" y="262" style="font-size:12px">Teams Room compute</text>
+                <text class="rl" x="120" y="280" style="font-size:12px">ENC-28 encoder</text>
+                <text class="rl" x="120" y="298" style="font-size:12px">DEC-29 decoder</text>
+                <path d="M222 268H240" stroke="#C8A84B" stroke-width="2"/>
+              </g>
+              <text class="rl" x="120" y="350" style="font-size:11.5px">Front wall · 98″ display</text>
+              <rect x="18" y="384" width="204" height="62" rx="10" style="fill:none;stroke:#6F8296;stroke-dasharray:5 4"/>
+              <text class="rl" x="120" y="408" style="font-size:11.5px">Fallback location</text>
+              <text class="rl" x="120" y="426" style="font-size:11.5px">IDF rack DC-3N (Rm 3216)</text>
+
+              <!-- table + chairs -->
+              <rect class="table" x="380" y="250" width="520" height="96" rx="48"/>
+              <g>
+                <circle class="chair" cx="430" cy="236" r="9"/><circle class="chair" cx="485" cy="236" r="9"/><circle class="chair" cx="540" cy="236" r="9"/><circle class="chair" cx="595" cy="236" r="9"/><circle class="chair" cx="650" cy="236" r="9"/><circle class="chair" cx="705" cy="236" r="9"/><circle class="chair" cx="760" cy="236" r="9"/><circle class="chair" cx="815" cy="236" r="9"/><circle class="chair" cx="860" cy="236" r="9"/>
+                <circle class="chair" cx="430" cy="360" r="9"/><circle class="chair" cx="485" cy="360" r="9"/><circle class="chair" cx="540" cy="360" r="9"/><circle class="chair" cx="595" cy="360" r="9"/><circle class="chair" cx="650" cy="360" r="9"/><circle class="chair" cx="705" cy="360" r="9"/><circle class="chair" cx="760" cy="360" r="9"/><circle class="chair" cx="815" cy="360" r="9"/><circle class="chair" cx="860" cy="360" r="9"/>
+                <circle class="chair" cx="366" cy="298" r="9"/><circle class="chair" cx="914" cy="298" r="9"/>
+              </g>
+              <!-- perimeter chairs -->
+              <g>
+                <circle class="chair" cx="300" cy="494" r="8"/><circle class="chair" cx="346" cy="494" r="8"/><circle class="chair" cx="392" cy="494" r="8"/><circle class="chair" cx="438" cy="494" r="8"/><circle class="chair" cx="484" cy="494" r="8"/><circle class="chair" cx="530" cy="494" r="8"/><circle class="chair" cx="576" cy="494" r="8"/><circle class="chair" cx="622" cy="494" r="8"/><circle class="chair" cx="668" cy="494" r="8"/><circle class="chair" cx="714" cy="494" r="8"/><circle class="chair" cx="760" cy="494" r="8"/><circle class="chair" cx="806" cy="494" r="8"/><circle class="chair" cx="852" cy="494" r="8"/><circle class="chair" cx="898" cy="494" r="8"/><circle class="chair" cx="944" cy="494" r="8"/>
+              </g>
+              <!-- ceiling mics -->
+              <g class="hl j g l"><rect class="mic" x="500" y="292" width="84" height="9" rx="4"/><rect class="mic" x="700" y="292" width="84" height="9" rx="4"/><text class="rl" x="640" y="285" style="font-size:11.5px">Ceiling mic arrays × 2</text></g>
+              <!-- speakers -->
+              <g class="hl j g l">
+                <circle class="spk" cx="330" cy="150" r="10"/><circle class="spk" cx="520" cy="150" r="10"/><circle class="spk" cx="760" cy="150" r="10"/><circle class="spk" cx="950" cy="150" r="10"/>
+                <circle class="spk" cx="330" cy="440" r="10"/><circle class="spk" cx="520" cy="440" r="10"/><circle class="spk" cx="760" cy="440" r="10"/><circle class="spk" cx="950" cy="440" r="10"/>
+                <text class="rl" x="640" y="155" style="font-size:11.5px">8 ceiling speakers</text>
+              </g>
+              <!-- controller + cubby -->
+              <g class="hl j s c g l"><rect class="newfill" x="402" y="288" width="22" height="16" rx="3"/><text class="rl g start" x="300" y="410" style="font-size:12px">Table controller TP-28</text><text class="rl start" x="300" y="426" style="font-size:11px">replaces Q-SYS panel TP-18</text><path d="M413 304L360 398" stroke="#C8A84B" stroke-width="1.5"/></g>
+              <g class="hl s"><rect x="440" y="290" width="34" height="14" rx="3" style="fill:none;stroke:#9FB0C3;stroke-width:1.5"/><text class="rl start" x="430" y="200" style="font-size:11px">Laptop cubby (Laptop 1 · 2)</text><path d="M457 290L452 206" stroke="#9FB0C3" stroke-width="1.2"/></g>
+              <!-- occupancy -->
+              <g><path d="M290 110l7 7-7 7-7-7z" fill="#6F8296"/><path d="M990 470l7 7-7 7-7-7z" fill="#6F8296"/></g>
+              <text class="rl" x="640" y="592" style="font-size:11px;fill:#6F8296">Illustrative plan from the as-built set and site photos · not to scale · about 20 seats at the table plus about 15 around the room</text>
+            </svg>
+            </div>
+          </div>
+
+          <div class="legend">
+            <span><i class="l-new"></i>New · Mason-furnished</span>
+            <span><i class="l-ofe"></i>Existing · City-owned</span>
+            <span><i class="l-rm"></i>Removed / unchanged</span>
+            <span><i class="l-path"></i>Active path</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ═════════ 4. BILL OF MATERIALS ═════════ -->
+<section id="components">
+  <div class="wrap">
+    <div class="eyebrow">Bill of materials</div>
+    <h2 class="section-title">Mason furnishes four line items</h2>
+    <p class="lead">The new equipment adds native Microsoft Teams to the room. Everything else in Room 3111 is the City's equipment and stays in service.</p>
+
+    <div class="comp-grid">
+      <!-- Lenovo kit: dark device → light card -->
+      <article class="card comp">
+        <div class="img light">
+          <svg viewBox="0 0 240 180" aria-hidden="true">
+            <ellipse cx="120" cy="160" rx="96" ry="8" fill="#9aa9ba" opacity=".45"/>
+            <!-- compute -->
+            <rect x="26" y="70" width="98" height="84" rx="8" fill="#22272e"/>
+            <rect x="26" y="70" width="98" height="10" rx="5" fill="#2f363f"/>
+            <rect x="36" y="134" width="30" height="5" rx="2" fill="#3c444e"/>
+            <circle cx="112" cy="136" r="3" fill="#7fd1ff"/>
+            <!-- controller -->
+            <path d="M116 152L140 86h80l-10 66z" fill="#1b1f25"/>
+            <path d="M146 92h68l-8 52h-74z" fill="#2c4a6e"/>
+            <rect x="144" y="100" width="34" height="6" rx="3" fill="#cfe0f2" opacity=".85"/>
+            <rect x="141" y="112" width="52" height="5" rx="2.5" fill="#cfe0f2" opacity=".5"/>
+            <rect x="139" y="122" width="40" height="5" rx="2.5" fill="#cfe0f2" opacity=".5"/>
+            <rect x="174" y="128" width="26" height="10" rx="5" fill="#6264a7"/>
+          </svg>
+        </div>
+        <div class="body">
+          <div class="qty">Qty 1 · New</div>
+          <h3>Lenovo ThinkSmart Core Gen 2 Teams Rooms kit</h3>
+          <div class="pn">Lenovo 12WE000NUS</div>
+          <p>Certified Microsoft Teams Rooms compute (Core Ultra 7, 32 GB RAM) with a tabletop IP Controller. The controller replaces the Q-SYS table panel and uses its existing table network drop.</p>
+          <ul><li>One-touch join from the calendar</li><li>Q-SYS Room Controls inside Teams</li><li>Mounted behind the front display (field verify)</li></ul>
+        </div>
+      </article>
+
+      <!-- NV-21-HU: dark device → light card -->
+      <article class="card comp">
+        <div class="img light">
+          <svg viewBox="0 0 240 180" aria-hidden="true">
+            <ellipse cx="120" cy="140" rx="98" ry="8" fill="#9aa9ba" opacity=".45"/>
+            <path d="M30 76l20-18h160l-20 18z" fill="#3a4049"/>
+            <rect x="30" y="76" width="160" height="58" rx="5" fill="#1f242b"/>
+            <path d="M190 76l20-18v58l-20 18z" fill="#15191e"/>
+            <rect x="42" y="92" width="22" height="12" rx="2" fill="#0c0f12" stroke="#4a525d"/>
+            <rect x="72" y="92" width="14" height="12" rx="3" fill="#0c0f12" stroke="#4a525d"/>
+            <rect x="94" y="92" width="18" height="12" rx="2" fill="#0c0f12" stroke="#4a525d"/>
+            <rect x="120" y="92" width="22" height="12" rx="2" fill="#0c0f12" stroke="#4a525d"/>
+            <circle cx="160" cy="98" r="3" fill="#5ad17a"/><circle cx="172" cy="98" r="3" fill="#4aa3ff"/>
+            <rect x="42" y="116" width="70" height="5" rx="2" fill="#3c444e"/>
+          </svg>
+        </div>
+        <div class="body">
+          <div class="qty">Qty 2 · New</div>
+          <h3>Q-SYS NV-21-HU network video endpoint</h3>
+          <div class="pn">QSC NV-21-HU</div>
+          <p>4K60 encoder or decoder with HDMI and USB-C. One works as encoder ENC-28 (Teams video out plus the USB bridge); the other as decoder DEC-29 (content into Teams).</p>
+          <ul><li>Teams on all four displays</li><li>Room cameras and audio to Teams over USB</li><li>Laptop and room PC sharing into Teams</li></ul>
+        </div>
+      </article>
+
+      <!-- PSU: dark accessory → light card -->
+      <article class="card comp">
+        <div class="img light">
+          <svg viewBox="0 0 240 180" aria-hidden="true">
+            <ellipse cx="120" cy="140" rx="80" ry="7" fill="#9aa9ba" opacity=".45"/>
+            <rect x="62" y="78" width="106" height="56" rx="12" fill="#22272e"/>
+            <rect x="62" y="78" width="106" height="12" rx="6" fill="#2f363f"/>
+            <circle cx="150" cy="112" r="3" fill="#5ad17a"/>
+            <path d="M168 106c30 0 30-40 54-40" stroke="#22272e" stroke-width="6" fill="none" stroke-linecap="round"/>
+            <path d="M62 112c-26 0-24 34-46 34" stroke="#22272e" stroke-width="6" fill="none" stroke-linecap="round"/>
+            <rect x="214" y="58" width="16" height="16" rx="3" fill="#3c444e"/>
+          </svg>
+        </div>
+        <div class="body">
+          <div class="qty">Qty 2 · New</div>
+          <h3>Q-SYS NV-21-PSU auxiliary power supply</h3>
+          <div class="pn">QSC NV-21-PSU</div>
+          <p>Auxiliary power for each new NV-21-HU, so the endpoints run at full capability alongside the City's PoE network.</p>
+          <ul><li>One per new endpoint</li><li>Installed with ENC-28 and DEC-29</li></ul>
+        </div>
+      </article>
+
+      <!-- Cyviz: software screen → dark card -->
+      <article class="card comp">
+        <div class="img dark">
+          <svg viewBox="0 0 240 180" aria-hidden="true">
+            <rect x="34" y="34" width="172" height="112" rx="10" fill="#0f2238" stroke="#3a5677"/>
+            <rect x="34" y="34" width="172" height="20" rx="10" fill="#183150"/>
+            <circle cx="48" cy="44" r="3" fill="#C8A84B"/><circle cx="58" cy="44" r="3" fill="#5a7799"/><circle cx="68" cy="44" r="3" fill="#5a7799"/>
+            <rect x="46" y="64" width="44" height="32" rx="6" fill="#16304d"/><circle cx="58" cy="80" r="6" fill="#5ad17a"/><rect x="68" y="76" width="16" height="4" rx="2" fill="#7f9bbb"/><rect x="68" y="84" width="12" height="4" rx="2" fill="#4e6a8a"/>
+            <rect x="98" y="64" width="44" height="32" rx="6" fill="#16304d"/><circle cx="110" cy="80" r="6" fill="#5ad17a"/><rect x="120" y="76" width="16" height="4" rx="2" fill="#7f9bbb"/><rect x="120" y="84" width="12" height="4" rx="2" fill="#4e6a8a"/>
+            <rect x="150" y="64" width="44" height="32" rx="6" fill="#16304d"/><circle cx="162" cy="80" r="6" fill="#C8A84B"/><rect x="172" y="76" width="16" height="4" rx="2" fill="#7f9bbb"/><rect x="172" y="84" width="12" height="4" rx="2" fill="#4e6a8a"/>
+            <polyline points="48,132 70,122 92,126 114,110 136,116 158,104 192,108" fill="none" stroke="#C8A84B" stroke-width="2.5" stroke-linejoin="round"/>
+          </svg>
+        </div>
+        <div class="body">
+          <div class="qty">Qty 5 · 12-month terms</div>
+          <h3>Cyviz Teams Rooms monitoring agent</h3>
+          <div class="pn">Cyviz 1008285-T</div>
+          <p>Five years of device health monitoring and diagnostics, so City IT can see the room's status and what users see, subject to City security approval.</p>
+          <ul><li>Five consecutive 12-month terms</li><li>Installed, registered and verified</li><li>Not a support SLA (see Mason Command)</li></ul>
+        </div>
+      </article>
+    </div>
+    <p class="note illus-note">Product images are representative illustrations, not manufacturer photographs.</p>
+
+    <!-- Reused equipment, CSS filter -->
+    <div class="reuse">
+      <input type="radio" name="rf" id="rf-all" class="sr" checked>
+      <input type="radio" name="rf" id="rf-video" class="sr">
+      <input type="radio" name="rf" id="rf-audio" class="sr">
+      <input type="radio" name="rf" id="rf-cam" class="sr">
+      <input type="radio" name="rf" id="rf-ctl" class="sr">
+      <div class="reuse-head">
+        <div>
+          <h3>What the City already owns, and keeps</h3>
+          <p>Owner-furnished equipment that stays in service and is integrated with the new Teams Room. Filter by system:</p>
+        </div>
+        <div class="chips">
+          <label class="chip" for="rf-all">All</label>
+          <label class="chip" for="rf-video">Video</label>
+          <label class="chip" for="rf-audio">Audio</label>
+          <label class="chip" for="rf-cam">Cameras</label>
+          <label class="chip" for="rf-ctl">Control &amp; network</label>
+        </div>
+      </div>
+      <div class="reuse-grid">
+        <div class="card ri k-video"><div class="q">2</div><div><b>Sony FW-98BZ50L 98″ displays</b><span>Front and rear wall</span></div></div>
+        <div class="card ri k-video"><div class="q">2</div><div><b>Sony FW-85BZ30L 85″ displays</b><span>Side wall</span></div></div>
+        <div class="card ri k-video"><div class="q">6</div><div><b>Q-SYS NV-21-HU endpoints</b><span>Four display decoders, two table laptop encoders</span></div></div>
+        <div class="card ri k-video"><div class="q">1</div><div><b>Q-SYS NV-32-H encoder</b><span>Tuner, room PC, media player</span></div></div>
+        <div class="card ri k-video"><div class="q">1</div><div><b>Room PC (PC-06), media player, tuner</b><span>Integrated into AV distribution</span></div></div>
+        <div class="card ri k-audio"><div class="q">1</div><div><b>Q-SYS Core X20r</b><span>Shared building processor</span></div></div>
+        <div class="card ri k-audio"><div class="q">2</div><div><b>Shure MXA710 ceiling mic arrays</b><span>4-foot linear, Dante</span></div></div>
+        <div class="card ri k-audio"><div class="q">9</div><div><b>QSC SPA-Qf 60x4 amp + 8 AD-C6T speakers</b><span>Ceiling loudspeakers, two zones</span></div></div>
+        <div class="card ri k-audio"><div class="q">1</div><div><b>Williams AV FM T55D</b><span>Assistive listening, Dante input</span></div></div>
+        <div class="card ri k-cam"><div class="q">2</div><div><b>Q-SYS NC-12x80 PTZ cameras</b><span>12× zoom, front and rear wall</span></div></div>
+        <div class="card ri k-ctl"><div class="q">2</div><div><b>Atlona AT-OCS-900N occupancy sensors</b><span>Automated room control</span></div></div>
+        <div class="card ri k-ctl"><div class="q">1</div><div><b>Q-SYS QIO-LVR4 relay module</b><span>Control of external devices</span></div></div>
+        <div class="card ri k-ctl"><div class="q">1</div><div><b>City AV network switch</b><span>PoE for the new NV-21-HU and IP Controller</span></div></div>
+        <div class="card ri k-ctl"><div class="q">1</div><div><b>Microsoft Teams Rooms Pro license</b><span>And Microsoft 365 room resource account</span></div></div>
+        <div class="card ri rm k-ctl"><div class="q">−1</div><div><b>Q-SYS TSC-101-G3 table panel (TP-18)</b><span>Removed and returned to the City</span></div></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ═════════ SCOPE OF WORK ═════════ -->
+<section id="scope">
+  <div class="wrap">
+    <div class="eyebrow">Scope of work</div>
+    <h2 class="section-title">What Mason delivers</h2>
+    <p class="lead">Mason furnishes, installs, configures, programs, tests and commissions the Teams Room and integrates it with the existing Q-SYS system. The project is limited to Chief's Conference Room 3111.</p>
+    <div class="scope-grid">
+      <div>
+        <details class="acc" open>
+          <summary><span class="num">2.0</span>Microsoft Teams Room</summary>
+          <div class="in"><ul>
+            <li>Install and secure the Teams Room compute in the space behind the front display, subject to field verification.</li>
+            <li>Install the Lenovo IP Controller at the table in place of the Q-SYS touch panel, reusing the existing table network connection where compatible.</li>
+            <li>Configure the compute for native Teams, enroll it with the City's Teams Rooms Pro license and room resource account, and show scheduled meetings on the controller.</li>
+            <li>Coordinate device registration, network, authentication and security policies with City IT.</li>
+            <li>Remove the existing Q-SYS table panel and mounting hardware and return them to the City.</li>
+          </ul></div>
+        </details>
+        <details class="acc">
+          <summary><span class="num">3.0</span>Q-SYS video distribution</summary>
+          <div class="in"><ul>
+            <li><b>Teams out:</b> one NV-21-HU encoder takes the Teams Room's primary HDMI output and sends it to all four displays through the existing decoders. It also provides USB bridging to the room's conferencing peripherals.</li>
+            <li><b>Content in:</b> one NV-21-HU decoder feeds the Teams Room's content input from table laptops, the room PC or other Q-SYS sources.</li>
+            <li>Single Teams video output; independent layouts on several displays are not included. Existing displays are not replaced or moved.</li>
+          </ul></div>
+        </details>
+        <details class="acc">
+          <summary><span class="num">4.0</span>Audio and camera integration</summary>
+          <div class="in"><ul>
+            <li>Route the Core X20r, two Shure ceiling arrays, amplifier and eight ceiling speakers to Teams over the USB bridge: two-way audio, mic mute and room volume.</li>
+            <li>Verify audio levels, echo cancellation and routing during commissioning.</li>
+            <li>Integrate the two existing PTZ cameras: front or rear selection from Room Controls, existing presets where supported. One camera live at a time.</li>
+          </ul></div>
+        </details>
+        <details class="acc">
+          <summary><span class="num">5.0</span>Q-SYS control programming</summary>
+          <div class="in"><ul>
+            <li>Back up the existing Q-SYS design before any change.</li>
+            <li>Add the new endpoints and USB bridging to the shared design; make Room Controls available on the Teams controller.</li>
+            <li>Configure source selection, display control, camera selection, volume and mic mute; laptop detection and automatic content routing where supported.</li>
+            <li>Keep the Q-SYS softphone and verify that existing sources still work.</li>
+            <li>Changes are limited to Room 3111 and deployed in coordination with City IT, since the Core X20r serves other areas.</li>
+          </ul></div>
+        </details>
+        <details class="acc">
+          <summary><span class="num">6.0</span>Remote monitoring</summary>
+          <div class="in">
+            <p>Install, register and configure the Cyviz Teams Rooms monitoring agent; set up health and diagnostic functions; coordinate remote-management permissions with City IT; verify connectivity. Includes a five-year subscription under the manufacturer's licensing terms.</p>
+            <p class="note">Remote monitoring is not unlimited technical support, guaranteed incident resolution or an on-site service level agreement.</p>
+          </div>
+        </details>
+        <details class="acc">
+          <summary><span class="num">7.0</span>Installation and infrastructure</summary>
+          <div class="in"><ul>
+            <li>Mount the compute, new endpoints and auxiliary power supplies; connect HDMI, USB, Ethernet and other low-voltage interfaces.</li>
+            <li>Reuse existing cabling and pathways where suitable; dress, identify and label all new cabling.</li>
+            <li>Final placement is confirmed during planning based on space, ventilation, power and cable access. Moving equipment to the IDF rack, if needed, is coordinated with the City and may need a change order.</li>
+          </ul></div>
+        </details>
+        <details class="acc">
+          <summary><span class="num">8.0</span>Testing, commissioning and turnover</summary>
+          <div class="in">
+            <p>Verify registration and calendar sync, one-touch join, Teams on the displays, laptop and room PC sharing, two-way audio, front and rear camera selection, Room Controls, existing sources, monitoring and supported guest join.</p>
+            <p>Mason provides an operational walkthrough for City staff and updated documentation. Acceptance is a successful demonstration with a City representative.</p>
+          </div>
+        </details>
+      </div>
+      <div>
+        <div class="card side-card">
+          <h3>City responsibilities</h3>
+          <ul>
+            <li>Teams Rooms Pro license, Microsoft 365 room resource account and admin permissions</li>
+            <li>Network connectivity, VLANs, routing, DNS, NTP and internet access</li>
+            <li>Switch ports and PoE capacity for the new Q-SYS endpoints</li>
+            <li>Three Category 6 connections to the equipment location (existing spare or City-provided)</li>
+            <li>Access to Q-SYS design files, admin credentials and documentation</li>
+            <li>Room and telecom-space access, escorts and maintenance windows</li>
+          </ul>
+        </div>
+        <div class="card side-card">
+          <h3>Assumptions</h3>
+          <ul>
+            <li>Existing AV equipment is reused and in working order</li>
+            <li>Core X20r stays the room's audio and control platform</li>
+            <li>One primary video output and one active camera</li>
+            <li>Normal business hours; shared-Core changes in an approved maintenance window</li>
+          </ul>
+        </div>
+        <div class="card side-card warn">
+          <h3>Not included</h3>
+          <ul>
+            <li>Replacing displays, cameras, mics, speakers, amplifiers or Q-SYS hardware</li>
+            <li>Network headend equipment, UPS and PDUs</li>
+            <li>Electrical, construction, painting or millwork</li>
+            <li>New conduit or structured cabling beyond the quoted scope</li>
+            <li>Other rooms, building-wide AV or the Police Command Center</li>
+            <li>Multi-camera production; repair of pre-existing failures</li>
+            <li>Managed services or on-site coverage unless contracted; permits, fees and bonds</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ═════════ 5. INVESTMENT ═════════ -->
+<section id="investment">
+  <div class="wrap">
+    <div class="eyebrow">Investment · TIPS Contract #260105</div>
+    <h2 class="section-title">Pricing</h2>
+    <p class="lead">Every equipment line shows its MSRP and TIPS discount and is priced at or below that ceiling. Labor is itemized by hours at TIPS not-to-exceed rates.</p>
+
+    <div class="savings">
+      <div class="card"><div class="k">Equipment at MSRP</div><div class="v">$11,091.28</div></div>
+      <div class="card"><div class="k">Your equipment price</div><div class="v">$9,352.87</div></div>
+      <div class="card"><div class="k">Below MSRP</div><div class="v g">$1,738.41</div></div>
+    </div>
+
+    <div class="table-wrap">
+      <table class="price">
+        <thead><tr><th>Qty</th><th>Model</th><th>Description</th><th class="n">MSRP</th><th>TIPS discount</th><th class="n">Unit price</th><th class="n">Ext. price</th></tr></thead>
+        <tbody>
+          <tr class="grp"><td colspan="7">Conferencing equipment</td></tr>
+          <tr><td>1</td><td class="pn">12WE000NUS</td><td class="d">Lenovo ThinkSmart Core Gen 2 Microsoft Teams Rooms Kit with Core Ultra 7, 32GB RAM, IP Controller</td><td class="n">$4,251.28</td><td><span class="tips-chk">✓ 5% off or more</span></td><td class="n">$3,804.57</td><td class="n">$3,804.57</td></tr>
+          <tr><td>5</td><td class="pn">1008285-T</td><td class="d">Cyviz MTR Monitoring Agent Subscription, 12-Month Term<small>Five consecutive terms</small></td><td class="n">$280.00</td><td><span class="tips-chk">✓ 5% off or more</span></td><td class="n">$264.86</td><td class="n">$1,324.30</td></tr>
+          <tr class="grp"><td colspan="7">Video equipment</td></tr>
+          <tr><td>2</td><td class="pn">NV-21-HU</td><td class="d">QSC 4K60 Network Video Endpoint, Encoder or Decoder, HDMI / USB-C In, HDMI Out</td><td class="n">$2,400.00</td><td><span class="tips-chk">✓ 15% off or more</span></td><td class="n">$1,872.00</td><td class="n">$3,744.00</td></tr>
+          <tr><td>2</td><td class="pn">NV-21-PSU</td><td class="d">QSC Aux Power Supply for NV-21-HU</td><td class="n">$320.00</td><td><span class="tips-chk">✓ 15% off or more</span></td><td class="n">$240.00</td><td class="n">$480.00</td></tr>
+          <tr class="grp"><td colspan="7">Owner-furnished</td></tr>
+          <tr><td>—</td><td class="pn">OFE</td><td class="d">Teams Rooms license and room account, cameras, displays, NV endpoints, Core, amplifier and speakers, microphones, assistive listening, occupancy sensors, relay module, room PC sources and AV network switch<small>Existing City equipment; see "What the City already owns"</small></td><td class="n">—</td><td>—</td><td class="n">$0.00</td><td class="n">$0.00</td></tr>
+          <tr class="sub"><td colspan="6">Equipment subtotal</td><td class="n">$9,352.87</td></tr>
+          <tr><td>1</td><td class="pn">Labor</td><td class="d">Installation &amp; Engineering<small>67 hours at TIPS #260105 rates, itemized below</small></td><td class="n">—</td><td>—</td><td class="n">$7,150.00</td><td class="n">$7,150.00</td></tr>
+          <tr><td>1</td><td class="pn">Misc.</td><td class="d">Miscellaneous Hardware &amp; Direct Costs (Shipping, G&amp;A, etc.)</td><td class="n">—</td><td>—</td><td class="n">$922.87</td><td class="n">$922.87</td></tr>
+          <tr class="tot"><td colspan="6">Project subtotal · Chief's Conference Room</td><td class="n">$17,425.74</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <input type="checkbox" id="sla" class="sr">
+    <div class="invest-grid">
+      <div class="card labor">
+        <h3>Labor at TIPS #260105 rates</h3>
+        <p class="note">Hours by service at not-to-exceed contract rates, never an unsupported lump sum.</p>
+        <div class="lab-row"><span>Installation</span><span class="bar"><i style="width:100%"></i></span><span class="amt"><b>23 h</b> · $2,300</span></div>
+        <div class="lab-row"><span>Programming</span><span class="bar"><i style="width:60.9%"></i></span><span class="amt"><b>14 h</b> · $1,820</span></div>
+        <div class="lab-row"><span>Commissioning</span><span class="bar"><i style="width:52.2%"></i></span><span class="amt"><b>12 h</b> · $1,320</span></div>
+        <div class="lab-row"><span>CAD drawings</span><span class="bar"><i style="width:43.5%"></i></span><span class="amt"><b>10 h</b> · $750</span></div>
+        <div class="lab-row"><span>Project management</span><span class="bar"><i style="width:34.8%"></i></span><span class="amt"><b>8 h</b> · $960</span></div>
+        <div class="lab-total"><span>Labor total · 67 hours</span><span>$7,150.00</span></div>
+        <p class="note" style="margin:10px 0 0">Rates: installation $100/h · commissioning $110/h · programming $130/h · CAD $75/h · project management $120/h.</p>
+      </div>
+      <div class="card totals">
+        <h3>Your total</h3>
+        <div class="trow"><span>Chief's Conference Room</span><span>$17,425.74</span></div>
+        <div class="trow sla-line"><span>Mason Command Silver SLA</span><span>$1,200.00</span></div>
+        <label class="sla-toggle" for="sla">
+          <span><b>Add Mason Command Silver SLA</b><small>Optional; not required to accept the installation</small></span>
+          <span class="switch" aria-hidden="true"></span>
+        </label>
+        <div class="grand no-sla"><span class="k">Project total</span><span class="v">$17,425.74</span></div>
+        <div class="grand with-sla"><span class="k">Total with SLA</span><span class="v">$18,625.74</span></div>
+        <p class="recurring with-sla">Annual recurring: MTI-SLA-SILVER, $2,035.68 per year.</p>
+        <div class="pay"><b style="color:var(--text)">Payment terms.</b> On acceptance, all material and 10% of labor (mobilization) are invoiced, and equipment is ordered when that payment is received. Remaining labor is invoiced by percent complete on a monthly cycle, net 30 from invoice date.</div>
+      </div>
+    </div>
+
+    <div id="tips" class="tips-head">
+      <div class="eyebrow">Finance · Cooperative contract</div>
+      <h3 class="tips-title">TIPS Contract #260105</h3>
+      <p class="lead" style="margin-bottom:24px">The City can buy this project from Mason through TIPS Contract #260105 – Technology Solutions, Products, and Services, without a separate bid. TIPS has already competitively procured and awarded the contract, and every price in this proposal is held to it.</p>
+    </div>
+    <div class="terms-grid">
+      <div class="card term"><div class="k">Awarded vendor</div><div class="v">Mason Technologies, Inc.</div><p>Contract #260105, administered by TIPS through Region 8 Education Service Center (Texas).</p></div>
+      <div class="card term"><div class="k">Goods pricing</div><div class="v">Discount off MSRP</div><p>Set per brand on Pricing Form 1: QSC 15% off or more; brands not listed 5% off or more.</p></div>
+      <div class="card term"><div class="k">Labor pricing</div><div class="v">Not-to-exceed rates</div><p>Hourly rates by service on Pricing Form 2, Region B rates for Florida.</p></div>
+      <div class="card term"><div class="k">Discount floor</div><div class="v">Honored for contract life</div><p>Discounts proposed at award must be honored for the life of the contract.</p></div>
+      <div class="card term"><div class="k">Price checks</div><div class="v">MSRP on request</div><p>TIPS can ask for MSRP documentation for any line before it processes the order. Mason supplies it on request.</p></div>
+      <div class="card term"><div class="k">Changes</div><div class="v">Written change order</div><p>Any added equipment or services stay subject to TIPS pricing and purchasing procedures.</p></div>
+    </div>
+
+    <div class="table-wrap" style="margin-top:16px">
+      <table class="price">
+        <thead><tr><th>TIPS compliance check</th><th class="n">MSRP</th><th>TIPS discount</th><th class="n">TIPS ceiling</th><th class="n">Mason price</th><th>Result</th></tr></thead>
+        <tbody>
+          <tr><td class="pn">12WE000NUS · Lenovo</td><td class="n">$4,251.28</td><td>5% off or more</td><td class="n">$4,038.72</td><td class="n">$3,804.57</td><td><span class="tips-chk">✓ At or below ceiling</span></td></tr>
+          <tr><td class="pn">1008285-T · Cyviz</td><td class="n">$280.00</td><td>5% off or more</td><td class="n">$266.00</td><td class="n">$264.86</td><td><span class="tips-chk">✓ At or below ceiling</span></td></tr>
+          <tr><td class="pn">NV-21-HU · QSC</td><td class="n">$2,400.00</td><td>15% off or more</td><td class="n">$2,040.00</td><td class="n">$1,872.00</td><td><span class="tips-chk">✓ At or below ceiling</span></td></tr>
+          <tr><td class="pn">NV-21-PSU · QSC</td><td class="n">$320.00</td><td>15% off or more</td><td class="n">$272.00</td><td class="n">$240.00</td><td><span class="tips-chk">✓ At or below ceiling</span></td></tr>
+          <tr><td class="pn">Labor · 67 hours</td><td class="n">—</td><td>Pricing Form 2 rates</td><td class="n">—</td><td class="n">$7,150.00</td><td><span class="tips-chk">✓ Itemized at contract rates</span></td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="tips">
+      <div class="card tips-badge">
+        <div class="k">Cooperative purchasing</div>
+        <h3>Procurement framework</h3>
+        <p>Technology Solutions, Products, and Services. Awarded vendor: Mason Technologies, Inc. TIPS is a national purchasing cooperative run by Region 8 Education Service Center. Its contracts are already competitively solicited, so eligible agencies can buy without a separate bid.</p>
+        <p class="note" style="margin:0">The City's Procurement Division should confirm cooperative-contract use under the City's purchasing rules before issuing the purchase order.</p>
+      </div>
+      <div class="card po">
+        <h3>How the City buys through TIPS</h3>
+        <ol>
+          <li>Join TIPS if not already a member (free for city governments).</li>
+          <li>Issue the purchase order to <b>Mason Technologies, Inc.</b>, referencing <b>TIPS Contract #260105</b> and <b>Mason Quote #069179</b>, with the approved value and scope.</li>
+          <li>TIPS reviews the order for pricing compliance and releases it to Mason.</li>
+          <li>Mason delivers this scope at these prices. Changes go through a written change order at TIPS pricing.</li>
+        </ol>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ═════════ MASON COMMAND SLA (quote includes MTI-SLA-SILVER) ═════════ -->
+<section id="sla-section">
+  <div class="wrap">
+    <div class="eyebrow">Optional support · Mason Command</div>
+    <h2 class="section-title">Mason Command Silver SLA</h2>
+    <p class="lead">Tier 1 coverage after the 90-day labor warranty: a named team to call, remote help desk and coordinated warranty service. Separate from the Cyviz monitoring included in the project.</p>
+    <div class="sla-grid">
+      <div class="card sla-c"><div class="k">Help desk hours</div><div class="v">Mon–Fri 9–5</div><p>Eastern time, excluding Mason holidays</p></div>
+      <div class="card sla-c"><div class="k">Response time</div><div class="v">4 business hrs</div><p>Live phone and email access to specialists</p></div>
+      <div class="card sla-c"><div class="k">Remote support</div><div class="v">Unlimited</div><p>Troubleshooting, diagnostics and configuration help</p></div>
+      <div class="card sla-c"><div class="k">On-site dispatch</div><div class="v">3–4 business days</div><p>After remote triage and City approval</p></div>
+    </div>
+    <div class="sla-split">
+      <div class="card">
+        <h3>What's included</h3>
+        <ul>
+          <li>Escalation to senior engineers and real-time remote diagnostics</li>
+          <li>Proactive monitoring with automated health checks and alerts</li>
+          <li>Warranty coordination with manufacturers, including logistics and paperwork</li>
+          <li>Root-cause analysis for recurring issues</li>
+          <li>Access by phone, email or client portal</li>
+        </ul>
+      </div>
+      <div class="card">
+        <h3>Good to know</h3>
+        <ul>
+          <li>On-site dispatch billed at $200–$240 per hour, 4-hour minimum, net 30</li>
+          <li>Preventive maintenance visits are not part of Silver; they can be scheduled separately</li>
+          <li>Re-programming, network design and user training may be billed separately</li>
+          <li>Quoted as SKU MTI-SLA-SILVER</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ═════════ SCHEDULE ═════════ -->
+<section id="schedule">
+  <div class="wrap">
+    <div class="eyebrow">Schedule &amp; acceptance</div>
+    <h2 class="section-title">From purchase order to turnover in five steps</h2>
+    <p class="lead">Work starts when the City's TIPS purchase order is received. Dates are set with the City at kickoff, once equipment lead times are confirmed.</p>
+    <div class="timeline">
+      <div class="card ph"><div class="n">1</div><h3>Kickoff</h3><p>Confirm equipment location, network ports, City resources and accounts; issue final drawings.</p></div>
+      <div class="card ph"><div class="n">2</div><h3>Procurement &amp; prep</h3><p>Order equipment and review the existing Q-SYS programming.</p></div>
+      <div class="card ph"><div class="n">3</div><h3>Installation</h3><p>Install the Teams Room and endpoints, complete connections and remove TP-18.</p></div>
+      <div class="card ph"><div class="n">4</div><h3>Programming &amp; commissioning</h3><p>Deploy the shared-Core changes in an approved window; run functional tests.</p></div>
+      <div class="card ph"><div class="n">5</div><h3>Turnover</h3><p>Updated documentation, a walkthrough for the Chief's staff and the acceptance demonstration.</p></div>
+    </div>
+    <div class="card accept">
+      <div><h3>Acceptance</h3><p class="note" style="margin:6px 0 0">The City accepts the system when these pass with a City representative present.</p></div>
+      <ul>
+        <li>One-touch join of a scheduled Teams meeting</li>
+        <li>Teams on all four displays</li>
+        <li>Laptop and room PC sharing into Teams</li>
+        <li>Clear two-way audio, mute in sync</li>
+        <li>Front and rear camera selection</li>
+        <li>Room PC, TV and media player work as before</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<!-- ═════════ 6. WHY MASON ═════════ -->
+<section id="why">
+  <div class="wrap">
+    <div class="eyebrow">Why Mason</div>
+    <h2 class="section-title">One partner, on the City's own platform</h2>
+    <p class="lead">Mason Technologies is a full-service low-voltage integrator. We assess, design, install and support every system we provide, with dedicated Southeast operations serving Florida.</p>
+    <div class="stats">
+      <div class="card stat"><b>2002</b><span>Founded; more than two decades in low-voltage contracting</span></div>
+      <div class="card stat"><b>150+</b><span>W-2 CWA technicians</span></div>
+      <div class="card stat"><b>40,000</b><span>sq. ft. warehouse for fast mobilization</span></div>
+      <div class="card stat"><b>24/7</b><span>Someone you can always call</span></div>
+    </div>
+    <div class="proof">
+      <div class="card pf"><div class="ic"><svg viewBox="0 0 24 24"><path d="M4 7h16M4 12h10M4 17h7"/><circle cx="18" cy="16" r="3"/></svg></div><h3>Q-SYS depth</h3><p>Mason designs and programs on Q-SYS, the City's standard, and has built four Q-SYS plugins for manufacturer products with its own programmers.</p></div>
+      <div class="card pf"><div class="ic"><svg viewBox="0 0 24 24"><path d="M3 12l4 4L21 4"/><path d="M3 20h18"/></svg></div><h3>We start from what you own</h3><p>The design reuses the City's Core, cameras, microphones, speakers, displays and NV endpoints, and adds only four line items for one-touch Teams.</p></div>
+      <div class="card pf"><div class="ic"><svg viewBox="0 0 24 24"><rect x="4" y="3" width="16" height="18" rx="2"/><path d="M8 8h8M8 12h8M8 16h5"/></svg></div><h3>Drawings before the PO</h3><p>A full drawing set for this room (block diagram, wiring, network, control, power and cable schedule) is already done, so installation follows a reviewed plan.</p></div>
+      <div class="card pf"><div class="ic"><svg viewBox="0 0 24 24"><circle cx="6" cy="12" r="3"/><circle cx="18" cy="6" r="3"/><circle cx="18" cy="18" r="3"/><path d="M8.6 10.6l6.8-3.2M8.6 13.4l6.8 3.2"/></svg></div><h3>One standard across City rooms</h3><p>Mason is also designing City Hall Room 1100 and the Police Headquarters Command Center on the same Q-SYS platform: one design standard, one support team.</p></div>
+      <div class="card pf"><div class="ic"><svg viewBox="0 0 24 24"><path d="M12 3l7 4v5c0 4.5-3 7.5-7 9-4-1.5-7-4.5-7-9V7z"/><path d="M9 12l2 2 4-4"/></svg></div><h3>TIPS awarded vendor</h3><p>Pricing held to TIPS #260105, with MSRP documentation available for any line, so the purchase order clears TIPS review without delay.</p></div>
+      <div class="card pf"><div class="ic"><svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4 21c1.5-4 4.5-6 8-6s6.5 2 8 6"/></svg></div><h3>Certified WBE</h3><p>New York City and nationally certified Women's Business Enterprise, led by Jennifer Mason with a family-business culture.</p></div>
+    </div>
+
+    <h3 class="logos-h">Trusted by government &amp; public-sector agencies</h3>
+    <div class="logo-grid">
+      <div class="edu-logo-card"><img src="gov-logos/city-of-coral-gables.png" alt="City of Coral Gables"></div>
+      <div class="edu-logo-card name-tile"><div class="nm">City of<br>North Lauderdale</div></div>
+      <div class="edu-logo-card"><img src="gov-logos/city-of-miramar.png" alt="City of Miramar"></div>
+      <div class="edu-logo-card"><img src="gov-logos/nypd.png" alt="NYPD"></div>
+      <div class="edu-logo-card"><img src="gov-logos/us-dept-of-justice.png" alt="U.S. Department of Justice"></div>
+      <div class="edu-logo-card"><img src="gov-logos/us-dept-of-state.png" alt="U.S. Department of State"></div>
+      <div class="edu-logo-card"><img src="gov-logos/us-dept-of-war.png" alt="U.S. Department of War"></div>
+      <div class="edu-logo-card"><img src="gov-logos/us-dept-veterans-affairs.png" alt="U.S. Department of Veterans Affairs"></div>
+      <div class="edu-logo-card"><img src="gov-logos/united-nations.png" alt="United Nations"></div>
+      <div class="edu-logo-card"><img src="gov-logos/us-navy.png" alt="U.S. Navy"></div>
+      <div class="edu-logo-card"><img src="gov-logos/us-army.png" alt="U.S. Army"></div>
+      <div class="edu-logo-card"><img src="gov-logos/us-marine-corps.png" alt="U.S. Marine Corps"></div>
+      <div class="edu-logo-card"><img src="gov-logos/defense-logistics-agency.png" alt="Defense Logistics Agency"></div>
+    </div>
+  </div>
+</section>
+
+<!-- ═════════ 7. FOOTER ═════════ -->
+<footer id="contact">
+  <div class="wrap">
+    <div class="eyebrow">Contact</div>
+    <h2 class="section-title">Ready when you are</h2>
+    <p class="lead" style="margin-bottom:0">To proceed, issue a purchase order referencing TIPS Contract #260105 and Mason Quote #069179. This proposal is valid through November 28, 2026.</p>
+    <div class="contact-grid">
+      <div class="card ct"><div class="k">Prepared by</div><h3>Edward Puerta</h3><div class="r">Mason Technologies, Inc.</div><a href="mailto:epuerta@mason247.com?subject=Quote%20%23069179%20%E2%80%93%20Chief's%20Conference%20Room%203111">epuerta@mason247.com</a><a href="tel:+18779473786">877-947-3786</a></div>
+      <div class="card ct"><div class="k">Prepared for</div><h3>Andres Hernandez</h3><div class="r">City of Fort Lauderdale</div><a href="mailto:AHernandez@fortlauderdale.gov">AHernandez@fortlauderdale.gov</a><span class="r" style="display:block;margin:3px 0 0">Police HQ · 1300 W Broward Blvd, Fort Lauderdale, FL 33312</span></div>
+      <div class="card ct"><div class="k">Mason Technologies</div><h3>Headquarters</h3><div class="r">517 Commack Rd, Deer Park, NY 11729</div><a href="tel:+18779473786">877-947-3786</a><span class="r" style="display:block;margin:3px 0 0">mason247.com</span></div>
+    </div>
+    <div class="support-line">
+      <div><div class="eyebrow" style="margin-bottom:4px">Support line</div><b>877-947-3786</b></div>
+      <a class="btn gold" href="mailto:epuerta@mason247.com?subject=Quote%20%23069179%20%E2%80%93%20Ready%20to%20proceed">Email Edward about this quote</a>
+    </div>
+    <div class="foot-base">
+      <div class="foot-logos">
+        <img src="mason-logo-white.png" alt="Mason Technologies">
+        <span class="nav-divider" aria-hidden="true"></span>
+        <img class="cust" src="fort-lauderdale-logo-white.svg" alt="City of Fort Lauderdale">
+      </div>
+      <div>Quote #069179 · Version 1 · Pricing is based on TIPS Contract #260105 · © 2026 Mason Technologies, Inc.</div>
+    </div>
+  </div>
+</footer>
+
+<script>
+/* Extras only — every control above works with JavaScript off. Close the mobile menu after a link tap. */
+document.querySelectorAll('.nav-links a').forEach(function(a){a.addEventListener('click',function(){var t=document.getElementById('nav-toggle');if(t)t.checked=false;});});
+</script>
+</body>
+</html>
