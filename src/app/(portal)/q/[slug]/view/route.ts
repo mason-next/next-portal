@@ -2,33 +2,52 @@ import { NextRequest, NextResponse } from "next/server";
 import path from "path";
 import fs from "fs";
 import { db } from "@/lib/db";
+import { QUOTE_STORAGE_ROOT, listQuoteDownloads } from "@/lib/quote-storage";
+import { resolveDownloadLabel, toDownloadLabelMap } from "@/modules/quote-portal/lib/download-labels";
 
-const STORAGE_ROOT = process.env.FILE_STORAGE_ROOT ?? path.join(process.cwd(), ".local-uploads");
+const STORAGE_ROOT = QUOTE_STORAGE_ROOT;
 
-const DOWNLOAD_BAR = (slug: string, title: string, customer: string, pdfName: string) => `
+interface DownloadButton { file: string; label: string }
+
+const DOWNLOAD_BAR = (slug: string, title: string, customer: string, downloads: DownloadButton[]) => `
 <style>
 #mq-dl-bar *{box-sizing:border-box;font-family:'Segoe UI',-apple-system,sans-serif}
-</style>
-<div id="mq-dl-bar" style="position:fixed;bottom:0;left:0;right:0;z-index:9999;
-  background:rgba(13,27,42,0.97);backdrop-filter:blur(8px);
+#mq-dl-bar{position:fixed;bottom:0;left:0;right:0;z-index:9999;
+  background:rgba(13,27,42,0.97);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);
   border-top:1px solid rgba(200,168,75,0.25);
-  display:flex;align-items:center;justify-content:space-between;
-  padding:12px 32px;gap:16px">
-  <span style="color:rgba(255,255,255,0.7);font-size:14px">
+  display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;
+  padding:12px 32px;gap:10px 16px}
+#mq-dl-bar .mq-title{color:rgba(255,255,255,0.7);font-size:14px;min-width:0}
+#mq-dl-bar .mq-btns{display:flex;flex-wrap:wrap;gap:8px;justify-content:flex-end}
+#mq-dl-bar a{background:#c8a84b;color:#0d1b2a;font-weight:700;padding:9px 18px;border-radius:6px;
+  text-decoration:none;font-size:14px;white-space:nowrap;transition:background 0.2s}
+#mq-dl-bar a:hover,#mq-dl-bar a:focus-visible{background:#e2c46e}
+#mq-dl-bar a.mq-secondary{background:transparent;color:#e2c46e;border:1px solid rgba(200,168,75,0.6)}
+#mq-dl-bar a.mq-secondary:hover,#mq-dl-bar a.mq-secondary:focus-visible{background:rgba(200,168,75,0.15)}
+.mq-dl-spacer{height:var(--mq-d)}
+@media (max-width:720px){
+  .mq-dl-spacer{height:var(--mq-m)}
+  #mq-dl-bar{padding:10px 16px}
+  #mq-dl-bar .mq-title{display:none}
+  #mq-dl-bar .mq-btns{width:100%;justify-content:stretch}
+  #mq-dl-bar a{flex:1 1 140px;text-align:center}
+}
+</style>
+<div id="mq-dl-bar">
+  <span class="mq-title">
     📄 <strong style="color:#fff">${escapeHtml(title)}</strong>
     <span style="color:rgba(255,255,255,0.4);margin:0 8px">—</span>
     <span style="color:rgba(200,168,75,0.9)">${escapeHtml(customer)}</span>
   </span>
-  <a href="/q/${slug}/download/${encodeURIComponent(pdfName)}"
-     style="background:#c8a84b;color:#0d1b2a;font-weight:700;padding:9px 22px;
-            border-radius:6px;text-decoration:none;font-size:14px;
-            white-space:nowrap;flex-shrink:0;transition:background 0.2s"
-     onmouseover="this.style.background='#e2c46e'"
-     onmouseout="this.style.background='#c8a84b'">
-    ⬇ Download Proposal
-  </a>
+  <span class="mq-btns">
+    ${downloads
+      .map(
+        (d, i) => `<a href="/q/${slug}/download/${encodeURIComponent(d.file)}"${i > 0 ? ' class="mq-secondary"' : ""}>⬇ Download ${escapeHtml(d.label)}</a>`
+      )
+      .join("\n    ")}
+  </span>
 </div>
-<div style="height:58px"></div>
+<div class="mq-dl-spacer" style="--mq-d:${downloads.length > 2 ? 112 : 66}px;--mq-m:${downloads.length * 50 + 24}px"></div>
 `;
 
 function escapeHtml(s: string) {
@@ -76,7 +95,7 @@ export async function GET(
 
   const quote = await db.quotePresentation.findUnique({
     where: { slug },
-    select: { id: true, isActive: true, htmlFile: true, storageKey: true, title: true, customer: true },
+    select: { id: true, isActive: true, htmlFile: true, storageKey: true, title: true, customer: true, downloadLabels: true },
   });
 
   if (!quote || !quote.isActive) {
@@ -116,14 +135,15 @@ export async function GET(
     html = `<head>${baseTag}</head>\n` + html;
   }
 
-  // Check for downloadable PDF
-  const dlDir = path.join(quoteDir, "downloads");
-  const pdfs = fs.existsSync(dlDir)
-    ? fs.readdirSync(dlDir).filter((f) => f.toLowerCase().endsWith(".pdf"))
-    : [];
+  // One download button per PDF, labeled from the admin page ("Download Scope of Work").
+  const labels = toDownloadLabelMap(quote.downloadLabels);
+  const downloads = listQuoteDownloads(quote.id).map((d, i) => ({
+    file: d.file,
+    label: resolveDownloadLabel(labels, d.file, i),
+  }));
 
-  if (pdfs.length > 0) {
-    const bar = DOWNLOAD_BAR(slug, quote.title, quote.customer, pdfs[0]);
+  if (downloads.length > 0) {
+    const bar = DOWNLOAD_BAR(slug, quote.title, quote.customer, downloads);
     html = html.includes("</body>")
       ? html.replace("</body>", `${bar}\n</body>`)
       : html + bar;

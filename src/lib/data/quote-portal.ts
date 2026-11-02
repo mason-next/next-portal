@@ -4,6 +4,14 @@ import { db } from "@/lib/db";
 import type { QuotePresentation, QuoteAccessLog } from "@/types/sales";
 import type { QuotePresentation as PrismaQuote } from "@prisma/client";
 import { resolveSalesScope, resolveSalesWriteScope, ForbiddenError, type SalesScope } from "@/lib/access-control";
+import fs from "fs";
+import { listQuoteDownloads, resolveDownloadPath } from "@/lib/quote-storage";
+import {
+  normalizeDownloadLabel,
+  resolveDownloadLabel,
+  toDownloadLabelMap,
+  type QuoteDownload,
+} from "@/modules/quote-portal/lib/download-labels";
 
 // Reps manage only their own presentations; admins/management see all.
 async function assertOwnsQuote(id: string, scope: SalesScope): Promise<void> {
@@ -131,4 +139,42 @@ export async function logQuoteAccess(
   if (!quote || !quote.isActive) throw new Error("Presentation not found or no longer available.");
   await db.quoteAccessLog.create({ data: { quoteId: quote.id, email, ip: "", userAgent: "" } });
   return { quoteId: quote.id, htmlFile: quote.htmlFile, storageKey: quote.storageKey };
+}
+
+// ─── Downloads (PDFs offered on the customer view) ────────────────────────────
+
+export async function getQuoteDownloads(quoteId: string): Promise<QuoteDownload[]> {
+  const scope = await resolveSalesScope("salesQuotes");
+  await assertOwnsQuote(quoteId, scope);
+  const row = await db.quotePresentation.findUnique({ where: { id: quoteId }, select: { downloadLabels: true } });
+  const labels = toDownloadLabelMap(row?.downloadLabels);
+  return listQuoteDownloads(quoteId).map((d, i) => ({
+    file: d.file,
+    label: resolveDownloadLabel(labels, d.file, i),
+    size: d.size,
+    uploadedAt: d.uploadedAt.toISOString(),
+  }));
+}
+
+export async function setQuoteDownloadLabel(quoteId: string, file: string, label: string): Promise<void> {
+  const scope = await resolveSalesWriteScope("salesQuotes");
+  await assertOwnsQuote(quoteId, scope);
+  const clean = normalizeDownloadLabel(label);
+  if (!clean) throw new Error("Label can't be empty.");
+  if (!listQuoteDownloads(quoteId).some((d) => d.file === file)) throw new Error("File not found.");
+  const row = await db.quotePresentation.findUnique({ where: { id: quoteId }, select: { downloadLabels: true } });
+  const labels = { ...toDownloadLabelMap(row?.downloadLabels), [file]: clean };
+  await db.quotePresentation.update({ where: { id: quoteId }, data: { downloadLabels: labels } });
+}
+
+export async function deleteQuoteDownload(quoteId: string, file: string): Promise<void> {
+  const scope = await resolveSalesWriteScope("salesQuotes");
+  await assertOwnsQuote(quoteId, scope);
+  const abs = resolveDownloadPath(quoteId, file);
+  if (!abs) throw new Error("Invalid file name.");
+  if (fs.existsSync(abs)) fs.unlinkSync(abs);
+  const row = await db.quotePresentation.findUnique({ where: { id: quoteId }, select: { downloadLabels: true } });
+  const labels = toDownloadLabelMap(row?.downloadLabels);
+  delete labels[file];
+  await db.quotePresentation.update({ where: { id: quoteId }, data: { downloadLabels: labels } });
 }

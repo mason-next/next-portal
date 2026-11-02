@@ -4,18 +4,18 @@ import { use, useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useQuotePortal } from "@/modules/quote-portal/lib/useQuotePortal";
+import { DownloadsCard } from "@/modules/quote-portal/components/DownloadsCard";
 import type { QuoteAccessLog } from "@/types/sales";
 
 // ── File management (3-dot menu) ──────────────────────────────────────────────
 
 function FileDotsMenu({ quoteId, onUpdated }: { quoteId: string; onUpdated: () => void }) {
   const [open, setOpen] = useState(false);
-  const [uploading, setUploading] = useState<"zip" | "pdf" | null>(null);
+  const [uploading, setUploading] = useState<"zip" | null>(null);
   const [error, setError] = useState("");
-  const [status, setStatus] = useState<{ hasZip: boolean; pdfFiles: string[] } | null>(null);
+  const [status, setStatus] = useState<{ hasZip: boolean } | null>(null);
   const ref = useRef<HTMLDivElement>(null);
   const zipRef = useRef<HTMLInputElement>(null);
-  const pdfRef = useRef<HTMLInputElement>(null);
 
   const loadStatus = useCallback(() => {
     fetch(`/api/quotes/${quoteId}/files`)
@@ -40,7 +40,7 @@ function FileDotsMenu({ quoteId, onUpdated }: { quoteId: string; onUpdated: () =
     return () => document.removeEventListener("mousedown", handler);
   }, []);
 
-  async function upload(formData: FormData, type: "zip" | "pdf") {
+  async function upload(formData: FormData, type: "zip") {
     setUploading(type); setError("");
     try {
       const res = await fetch(`/api/quotes/${quoteId}/upload`, { method: "POST", body: formData });
@@ -61,12 +61,6 @@ function FileDotsMenu({ quoteId, onUpdated }: { quoteId: string; onUpdated: () =
     if (!file.name.endsWith(".zip")) { setError("Please select a .zip file."); return; }
     const form = new FormData(); form.append("zip_file", file);
     upload(form, "zip");
-  }
-
-  function handlePdf(file: File) {
-    if (!file.name.endsWith(".pdf")) { setError("Please select a .pdf file."); return; }
-    const form = new FormData(); form.append("pdf_file", file);
-    upload(form, "pdf");
   }
 
   return (
@@ -99,20 +93,11 @@ function FileDotsMenu({ quoteId, onUpdated }: { quoteId: string; onUpdated: () =
             <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
             {status?.hasZip ? "Replace ZIP" : "Upload ZIP"}
           </button>
-          <button
-            className="w-full text-left px-3 py-2 text-sm hover:bg-muted/50 transition-colors flex items-center gap-2"
-            onClick={() => { setOpen(false); pdfRef.current?.click(); }}
-          >
-            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
-            {status?.pdfFiles?.length ? "Replace PDF" : "Upload PDF"}
-          </button>
         </div>
       )}
 
       <input ref={zipRef} type="file" accept=".zip" className="hidden"
         onChange={(e) => { const f = e.target.files?.[0]; if (f) handleZip(f); e.target.value = ""; }} />
-      <input ref={pdfRef} type="file" accept=".pdf" className="hidden"
-        onChange={(e) => { const f = e.target.files?.[0]; if (f) handlePdf(f); e.target.value = ""; }} />
     </div>
   );
 }
@@ -292,6 +277,9 @@ export default function QuoteDetailPage({ params }: { params: Promise<{ id: stri
           </div>
         </div>
       </div>
+
+      {/* Customer downloads: one labeled button per PDF */}
+      <DownloadsCard quoteId={id} />
 
       {/* Stats row */}
       <div className="grid grid-cols-3 gap-4">

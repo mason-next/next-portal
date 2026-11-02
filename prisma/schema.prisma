@@ -1085,6 +1085,8 @@ model QuotePresentation {
   isActive     Boolean  @default(true)
   htmlFile     String   @default("presentation.html")
   storageKey   String   @default("")
+  /// Download button label per PDF in downloads/, keyed by file name.
+  downloadLabels Json   @default("{}")
   createdBy    String
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt

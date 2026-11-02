@@ -3,8 +3,9 @@ import path from "path";
 import fs from "fs";
 import AdmZip from "adm-zip";
 import { db } from "@/lib/db";
-
-const STORAGE_ROOT = process.env.FILE_STORAGE_ROOT ?? path.join(process.cwd(), ".local-uploads");
+import { ForbiddenError, resolveSalesWriteScope } from "@/lib/access-control";
+import { QUOTE_STORAGE_ROOT as STORAGE_ROOT, safeDownloadName } from "@/lib/quote-storage";
+import { normalizeDownloadLabel, toDownloadLabelMap } from "@/modules/quote-portal/lib/download-labels";
 
 export async function POST(
   request: NextRequest,
@@ -15,9 +16,21 @@ export async function POST(
   const quote = await db.quotePresentation.findUnique({ where: { id } });
   if (!quote) return NextResponse.json({ error: "Not found" }, { status: 404 });
 
+  // Same rule as the server actions: reps manage only their own presentations.
+  try {
+    const scope = await resolveSalesWriteScope("salesQuotes");
+    if (!scope.canSeeAll && quote.createdBy !== scope.userName) {
+      throw new ForbiddenError("You can only manage your own presentations");
+    }
+  } catch (err) {
+    if (err instanceof ForbiddenError) return NextResponse.json({ error: err.message }, { status: 403 });
+    throw err;
+  }
+
   const formData = await request.formData();
   const zipFile = formData.get("zip_file");
   const pdfFile = formData.get("pdf_file");
+  const pdfLabel = normalizeDownloadLabel(formData.get("pdf_label"));
 
   const destDir = path.join(STORAGE_ROOT, "quotes", id);
   const dlDir = path.join(destDir, "downloads");
@@ -66,7 +79,7 @@ export async function POST(
   if (pdfFile && typeof pdfFile !== "string") {
     const originalName = (pdfFile as File).name ?? "proposal.pdf";
     // Sanitize filename
-    const safeName = path.basename(originalName).replace(/[^a-zA-Z0-9._-]/g, "_");
+    const safeName = safeDownloadName(originalName);
     const pdfBuffer = Buffer.from(await pdfFile.arrayBuffer());
     fs.writeFileSync(path.join(dlDir, safeName), pdfBuffer);
     pdfName = safeName;
@@ -81,6 +94,10 @@ export async function POST(
     data: {
       storageKey: `quotes/${id}`,
       htmlFile,
+      // A label sent with the PDF names its download button ("Download Scope of Work").
+      ...(pdfName && pdfLabel
+        ? { downloadLabels: { ...toDownloadLabelMap(quote.downloadLabels), [pdfName]: pdfLabel } }
+        : {}),
     },
   });
 
