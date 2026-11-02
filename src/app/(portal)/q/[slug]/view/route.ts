@@ -50,6 +50,19 @@ const DOWNLOAD_BAR = (slug: string, title: string, customer: string, downloads: 
 <div class="mq-dl-spacer" style="--mq-d:${downloads.length > 2 ? 112 : 66}px;--mq-m:${downloads.length * 50 + 24}px"></div>
 `;
 
+// Keeps "#section" links scrolling within the presentation despite the injected <base> tag
+const IN_PAGE_LINKS_JS = `<script>
+document.addEventListener('click', function (e) {
+  var a = e.target.closest && e.target.closest('a[href^="#"]');
+  if (!a || e.defaultPrevented || e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
+  e.preventDefault();
+  var id = decodeURIComponent(a.getAttribute('href').slice(1));
+  var el = id ? document.getElementById(id) : null;
+  if (el) el.scrollIntoView(); else window.scrollTo(0, 0);
+  history.replaceState(null, '', location.pathname + location.search + (id ? '#' + id : ''));
+});
+</script>`;
+
 function escapeHtml(s: string) {
   return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
 }
@@ -125,8 +138,9 @@ export async function GET(
 
   let html = fs.readFileSync(absPath, "utf-8");
 
-  // Inject <base> tag so relative asset paths resolve to /q/<slug>/files/
-  const baseTag = `<base href="/q/${slug}/files/">`;
+  // Inject <base> tag so relative asset paths resolve to /q/<slug>/files/. The base tag also
+  // re-targets in-page links ("#schematic" -> /q/<slug>/files/#schematic), so keep those here.
+  const baseTag = `<base href="/q/${slug}/files/">${IN_PAGE_LINKS_JS}`;
   if (html.includes("<head>")) {
     html = html.replace("<head>", `<head>\n  ${baseTag}`);
   } else if (html.includes("<html>")) {
