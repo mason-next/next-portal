@@ -195,7 +195,7 @@ section{padding:88px 0;border-top:1px solid var(--line)}
 @media (max-width:760px){.swipe{display:block}}
 
 /* ───────── COMPONENTS ───────── */
-.comp-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:16px}
+.comp-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:16px}
 .comp{overflow:hidden;display:flex;flex-direction:column}
 .comp .img{aspect-ratio:4/3;display:grid;place-items:center;padding:18px}
 .comp .img.light{background:radial-gradient(ellipse at center,#e8eef5,#d0dae6)}
@@ -210,8 +210,6 @@ section{padding:88px 0;border-top:1px solid var(--line)}
 .comp li{padding:3px 0 3px 18px;position:relative;color:var(--text)}
 .comp li::before{content:"";position:absolute;left:2px;top:11px;width:7px;height:7px;border-radius:50%;background:var(--gold)}
 .illus-note{margin-top:14px}
-@media (max-width:1050px){.comp-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
-@media (max-width:560px){.comp-grid{grid-template-columns:1fr}}
 
 .reuse{margin-top:56px}
 .reuse-head{display:flex;justify-content:space-between;align-items:end;gap:20px;flex-wrap:wrap;margin-bottom:18px}
@@ -441,17 +439,17 @@ footer{background:#08141f;border-top:1px solid var(--line);padding:72px 0 34px}
       </div>
       <aside class="invest-card" aria-label="Investment summary">
         <div class="k">Total investment</div>
-        <div class="big">$18,625.74</div>
+        <div class="big">$19,666.87</div>
         <div class="big-sub">Project plus Mason Command Silver SLA at TIPS #260105 pricing</div>
         <div class="mini-rows">
-          <div><span>Equipment</span><span>$9,352.87</span></div>
-          <div><span>Labor · 67 hours at TIPS rates</span><span>$7,150.00</span></div>
-          <div><span>Misc. hardware &amp; direct costs</span><span>$922.87</span></div>
+          <div><span>Equipment</span><span>$9,811.87</span></div>
+          <div><span>Labor · 71 hours at TIPS rates</span><span>$7,690.00</span></div>
+          <div><span>Misc. hardware &amp; direct costs</span><span>$965.00</span></div>
           <div><span>Mason Command Silver SLA</span><span>$1,200.00</span></div>
-          <div class="opt"><span>Project only, without SLA</span><span>$17,425.74</span></div>
+          <div class="opt"><span>Project only, without SLA</span><span>$18,466.87</span></div>
         </div>
         <div class="change-strip">
-          <div><b>4</b><span>new line items</span></div>
+          <div><b>5</b><span>new line items</span></div>
           <div><b>20+</b><span>existing devices reused</span></div>
           <div><b>5 yr</b><span>Cyviz monitoring included</span></div>
         </div>
@@ -511,7 +509,7 @@ footer{background:#08141f;border-top:1px solid var(--line);padding:72px 0 34px}
               <li>Walk in. The table controller already lists today's meetings from the room's Microsoft 365 calendar.</li>
               <li>Tap <b>Join</b>.</li>
               <li>Teams appears on all four displays. The ceiling microphones and speakers carry the call, and the front camera is live.</li>
-              <li>Mute, volume and camera are on the same controller.</li>
+              <li>Volume and mute are on the Teams console. The front camera (CAM-09) is live by default.</li>
             </ol>
             <p class="fine">The Teams Room's single HDMI output goes out through new encoder ENC-28 to the room's four display decoders.</p>
           </div>
@@ -522,19 +520,19 @@ footer{background:#08141f;border-top:1px solid var(--line);padding:72px 0 34px}
               <li>Plug the laptop into the table cubby (HDMI or USB-C).</li>
               <li>Q-SYS detects the laptop and routes it through new decoder DEC-29 into the Teams Room's content input.</li>
               <li>The laptop appears in the meeting and on the room displays.</li>
-              <li>To share the room PC instead, pick it under <b>Room Controls</b>.</li>
+              <li>To share the room PC instead, tap <b>Room PC</b> under <b>Room Controls</b>.</li>
             </ol>
             <p class="fine">Content routing depends on the inputs the Teams Room supports. BYOD laptops keep USB access to the room camera and microphones.</p>
           </div>
           <div class="st st-cam">
             <h4>Switch cameras</h4>
-            <p class="what">Front or rear camera</p>
+            <p class="what">Front camera by default; rear camera from the service UCI</p>
             <ol>
-              <li>On the table controller, open <b>Room Controls</b>.</li>
-              <li>Choose the <b>front</b> camera (CAM-09) or the <b>rear</b> camera (CAM-10). Existing presets are kept where the current programming supports them.</li>
-              <li>The selected camera goes to Teams through the ENC-28 USB bridge.</li>
+              <li>The <b>front</b> camera (CAM-09) is live whenever the room wakes. No action needed.</li>
+              <li>To use the <b>rear</b> camera (CAM-10), a power user opens the online <b>service UCI</b> in the Q-SYS UCI Viewer or a web browser on a City PC or tablet.</li>
+              <li>The service UCI shows live previews of both cameras, with PTZ and presets. Pick a camera and it goes to Teams through the ENC-28 USB bridge.</li>
             </ol>
-            <p class="fine">One camera is live in Teams at a time. Multi-camera composition and automatic camera switching are not included.</p>
+            <p class="fine">One camera is live in Teams at a time. The table controller keeps a simple source page, so camera control lives on the service UCI. Multi-camera composition and automatic camera switching are not included.</p>
           </div>
           <div class="st st-guest">
             <h4>Join a Zoom or Webex invite</h4>
@@ -548,13 +546,13 @@ footer{background:#08141f;border-top:1px solid var(--line);padding:72px 0 34px}
           </div>
           <div class="st st-legacy">
             <h4>Use the room as today</h4>
-            <p class="what">The City's familiar Q-SYS controls</p>
+            <p class="what">One simple source page, modeled on the City's current panel</p>
             <ol>
-              <li>On the table controller, open <b>Room Controls</b>. It opens the City's Q-SYS room interface.</li>
-              <li>Choose PC, Laptop 1, Laptop 2, Media Player, TV Tuner or Phone Call (Q-SYS softphone).</li>
-              <li>Displays, volume and mic mute work as they do now. Zoom on the room PC is unchanged.</li>
+              <li>On the table controller, open <b>Room Controls</b>: six large tiles. Teams, Laptop 1, Laptop 2, Room PC, TV and Media Player.</li>
+              <li>Tap <b>TV</b> or <b>Media Player</b> to put it on all four displays. Tap <b>Back to Teams</b> to return.</li>
+              <li>TV channels, the full audio mixer and the Q-SYS softphone are on the online service UCI. The new IR-28 controls the Comcast tuner again. An incoming softphone call shows Answer / Decline on the controller.</li>
             </ol>
-            <p class="fine">Program audio and camera feeds to the Community Room are assumed unchanged.</p>
+            <p class="fine">Zoom on the room PC is unchanged. Program audio and camera feeds to the Community Room are assumed unchanged.</p>
           </div>
         </div>
 
@@ -564,7 +562,7 @@ footer{background:#08141f;border-top:1px solid var(--line);padding:72px 0 34px}
           <!-- VIEW A: SIGNAL FLOW -->
           <div class="view v-flow">
             <div class="diagram-scroll">
-            <svg class="dg" viewBox="0 0 1192 790" role="img" aria-label="Room 3111 signal flow. New Teams Room compute, encoder ENC-28, decoder DEC-29 and table controller connect to the existing Q-SYS network, displays, cameras, microphones and speakers.">
+            <svg class="dg" viewBox="0 0 1192 864" role="img" aria-label="Room 3111 signal flow. New Teams Room compute, encoder ENC-28, decoder DEC-29 and table controller connect to the existing Q-SYS network, displays, cameras, microphones and speakers.">
               <defs>
                 <marker id="ar" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="#7d93ab"/></marker>
               </defs>
@@ -625,82 +623,78 @@ footer{background:#08141f;border-top:1px solid var(--line);padding:72px 0 34px}
               <g class="n"><rect x="940" y="486" width="210" height="62" rx="10" style="fill:none;stroke-dasharray:4 4"/><text class="t" x="1045" y="512" style="fill:#9FB0C3">Community Room</text><text class="s" x="1045" y="532">camera + audio feeds · unchanged</text></g>
 
               <!-- processing panel -->
-              <rect class="panel" x="20" y="586" width="1150" height="194" rx="14"/>
+              <rect class="panel" x="20" y="586" width="1150" height="268" rx="14"/>
               <text class="lab" x="40" y="614">PROCESSING, AUDIO &amp; CONTROL ON THE Q-SYS NETWORK</text>
               <g class="n hl j s c g l"><rect x="40" y="630" width="264" height="60" rx="10"/><text class="t" x="172" y="655">Q-SYS Core X20r</text><text class="s" x="172" y="675">shared · routing, AEC, softphone</text></g>
               <g class="n hl j g l"><rect x="322" y="630" width="264" height="60" rx="10"/><text class="t" x="454" y="655">Ceiling mics × 2</text><text class="s" x="454" y="675">Shure MXA710 · existing</text></g>
               <g class="n hl j g l"><rect x="604" y="630" width="264" height="60" rx="10"/><text class="t" x="736" y="655">Amp + 8 speakers</text><text class="s" x="736" y="675">QSC SPA-Qf 60x4 · existing</text></g>
               <g class="n hl j c g"><rect x="886" y="630" width="264" height="60" rx="10"/><text class="t" x="1018" y="655">PTZ cameras × 2</text><text class="s" x="1018" y="675">CAM-09 front · CAM-10 rear</text></g>
-              <g class="n new hl j s c g l"><rect x="40" y="704" width="264" height="60" rx="10"/><text class="t" x="172" y="729">Table controller</text><text class="s" x="172" y="749">Lenovo IP Controller · TP-28 · NEW</text></g>
+              <g class="n new hl j s c g l"><rect x="40" y="704" width="264" height="60" rx="10"/><text class="t" x="172" y="729">Table controller · TP-28</text><text class="s" x="172" y="749">Teams console + Room Controls · NEW</text></g>
               <g class="n new"><rect x="322" y="704" width="264" height="60" rx="10"/><text class="t" x="454" y="729">Cyviz monitoring</text><text class="s" x="454" y="749">Teams Room health agent · NEW</text></g>
               <g class="n hl j l"><rect x="604" y="704" width="264" height="60" rx="10"/><text class="t" x="736" y="729">Assistive listening</text><text class="s" x="736" y="749">Williams AV T55D · existing</text></g>
               <g class="n rm"><rect x="886" y="704" width="264" height="60" rx="10"/><text class="t" x="1018" y="729">Removed</text><text class="s" x="1018" y="749">TP-18 table panel · returned to City</text></g>
+              <g class="n new hl l"><rect x="40" y="778" width="264" height="60" rx="10"/><text class="t" x="172" y="803">IR-28 · QIO-IR1x4</text><text class="s" x="172" y="823">Comcast tuner IR control · NEW</text></g>
+              <g class="n new hl c l"><rect x="322" y="778" width="264" height="60" rx="10" style="stroke-dasharray:6 4"/><text class="t" x="454" y="803">Service UCI · online</text><text class="s" x="454" y="823">UCI Viewer / web · cameras, TV, mixer</text></g>
             </svg>
             </div>
           </div>
 
-          <!-- VIEW B: ROOM LAYOUT -->
+          <!-- VIEW B: ROOM LAYOUT (orientation per Mason drawing AV-101 Rev 4) -->
           <div class="view v-room">
             <div class="diagram-scroll">
-            <svg class="dg" viewBox="0 0 1192 610" role="img" aria-label="Illustrative plan view of Room 3111: long boardroom table, 98-inch displays on front and rear walls with PTZ cameras, two 85-inch displays on the side wall, window wall, ceiling microphones and speakers, new table controller and new equipment behind the front display.">
-              <!-- room -->
-              <rect class="wall" x="240" y="60" width="800" height="460" rx="6"/>
-              <line class="win" x1="262" y1="520" x2="1018" y2="520"/>
-              <text class="rl" x="640" y="548">Window wall · roller shades</text>
-              <text class="rl" x="640" y="40">Side wall</text>
+            <svg class="dg" viewBox="0 0 1192 600" role="img" aria-label="Illustrative plan of Room 3111 per Mason drawing AV-101 Rev 4: rear wall on the left with a 98-inch display and CAM-10, front wall on the right with a 98-inch display and CAM-09, window wall at the top, side wall with two 85-inch displays and doors at the bottom, long conference table with the new table controller at the rear end, and new equipment behind the front display.">
+              <rect class="wall" x="170" y="70" width="820" height="440" rx="6"/>
+              <line class="win" x1="190" y1="70" x2="970" y2="70"/>
+              <text class="rl" x="580" y="54">Exterior wall · windows with roller shades</text>
+              <text class="rl" x="580" y="540">Side wall · corridor / Office of the Chief</text>
+              <path d="M196 510h54M910 510h54" stroke="#0D1B2A" stroke-width="5"/>
+              <text class="rl" x="223" y="528" style="font-size:10.5px">door</text><text class="rl" x="937" y="528" style="font-size:10.5px">door</text>
+              <text class="rl end" x="156" y="282">Rear wall</text><text class="rl end" x="156" y="300">MON-36 · 98″</text>
+              <text class="rl" x="1088" y="440" style="font-size:12px">Front wall</text><text class="rl" x="1088" y="458" style="font-size:12px">MON-35 · 98″</text>
 
-              <!-- side wall 85" displays -->
-              <g class="hl j s g l"><rect class="disp" x="420" y="62" width="150" height="11" rx="2"/><text class="rl" x="495" y="94">85″ display</text></g>
-              <g class="hl j s g l"><rect class="disp" x="710" y="62" width="150" height="11" rx="2"/><text class="rl" x="785" y="94">85″ display</text></g>
+              <!-- displays -->
+              <g class="hl j s g l"><rect class="disp" x="172" y="210" width="11" height="150" rx="2"/></g>
+              <g class="hl j s g l"><rect class="disp" x="977" y="210" width="11" height="150" rx="2"/></g>
+              <g class="hl j s g l"><rect class="disp" x="330" y="497" width="150" height="11" rx="2"/><text class="rl" x="405" y="488">MON-38 · 85″</text></g>
+              <g class="hl j s g l"><rect class="disp" x="710" y="497" width="150" height="11" rx="2"/><text class="rl" x="785" y="488">MON-37 · 85″</text></g>
+              <!-- cameras -->
+              <g class="hl c"><circle class="cam" cx="196" cy="186" r="8"/><text class="rl start" x="210" y="190">CAM-10 · rear</text></g>
+              <g class="hl j c g"><circle class="cam" cx="964" cy="386" r="8"/><text class="rl end" x="950" y="390">CAM-09 · front (Teams default)</text></g>
 
-              <!-- front wall -->
-              <g class="hl j s g l"><rect class="disp" x="242" y="220" width="11" height="150" rx="2"/></g>
-              <g class="hl j c g"><circle class="cam" cx="266" cy="200" r="8"/><text class="rl start" x="280" y="204">CAM-09</text></g>
-              <!-- rear wall -->
-              <g class="hl j s g l"><rect class="disp" x="1027" y="220" width="11" height="150" rx="2"/></g>
-              <g class="hl c"><circle class="cam" cx="1014" cy="200" r="8"/><text class="rl end" x="1000" y="204">CAM-10</text></g>
-              <text class="rl start" x="1056" y="286">Rear wall</text>
-              <text class="rl start" x="1056" y="304">98″ display</text>
+              <!-- perimeter chairs, table, chairs -->
+              <g><circle class="chair" cx="250" cy="98" r="8"/><circle class="chair" cx="296" cy="98" r="8"/><circle class="chair" cx="342" cy="98" r="8"/><circle class="chair" cx="388" cy="98" r="8"/><circle class="chair" cx="434" cy="98" r="8"/><circle class="chair" cx="480" cy="98" r="8"/><circle class="chair" cx="526" cy="98" r="8"/><circle class="chair" cx="572" cy="98" r="8"/><circle class="chair" cx="618" cy="98" r="8"/><circle class="chair" cx="664" cy="98" r="8"/><circle class="chair" cx="710" cy="98" r="8"/><circle class="chair" cx="756" cy="98" r="8"/><circle class="chair" cx="802" cy="98" r="8"/><circle class="chair" cx="848" cy="98" r="8"/><circle class="chair" cx="894" cy="98" r="8"/></g>
+              <rect class="table" x="350" y="232" width="470" height="96" rx="48"/>
+              <g><circle class="chair" cx="372" cy="216" r="9"/><circle class="chair" cx="410" cy="216" r="9"/><circle class="chair" cx="448" cy="216" r="9"/><circle class="chair" cx="486" cy="216" r="9"/><circle class="chair" cx="524" cy="216" r="9"/><circle class="chair" cx="562" cy="216" r="9"/><circle class="chair" cx="600" cy="216" r="9"/><circle class="chair" cx="638" cy="216" r="9"/><circle class="chair" cx="676" cy="216" r="9"/><circle class="chair" cx="714" cy="216" r="9"/><circle class="chair" cx="752" cy="216" r="9"/><circle class="chair" cx="790" cy="216" r="9"/><circle class="chair" cx="828" cy="216" r="9"/><circle class="chair" cx="372" cy="344" r="9"/><circle class="chair" cx="410" cy="344" r="9"/><circle class="chair" cx="448" cy="344" r="9"/><circle class="chair" cx="486" cy="344" r="9"/><circle class="chair" cx="524" cy="344" r="9"/><circle class="chair" cx="562" cy="344" r="9"/><circle class="chair" cx="600" cy="344" r="9"/><circle class="chair" cx="638" cy="344" r="9"/><circle class="chair" cx="676" cy="344" r="9"/><circle class="chair" cx="714" cy="344" r="9"/><circle class="chair" cx="752" cy="344" r="9"/><circle class="chair" cx="790" cy="344" r="9"/><circle class="chair" cx="828" cy="344" r="9"/><circle class="chair" cx="836" cy="280" r="9"/></g>
+              <text class="rl" x="585" y="285" style="font-size:11.5px;fill:#6F8296">Conference table</text>
 
-              <!-- new equipment behind front display -->
-              <g class="hl j s c g">
-                <rect x="18" y="214" width="204" height="108" rx="10" style="fill:rgba(200,168,75,.10);stroke:#C8A84B;stroke-width:1.5"/>
-                <text class="rl g" x="120" y="240">Behind front display</text>
-                <text class="rl" x="120" y="262" style="font-size:12px">Teams Room compute</text>
-                <text class="rl" x="120" y="280" style="font-size:12px">ENC-28 encoder</text>
-                <text class="rl" x="120" y="298" style="font-size:12px">DEC-29 decoder</text>
-                <path d="M222 268H240" stroke="#C8A84B" stroke-width="2"/>
-              </g>
-              <text class="rl" x="120" y="350" style="font-size:11.5px">Front wall · 98″ display</text>
-              <rect x="18" y="384" width="204" height="62" rx="10" style="fill:none;stroke:#6F8296;stroke-dasharray:5 4"/>
-              <text class="rl" x="120" y="408" style="font-size:11.5px">Fallback location</text>
-              <text class="rl" x="120" y="426" style="font-size:11.5px">IDF rack DC-3N (Rm 3216)</text>
+              <!-- ceiling -->
+              <g class="hl j g l"><circle class="spk" cx="270" cy="140" r="10"/><circle class="spk" cx="470" cy="140" r="10"/><circle class="spk" cx="690" cy="140" r="10"/><circle class="spk" cx="890" cy="140" r="10"/><circle class="spk" cx="270" cy="440" r="10"/><circle class="spk" cx="470" cy="440" r="10"/><circle class="spk" cx="690" cy="440" r="10"/><circle class="spk" cx="890" cy="440" r="10"/><text class="rl" x="580" y="145" style="font-size:11px">8 ceiling speakers · two rows of 4</text></g>
+              <g class="hl j g l"><rect class="mic" x="430" y="246" width="84" height="8" rx="4"/><rect class="mic" x="660" y="246" width="84" height="8" rx="4"/>
+                <text class="rl" x="472" y="268" style="font-size:10.5px">MIC-06</text><text class="rl" x="702" y="268" style="font-size:10.5px">MIC-05</text></g>
+              <g><path d="M560 188l7 7-7 7-7-7z" fill="#6F8296"/><path d="M800 192l7 7-7 7-7-7z" fill="#6F8296"/></g>
 
-              <!-- table + chairs -->
-              <rect class="table" x="380" y="250" width="520" height="96" rx="48"/>
-              <g>
-                <circle class="chair" cx="430" cy="236" r="9"/><circle class="chair" cx="485" cy="236" r="9"/><circle class="chair" cx="540" cy="236" r="9"/><circle class="chair" cx="595" cy="236" r="9"/><circle class="chair" cx="650" cy="236" r="9"/><circle class="chair" cx="705" cy="236" r="9"/><circle class="chair" cx="760" cy="236" r="9"/><circle class="chair" cx="815" cy="236" r="9"/><circle class="chair" cx="860" cy="236" r="9"/>
-                <circle class="chair" cx="430" cy="360" r="9"/><circle class="chair" cx="485" cy="360" r="9"/><circle class="chair" cx="540" cy="360" r="9"/><circle class="chair" cx="595" cy="360" r="9"/><circle class="chair" cx="650" cy="360" r="9"/><circle class="chair" cx="705" cy="360" r="9"/><circle class="chair" cx="760" cy="360" r="9"/><circle class="chair" cx="815" cy="360" r="9"/><circle class="chair" cx="860" cy="360" r="9"/>
-                <circle class="chair" cx="366" cy="298" r="9"/><circle class="chair" cx="914" cy="298" r="9"/>
+              <!-- table controller at the rear end -->
+              <g class="hl j s c g l"><rect class="newfill" x="318" y="272" width="22" height="16" rx="3"/>
+                <path d="M318 280H232V452" stroke="#C8A84B" stroke-width="1.5" fill="none"/>
+                <text class="rl g start" x="190" y="468" style="font-size:12px">TP-28 table controller</text>
+                <text class="rl start" x="190" y="482" style="font-size:11px">rear end, former TP-18 spot</text></g>
+              <!-- laptop connections -->
+              <g class="hl s"><rect x="572" y="312" width="30" height="12" rx="3" style="fill:none;stroke:#9FB0C3;stroke-width:1.5"/>
+                <path d="M587 324V396" stroke="#9FB0C3" stroke-width="1.2"/>
+                <text class="rl" x="587" y="412" style="font-size:11px">Laptop 1 · 2 (ENC-14/15)</text></g>
+
+              <!-- new equipment behind MON-35 -->
+              <g class="hl j s c g l">
+                <rect x="1004" y="176" width="180" height="150" rx="10" style="fill:rgba(200,168,75,.10);stroke:#C8A84B;stroke-width:1.5"/>
+                <text class="rl g" x="1094" y="200">Behind MON-35</text>
+                <text class="rl" x="1094" y="224" style="font-size:12px">VTC-07 Teams compute</text>
+                <text class="rl" x="1094" y="244" style="font-size:12px">ENC-28 encoder</text>
+                <text class="rl" x="1094" y="264" style="font-size:12px">DEC-29 decoder</text>
+                <text class="rl" x="1094" y="284" style="font-size:12px">IR-28 tuner IR control</text>
+                <text class="rl" x="1094" y="310" style="font-size:10.5px;fill:#6F8296">field verify · fallback IDF DC-3N</text>
+                <path d="M990 250H1004" stroke="#C8A84B" stroke-width="2"/>
               </g>
-              <!-- perimeter chairs -->
-              <g>
-                <circle class="chair" cx="300" cy="494" r="8"/><circle class="chair" cx="346" cy="494" r="8"/><circle class="chair" cx="392" cy="494" r="8"/><circle class="chair" cx="438" cy="494" r="8"/><circle class="chair" cx="484" cy="494" r="8"/><circle class="chair" cx="530" cy="494" r="8"/><circle class="chair" cx="576" cy="494" r="8"/><circle class="chair" cx="622" cy="494" r="8"/><circle class="chair" cx="668" cy="494" r="8"/><circle class="chair" cx="714" cy="494" r="8"/><circle class="chair" cx="760" cy="494" r="8"/><circle class="chair" cx="806" cy="494" r="8"/><circle class="chair" cx="852" cy="494" r="8"/><circle class="chair" cx="898" cy="494" r="8"/><circle class="chair" cx="944" cy="494" r="8"/>
-              </g>
-              <!-- ceiling mics -->
-              <g class="hl j g l"><rect class="mic" x="500" y="292" width="84" height="9" rx="4"/><rect class="mic" x="700" y="292" width="84" height="9" rx="4"/><text class="rl" x="640" y="285" style="font-size:11.5px">Ceiling mic arrays × 2</text></g>
-              <!-- speakers -->
-              <g class="hl j g l">
-                <circle class="spk" cx="330" cy="150" r="10"/><circle class="spk" cx="520" cy="150" r="10"/><circle class="spk" cx="760" cy="150" r="10"/><circle class="spk" cx="950" cy="150" r="10"/>
-                <circle class="spk" cx="330" cy="440" r="10"/><circle class="spk" cx="520" cy="440" r="10"/><circle class="spk" cx="760" cy="440" r="10"/><circle class="spk" cx="950" cy="440" r="10"/>
-                <text class="rl" x="640" y="155" style="font-size:11.5px">8 ceiling speakers</text>
-              </g>
-              <!-- controller + cubby -->
-              <g class="hl j s c g l"><rect class="newfill" x="402" y="288" width="22" height="16" rx="3"/><text class="rl g start" x="300" y="410" style="font-size:12px">Table controller TP-28</text><text class="rl start" x="300" y="426" style="font-size:11px">replaces Q-SYS panel TP-18</text><path d="M413 304L360 398" stroke="#C8A84B" stroke-width="1.5"/></g>
-              <g class="hl s"><rect x="440" y="290" width="34" height="14" rx="3" style="fill:none;stroke:#9FB0C3;stroke-width:1.5"/><text class="rl start" x="430" y="200" style="font-size:11px">Laptop cubby (Laptop 1 · 2)</text><path d="M457 290L452 206" stroke="#9FB0C3" stroke-width="1.2"/></g>
-              <!-- occupancy -->
-              <g><path d="M290 110l7 7-7 7-7-7z" fill="#6F8296"/><path d="M990 470l7 7-7 7-7-7z" fill="#6F8296"/></g>
-              <text class="rl" x="640" y="592" style="font-size:11px;fill:#6F8296">Illustrative plan from the as-built set and site photos · not to scale · about 20 seats at the table plus about 15 around the room</text>
+              <text class="rl" x="580" y="585" style="font-size:11px;fill:#6F8296">Illustrative plan after Mason drawing AV-101 Rev 4 · not to scale · positions to be field verified</text>
             </svg>
             </div>
           </div>
@@ -721,7 +715,7 @@ footer{background:#08141f;border-top:1px solid var(--line);padding:72px 0 34px}
 <section id="components">
   <div class="wrap">
     <div class="eyebrow">Bill of materials</div>
-    <h2 class="section-title">Mason furnishes four line items</h2>
+    <h2 class="section-title">Mason furnishes five line items</h2>
     <p class="lead">The new equipment adds native Microsoft Teams to the room. Everything else in Room 3111 is the City's equipment and stays in service.</p>
 
     <div class="comp-grid">
@@ -749,7 +743,7 @@ footer{background:#08141f;border-top:1px solid var(--line);padding:72px 0 34px}
           <h3>Lenovo ThinkSmart Core Gen 2 Teams Rooms kit</h3>
           <div class="pn">Lenovo 12WE000NUS</div>
           <p>Certified Microsoft Teams Rooms compute (Core Ultra 7, 32 GB RAM) with a tabletop IP Controller. The controller replaces the Q-SYS table panel and uses its existing table network drop.</p>
-          <ul><li>One-touch join from the calendar</li><li>Q-SYS Room Controls inside Teams</li><li>Mounted behind the front display (field verify)</li></ul>
+          <ul><li>One-touch join from the calendar</li><li>Room Controls: six source tiles</li><li>Mounted behind the front display (field verify)</li></ul>
         </div>
       </article>
 
@@ -800,6 +794,30 @@ footer{background:#08141f;border-top:1px solid var(--line);padding:72px 0 34px}
         </div>
       </article>
 
+      <!-- QIO-IR1x4: dark device → light card -->
+      <article class="card comp">
+        <div class="img light">
+          <svg viewBox="0 0 240 180" aria-hidden="true">
+            <ellipse cx="110" cy="132" rx="80" ry="7" fill="#9aa9ba" opacity=".45"/>
+            <rect x="40" y="82" width="140" height="44" rx="6" fill="#1f242b"/>
+            <rect x="40" y="82" width="140" height="9" rx="4" fill="#2f363f"/>
+            <rect x="52" y="100" width="12" height="12" rx="2" fill="#0c0f12" stroke="#4a525d"/>
+            <circle cx="80" cy="106" r="4" fill="#0c0f12" stroke="#4a525d"/><circle cx="96" cy="106" r="4" fill="#0c0f12" stroke="#4a525d"/><circle cx="112" cy="106" r="4" fill="#0c0f12" stroke="#4a525d"/><circle cx="128" cy="106" r="4" fill="#0c0f12" stroke="#4a525d"/>
+            <circle cx="160" cy="104" r="3" fill="#5ad17a"/>
+            <path d="M180 106c22 0 18-44 40-44" stroke="#22272e" stroke-width="3" fill="none" stroke-linecap="round"/>
+            <rect x="212" y="54" width="18" height="12" rx="4" fill="#22272e"/>
+            <path d="M232 52l6-4M233 60h7M232 68l6 4" stroke="#c0392b" stroke-width="2" stroke-linecap="round"/>
+          </svg>
+        </div>
+        <div class="body">
+          <div class="qty">Qty 1 · New</div>
+          <h3>Q-SYS QIO-IR1x4 IR control expander</h3>
+          <div class="pn">QSC QIO-IR1x4</div>
+          <p>Restores control of the Comcast tuner, at the City's request. Installed behind the front display (IR-28) with an emitter on the tuner, powered over PoE.</p>
+          <ul><li>Channels, guide and power from the service UCI</li><li>Replaces EX-04, moved to Room 3800</li></ul>
+        </div>
+      </article>
+
       <!-- Cyviz: software screen → dark card -->
       <article class="card comp">
         <div class="img dark">
@@ -845,10 +863,10 @@ footer{background:#08141f;border-top:1px solid var(--line);padding:72px 0 34px}
         </div>
       </div>
       <div class="reuse-grid">
-        <div class="card ri k-video"><div class="q">2</div><div><b>Sony FW-98BZ50L 98″ displays</b><span>Front and rear wall</span></div></div>
+        <div class="card ri k-video"><div class="q">2</div><div><b>Sony FW-98BZ50L 98″ displays</b><span>Front and rear wall · IP control already in place</span></div></div>
         <div class="card ri k-video"><div class="q">2</div><div><b>Sony FW-85BZ30L 85″ displays</b><span>Side wall</span></div></div>
         <div class="card ri k-video"><div class="q">6</div><div><b>Q-SYS NV-21-HU endpoints</b><span>Four display decoders, two table laptop encoders</span></div></div>
-        <div class="card ri k-video"><div class="q">1</div><div><b>Q-SYS NV-32-H encoder</b><span>Tuner, room PC, media player</span></div></div>
+        <div class="card ri k-video"><div class="q">1</div><div><b>Q-SYS NV-32-H encoder</b><span>Tuner, room PC, media player; USB bridge to the room PC. Reused as-is</span></div></div>
         <div class="card ri k-video"><div class="q">1</div><div><b>Room PC (PC-06), media player, tuner</b><span>Integrated into AV distribution</span></div></div>
         <div class="card ri k-audio"><div class="q">1</div><div><b>Q-SYS Core X20r</b><span>Shared building processor</span></div></div>
         <div class="card ri k-audio"><div class="q">2</div><div><b>Shure MXA710 ceiling mic arrays</b><span>4-foot linear, Dante</span></div></div>
@@ -879,6 +897,7 @@ footer{background:#08141f;border-top:1px solid var(--line);padding:72px 0 34px}
             <li>Install and secure the Teams Room compute in the space behind the front display, subject to field verification.</li>
             <li>Install the Lenovo IP Controller at the table in place of the Q-SYS touch panel, reusing the existing table network connection where compatible.</li>
             <li>Configure the compute for native Teams, enroll it with the City's Teams Rooms Pro license and room resource account, and show scheduled meetings on the controller.</li>
+            <li>Room Controls on the controller is one page of six source tiles: Teams, Laptop 1, Laptop 2, Room PC, TV and Media Player. Volume and mute stay on the Teams console.</li>
             <li>Coordinate device registration, network, authentication and security policies with City IT.</li>
             <li>Remove the existing Q-SYS table panel and mounting hardware and return them to the City.</li>
           </ul></div>
@@ -896,15 +915,16 @@ footer{background:#08141f;border-top:1px solid var(--line);padding:72px 0 34px}
           <div class="in"><ul>
             <li>Route the Core X20r, two Shure ceiling arrays, amplifier and eight ceiling speakers to Teams over the USB bridge: two-way audio, mic mute and room volume.</li>
             <li>Verify audio levels, echo cancellation and routing during commissioning.</li>
-            <li>Integrate the two existing PTZ cameras: front or rear selection from Room Controls, existing presets where supported. One camera live at a time.</li>
+            <li>Integrate the two existing PTZ cameras: the front camera is live by default; front or rear selection, previews, PTZ and presets on the online service UCI. One camera live at a time.</li>
           </ul></div>
         </details>
         <details class="acc">
           <summary><span class="num">5.0</span>Q-SYS control programming</summary>
           <div class="in"><ul>
             <li>Back up the existing Q-SYS design before any change.</li>
-            <li>Add the new endpoints and USB bridging to the shared design; make Room Controls available on the Teams controller.</li>
-            <li>Configure source selection, display control, camera selection, volume and mic mute; laptop detection and automatic content routing where supported.</li>
+            <li>Add the new endpoints, IR-28 and USB bridging to the shared design.</li>
+            <li><b>Room Controls</b> (Teams console): a Teams-style page of six source tiles, with laptop hot-plug auto-share.</li>
+            <li><b>Service UCI</b> (online only, no physical panel): per-display routing, live camera previews, PTZ and presets, TV tuner, full mixer, softphone and PIN-protected settings, opened from the Q-SYS UCI Viewer or a web browser on City devices.</li>
             <li>Keep the Q-SYS softphone and verify that existing sources still work.</li>
             <li>Changes are limited to Room 3111 and deployed in coordination with City IT, since the Core X20r serves other areas.</li>
           </ul></div>
@@ -920,6 +940,7 @@ footer{background:#08141f;border-top:1px solid var(--line);padding:72px 0 34px}
           <summary><span class="num">7.0</span>Installation and infrastructure</summary>
           <div class="in"><ul>
             <li>Mount the compute, new endpoints and auxiliary power supplies; connect HDMI, USB, Ethernet and other low-voltage interfaces.</li>
+            <li>Install the QIO-IR1x4 (IR-28) behind the front display with an IR emitter on the Comcast tuner.</li>
             <li>Reuse existing cabling and pathways where suitable; dress, identify and label all new cabling.</li>
             <li>Final placement is confirmed during planning based on space, ventilation, power and cable access. Moving equipment to the IDF rack, if needed, is coordinated with the City and may need a change order.</li>
           </ul></div>
@@ -927,7 +948,7 @@ footer{background:#08141f;border-top:1px solid var(--line);padding:72px 0 34px}
         <details class="acc">
           <summary><span class="num">8.0</span>Testing, commissioning and turnover</summary>
           <div class="in">
-            <p>Verify registration and calendar sync, one-touch join, Teams on the displays, laptop and room PC sharing, two-way audio, front and rear camera selection, Room Controls, existing sources, monitoring and supported guest join.</p>
+            <p>Verify registration and calendar sync, one-touch join, Teams on the displays, laptop and room PC sharing, two-way audio and mute sync, front and rear camera selection, Room Controls, the online service UCI, tuner IR control, existing sources, monitoring and supported guest join.</p>
             <p>Mason provides an operational walkthrough for City staff and updated documentation. Acceptance is a successful demonstration with a City representative.</p>
           </div>
         </details>
@@ -939,7 +960,8 @@ footer{background:#08141f;border-top:1px solid var(--line);padding:72px 0 34px}
             <li>Teams Rooms Pro license, Microsoft 365 room resource account and admin permissions</li>
             <li>Network connectivity, VLANs, routing, DNS, NTP and internet access</li>
             <li>Switch ports and PoE capacity for the new Q-SYS endpoints</li>
-            <li>Three Category 6 connections to the equipment location (existing spare or City-provided)</li>
+            <li>Category 6 connections to the equipment location (existing spare or City-provided)</li>
+            <li>Access to the Core from City devices for the online service UCI</li>
             <li>Access to Q-SYS design files, admin credentials and documentation</li>
             <li>Room and telecom-space access, escorts and maintenance windows</li>
           </ul>
@@ -978,9 +1000,9 @@ footer{background:#08141f;border-top:1px solid var(--line);padding:72px 0 34px}
     <p class="lead">Every equipment line shows its MSRP and TIPS discount and is priced at or below that ceiling. Labor is itemized by hours at TIPS not-to-exceed rates.</p>
 
     <div class="savings">
-      <div class="card"><div class="k">Equipment at MSRP</div><div class="v">$11,091.28</div></div>
-      <div class="card"><div class="k">Your equipment price</div><div class="v">$9,352.87</div></div>
-      <div class="card"><div class="k">Below MSRP</div><div class="v g">$1,738.41</div></div>
+      <div class="card"><div class="k">Equipment at MSRP</div><div class="v">$11,679.28</div></div>
+      <div class="card"><div class="k">Your equipment price</div><div class="v">$9,811.87</div></div>
+      <div class="card"><div class="k">Below MSRP</div><div class="v g">$1,867.41</div></div>
     </div>
 
     <div class="table-wrap">
@@ -993,12 +1015,14 @@ footer{background:#08141f;border-top:1px solid var(--line);padding:72px 0 34px}
           <tr class="grp"><td colspan="7">Video equipment</td></tr>
           <tr><td>2</td><td class="pn">NV-21-HU</td><td class="d">QSC 4K60 Network Video Endpoint, Encoder or Decoder, HDMI / USB-C In, HDMI Out</td><td class="n">$2,400.00</td><td><span class="tips-chk">✓ 15% off or more</span></td><td class="n">$1,872.00</td><td class="n">$3,744.00</td></tr>
           <tr><td>2</td><td class="pn">NV-21-PSU</td><td class="d">QSC Aux Power Supply for NV-21-HU</td><td class="n">$320.00</td><td><span class="tips-chk">✓ 15% off or more</span></td><td class="n">$240.00</td><td class="n">$480.00</td></tr>
+          <tr class="grp"><td colspan="7">Control equipment</td></tr>
+          <tr><td>1</td><td class="pn">QIO-IR1x4</td><td class="d">QSC Q-SYS IR Control Expander, 1 IR Receiver and 4 IR Emitter Ports, PoE, for Comcast Tuner Control</td><td class="n">$588.00</td><td><span class="tips-chk">✓ 15% off or more</span></td><td class="n">$459.00</td><td class="n">$459.00</td></tr>
           <tr class="grp"><td colspan="7">Owner-furnished</td></tr>
           <tr><td>—</td><td class="pn">OFE</td><td class="d">Teams Rooms license and room account, cameras, displays, NV endpoints, Core, amplifier and speakers, microphones, assistive listening, occupancy sensors, relay module, room PC sources and AV network switch<small>Existing City equipment; see "What the City already owns"</small></td><td class="n">—</td><td>—</td><td class="n">$0.00</td><td class="n">$0.00</td></tr>
-          <tr class="sub"><td colspan="6">Equipment subtotal</td><td class="n">$9,352.87</td></tr>
-          <tr><td>1</td><td class="pn">Labor</td><td class="d">Installation &amp; Engineering<small>67 hours at TIPS #260105 rates, itemized below</small></td><td class="n">—</td><td>—</td><td class="n">$7,150.00</td><td class="n">$7,150.00</td></tr>
-          <tr><td>1</td><td class="pn">Misc.</td><td class="d">Miscellaneous Hardware &amp; Direct Costs (Shipping, G&amp;A, etc.)</td><td class="n">—</td><td>—</td><td class="n">$922.87</td><td class="n">$922.87</td></tr>
-          <tr class="tot"><td colspan="6">Project subtotal · Chief's Conference Room</td><td class="n">$17,425.74</td></tr>
+          <tr class="sub"><td colspan="6">Equipment subtotal</td><td class="n">$9,811.87</td></tr>
+          <tr><td>1</td><td class="pn">Labor</td><td class="d">Installation &amp; Engineering<small>71 hours at TIPS #260105 rates, itemized below</small></td><td class="n">—</td><td>—</td><td class="n">$7,690.00</td><td class="n">$7,690.00</td></tr>
+          <tr><td>1</td><td class="pn">Misc.</td><td class="d">Miscellaneous Hardware &amp; Direct Costs (Shipping, G&amp;A, etc.)</td><td class="n">—</td><td>—</td><td class="n">$965.00</td><td class="n">$965.00</td></tr>
+          <tr class="tot"><td colspan="6">Project subtotal · Chief's Conference Room</td><td class="n">$18,466.87</td></tr>
         </tbody>
       </table>
     </div>
@@ -1009,23 +1033,23 @@ footer{background:#08141f;border-top:1px solid var(--line);padding:72px 0 34px}
         <h3>Labor at TIPS #260105 rates</h3>
         <p class="note">Hours by service at not-to-exceed contract rates, never an unsupported lump sum.</p>
         <div class="lab-row"><span>Installation</span><span class="bar"><i style="width:100%"></i></span><span class="amt"><b>23 h</b> · $2,300</span></div>
-        <div class="lab-row"><span>Programming</span><span class="bar"><i style="width:60.9%"></i></span><span class="amt"><b>14 h</b> · $1,820</span></div>
-        <div class="lab-row"><span>Commissioning</span><span class="bar"><i style="width:52.2%"></i></span><span class="amt"><b>12 h</b> · $1,320</span></div>
+        <div class="lab-row"><span>Programming</span><span class="bar"><i style="width:82.6%"></i></span><span class="amt"><b>19 h</b> · $2,470</span></div>
+        <div class="lab-row"><span>Commissioning</span><span class="bar"><i style="width:47.8%"></i></span><span class="amt"><b>11 h</b> · $1,210</span></div>
         <div class="lab-row"><span>CAD drawings</span><span class="bar"><i style="width:43.5%"></i></span><span class="amt"><b>10 h</b> · $750</span></div>
         <div class="lab-row"><span>Project management</span><span class="bar"><i style="width:34.8%"></i></span><span class="amt"><b>8 h</b> · $960</span></div>
-        <div class="lab-total"><span>Labor total · 67 hours</span><span>$7,150.00</span></div>
+        <div class="lab-total"><span>Labor total · 71 hours</span><span>$7,690.00</span></div>
         <p class="note" style="margin:10px 0 0">Rates: installation $100/h · commissioning $110/h · programming $130/h · CAD $75/h · project management $120/h.</p>
       </div>
       <div class="card totals">
         <h3>Your total</h3>
-        <div class="trow"><span>Chief's Conference Room</span><span>$17,425.74</span></div>
+        <div class="trow"><span>Chief's Conference Room</span><span>$18,466.87</span></div>
         <div class="trow sla-line"><span>Mason Command Silver SLA</span><span>$1,200.00</span></div>
         <label class="sla-toggle" for="sla">
           <span><b>Mason Command Silver SLA</b><small>Included by default. Switch off to remove; it is not required to accept the installation.</small></span>
           <span class="switch" aria-hidden="true"></span>
         </label>
-        <div class="grand no-sla"><span class="k">Project total</span><span class="v">$17,425.74</span></div>
-        <div class="grand with-sla"><span class="k">Total with SLA</span><span class="v">$18,625.74</span></div>
+        <div class="grand no-sla"><span class="k">Project total</span><span class="v">$18,466.87</span></div>
+        <div class="grand with-sla"><span class="k">Total with SLA</span><span class="v">$19,666.87</span></div>
         <p class="recurring with-sla">Annual recurring: MTI-SLA-SILVER, $2,035.68 per year.</p>
         <div class="pay"><b style="color:var(--text)">Payment terms.</b> On acceptance, all material and 10% of labor (mobilization) are invoiced, and equipment is ordered when that payment is received. Remaining labor is invoiced by percent complete on a monthly cycle, net 30 from invoice date.</div>
       </div>
@@ -1053,7 +1077,8 @@ footer{background:#08141f;border-top:1px solid var(--line);padding:72px 0 34px}
           <tr><td class="pn">1008285-T · Cyviz</td><td class="n">$280.00</td><td>5% off or more</td><td class="n">$266.00</td><td class="n">$264.86</td><td><span class="tips-chk">✓ At or below ceiling</span></td></tr>
           <tr><td class="pn">NV-21-HU · QSC</td><td class="n">$2,400.00</td><td>15% off or more</td><td class="n">$2,040.00</td><td class="n">$1,872.00</td><td><span class="tips-chk">✓ At or below ceiling</span></td></tr>
           <tr><td class="pn">NV-21-PSU · QSC</td><td class="n">$320.00</td><td>15% off or more</td><td class="n">$272.00</td><td class="n">$240.00</td><td><span class="tips-chk">✓ At or below ceiling</span></td></tr>
-          <tr><td class="pn">Labor · 67 hours</td><td class="n">—</td><td>Pricing Form 2 rates</td><td class="n">—</td><td class="n">$7,150.00</td><td><span class="tips-chk">✓ Itemized at contract rates</span></td></tr>
+          <tr><td class="pn">QIO-IR1x4 · QSC</td><td class="n">$588.00</td><td>15% off or more</td><td class="n">$499.80</td><td class="n">$459.00</td><td><span class="tips-chk">✓ At or below ceiling</span></td></tr>
+          <tr><td class="pn">Labor · 71 hours</td><td class="n">—</td><td>Pricing Form 2 rates</td><td class="n">—</td><td class="n">$7,690.00</td><td><span class="tips-chk">✓ Itemized at contract rates</span></td></tr>
         </tbody>
       </table>
     </div>
@@ -1134,7 +1159,9 @@ footer{background:#08141f;border-top:1px solid var(--line);padding:72px 0 34px}
         <li>Teams on all four displays</li>
         <li>Laptop and room PC sharing into Teams</li>
         <li>Clear two-way audio, mute in sync</li>
-        <li>Front and rear camera selection</li>
+        <li>CAM-09 live on wake; CAM-10 selectable</li>
+        <li>Online service UCI opens with live camera previews</li>
+        <li>Comcast tuner channel and power control</li>
         <li>Room PC, TV and media player work as before</li>
       </ul>
     </div>
@@ -1155,7 +1182,7 @@ footer{background:#08141f;border-top:1px solid var(--line);padding:72px 0 34px}
     </div>
     <div class="proof">
       <div class="card pf"><div class="ic"><svg viewBox="0 0 24 24"><path d="M4 7h16M4 12h10M4 17h7"/><circle cx="18" cy="16" r="3"/></svg></div><h3>Q-SYS depth</h3><p>Mason designs and programs on Q-SYS, the City's standard, and has built four Q-SYS plugins for manufacturer products with its own programmers.</p></div>
-      <div class="card pf"><div class="ic"><svg viewBox="0 0 24 24"><path d="M3 12l4 4L21 4"/><path d="M3 20h18"/></svg></div><h3>We start from what you own</h3><p>The design reuses the City's Core, cameras, microphones, speakers, displays and NV endpoints, and adds only four line items for one-touch Teams.</p></div>
+      <div class="card pf"><div class="ic"><svg viewBox="0 0 24 24"><path d="M3 12l4 4L21 4"/><path d="M3 20h18"/></svg></div><h3>We start from what you own</h3><p>The design reuses the City's Core, cameras, microphones, speakers, displays and NV endpoints, and adds only five line items for one-touch Teams.</p></div>
       <div class="card pf"><div class="ic"><svg viewBox="0 0 24 24"><rect x="4" y="3" width="16" height="18" rx="2"/><path d="M8 8h8M8 12h8M8 16h5"/></svg></div><h3>Drawings before the PO</h3><p>A full drawing set for this room (block diagram, wiring, network, control, power and cable schedule) is already done, so installation follows a reviewed plan.</p></div>
       <div class="card pf"><div class="ic"><svg viewBox="0 0 24 24"><circle cx="6" cy="12" r="3"/><circle cx="18" cy="6" r="3"/><circle cx="18" cy="18" r="3"/><path d="M8.6 10.6l6.8-3.2M8.6 13.4l6.8 3.2"/></svg></div><h3>One standard across City rooms</h3><p>Mason is also designing City Hall Room 1100 and the Police Headquarters Command Center on the same Q-SYS platform: one design standard, one support team.</p></div>
       <div class="card pf"><div class="ic"><svg viewBox="0 0 24 24"><path d="M12 3l7 4v5c0 4.5-3 7.5-7 9-4-1.5-7-4.5-7-9V7z"/><path d="M9 12l2 2 4-4"/></svg></div><h3>TIPS awarded vendor</h3><p>Pricing held to TIPS #260105, with MSRP documentation available for any line, so the purchase order clears TIPS review without delay.</p></div>
