@@ -365,12 +365,16 @@ table.price .tot td{font-weight:700;font-size:17px;border-bottom:0;color:#fff;ba
 .pf h3{font-size:16.5px;margin-bottom:6px}
 .pf p{font-size:14px;color:var(--muted);margin:0}
 .logos-h{margin:56px 0 18px;font-size:22px;text-align:center}
-.logo-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:12px}
-.edu-logo-card{background:#2a3547;border:1px solid rgba(255,255,255,0.08);border-radius:12px;height:104px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;padding:12px}
-.edu-logo-card img{max-height:44px;max-width:140px;object-fit:contain;display:block}
-.edu-logo-card .cap{font-size:11px;color:var(--muted);text-align:center;line-height:1.2}
+.logo-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:14px}
+.edu-logo-card{position:relative;background:#2a3547;border:1px solid rgba(255,255,255,0.08);border-radius:12px;height:132px;display:flex;align-items:center;justify-content:center;padding:16px;transition:border-color .2s,transform .2s,background .2s;outline:none}
+.edu-logo-card img{max-height:76px;max-width:156px;object-fit:contain;display:block;transition:transform .2s}
+.edu-logo-card .tip{position:absolute;left:50%;bottom:calc(100% + 10px);transform:translate(-50%,4px);width:max-content;max-width:220px;z-index:5;text-align:center;font-size:13px;font-weight:600;line-height:1.3;color:#fff;background:#0D1B2A;border:1px solid var(--gold-line);border-radius:8px;padding:7px 12px;box-shadow:0 8px 24px rgba(0,0,0,.45);opacity:0;transition:opacity .18s,transform .18s;pointer-events:none}
+.edu-logo-card .tip::after{content:"";position:absolute;left:50%;top:100%;transform:translateX(-50%);border:6px solid transparent;border-top-color:var(--gold-line)}
+.edu-logo-card:hover,.edu-logo-card:focus-visible{border-color:var(--gold-line);background:#313d51}
+.edu-logo-card:hover img,.edu-logo-card:focus-visible img{transform:scale(1.06)}
+.edu-logo-card:hover .tip,.edu-logo-card:focus-visible .tip{opacity:1;transform:translate(-50%,0)}
 .name-tile{text-align:center}
-.name-tile .nm{font-size:13px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:#fff;line-height:1.25;border-top:3px solid #2E8BC0;padding-top:8px}
+.name-tile .nm{transition:transform .2s;font-size:14px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:#fff;line-height:1.25;border-top:3px solid #2E8BC0;padding-top:8px}
 @media (max-width:980px){.stats{grid-template-columns:repeat(2,minmax(0,1fr))}.proof{grid-template-columns:1fr 1fr}}
 @media (max-width:560px){.proof{grid-template-columns:1fr}.stat b{font-size:32px}}
 
@@ -1191,19 +1195,19 @@ footer{background:#08141f;border-top:1px solid var(--line);padding:72px 0 34px}
 
     <h3 class="logos-h">Trusted by government &amp; public-sector agencies</h3>
     <div class="logo-grid">
-      <div class="edu-logo-card"><img src="gov-logos/city-of-coral-gables.png" alt="City of Coral Gables"></div>
-      <div class="edu-logo-card name-tile"><div class="nm">City of<br>North Lauderdale</div></div>
-      <div class="edu-logo-card"><img src="gov-logos/city-of-miramar.png" alt="City of Miramar"></div>
-      <div class="edu-logo-card"><img src="gov-logos/nypd.png" alt="NYPD"></div>
-      <div class="edu-logo-card"><img src="gov-logos/us-dept-of-justice.png" alt="U.S. Department of Justice"></div>
-      <div class="edu-logo-card"><img src="gov-logos/us-dept-of-state.png" alt="U.S. Department of State"></div>
-      <div class="edu-logo-card"><img src="gov-logos/us-dept-of-war.png" alt="U.S. Department of War"></div>
-      <div class="edu-logo-card"><img src="gov-logos/us-dept-veterans-affairs.png" alt="U.S. Department of Veterans Affairs"></div>
-      <div class="edu-logo-card"><img src="gov-logos/united-nations.png" alt="United Nations"></div>
-      <div class="edu-logo-card"><img src="gov-logos/us-navy.png" alt="U.S. Navy"></div>
-      <div class="edu-logo-card"><img src="gov-logos/us-army.png" alt="U.S. Army"></div>
-      <div class="edu-logo-card"><img src="gov-logos/us-marine-corps.png" alt="U.S. Marine Corps"></div>
-      <div class="edu-logo-card"><img src="gov-logos/defense-logistics-agency.png" alt="Defense Logistics Agency"></div>
+      <div class="edu-logo-card" tabindex="0" title="City of Coral Gables"><img src="gov-logos/city-of-coral-gables.png" alt="City of Coral Gables"><span class="tip" aria-hidden="true">City of Coral Gables</span></div>
+      <div class="edu-logo-card name-tile" tabindex="0" title="City of North Lauderdale"><div class="nm">City of<br>North Lauderdale</div><span class="tip" aria-hidden="true">City of North Lauderdale</span></div>
+      <div class="edu-logo-card" tabindex="0" title="City of Miramar"><img src="gov-logos/city-of-miramar.png" alt="City of Miramar"><span class="tip" aria-hidden="true">City of Miramar</span></div>
+      <div class="edu-logo-card" tabindex="0" title="NYPD"><img src="gov-logos/nypd.png" alt="NYPD"><span class="tip" aria-hidden="true">NYPD</span></div>
+      <div class="edu-logo-card" tabindex="0" title="U.S. Department of Justice"><img src="gov-logos/us-dept-of-justice.png" alt="U.S. Department of Justice"><span class="tip" aria-hidden="true">U.S. Department of Justice</span></div>
+      <div class="edu-logo-card" tabindex="0" title="U.S. Department of State"><img src="gov-logos/us-dept-of-state.png" alt="U.S. Department of State"><span class="tip" aria-hidden="true">U.S. Department of State</span></div>
+      <div class="edu-logo-card" tabindex="0" title="U.S. Department of War"><img src="gov-logos/us-dept-of-war.png" alt="U.S. Department of War"><span class="tip" aria-hidden="true">U.S. Department of War</span></div>
+      <div class="edu-logo-card" tabindex="0" title="U.S. Department of Veterans Affairs"><img src="gov-logos/us-dept-veterans-affairs.png" alt="U.S. Department of Veterans Affairs"><span class="tip" aria-hidden="true">U.S. Department of Veterans Affairs</span></div>
+      <div class="edu-logo-card" tabindex="0" title="United Nations"><img src="gov-logos/united-nations.png" alt="United Nations"><span class="tip" aria-hidden="true">United Nations</span></div>
+      <div class="edu-logo-card" tabindex="0" title="U.S. Navy"><img src="gov-logos/us-navy.png" alt="U.S. Navy"><span class="tip" aria-hidden="true">U.S. Navy</span></div>
+      <div class="edu-logo-card" tabindex="0" title="U.S. Army"><img src="gov-logos/us-army.png" alt="U.S. Army"><span class="tip" aria-hidden="true">U.S. Army</span></div>
+      <div class="edu-logo-card" tabindex="0" title="U.S. Marine Corps"><img src="gov-logos/us-marine-corps.png" alt="U.S. Marine Corps"><span class="tip" aria-hidden="true">U.S. Marine Corps</span></div>
+      <div class="edu-logo-card" tabindex="0" title="Defense Logistics Agency"><img src="gov-logos/defense-logistics-agency.png" alt="Defense Logistics Agency"><span class="tip" aria-hidden="true">Defense Logistics Agency</span></div>
     </div>
   </div>
 </section>
